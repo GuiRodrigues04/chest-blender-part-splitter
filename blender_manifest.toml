@@ -1,0 +1,15 @@
+schema_version = "1.0.0"
+
+id = "chest_part_splitter"
+version = "0.1.0"
+name = "Chest Part Splitter"
+tagline = "Divisão de modelos em peças e encaixes para 3D"
+maintainer = "Chest Team"
+type = "add-on"
+
+tags = ["Mesh", "3D View", "Object", "Modeling"]
+
+blender_version_min = "4.2.0"
+license = [
+  "SPDX:GPL-2.0-or-later",
+]

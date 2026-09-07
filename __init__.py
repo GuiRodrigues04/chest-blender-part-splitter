@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Chest Part Splitter",
     "author": "Chest Team",
-    "version": (0, 3, 0),
+    "version": (0, 3, 1),
 
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar (N) > Chest > Part Splitter",

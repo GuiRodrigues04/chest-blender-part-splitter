@@ -5,6 +5,16 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.3.1] - 2026-09-06
+
+### Corrigido
+- **Correção Crítica de Escala e Topologia de Encaixes**:
+  - Eliminado bug onde `base_offset` (0.5) e `tip_r` (0.2) em `create_pin_mesh_data` eram interpretados diretamente em Blender Units (metros), gerando pinos e cavidades gigantes de 400 mm a 500 mm em cenas milimétricas/métricas.
+  - O cálculo de `base_offset` e raio de chanfro `tip_r` agora é estritamente proporcional e invariante à escala da geometria (`min(eff_length * 0.05, eff_radius * 0.1)`).
+  - Corrigido o traçado paramétrico da chave cápsula (`create_capsule_2d_profile`), eliminando auto-interseções em formato bowtie e garantindo malhas 100% manifold com normais consistentes para o solver EXACT booleano.
+  - Padronização de `get_scene_scale_to_mm(scene)` em todo o ciclo de vida dos operadores para suporte transparente tanto a cenas em metros quanto em milímetros.
+  - Adicionado teste automatizado de regressão no cubo de 97,2 mm do usuário (`test_smoke_phase2.py` Teste 10), garantindo dimensões exatas de 97,2 x 97,2 x 58,6 mm (macho) e 97,2 x 97,2 x 48,6 mm (fêmea) com 0 arestas não-manifold.
+
 ## [0.3.0] - 2026-09-06
 
 ### Adicionado

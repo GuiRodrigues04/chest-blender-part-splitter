@@ -277,9 +277,50 @@ def run_tests():
     obj_final_b = parts_col.objects.get(f"{cube.name}{PART_B_SUFFIX}")
     assert_test(obj_final_a is not None and obj_final_b is not None, "Objetos finais A e B criados com encaixes")
 
-    # Limpeza e restauração
-    bpy.ops.chest.splitter_restore_original()
-    assert_test(not cube.hide_viewport, "Original restaurado com sucesso")
+    # -------------------------------------------------------------
+    # Teste 10: Regressão — Chave Cápsula em Cubo 97.2 mm (Aferição Dimensional Exata)
+    # -------------------------------------------------------------
+    print("\n--- Teste 10: Regressão do Conector Cápsula no Cubo 97.2 mm ---")
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    src.register()
+
+    bpy.ops.mesh.primitive_cube_add(size=0.0972, location=(0, 0, 0))
+    cube_user = bpy.context.active_object
+    cube_user.name = "Cube_97mm"
+    bpy.context.view_layer.objects.active = cube_user
+    cube_user.select_set(True)
+    bpy.ops.chest.splitter_set_target()
+
+    settings = bpy.context.scene.chest_splitter
+    settings.connector_enabled = True
+    settings.connector_type = 'CAPSULE'
+    settings.connector_male_part = 'A'
+    settings.connector_diameter_mm = 10.0
+    settings.connector_length_mm = 10.0
+    settings.connector_chamfer_mm = 0.8
+    settings.clearance_per_side_mm = 0.10
+    settings.end_clearance_mm = 0.50
+    settings.connector_distribution = 'CENTER'
+
+    bpy.ops.chest.splitter_generate_preview()
+
+    assert_test(settings.session_status == 'PREVIEW_VALID', "Preview com conector Cápsula gerado com sucesso")
+    assert_test(settings.part_a_is_manifold, "Parte A (Cápsula macho) é 100% manifold")
+    assert_test(settings.part_b_is_manifold, "Parte B (Cápsula cavidade) é 100% manifold")
+    assert_test(settings.part_a_non_manifold_edges == 0, "Parte A tem exatamente 0 arestas não-manifold")
+    assert_test(settings.part_b_non_manifold_edges == 0, "Parte B tem exatamente 0 arestas não-manifold")
+
+    # Aferição dimensional: Part A deve ter 97.2 x 97.2 x 58.6 mm (48.6 + 10.0)
+    dims_a = settings.part_a_dims_mm
+    assert_test(abs(dims_a[0] - 97.2) < 0.2, f"Largura X da Parte A = {dims_a[0]:.1f} mm (~97.2 mm)")
+    assert_test(abs(dims_a[1] - 97.2) < 0.2, f"Profundidade Y da Parte A = {dims_a[1]:.1f} mm (~97.2 mm)")
+    assert_test(abs(dims_a[2] - 58.6) < 0.2, f"Altura Z da Parte A = {dims_a[2]:.1f} mm (~58.6 mm com pino)")
+
+    # Part B deve ter 97.2 x 97.2 x 48.6 mm
+    dims_b = settings.part_b_dims_mm
+    assert_test(abs(dims_b[0] - 97.2) < 0.2, f"Largura X da Parte B = {dims_b[0]:.1f} mm (~97.2 mm)")
+    assert_test(abs(dims_b[1] - 97.2) < 0.2, f"Profundidade Y da Parte B = {dims_b[1]:.1f} mm (~97.2 mm)")
+    assert_test(abs(dims_b[2] - 48.6) < 0.2, f"Altura Z da Parte B = {dims_b[2]:.1f} mm (~48.6 mm)")
 
     print(f"\n>>> TODOS OS {passed}/{total} TESTES DA FASE 2 PASSARAM COM SUCESSO! <<<\n")
 

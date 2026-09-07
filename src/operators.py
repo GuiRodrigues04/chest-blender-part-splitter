@@ -21,7 +21,7 @@ from .constants import (
     VOLUME_REL_TOLERANCE,
     CLEARANCE_PRESETS,
 )
-from .diagnostic import analyze_target_mesh
+from .diagnostic import analyze_target_mesh, get_scene_scale_to_mm
 from .geometry_plane import (
     slice_mesh_by_plane,
     compute_explosion_offsets,
@@ -145,7 +145,7 @@ def update_preview_positions(scene: bpy.types.Scene):
     if not obj_a or not obj_b:
         return
 
-    unit_scale = 1000.0 if scene.unit_settings.system != 'NONE' else 1.0
+    unit_scale = get_scene_scale_to_mm(scene)
     plane_normal = Vector(settings.plane_normal).normalized()
 
     if settings.view_mode == 'EXPLODED':
@@ -438,7 +438,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
         mesh_a = bpy.data.meshes.new(f"{target.name}_part_a_preview")
         mesh_b = bpy.data.meshes.new(f"{target.name}_part_b_preview")
 
-        unit_scale = 1000.0 if context.scene.unit_settings.system != 'NONE' else 1.0
+        unit_scale = get_scene_scale_to_mm(context.scene)
 
         try:
             report = slice_mesh_by_plane(

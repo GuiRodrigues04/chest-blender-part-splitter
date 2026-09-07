@@ -21,6 +21,21 @@ class ConnectorValidationError(Exception):
     pass
 
 
+def create_capsule_2d_profile(w: float, half_len: float, segments: int = 32) -> List[Tuple[float, float]]:
+    """Gera pontos 2D fechados e ordenados para o perfil de estádio/cápsula."""
+    pts = []
+    half_segs = max(8, segments // 2)
+    # Arco superior: centro (0, half_len), ângulo de 0 a pi
+    for i in range(half_segs):
+        ang = 0.0 + math.pi * (i / half_segs)
+        pts.append((w * math.cos(ang), half_len + w * math.sin(ang)))
+    # Arco inferior: centro (0, -half_len), ângulo de pi a 2*pi
+    for i in range(half_segs):
+        ang = math.pi + math.pi * (i / half_segs)
+        pts.append((w * math.cos(ang), -half_len + w * math.sin(ang)))
+    return pts
+
+
 def create_pin_mesh_data(
     name: str,
     connector_type: str,
@@ -44,64 +59,33 @@ def create_pin_mesh_data(
     eff_length = length + (clearance_end if is_cavity else 0.0)
     eff_chamfer = 0.0 if is_cavity else min(chamfer, eff_length * 0.4, eff_radius * 0.7)
 
-    # Tolerância de sobreposição na base para garantir operação booleana não coplanar
-    base_offset = 0.5  # milímetros para dentro/fora da interface
+    # Tolerância proporcional de sobreposição na base para garantir operação booleana não coplanar
+    base_offset = min(eff_length * 0.05, eff_radius * 0.1)
     z_min = -base_offset
     z_max = eff_length
+    z_shoulder = z_max - eff_chamfer
+
+    base_verts = []
+    shoulder_verts = []
+    tip_verts = []
 
     if connector_type == 'CAPSULE':
         # Chave tipo cápsula / oblongo (anti-rotação):
-        # Largura = 2 * eff_radius, Comprimento = 3 * eff_radius
         w = eff_radius
-        aspect = 1.8  # proporção oblonga
+        aspect = 1.4  # proporção oblonga
         half_len = w * aspect
+        chamfer_scale = max(0.2, (w - eff_chamfer) / w) if w > 1e-6 else 1.0
 
-        # Gera cilindro achatado ou prisma com extremidades arredondadas
-        z_shoulder = z_max - eff_chamfer
-        tip_r = max(0.2, w - eff_chamfer)
-
-        # Base loop
-        base_verts = []
-        shoulder_verts = []
-        tip_verts = []
-
-        half_segs = segments // 2
-        # Semicírculo positivo em Y
-        for i in range(half_segs + 1):
-            ang = -math.pi / 2.0 + math.pi * (i / half_segs)
-            x = w * math.cos(ang)
-            y = half_len + w * math.sin(ang)
+        prof = create_capsule_2d_profile(w, half_len, segments=segments)
+        for (x, y) in prof:
             base_verts.append(bm.verts.new((x, y, z_min)))
             shoulder_verts.append(bm.verts.new((x, y, z_shoulder)))
-            tip_verts.append(bm.verts.new((tip_r * math.cos(ang), half_len + tip_r * math.sin(ang), z_max)))
-
-        # Semicírculo negativo em Y
-        for i in range(half_segs + 1):
-            ang = math.pi / 2.0 + math.pi * (i / half_segs)
-            x = w * math.cos(ang)
-            y = -half_len + w * math.sin(ang)
-            base_verts.append(bm.verts.new((x, y, z_min)))
-            shoulder_verts.append(bm.verts.new((x, y, z_shoulder)))
-            tip_verts.append(bm.verts.new((tip_r * math.cos(ang), -half_len + tip_r * math.sin(ang), z_max)))
-
-        # Fecha base e topo
-        bm.faces.new(reversed(base_verts))
-        num_v = len(base_verts)
-        for i in range(num_v):
-            i_next = (i + 1) % num_v
-            bm.faces.new((base_verts[i], base_verts[i_next], shoulder_verts[i_next], shoulder_verts[i]))
             if eff_chamfer > 0.0:
-                bm.faces.new((shoulder_verts[i], shoulder_verts[i_next], tip_verts[i_next], tip_verts[i]))
-        bm.faces.new(tip_verts if eff_chamfer > 0.0 else shoulder_verts)
+                tip_verts.append(bm.verts.new((x * chamfer_scale, y * chamfer_scale, z_max)))
 
     else:
         # Padrão: Pino Cilíndrico
-        z_shoulder = z_max - eff_chamfer
-        tip_r = max(0.2, eff_radius - eff_chamfer)
-
-        base_verts = []
-        shoulder_verts = []
-        tip_verts = []
+        tip_r = max(eff_radius * 0.2, eff_radius - eff_chamfer)
 
         for i in range(segments):
             ang = 2.0 * math.pi * i / segments
@@ -113,22 +97,19 @@ def create_pin_mesh_data(
             if eff_chamfer > 0.0:
                 tip_verts.append(bm.verts.new((tip_r * cos_a, tip_r * sin_a, z_max)))
 
-        # Face inferior
-        bm.faces.new(reversed(base_verts))
+    # Face inferior (reversed para apontar normal para -Z)
+    bm.faces.new(reversed(base_verts))
 
-        # Laterais cilíndricas
-        for i in range(segments):
-            i_next = (i + 1) % segments
-            bm.faces.new((base_verts[i], base_verts[i_next], shoulder_verts[i_next], shoulder_verts[i]))
-
-        # Chanfro e topo
+    # Paredes laterais
+    num_v = len(base_verts)
+    for i in range(num_v):
+        i_next = (i + 1) % num_v
+        bm.faces.new((base_verts[i], base_verts[i_next], shoulder_verts[i_next], shoulder_verts[i]))
         if eff_chamfer > 0.0:
-            for i in range(segments):
-                i_next = (i + 1) % segments
-                bm.faces.new((shoulder_verts[i], shoulder_verts[i_next], tip_verts[i_next], tip_verts[i]))
-            bm.faces.new(tip_verts)
-        else:
-            bm.faces.new(shoulder_verts)
+            bm.faces.new((shoulder_verts[i], shoulder_verts[i_next], tip_verts[i_next], tip_verts[i]))
+
+    # Topo (fechamento superior)
+    bm.faces.new(tip_verts if eff_chamfer > 0.0 else shoulder_verts)
 
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
 

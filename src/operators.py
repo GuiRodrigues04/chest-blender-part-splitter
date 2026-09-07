@@ -14,12 +14,14 @@ from .constants import (
     PART_B_SUFFIX,
     WORK_COPY_SUFFIX,
     PLANE_GUIDE_NAME,
+    SOLID_CUTTER_NAME,
     PREVIEW_A_NAME,
     PREVIEW_B_NAME,
     COLOR_PART_A,
     COLOR_PART_B,
     VOLUME_REL_TOLERANCE,
     CLEARANCE_PRESETS,
+    SOLID_PRIMITIVE_TYPES,
 )
 from .diagnostic import analyze_target_mesh, get_scene_scale_to_mm
 from .geometry_plane import (
@@ -34,6 +36,14 @@ from .geometry_connectors import (
     validate_connectors,
     apply_connectors_boolean,
     ConnectorValidationError,
+)
+from .geometry_solid import (
+    create_primitive_cutter_mesh,
+    validate_solid_cutter,
+    slice_mesh_by_solid,
+    compute_solid_explosion_offsets,
+    SolidCutterValidationError,
+    SolidSliceError,
 )
 
 
@@ -135,6 +145,49 @@ def read_plane_geometry(context: bpy.types.Context) -> (Vector, Vector):
         return Vector(settings.plane_origin), Vector(settings.plane_normal).normalized()
 
 
+def ensure_solid_cutter(context: bpy.types.Context) -> bpy.types.Object:
+    """Cria ou recupera o objeto cortador sólido na coleção CHEST_SPLITTER_GUIDES."""
+    col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+    cutter_obj = col.objects.get(SOLID_CUTTER_NAME)
+    settings = context.scene.chest_splitter
+    target = settings.target_object
+
+    if target:
+        center, size = get_target_bounds(target)
+        dims = Vector((size * 0.6, size * 0.6, size * 0.6))
+    else:
+        center = Vector((0.0, 0.0, 0.0))
+        dims = Vector((50.0, 50.0, 50.0))
+
+    prim_type = settings.solid_primitive_type
+
+    if not cutter_obj or cutter_obj.name not in bpy.data.objects:
+        mesh = create_primitive_cutter_mesh(
+            name=f"{SOLID_CUTTER_NAME}_Mesh",
+            primitive_type=prim_type,
+            dims=dims,
+        )
+        cutter_obj = bpy.data.objects.new(SOLID_CUTTER_NAME, mesh)
+        cutter_obj.location = center
+        cutter_obj.display_type = 'WIRE'
+        cutter_obj.show_in_front = True
+        col.objects.link(cutter_obj)
+    else:
+        old_mesh = cutter_obj.data
+        new_mesh = create_primitive_cutter_mesh(
+            name=f"{SOLID_CUTTER_NAME}_Mesh",
+            primitive_type=prim_type,
+            dims=dims,
+        )
+        cutter_obj.data = new_mesh
+        cutter_obj.location = center
+        if old_mesh and old_mesh.users == 0:
+            bpy.data.meshes.remove(old_mesh, do_unlink=True)
+
+    settings.solid_cutter_object = cutter_obj
+    return cutter_obj
+
+
 def update_preview_positions(scene: bpy.types.Scene):
     """Atualiza a posição dos objetos de preview conforme modo montado ou explodido."""
     settings = scene.chest_splitter
@@ -146,14 +199,22 @@ def update_preview_positions(scene: bpy.types.Scene):
         return
 
     unit_scale = get_scene_scale_to_mm(scene)
-    plane_normal = Vector(settings.plane_normal).normalized()
 
     if settings.view_mode == 'EXPLODED':
-        offset_a, offset_b = compute_explosion_offsets(
-            plane_normal,
-            settings.explosion_distance_mm,
-            unit_scale=unit_scale,
-        )
+        if settings.split_mode == 'SOLID':
+            offset_a, offset_b = compute_solid_explosion_offsets(
+                obj_a,
+                obj_b,
+                settings.explosion_distance_mm,
+                unit_scale=unit_scale,
+            )
+        else:
+            plane_normal = Vector(settings.plane_normal).normalized()
+            offset_a, offset_b = compute_explosion_offsets(
+                plane_normal,
+                settings.explosion_distance_mm,
+                unit_scale=unit_scale,
+            )
         obj_a.location = offset_a
         obj_b.location = offset_b
     else:
@@ -412,8 +473,69 @@ class CHEST_OT_splitter_align_plane(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class CHEST_OT_splitter_create_or_focus_solid_cutter(bpy.types.Operator):
+    """Cria ou foca o cortador sólido na Viewport 3D para posicionamento do corte"""
+    bl_idname = "chest.splitter_create_or_focus_solid_cutter"
+    bl_label = "Criar / Focar Cortador Sólido"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.chest_splitter.target_object is not None
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        cutter_obj = ensure_solid_cutter(context)
+        for o in context.selected_objects:
+            o.select_set(False)
+        cutter_obj.select_set(True)
+        context.view_layer.objects.active = cutter_obj
+
+        try:
+            unit_scale = get_scene_scale_to_mm(context.scene)
+            diag = validate_solid_cutter(cutter_obj, settings.target_object, unit_scale=unit_scale)
+            settings.solid_cutter_is_manifold = diag["is_manifold"]
+            settings.solid_cutter_triangles = diag["triangles"]
+            settings.solid_cutter_volume_mm3 = diag["volume_mm3"]
+        except Exception:
+            pass
+
+        self.report({'INFO'}, f"Cortador sólido '{settings.solid_primitive_type}' criado/focado. Use G/R/S para posicionar.")
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_select_existing_cutter(bpy.types.Operator):
+    """Define o objeto ativo na cena como cortador sólido"""
+    bl_idname = "chest.splitter_select_existing_cutter"
+    bl_label = "Usar Ativo como Cortador"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        settings = context.scene.chest_splitter
+        return obj is not None and obj.type == 'MESH' and obj != settings.target_object
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        obj = context.active_object
+        settings.solid_cutter_object = obj
+
+        try:
+            unit_scale = get_scene_scale_to_mm(context.scene)
+            diag = validate_solid_cutter(obj, settings.target_object, unit_scale=unit_scale)
+            settings.solid_cutter_is_manifold = diag["is_manifold"]
+            settings.solid_cutter_triangles = diag["triangles"]
+            settings.solid_cutter_volume_mm3 = diag["volume_mm3"]
+        except Exception as e:
+            self.report({'WARNING'}, f"Aviso de cortador: {str(e)}")
+
+        self.report({'INFO'}, f"Objeto '{obj.name}' definido como cortador sólido.")
+        return {'FINISHED'}
+
+
 class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
-    """Executa o corte planar em cópia e gera a visualização prévia das partes A e B"""
+    """Executa o corte planar ou volumétrico em cópia e gera a visualização prévia das partes A e B"""
     bl_idname = "chest.splitter_generate_preview"
     bl_label = "Gerar Preview do Corte"
     bl_options = {'REGISTER', 'UNDO'}
@@ -427,9 +549,6 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
         settings = context.scene.chest_splitter
         target = settings.target_object
 
-        # Lê origem e normal do plano atual
-        plane_origin, plane_normal = read_plane_geometry(context)
-
         preview_col = get_or_create_collection(context.scene, COLLECTION_PREVIEWS_NAME)
         # Limpa previews anteriores sem deixar malhas órfãs
         cleanup_collection_objects(preview_col)
@@ -440,34 +559,96 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
         unit_scale = get_scene_scale_to_mm(context.scene)
 
-        try:
-            report = slice_mesh_by_plane(
-                source_mesh=target.data,
-                matrix_world=target.matrix_world,
-                plane_origin=plane_origin,
-                plane_normal=plane_normal,
-                target_mesh_a=mesh_a,
-                target_mesh_b=mesh_b,
-                invert_sides=settings.invert_sides,
-                unit_scale=unit_scale,
-            )
-        except NoIntersectionError as e:
-            # Libera malhas vazias criadas
-            bpy.data.meshes.remove(mesh_a, do_unlink=True)
-            bpy.data.meshes.remove(mesh_b, do_unlink=True)
-            settings.session_status = 'PREVIEW_INVALID'
-            settings.last_status = f"Aviso de corte: {str(e)}"
-            settings.last_status_level = 'ERROR'
-            self.report({'WARNING'}, str(e))
-            return {'CANCELLED'}
-        except Exception as e:
-            bpy.data.meshes.remove(mesh_a, do_unlink=True)
-            bpy.data.meshes.remove(mesh_b, do_unlink=True)
-            settings.session_status = 'PREVIEW_INVALID'
-            settings.last_status = f"Erro no corte geométrico: {str(e)}"
-            settings.last_status_level = 'ERROR'
-            self.report({'ERROR'}, str(e))
-            return {'CANCELLED'}
+        if settings.split_mode == 'SOLID':
+            cutter = settings.solid_cutter_object
+            if not cutter or cutter.name not in bpy.data.objects:
+                col = find_collection(context.scene, COLLECTION_GUIDES_NAME)
+                if col:
+                    cutter = col.objects.get(SOLID_CUTTER_NAME)
+                    if cutter:
+                        settings.solid_cutter_object = cutter
+
+            if not cutter or cutter.name not in bpy.data.objects:
+                bpy.data.meshes.remove(mesh_a, do_unlink=True)
+                bpy.data.meshes.remove(mesh_b, do_unlink=True)
+                settings.session_status = 'PREVIEW_INVALID'
+                msg = "Nenhum cortador sólido selecionado. Crie uma primitiva ou escolha um objeto existente."
+                settings.last_status = msg
+                settings.last_status_level = 'ERROR'
+                self.report({'ERROR'}, msg)
+                return {'CANCELLED'}
+
+            try:
+                cutter_diag = validate_solid_cutter(cutter, target, unit_scale=unit_scale)
+                settings.solid_cutter_is_manifold = cutter_diag["is_manifold"]
+                settings.solid_cutter_triangles = cutter_diag["triangles"]
+                settings.solid_cutter_volume_mm3 = cutter_diag["volume_mm3"]
+            except SolidCutterValidationError as cve:
+                bpy.data.meshes.remove(mesh_a, do_unlink=True)
+                bpy.data.meshes.remove(mesh_b, do_unlink=True)
+                settings.session_status = 'PREVIEW_INVALID'
+                settings.last_status = f"Cortador inválido: {str(cve)}"
+                settings.last_status_level = 'ERROR'
+                self.report({'ERROR'}, str(cve))
+                return {'CANCELLED'}
+
+            try:
+                report = slice_mesh_by_solid(
+                    source_mesh=target.data,
+                    matrix_world=target.matrix_world,
+                    cutter_obj=cutter,
+                    target_mesh_a=mesh_a,
+                    target_mesh_b=mesh_b,
+                    invert_sides=settings.invert_sides,
+                    unit_scale=unit_scale,
+                )
+            except NoIntersectionError as e:
+                bpy.data.meshes.remove(mesh_a, do_unlink=True)
+                bpy.data.meshes.remove(mesh_b, do_unlink=True)
+                settings.session_status = 'PREVIEW_INVALID'
+                settings.last_status = f"Aviso de corte sólido: {str(e)}"
+                settings.last_status_level = 'ERROR'
+                self.report({'WARNING'}, str(e))
+                return {'CANCELLED'}
+            except Exception as e:
+                bpy.data.meshes.remove(mesh_a, do_unlink=True)
+                bpy.data.meshes.remove(mesh_b, do_unlink=True)
+                settings.session_status = 'PREVIEW_INVALID'
+                settings.last_status = f"Erro no corte sólido: {str(e)}"
+                settings.last_status_level = 'ERROR'
+                self.report({'ERROR'}, str(e))
+                return {'CANCELLED'}
+
+        else:
+            # Modo PLANAR
+            plane_origin, plane_normal = read_plane_geometry(context)
+            try:
+                report = slice_mesh_by_plane(
+                    source_mesh=target.data,
+                    matrix_world=target.matrix_world,
+                    plane_origin=plane_origin,
+                    plane_normal=plane_normal,
+                    target_mesh_a=mesh_a,
+                    target_mesh_b=mesh_b,
+                    invert_sides=settings.invert_sides,
+                    unit_scale=unit_scale,
+                )
+            except NoIntersectionError as e:
+                bpy.data.meshes.remove(mesh_a, do_unlink=True)
+                bpy.data.meshes.remove(mesh_b, do_unlink=True)
+                settings.session_status = 'PREVIEW_INVALID'
+                settings.last_status = f"Aviso de corte: {str(e)}"
+                settings.last_status_level = 'ERROR'
+                self.report({'WARNING'}, str(e))
+                return {'CANCELLED'}
+            except Exception as e:
+                bpy.data.meshes.remove(mesh_a, do_unlink=True)
+                bpy.data.meshes.remove(mesh_b, do_unlink=True)
+                settings.session_status = 'PREVIEW_INVALID'
+                settings.last_status = f"Erro no corte geométrico: {str(e)}"
+                settings.last_status_level = 'ERROR'
+                self.report({'ERROR'}, str(e))
+                return {'CANCELLED'}
 
         # Cria objetos de preview
         obj_a = bpy.data.objects.new(PREVIEW_A_NAME, mesh_a)
@@ -482,14 +663,17 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
         # Aplica encaixes (macho e cavidade) se ativados na sessão
         if settings.connector_enabled:
-            if settings.connector_male_part == 'A':
-                male_obj = obj_a
-                female_obj = obj_b
-                norm = plane_normal
+            if settings.split_mode == 'SOLID':
+                self.report({'INFO'}, "Encaixes automáticos são suportados no modo Plano.")
             else:
-                male_obj = obj_b
-                female_obj = obj_a
-                norm = -plane_normal
+                if settings.connector_male_part == 'A':
+                    male_obj = obj_a
+                    female_obj = obj_b
+                    norm = plane_normal
+                else:
+                    male_obj = obj_b
+                    female_obj = obj_a
+                    norm = -plane_normal
 
             try:
                 positions = compute_connector_positions(
@@ -695,12 +879,13 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
         parts_col.objects.link(obj_a)
         parts_col.objects.link(obj_b)
 
-        # Oculta guia de corte
+        # Oculta guias de corte
         guides_col = find_collection(context.scene, COLLECTION_GUIDES_NAME)
         if guides_col:
-            guide_obj = guides_col.objects.get(PLANE_GUIDE_NAME)
-            if guide_obj:
-                guide_obj.hide_viewport = True
+            for g_name in (PLANE_GUIDE_NAME, SOLID_CUTTER_NAME):
+                guide_obj = guides_col.objects.get(g_name)
+                if guide_obj:
+                    guide_obj.hide_viewport = True
 
         settings.session_status = 'COMMITTED'
         msg = f"Corte confirmado! Peças finais criadas: '{final_name_a}' e '{final_name_b}'."
@@ -754,10 +939,10 @@ class CHEST_OT_splitter_redo_session(bpy.types.Operator):
         settings = context.scene.chest_splitter
         guides_col = find_collection(context.scene, COLLECTION_GUIDES_NAME)
         if guides_col:
-            guide_obj = guides_col.objects.get(PLANE_GUIDE_NAME)
-            if guide_obj:
-                guide_obj.hide_viewport = False
-
+            for g_name in (PLANE_GUIDE_NAME, SOLID_CUTTER_NAME):
+                guide_obj = guides_col.objects.get(g_name)
+                if guide_obj:
+                    guide_obj.hide_viewport = False
 
         target = settings.target_object
         if target and target.name in bpy.data.objects:
@@ -776,12 +961,13 @@ classes = (
     CHEST_OT_splitter_create_work_copy,
     CHEST_OT_splitter_create_or_focus_guide,
     CHEST_OT_splitter_align_plane,
+    CHEST_OT_splitter_create_or_focus_solid_cutter,
+    CHEST_OT_splitter_select_existing_cutter,
     CHEST_OT_splitter_generate_preview,
     CHEST_OT_splitter_invert_sides,
     CHEST_OT_splitter_invert_male_female,
     CHEST_OT_splitter_apply_connector_preset,
     CHEST_OT_splitter_commit_parts,
-
     CHEST_OT_splitter_restore_original,
     CHEST_OT_splitter_redo_session,
 )

@@ -12,6 +12,14 @@ from bpy.props import (
 )
 
 
+from .constants import (
+    CLEARANCE_PRESETS,
+    SPLIT_MODES,
+    SOLID_SOURCE_TYPES,
+    SOLID_PRIMITIVE_TYPES,
+)
+
+
 def _on_preview_transform_update(self, context):
     """Callback disparado quando o modo de visualização ou a distância de explosão é alterada."""
     if context and hasattr(context, "scene"):
@@ -24,14 +32,45 @@ def _on_preview_transform_update(self, context):
 
 def _on_clearance_preset_update(self, context):
     """Atualiza a folga por lado quando o usuário seleciona um preset."""
-    from .constants import CLEARANCE_PRESETS
     if self.clearance_preset in CLEARANCE_PRESETS:
         self.clearance_per_side_mm = CLEARANCE_PRESETS[self.clearance_preset]
 
 
+def _poll_mesh_cutter(self, obj):
+    """Filtra objetos válidos para atuarem como cortador sólido."""
+    return obj.type == 'MESH' and obj != self.target_object
+
+
+def _on_cutter_object_update(self, context):
+    """Atualiza diagnósticos imediatos ao alterar o objeto cortador."""
+    if self.solid_cutter_object and self.solid_cutter_object.type == 'MESH':
+        try:
+            from .diagnostic import get_scene_scale_to_mm
+            import bmesh
+            scale_to_mm = get_scene_scale_to_mm(context.scene if context else None)
+            bm = bmesh.new()
+            bm.from_mesh(self.solid_cutter_object.data)
+            bm.transform(self.solid_cutter_object.matrix_world)
+            self.solid_cutter_is_manifold = all(e.is_manifold for e in bm.edges)
+            self.solid_cutter_non_manifold_edges = len([e for e in bm.edges if not e.is_manifold])
+            self.solid_cutter_triangles = sum(len(f.verts) - 2 for f in bm.faces)
+            vol_bu = bm.calc_volume()
+            self.solid_cutter_volume_mm3 = abs(vol_bu) * (scale_to_mm ** 3)
+            xs = [v.co.x for v in bm.verts]
+            ys = [v.co.y for v in bm.verts]
+            zs = [v.co.z for v in bm.verts]
+            if xs:
+                self.solid_cutter_dims_mm = (
+                    (max(xs) - min(xs)) * scale_to_mm,
+                    (max(ys) - min(ys)) * scale_to_mm,
+                    (max(zs) - min(zs)) * scale_to_mm,
+                )
+            bm.free()
+        except Exception:
+            pass
+
+
 class ChestSplitterSettings(bpy.types.PropertyGroup):
-
-
     """Estado persistente da sessão do Part Splitter na cena."""
 
     session_id: StringProperty(
@@ -48,11 +87,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
 
     split_mode: EnumProperty(
         name="Modo de Divisão",
-        items=[
-            ('PLANE', "Plano", "Divisão por plano orientado (Fase 1)"),
-            ('SOLID', "Cortador Sólido", "Divisão por cortador fechado (Fase 3)"),
-            ('MATERIAL', "Materiais", "Divisão assistida por materiais (Fase 4)"),
-        ],
+        items=SPLIT_MODES,
         default='PLANE',
         description="Método de divisão do modelo",
     )
@@ -160,6 +195,57 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         precision=1,
         description="Distância de afastamento entre as partes na vista explodida",
         update=lambda self, context: _on_preview_transform_update(self, context),
+    )
+
+    # --- Configurações do Cortador Sólido (Fase 3) ---
+    solid_source: EnumProperty(
+        name="Origem do Cortador",
+        items=SOLID_SOURCE_TYPES,
+        default='PRIMITIVE',
+        description="Origem geométrica do cortador sólido",
+    )
+
+    solid_primitive_type: EnumProperty(
+        name="Primitiva",
+        items=SOLID_PRIMITIVE_TYPES,
+        default='BOX',
+        description="Formato geométrico da primitiva de corte",
+    )
+
+    solid_cutter_object: PointerProperty(
+        name="Objeto Cortador",
+        type=bpy.types.Object,
+        poll=_poll_mesh_cutter,
+        update=_on_cutter_object_update,
+        description="Objeto fechado e manifold que atua como cortador sólido",
+    )
+
+    solid_cutter_is_manifold: BoolProperty(
+        name="Cortador Manifold",
+        default=True,
+    )
+
+    solid_cutter_non_manifold_edges: IntProperty(
+        name="Arestas Abertas Cortador",
+        default=0,
+    )
+
+    solid_cutter_triangles: IntProperty(
+        name="Triângulos Cortador",
+        default=0,
+    )
+
+    solid_cutter_volume_mm3: FloatProperty(
+        name="Volume Cortador (mm³)",
+        default=0.0,
+        precision=2,
+    )
+
+    solid_cutter_dims_mm: FloatVectorProperty(
+        name="Dimensões Cortador (mm)",
+        size=3,
+        default=(0.0, 0.0, 0.0),
+        precision=2,
     )
 
 

@@ -5,6 +5,25 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.4.0] - 2026-09-06
+
+### Adicionado
+- **Fase 3 — Cortador Sólido Personalizado**:
+  - Módulo de geometria volumétrica (`src/geometry_solid.py`) para corte tridimensional usando cortadores fechados e manifold.
+  - Quatro primitivas paramétricas integradas: Caixa (`BOX`), Cilindro (`CYLINDER`), Esfera (`SPHERE`) e Cápsula (`CAPSULE`), geradas diretamente na coleção de guias (`CHEST_SPLITTER_GUIDES`).
+  - Suporte a Cortador Existente da cena: selecione qualquer malha fechada para atuar como ferramenta de corte volumétrico.
+  - Validação estrita e bloqueante do cortador (`validate_solid_cutter`):
+    - Rejeição imediata com feedback amigável para malhas não-manifold (arestas abertas, normais invertidas).
+    - Verificação de volume nulo ou degenerado.
+    - Teste de colisão por bounding box com o modelo alvo antes de qualquer computação booleana pesada.
+  - Fatiamento volumétrico com solver EXACT booleano no espaço de mundo (`slice_mesh_by_solid`):
+    - Parte A = Interseção ($Alvo \cap Cortador$).
+    - Parte B = Diferença ($Alvo \setminus Cortador$).
+    - Suporte nativo à inversão rápida de papéis ($A \leftrightarrow B$) via `invert_sides`.
+  - Visualização explodida volumétrica interativa calculada ao longo do vetor entre os baricentros (centróides) das Partes A e B.
+  - Atualização completa da Seção 2 da interface na Sidebar N com alternador de modo (Plano / Sólido), seleção de fonte, parâmetros do cortador e métricas de diagnóstico em tempo real (manifold, triângulos, volume e dimensões).
+  - Suíte de 55 testes automatizados na Fase 3 (`tests/test_smoke_phase3.py`), totalizando 144 testes no projeto com 100% de aprovação no Blender 5.2 LTS.
+
 ## [0.3.1] - 2026-09-06
 
 ### Corrigido

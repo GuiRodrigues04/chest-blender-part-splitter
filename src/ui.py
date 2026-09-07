@@ -82,106 +82,142 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
         col_mode = box_split.column()
         col_mode.prop(settings, "split_mode", expand=True)
 
-        if settings.split_mode == 'PLANE':
-            if obj:
-                # --- Guia de Corte e Alinhamentos ---
-                box_guide = box_split.box()
-                box_guide.label(text="Posicionamento do Plano", icon='ORIENTATION_LOCAL')
+        if not obj:
+            box_split.label(text="Defina um objeto alvo primeiro.", icon='INFO')
+        elif settings.split_mode == 'PLANE':
+            # --- Guia de Corte e Alinhamentos ---
+            box_guide = box_split.box()
+            box_guide.label(text="Posicionamento do Plano", icon='ORIENTATION_LOCAL')
 
-                row_guide_btn = box_guide.row(align=True)
-                row_guide_btn.operator("chest.splitter_create_or_focus_guide", text="Focar Guia 3D", icon='GIZMO')
+            row_guide_btn = box_guide.row(align=True)
+            row_guide_btn.operator("chest.splitter_create_or_focus_guide", text="Focar Guia 3D", icon='GIZMO')
 
-                box_guide.label(text="Alinhamentos Rápidos:")
-                row_align_view = box_guide.row(align=True)
-                op_v = row_align_view.operator("chest.splitter_align_plane", text="Vista", icon='VIEW_CAMERA')
-                op_v.align_mode = 'VIEW'
-                op_c = row_align_view.operator("chest.splitter_align_plane", text="Cursor", icon='PIVOT_CURSOR')
-                op_c.align_mode = 'CURSOR'
-                op_f = row_align_view.operator("chest.splitter_align_plane", text="Face", icon='FACESEL')
-                op_f.align_mode = 'FACE'
+            box_guide.label(text="Alinhamentos Rápidos:")
+            row_align_view = box_guide.row(align=True)
+            op_v = row_align_view.operator("chest.splitter_align_plane", text="Vista", icon='VIEW_CAMERA')
+            op_v.align_mode = 'VIEW'
+            op_c = row_align_view.operator("chest.splitter_align_plane", text="Cursor", icon='PIVOT_CURSOR')
+            op_c.align_mode = 'CURSOR'
+            op_f = row_align_view.operator("chest.splitter_align_plane", text="Face", icon='FACESEL')
+            op_f.align_mode = 'FACE'
 
-                row_align_axes = box_guide.row(align=True)
-                op_x = row_align_axes.operator("chest.splitter_align_plane", text="Eixo X")
-                op_x.align_mode = 'X'
-                op_y = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Y")
-                op_y.align_mode = 'Y'
-                op_z = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Z")
-                op_z.align_mode = 'Z'
-
-                # --- Botões de Ação de Preview ---
-                box_preview_act = box_split.box()
-                row_preview = box_preview_act.row(align=True)
-                row_preview.scale_y = 1.3
-                row_preview.operator("chest.splitter_generate_preview", text="Gerar / Atualizar Preview", icon='PLAY')
-
-                row_inv = box_preview_act.row(align=True)
-                lbl_inv = "Inverter Lados (Ativo)" if settings.invert_sides else "Inverter Lados A / B"
-                row_inv.operator("chest.splitter_invert_sides", text=lbl_inv, icon='ARROW_LEFTRIGHT')
-
-                # --- Visualização Montada / Explodida ---
-                if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):
-                    box_view = box_split.box()
-                    box_view.label(text="Modo de Visualização", icon='RESTRICT_VIEW_OFF')
-                    box_view.prop(settings, "view_mode", expand=True)
-
-                    if settings.view_mode == 'EXPLODED':
-                        box_view.prop(settings, "explosion_distance_mm", slider=True)
-
-                    # --- Diagnósticos de Partes A e B ---
-                    box_diag_parts = box_split.box()
-                    box_diag_parts.label(text="Resultados do Corte", icon='CHECKMARK')
-
-                    col_a = box_diag_parts.box()
-                    col_a.label(text="Parte A (Azul)", icon='MESH_CUBE')
-                    col_a.label(text=f"Volume: {settings.part_a_volume_mm3:,.1f} mm³")
-                    dims_a = settings.part_a_dims_mm
-                    col_a.label(text=f"Dimensões: {dims_a[0]:.1f} x {dims_a[1]:.1f} x {dims_a[2]:.1f} mm")
-                    col_a.label(text=f"Malha: {settings.part_a_triangles:,} tris | {settings.part_a_components} ilha(s)")
-                    if not settings.part_a_is_manifold:
-                        col_a.label(text=f"Aviso: {settings.part_a_non_manifold_edges} aresta(s) abertas", icon='ERROR')
-
-                    col_b = box_diag_parts.box()
-                    col_b.label(text="Parte B (Laranja)", icon='MESH_CUBE')
-                    col_b.label(text=f"Volume: {settings.part_b_volume_mm3:,.1f} mm³")
-                    dims_b = settings.part_b_dims_mm
-                    col_b.label(text=f"Dimensões: {dims_b[0]:.1f} x {dims_b[1]:.1f} x {dims_b[2]:.1f} mm")
-                    col_b.label(text=f"Malha: {settings.part_b_triangles:,} tris | {settings.part_b_components} ilha(s)")
-                    if not settings.part_b_is_manifold:
-                        col_b.label(text=f"Aviso: {settings.part_b_non_manifold_edges} aresta(s) abertas", icon='ERROR')
-
-                    # Balanço de Volume
-                    box_vol = box_diag_parts.box()
-                    vol_ok = settings.volume_diff_pct < 0.5
-                    icon_vol = 'CHECKMARK' if vol_ok else 'ERROR'
-                    box_vol.label(
-                        text=f"Soma Volumes: {settings.part_sum_volume_mm3:,.1f} mm³ (dif: {settings.volume_diff_pct:.2f}%)",
-                        icon=icon_vol
-                    )
-
-                # --- Confirmação e Restauração ---
-                box_commit = box_split.box()
-                if settings.session_status == 'PREVIEW_VALID':
-                    row_commit = box_commit.row()
-                    row_commit.scale_y = 1.4
-                    row_commit.operator("chest.splitter_commit_parts", text="Confirmar Divisão", icon='CHECKMARK')
-
-                    row_rest = box_commit.row()
-                    row_rest.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
-
-                elif settings.session_status == 'COMMITTED':
-                    box_commit.label(text="Peças finais geradas na coleção CHEST_SPLITTER_PARTS.", icon='CHECKMARK')
-                    box_commit.operator("chest.splitter_redo_session", text="Refazer / Novo Corte", icon='FILE_REFRESH')
-                    box_commit.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
-
-                elif settings.session_status == 'CONFIGURED':
-                    box_commit.label(text="Posicione o plano e clique em 'Gerar Preview'.", icon='INFO')
-            else:
-                box_split.label(text="Defina um objeto alvo primeiro.", icon='INFO')
+            row_align_axes = box_guide.row(align=True)
+            op_x = row_align_axes.operator("chest.splitter_align_plane", text="Eixo X")
+            op_x.align_mode = 'X'
+            op_y = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Y")
+            op_y.align_mode = 'Y'
+            op_z = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Z")
+            op_z.align_mode = 'Z'
 
         elif settings.split_mode == 'SOLID':
-            box_split.label(text="Cortador sólido fechado planejado para a Fase 3.", icon='INFO')
-        else:
+            # --- Configurações do Cortador Sólido (Fase 3) ---
+            box_solid = box_split.box()
+            box_solid.label(text="Configuração do Cortador Sólido", icon='MESH_UVSPHERE')
+
+            col_src = box_solid.column(align=True)
+            col_src.prop(settings, "solid_source", expand=True)
+
+            if settings.solid_source == 'PRIMITIVE':
+                col_prim = box_solid.column(align=True)
+                col_prim.prop(settings, "solid_primitive_type", text="Formato")
+                row_prim_btn = box_solid.row(align=True)
+                row_prim_btn.scale_y = 1.2
+                row_prim_btn.operator("chest.splitter_create_or_focus_solid_cutter", text="Criar / Focar Cortador", icon='GIZMO')
+            else:
+                col_exist = box_solid.column(align=True)
+                col_exist.prop(settings, "solid_cutter_object", text="Cortador")
+                row_pick = box_solid.row(align=True)
+                row_pick.operator("chest.splitter_select_existing_cutter", text="Usar Selecionado como Cortador", icon='EYEDROPPER')
+
+            # Diagnóstico do Cortador Selecionado
+            cutter = settings.solid_cutter_object
+            if cutter and cutter.name in bpy.data.objects:
+                box_cutter_diag = box_solid.box()
+                box_cutter_diag.label(text=f"Cortador: '{cutter.name}'", icon='OUTLINER_OB_MESH')
+                if settings.solid_cutter_is_manifold:
+                    box_cutter_diag.label(text=f"Status: Fechado / 100% Manifold ({settings.solid_cutter_triangles:,} tris)", icon='CHECKMARK')
+                    box_cutter_diag.label(text=f"Volume: {settings.solid_cutter_volume_mm3:,.1f} mm³")
+                else:
+                    box_cutter_warn = box_cutter_diag.box()
+                    box_cutter_warn.alert = True
+                    box_cutter_warn.label(text=f"Erro: {settings.solid_cutter_non_manifold_edges} aresta(s) abertas!", icon='ERROR')
+                    box_cutter_warn.label(text="Cortador precisa ser um sólido 3D estanque.")
+
+        elif settings.split_mode == 'MATERIAL':
             box_split.label(text="Segmentação por materiais planejada para a Fase 4.", icon='INFO')
+
+        # --- Controles de Ação, Preview e Confirmação (comuns aos modos de corte com alvo) ---
+        if obj and settings.split_mode in ('PLANE', 'SOLID'):
+            box_preview_act = box_split.box()
+            row_preview = box_preview_act.row(align=True)
+            row_preview.scale_y = 1.3
+            row_preview.operator("chest.splitter_generate_preview", text="Gerar / Atualizar Preview", icon='PLAY')
+
+            row_inv = box_preview_act.row(align=True)
+            if settings.split_mode == 'SOLID':
+                lbl_inv = "Inverter: A=Ext / B=Int" if settings.invert_sides else "Inverter: A=Int / B=Ext"
+            else:
+                lbl_inv = "Inverter Lados (Ativo)" if settings.invert_sides else "Inverter Lados A / B"
+            row_inv.operator("chest.splitter_invert_sides", text=lbl_inv, icon='ARROW_LEFTRIGHT')
+
+            # --- Visualização Montada / Explodida ---
+            if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):
+                box_view = box_split.box()
+                box_view.label(text="Modo de Visualização", icon='RESTRICT_VIEW_OFF')
+                box_view.prop(settings, "view_mode", expand=True)
+
+                if settings.view_mode == 'EXPLODED':
+                    box_view.prop(settings, "explosion_distance_mm", slider=True)
+
+                # --- Diagnósticos de Partes A e B ---
+                box_diag_parts = box_split.box()
+                box_diag_parts.label(text="Resultados do Corte", icon='CHECKMARK')
+
+                col_a = box_diag_parts.box()
+                col_a.label(text="Parte A (Azul)", icon='MESH_CUBE')
+                col_a.label(text=f"Volume: {settings.part_a_volume_mm3:,.1f} mm³")
+                dims_a = settings.part_a_dims_mm
+                col_a.label(text=f"Dimensões: {dims_a[0]:.1f} x {dims_a[1]:.1f} x {dims_a[2]:.1f} mm")
+                col_a.label(text=f"Malha: {settings.part_a_triangles:,} tris | {settings.part_a_components} ilha(s)")
+                if not settings.part_a_is_manifold:
+                    col_a.label(text=f"Aviso: {settings.part_a_non_manifold_edges} aresta(s) abertas", icon='ERROR')
+
+                col_b = box_diag_parts.box()
+                col_b.label(text="Parte B (Laranja)", icon='MESH_CUBE')
+                col_b.label(text=f"Volume: {settings.part_b_volume_mm3:,.1f} mm³")
+                dims_b = settings.part_b_dims_mm
+                col_b.label(text=f"Dimensões: {dims_b[0]:.1f} x {dims_b[1]:.1f} x {dims_b[2]:.1f} mm")
+                col_b.label(text=f"Malha: {settings.part_b_triangles:,} tris | {settings.part_b_components} ilha(s)")
+                if not settings.part_b_is_manifold:
+                    col_b.label(text=f"Aviso: {settings.part_b_non_manifold_edges} aresta(s) abertas", icon='ERROR')
+
+                # Balanço de Volume
+                box_vol = box_diag_parts.box()
+                vol_ok = settings.volume_diff_pct < 0.5
+                icon_vol = 'CHECKMARK' if vol_ok else 'ERROR'
+                box_vol.label(
+                    text=f"Soma Volumes: {settings.part_sum_volume_mm3:,.1f} mm³ (dif: {settings.volume_diff_pct:.2f}%)",
+                    icon=icon_vol
+                )
+
+            # --- Confirmação e Restauração ---
+            box_commit = box_split.box()
+            if settings.session_status == 'PREVIEW_VALID':
+                row_commit = box_commit.row()
+                row_commit.scale_y = 1.4
+                row_commit.operator("chest.splitter_commit_parts", text="Confirmar Divisão", icon='CHECKMARK')
+
+                row_rest = box_commit.row()
+                row_rest.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
+
+            elif settings.session_status == 'COMMITTED':
+                box_commit.label(text="Peças finais geradas na coleção CHEST_SPLITTER_PARTS.", icon='CHECKMARK')
+                box_commit.operator("chest.splitter_redo_session", text="Refazer / Novo Corte", icon='FILE_REFRESH')
+                box_commit.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
+
+            elif settings.session_status == 'CONFIGURED':
+                hint_text = "Posicione o cortador e clique em 'Gerar Preview'." if settings.split_mode == 'SOLID' else "Posicione o plano e clique em 'Gerar Preview'."
+                box_commit.label(text=hint_text, icon='INFO')
 
         layout.separator()
 

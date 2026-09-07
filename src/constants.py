@@ -33,3 +33,25 @@ CLEARANCE_PRESETS = {
     'LOOSE': 0.25,    # Solto
 }
 
+# Constantes de Cortador Sólido (Fase 3)
+SOLID_CUTTER_NAME = "CHEST_SPLITTER_SOLID_CUTTER"
+
+SPLIT_MODES = [
+    ('PLANE', "Plano", "Divisão rápida por plano infinito orientável"),
+    ('SOLID', "Cortador Sólido", "Divisão volumétrica por sólido fechado (Interseção / Diferença)"),
+    ('MATERIAL', "Material", "Divisão assistida por fronteiras de materiais (Fase 4)"),
+]
+
+SOLID_SOURCE_TYPES = [
+    ('PRIMITIVE', "Primitiva Paramétrica", "Gera uma primitiva volumétrica fechada na coleção de guias"),
+    ('EXISTING', "Objeto Existente", "Utiliza um objeto fechado selecionado na cena"),
+]
+
+SOLID_PRIMITIVE_TYPES = [
+    ('BOX', "Caixa / Cubo", "Primitiva em bloco cúbico ou prismático"),
+    ('CYLINDER', "Cilindro", "Primitiva cilíndrica com tampas fechadas"),
+    ('SPHERE', "Esfera", "Primitiva esférica UV"),
+    ('CAPSULE', "Cápsula", "Primitiva tipo cápsula / estádio tridimensional"),
+]
+
+

@@ -4,16 +4,16 @@ Extensão interna para **Blender 5.2+** (compatível com Blender 4.2+) projetada
 
 ---
 
-## 🎯 Status Atual: Fase 0 (Fundação)
+## 🎯 Status Atual: v0.4.0 (Fase 3 Concluída)
 
-A **Fase 0** estabelece a infraestrutura essencial da extensão:
-- Seleção e diagnóstico completo de geometria do objeto alvo;
-- Verificação de dimensões físicas reais em mm, contagem de triângulos e volume;
-- Detecção preventiva de escala não aplicada, arestas abertas (não-manifold) e faces degeneradas;
-- Fluxo não destrutivo com geração de cópias de trabalho e coleções organizadas (`CHEST_SPLITTER_GUIDES` e `CHEST_SPLITTER_PREVIEWS`);
-- Persistência no arquivo `.blend`.
+A extensão está na versão **`v0.4.0`**, com as seguintes capacidades ativas e validadas:
+- **Fase 0 (Fundação)**: Diagnóstico físico em mm, integridade manifold, volume, escala e coleções dedicadas.
+- **Fase 1 (Corte Planar)**: Bisect 2D, capping manifold automático, guia visual, visualização montada/explodida e inversão de lados.
+- **Fase 2 (Encaixes FDM)**: Pinos cilíndricos e chaves tipo cápsula com folga física calibrada (presets de 0,10 a 0,25 mm), chanfro de entrada e distribuições simétricas.
+- **Fase 3 (Cortador Sólido)**: Corte 3D volumétrico via primitivas paramétricas (Caixa, Cilindro, Esfera, Cápsula) ou malhas existentes da cena, com solver booleano EXACT e conservação de volume.
+- **Próxima: Fase 3A (Loop Fechado de Arestas / Corte de Pata)**: Separação direta por anel de arestas selecionado na malha (ex.: pata de gato/animal) com tampas internas compartilhadas.
 
-> Para detalhes das fases futuras (Corte por plano, Encaixes, Cortador sólido e Materiais), consulte [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+> Para detalhes completos da arquitetura, roadmap de fases e critérios de aceite, consulte [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 ---
 
@@ -33,10 +33,16 @@ chest-blender-part-splitter/
 │   ├── constants.py
 │   ├── properties.py
 │   ├── diagnostic.py
+│   ├── geometry_plane.py
+│   ├── geometry_connectors.py
+│   ├── geometry_solid.py
 │   ├── operators.py
 │   └── ui.py
 └── tests/
-    └── test_smoke_phase0.py
+    ├── test_smoke_phase0.py
+    ├── test_smoke_phase1.py
+    ├── test_smoke_phase2.py
+    └── test_smoke_phase3.py
 ```
 
 ---

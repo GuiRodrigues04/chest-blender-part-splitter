@@ -19,14 +19,23 @@ from .constants import (
     COLOR_PART_A,
     COLOR_PART_B,
     VOLUME_REL_TOLERANCE,
+    CLEARANCE_PRESETS,
 )
 from .diagnostic import analyze_target_mesh
 from .geometry_plane import (
     slice_mesh_by_plane,
     compute_explosion_offsets,
+    evaluate_bmesh_metrics,
     NoIntersectionError,
     PlaneSliceError,
 )
+from .geometry_connectors import (
+    compute_connector_positions,
+    validate_connectors,
+    apply_connectors_boolean,
+    ConnectorValidationError,
+)
+
 
 
 def find_collection(scene: bpy.types.Scene, name: str) -> Optional[bpy.types.Collection]:
@@ -471,22 +480,77 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
         preview_col.objects.link(obj_a)
         preview_col.objects.link(obj_b)
 
-        # Registra diagnósticos de A e B
-        settings.part_a_volume_mm3 = report["A"]["volume_mm3"]
-        settings.part_a_dims_mm = report["A"]["dims_mm"]
-        settings.part_a_triangles = report["A"]["triangles"]
-        settings.part_a_is_manifold = report["A"]["is_manifold"]
-        settings.part_a_non_manifold_edges = report["A"]["non_manifold_edges"]
-        settings.part_a_components = report["A"]["components"]
+        # Aplica encaixes (macho e cavidade) se ativados na sessão
+        if settings.connector_enabled:
+            if settings.connector_male_part == 'A':
+                male_obj = obj_a
+                female_obj = obj_b
+                norm = plane_normal
+            else:
+                male_obj = obj_b
+                female_obj = obj_a
+                norm = -plane_normal
 
-        settings.part_b_volume_mm3 = report["B"]["volume_mm3"]
-        settings.part_b_dims_mm = report["B"]["dims_mm"]
-        settings.part_b_triangles = report["B"]["triangles"]
-        settings.part_b_is_manifold = report["B"]["is_manifold"]
-        settings.part_b_non_manifold_edges = report["B"]["non_manifold_edges"]
-        settings.part_b_components = report["B"]["components"]
+            try:
+                positions = compute_connector_positions(
+                    target_mesh=target.data,
+                    matrix_world=target.matrix_world,
+                    plane_origin=plane_origin,
+                    plane_normal=plane_normal,
+                    distribution=settings.connector_distribution,
+                    edge_margin_mm=settings.connector_edge_margin_mm,
+                    unit_scale=unit_scale,
+                )
+                validate_connectors(
+                    positions=positions,
+                    diameter_mm=settings.connector_diameter_mm,
+                    clearance_per_side_mm=settings.clearance_per_side_mm,
+                    unit_scale=unit_scale,
+                )
+                apply_connectors_boolean(
+                    obj_male=male_obj,
+                    obj_female=female_obj,
+                    plane_normal=norm,
+                    positions=positions,
+                    connector_type=settings.connector_type,
+                    diameter_mm=settings.connector_diameter_mm,
+                    length_mm=settings.connector_length_mm,
+                    chamfer_mm=settings.connector_chamfer_mm,
+                    clearance_side_mm=settings.clearance_per_side_mm,
+                    end_clearance_mm=settings.end_clearance_mm,
+                    unit_scale=unit_scale,
+                )
+            except ConnectorValidationError as cve:
+                settings.last_status = f"Aviso de encaixe: {str(cve)}"
+                settings.last_status_level = 'WARNING'
+                self.report({'WARNING'}, str(cve))
+            except Exception as e:
+                settings.last_status = f"Erro nos encaixes: {str(e)}"
+                settings.last_status_level = 'ERROR'
+                self.report({'ERROR'}, str(e))
 
-        sum_vol = report["sum_volume_mm3"]
+        # Re-avalia diagnósticos atualizados de A e B após encaixes
+        for side, p_obj in (("A", obj_a), ("B", obj_b)):
+            bm_res = bmesh.new()
+            bm_res.from_mesh(p_obj.data)
+            metrics = evaluate_bmesh_metrics(bm_res, unit_scale=unit_scale)
+            bm_res.free()
+            if side == "A":
+                settings.part_a_volume_mm3 = metrics["volume_mm3"]
+                settings.part_a_dims_mm = metrics["dims_mm"]
+                settings.part_a_triangles = metrics["triangles"]
+                settings.part_a_is_manifold = metrics["is_manifold"]
+                settings.part_a_non_manifold_edges = metrics["non_manifold_edges"]
+                settings.part_a_components = metrics["components"]
+            else:
+                settings.part_b_volume_mm3 = metrics["volume_mm3"]
+                settings.part_b_dims_mm = metrics["dims_mm"]
+                settings.part_b_triangles = metrics["triangles"]
+                settings.part_b_is_manifold = metrics["is_manifold"]
+                settings.part_b_non_manifold_edges = metrics["non_manifold_edges"]
+                settings.part_b_components = metrics["components"]
+
+        sum_vol = settings.part_a_volume_mm3 + settings.part_b_volume_mm3
         settings.part_sum_volume_mm3 = sum_vol
 
         orig_vol = settings.diag_volume_mm3
@@ -503,16 +567,18 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
         target.hide_viewport = True
 
         settings.session_status = 'PREVIEW_VALID'
+        conn_info = f" (+{settings.connector_distribution} encaixes)" if settings.connector_enabled else ""
         msg = (
-            f"Preview gerado com sucesso! "
-            f"Parte A: {report['A']['volume_mm3']:,.0f} mm³ | "
-            f"Parte B: {report['B']['volume_mm3']:,.0f} mm³"
+            f"Preview gerado com sucesso{conn_info}! "
+            f"Parte A: {settings.part_a_volume_mm3:,.0f} mm³ | "
+            f"Parte B: {settings.part_b_volume_mm3:,.0f} mm³"
         )
         settings.last_status = msg
         settings.last_status_level = 'SUCCESS'
         self.report({'INFO'}, msg)
 
         return {'FINISHED'}
+
 
 
 class CHEST_OT_splitter_invert_sides(bpy.types.Operator):
@@ -528,6 +594,55 @@ class CHEST_OT_splitter_invert_sides(bpy.types.Operator):
         if settings.session_status == 'PREVIEW_VALID':
             bpy.ops.chest.splitter_generate_preview()
         return {'FINISHED'}
+
+
+class CHEST_OT_splitter_invert_male_female(bpy.types.Operator):
+    """Inverte qual parte recebe o macho e qual recebe a cavidade"""
+    bl_idname = "chest.splitter_invert_male_female"
+    bl_label = "Inverter Macho / Fêmea"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        settings.connector_male_part = 'B' if settings.connector_male_part == 'A' else 'A'
+        msg = f"Macho agora na Parte {settings.connector_male_part} (Cavidade na Parte {'B' if settings.connector_male_part == 'A' else 'A'})."
+        settings.last_status = msg
+        settings.last_status_level = 'INFO'
+        self.report({'INFO'}, msg)
+        if settings.session_status == 'PREVIEW_VALID':
+            bpy.ops.chest.splitter_generate_preview()
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_apply_connector_preset(bpy.types.Operator):
+    """Aplica uma folga recomendada pré-definida para os encaixes"""
+    bl_idname = "chest.splitter_apply_connector_preset"
+    bl_label = "Aplicar Preset de Folga"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    preset: bpy.props.EnumProperty(
+        name="Preset",
+        items=[
+            ('TIGHT', "Justo", "0,10 mm"),
+            ('NORMAL', "Normal", "0,15 mm"),
+            ('EASY', "Fácil", "0,20 mm"),
+            ('LOOSE', "Solto", "0,25 mm"),
+        ],
+        default='NORMAL',
+    )
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        settings.clearance_preset = self.preset
+        settings.clearance_per_side_mm = CLEARANCE_PRESETS[self.preset]
+        msg = f"Preset '{self.preset}' aplicado (folga por lado: {settings.clearance_per_side_mm:.2f} mm)."
+        settings.last_status = msg
+        settings.last_status_level = 'INFO'
+        self.report({'INFO'}, msg)
+        if settings.session_status == 'PREVIEW_VALID':
+            bpy.ops.chest.splitter_generate_preview()
+        return {'FINISHED'}
+
 
 
 class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
@@ -663,7 +778,10 @@ classes = (
     CHEST_OT_splitter_align_plane,
     CHEST_OT_splitter_generate_preview,
     CHEST_OT_splitter_invert_sides,
+    CHEST_OT_splitter_invert_male_female,
+    CHEST_OT_splitter_apply_connector_preset,
     CHEST_OT_splitter_commit_parts,
+
     CHEST_OT_splitter_restore_original,
     CHEST_OT_splitter_redo_session,
 )

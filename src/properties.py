@@ -22,7 +22,15 @@ def _on_preview_transform_update(self, context):
             pass
 
 
+def _on_clearance_preset_update(self, context):
+    """Atualiza a folga por lado quando o usuário seleciona um preset."""
+    from .constants import CLEARANCE_PRESETS
+    if self.clearance_preset in CLEARANCE_PRESETS:
+        self.clearance_per_side_mm = CLEARANCE_PRESETS[self.clearance_preset]
+
+
 class ChestSplitterSettings(bpy.types.PropertyGroup):
+
 
     """Estado persistente da sessão do Part Splitter na cena."""
 
@@ -233,6 +241,114 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         default=0.0,
         precision=3,
     )
+
+    # --- Configurações de Encaixes e Folgas (Fase 2) ---
+    connector_enabled: BoolProperty(
+        name="Ativar Encaixes",
+        default=False,
+        description="Gera pinos macho e cavidades fêmea na interface do corte",
+    )
+
+    connector_type: EnumProperty(
+        name="Tipo de Encaixe",
+        items=[
+            ('CYLINDER', "Pino Cilíndrico", "Pino cilíndrico com chanfro de entrada"),
+            ('CAPSULE', "Chave Cápsula", "Pino oblongo/cápsula que impede rotação"),
+        ],
+        default='CYLINDER',
+        description="Formato geométrico do encaixe",
+    )
+
+    connector_male_part: EnumProperty(
+        name="Parte com Macho",
+        items=[
+            ('A', "Parte A", "O pino macho fica na Parte A e a cavidade na Parte B"),
+            ('B', "Parte B", "O pino macho fica na Parte B e a cavidade na Parte A"),
+        ],
+        default='A',
+        description="Define qual parte recebe o pino saliente",
+    )
+
+    connector_diameter_mm: FloatProperty(
+        name="Diâmetro Nominal (mm)",
+        default=6.0,
+        min=2.0,
+        max=40.0,
+        precision=2,
+        description="Diâmetro ou largura nominal do pino",
+    )
+
+    connector_length_mm: FloatProperty(
+        name="Comprimento de Inserção (mm)",
+        default=8.0,
+        min=2.0,
+        max=50.0,
+        precision=2,
+        description="Profundidade útil nominal do encaixe",
+    )
+
+    connector_chamfer_mm: FloatProperty(
+        name="Chanfro de Entrada (mm)",
+        default=0.8,
+        min=0.0,
+        max=5.0,
+        precision=2,
+        description="Chanfro na ponta do pino para facilitar a inserção",
+    )
+
+    clearance_preset: EnumProperty(
+        name="Preset de Folga",
+        items=[
+            ('TIGHT', "Justo (0,10 mm)", "Impressora muito bem calibrada"),
+            ('NORMAL', "Normal (0,15 mm)", "Primeiro teste recomendado para PLA"),
+            ('EASY', "Fácil (0,20 mm)", "Montagem manual suave sem força"),
+            ('LOOSE', "Solto (0,25 mm)", "Peças volumosas ou folga maior"),
+            ('CUSTOM', "Personalizado", "Valor livre de folga por lado"),
+        ],
+        default='NORMAL',
+        description="Predefinições recomendadas para FDM (bico 0,4 mm e PLA)",
+        update=lambda self, context: _on_clearance_preset_update(self, context),
+    )
+
+    clearance_per_side_mm: FloatProperty(
+        name="Folga por Lado (mm)",
+        default=0.15,
+        min=0.05,
+        max=1.0,
+        precision=3,
+        description="Folga radial por lado na cavidade fêmea (folga total no diâmetro = 2x este valor)",
+    )
+
+    end_clearance_mm: FloatProperty(
+        name="Folga de Fundo (mm)",
+        default=0.5,
+        min=0.1,
+        max=3.0,
+        precision=2,
+        description="Espaço extra no fundo da cavidade fêmea para evitar colisão",
+    )
+
+    connector_distribution: EnumProperty(
+        name="Distribuição",
+        items=[
+            ('CENTER', "1 Pino (Centro)", "Um conector no centro geométrico do corte"),
+            ('LINEAR_2', "2 Pinos (Linha)", "Dois conectores alinhados no maior vão"),
+            ('LINEAR_3', "3 Pinos (Linha)", "Três conectores distribuídos em linha"),
+            ('GRID_4', "4 Pinos (Grade)", "Quatro conectores distribuídos em grade 2x2"),
+        ],
+        default='CENTER',
+        description="Padrão de distribuição dos encaixes no plano",
+    )
+
+    connector_edge_margin_mm: FloatProperty(
+        name="Margem da Borda (mm)",
+        default=4.0,
+        min=1.0,
+        max=30.0,
+        precision=1,
+        description="Distância mínima de segurança até a casca externa do modelo",
+    )
+
 
     # Feedback de mensagens ao usuário
     last_status: StringProperty(

@@ -5,7 +5,22 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.3.0] - 2026-09-06
+
+### Adicionado
+- **Fase 2 — Encaixes em Cortes Planos**:
+  - Módulo paramétrico de conectores (`src/geometry_connectors.py`) para pinos cilíndricos com chanfro de entrada e chaves cápsula anti-rotação.
+  - Convenção rigorosa de folga física: dimensão nominal exata no macho, expansão radial por lado na cavidade fêmea ($D + 2c$) e folga de fundo ($L + c_{fundo}$).
+  - Quatro presets de calibração FDM para PLA e bico 0,4 mm: Justo (0,10 mm), Normal (0,15 mm), Fácil (0,20 mm) e Solto (0,25 mm), além de valor livre.
+  - Distribuições automáticas no plano de corte: 1 pino (Centro), 2 pinos (Linha), 3 pinos (Linha) e 4 pinos (Grade 2x2), com margem de segurança configurável da borda externa.
+  - Validações bloqueantes contra sobreposição entre encaixes e violação de margem de borda (`ConnectorValidationError`).
+  - Operações booleanas robustas com solver EXACT no BMesh (`UNION` do macho e `DIFFERENCE` da cavidade).
+  - Operador de inversão rápida de macho/fêmea (`chest.splitter_invert_male_female`) e seleção de presets (`chest.splitter_apply_connector_preset`).
+  - Atualização completa da Seção 3 da interface na Sidebar N (`Viewport 3D -> Chest -> Part Splitter`).
+  - Suíte de 34 testes automatizados na Fase 2 (`tests/test_smoke_phase2.py`) cobrindo aferição micrométrica, validação de todos os 4 presets, múltiplos pinos, chave cápsula e conservação de integridade manifold.
+
 ## [0.2.0] - 2026-09-06
+
 
 ### Adicionado
 - **Fase 1 — Corte por Plano**:

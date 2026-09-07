@@ -185,10 +185,52 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
         layout.separator()
 
-        # --- SEÇÃO 3: ENCAIXES E FOLGA (Fase 2) ---
+        # --- SEÇÃO 3: ENCAIXES E FOLGAS (Fase 2) ---
         box_conn = layout.box()
-        box_conn.label(text="3. Encaixes & Folgas (Fase 2)", icon='SNAP_VERTEX')
-        box_conn.label(text="Pinos cilíndricos e cápsula com folga física em mm.")
+        box_conn.label(text="3. Encaixes & Folgas", icon='SNAP_VERTEX')
+
+        row_enable = box_conn.row(align=True)
+        row_enable.prop(settings, "connector_enabled", text="Ativar Encaixes", toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')
+
+        if settings.connector_enabled:
+            # Formato do Encaixe
+            col_shape = box_conn.column(align=True)
+            col_shape.label(text="Formato do Encaixe:")
+            col_shape.prop(settings, "connector_type", expand=True)
+
+            # Lado do Macho / Fêmea
+            row_male = box_conn.row(align=True)
+            male_label = f"Macho na Parte {settings.connector_male_part} (Fêmea na {'B' if settings.connector_male_part == 'A' else 'A'})"
+            row_male.operator("chest.splitter_invert_male_female", text=f"Inverter: {male_label}", icon='ARROW_LEFTRIGHT')
+
+            # Dimensões Nominais do Macho
+            box_dims = box_conn.box()
+            box_dims.label(text="Dimensões Nominais:", icon='CON_SIZELIMIT')
+            box_dims.prop(settings, "connector_diameter_mm", slider=True)
+            box_dims.prop(settings, "connector_length_mm", slider=True)
+            box_dims.prop(settings, "connector_chamfer_mm", slider=True)
+
+            # Folgas de Encaixe Físico
+            box_clear = box_conn.box()
+            box_clear.label(text="Folgas Físicas de Montagem (FDM):", icon='DRIVER')
+
+            # Botões rápidos de preset
+            row_presets = box_clear.row(align=True)
+            row_presets.label(text="Presets:")
+            for p_code, p_lbl in [('TIGHT', "0.10"), ('NORMAL', "0.15"), ('EASY', "0.20"), ('LOOSE', "0.25")]:
+                op_p = row_presets.operator("chest.splitter_apply_connector_preset", text=p_lbl)
+                op_p.preset = p_code
+
+            box_clear.prop(settings, "clearance_per_side_mm", slider=True)
+            box_clear.label(text=f"Folga total no diâmetro: {settings.clearance_per_side_mm * 2:.2f} mm", icon='INFO')
+            box_clear.prop(settings, "end_clearance_mm", slider=True)
+
+            # Distribuição
+            box_dist = box_conn.box()
+            box_dist.label(text="Distribuição no Corte:", icon='PARTICLE_DATA')
+            box_dist.prop(settings, "connector_distribution", expand=True)
+            box_dist.prop(settings, "connector_edge_margin_mm", slider=True)
+
 
         # --- FEEDBACK DE STATUS ---
         if settings.last_status:

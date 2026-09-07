@@ -3,7 +3,8 @@
 bl_info = {
     "name": "Chest Part Splitter",
     "author": "Chest Team",
-    "version": (0, 2, 0),
+    "version": (0, 3, 0),
+
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar (N) > Chest > Part Splitter",
     "description": "Divisão de modelos em peças com encaixes e folga controlada para impressão 3D",

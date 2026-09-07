@@ -47,7 +47,7 @@ Melhoria em relação à extensão anterior: desde o início, separar a lógica 
 
 ## 4. Decisões geométricas importantes
 
-### 4.1 Três modos de divisão
+### 4.1 Quatro modos de divisão
 
 #### Modo A — Plano
 
@@ -83,6 +83,36 @@ Há três casos diferentes:
 3. **Uma única casca com faces de materiais diferentes:** os materiais informam apenas a fronteira na superfície; não definem como o corte atravessa o interior. A extensão pode realçar a borda, criar uma sugestão de cortador e pedir confirmação.
 
 Texturas, cores pintadas em imagem, vertex colors e inferência semântica ficam fora da primeira versão. Elas exigem outra etapa de segmentação.
+
+#### Modo D — Loop fechado de arestas
+
+Requisito acrescentado em 2026-09-07: selecionar uma linha fechada na própria malha e usá-la para separar uma região ou gerar um cortador. Exemplo de aceite: selecionar o anel que envolve a pata de um gato, indicar o lado da pata e obter pata e corpo fechados, preservando o original.
+
+Não exigir um edge loop regular de quadriláteros: aceitar qualquer ciclo simples de arestas conectadas, inclusive selecionado manualmente numa malha triangulada. Uma linha apenas desenhada sobre a superfície, sem arestas correspondentes, não entra neste modo inicial.
+
+**Caminho D1 — Separar pela fronteira selecionada (preferido para a pata).**
+
+1. Em Edit Mode, selecionar as arestas e clicar em `Capturar loop fechado`.
+2. Validar um único componente conectado, pelo menos três vértices distintos, grau dois em cada vértice selecionado, ausência de ramificações, segmentos degenerados e auto-interseções.
+3. O usuário indica uma face do lado da pata por `Definir região a separar`. Percorrer as faces adjacentes sem atravessar as arestas do loop.
+4. Na componente alvo, verificar que essa fronteira realmente separa duas regiões. Um ciclo fechado em uma alça pode não separar a superfície; nesse caso, rejeitar com diagnóstico, sem escolher uma região arbitrária. Componentes não envolvidos permanecem no corpo e devem ser identificados no preview.
+5. Duplicar as regiões em cópias de trabalho e construir uma superfície interna de fechamento com a mesma borda do loop. Compartilhar a mesma triangulação da tampa entre pata e corpo, com orientação oposta, para formar uma interface coincidente quando a folga de interface for zero.
+6. Para loop plano, triangular o polígono com suporte a concavidade; não preencher por leque do centro sem validação. Para loop não plano, oferecer uma superfície triangulada proposta mantendo os vértices da borda originais. Não achatar o contorno silenciosamente.
+7. A superfície proposta deve ficar dentro do volume original, sem cruzar a casca nem a si mesma. Bloquear confirmação se essas verificações não estiverem implementadas ou falharem. O primeiro pacote pode suportar somente loops planos e informar explicitamente que loops não planos ainda estão indisponíveis.
+8. Mostrar pata/corpo, tampa interna e visualização explodida antes de confirmar. Validar fechamento, orientação, volumes positivos, conservação de volume e ausência de sobreposição volumétrica indevida.
+
+Este caminho usa a fronteira topológica diretamente; não precisa fabricar um sólido auxiliar nem usar Boolean para a divisão inicial. Deve ficar disponível junto do botão de geração de cortador, pois resolve o exemplo da pata com menos operações.
+
+**Caminho D2 — Criar cortador sólido a partir do loop.**
+
+- Copiar o contorno sem remover arestas do alvo; gerar um objeto auxiliar editável.
+- Para contorno plano, oferecer direção de extrusão, alcance positivo/negativo em mm e inversão. Tampar as extremidades e ligar as laterais para formar um prisma fechado, inclusive de seção oval ou irregular.
+- Para loop quase plano, medir e mostrar o desvio máximo ao plano ajustado. A projeção no plano exige confirmação e não pode ser descrita como corte exato pelas arestas originais.
+- Uma extrusão finita pode cortar outras regiões ou deixar partes além de seu alcance. Mostrar o volume inteiro do cortador e todas as regiões atingidas; nunca assumir que a extrusão selecionou semanticamente somente a pata.
+- Para contorno não plano, não usar um n-gon como tampa implícita. Adiar a geração volumétrica até existir construção e validação de superfície e volume confiáveis; oferecer D1 quando suportado.
+- Usar o motor do Modo B para diferença/interseção depois da validação do sólido. O contorno não cria automaticamente folga uniforme quando escalado.
+
+**Folga e encaixes neste modo.** Reutilizar os conectores existentes após a divisão. Em tampa plana, permitir distribuição automática apenas dentro da região válida; em tampa não plana, iniciar com posicionamento manual e direção de inserção explícita. Separar `clearance_per_side_mm` do conector de `interface_gap_mm`, a distância entre as superfícies de contato das partes. A folga de interface começa em zero. Para interface plana, uma folga total g pode recuar cada tampa g/2 para dentro de sua parte, sem deslocar o conjunto; verificar novamente paredes e volumes. Offset de interface curva fica adiado até ser validado e não pode ser aproximado por escala global. Um fechamento curvo pode impedir a montagem mesmo com folga: testar a trajetória de inserção ou sinalizar que essa verificação continua manual.
 
 ### 4.2 Encaixes
 
@@ -160,7 +190,8 @@ Painel: `Viewport 3D -> N -> Chest -> Part Splitter`.
 
 ### Etapa 2 — Divisão
 
-- escolher `Plano`, `Cortador sólido` ou `Materiais`;
+- escolher `Plano`, `Cortador sólido`, `Loop fechado` ou `Materiais`;
+- em `Loop fechado`: `Capturar loop fechado`, `Definir região a separar`, `Separar pela fronteira` ou `Criar cortador por extrusão`, alcance/direção e `Ver tampa interna`;
 - criar/selecionar o guia;
 - usar botões de alinhamento: vista, cursor, face selecionada e eixos X/Y/Z;
 - inverter lado A/B;
@@ -246,6 +277,7 @@ chest-blender-part-splitter/
 │   ├── test_connectors.py
 │   ├── test_custom_cutter.py
 │   ├── test_material_analysis.py
+│   ├── test_loop_split.py
 │   ├── test_persistence.py
 │   └── test_export_roundtrip.py
 └── source/
@@ -271,6 +303,9 @@ chest-blender-part-splitter/
         │   ├── validation.py
         │   ├── split_plane.py
         │   ├── split_solid.py
+        │   ├── loop_boundary.py       # ciclo ordenado, regiões e planicidade
+        │   ├── split_loop.py          # separação, tampas e validação
+        │   ├── loop_cutter.py         # extrusão do contorno validado
         │   ├── connector_geometry.py
         │   ├── material_analysis.py
         │   └── naming.py
@@ -295,6 +330,8 @@ Estado mínimo da sessão:
 - modo de corte;
 - referência ao guia/cortador;
 - frame do corte;
+- para loop: contorno ordenado capturado, face-semente/região, desvio de planicidade, estratégia de tampa, extrusão e folga de interface;
+- assinatura da topologia de origem: não confiar somente em índices de vértices/faces após edição. Invalidar a captura quando a topologia mudar e pedir nova seleção. Modificadores que alteram topologia exigem uma cópia avaliada explícita antes da captura, sem correspondência inferida de índices;
 - IDs das partes de preview;
 - parâmetros e marcadores de encaixe;
 - status `EMPTY`, `CONFIGURED`, `PREVIEW_VALID`, `PREVIEW_INVALID`, `COMMITTED`;
@@ -491,6 +528,28 @@ Testes:
 - teste com placa curva, bichinho e vaso de parede grossa;
 - tempo e memória em malhas pequena, média e limite.
 
+### Fase 3A — Loop fechado e separação da pata
+
+Executar depois da Fase 3 e antes da assistência por materiais. É requisito explícito do fluxo do usuário, não apenas sugestão futura.
+
+Entregar primeiro captura e validação do loop, D1 com tampa plana, D2 com extrusão plana, seleção da região, preview das tampas e conectores existentes. Loops não planos recebem diagnóstico claro nesta entrega; implementar seu fechamento numa etapa 3A.2 separada, condicionada às validações geométricas descritas no Modo D.
+
+Testes obrigatórios:
+
+- pata sintética ligada ao corpo: selecionar anel, indicar face-semente e obter exatamente pata/corpo fechados;
+- anel oval, circular, côncavo e irregular; seleção manual sobre triângulos;
+- loop aberto, ramificado, múltiplos loops, auto-interseção e ciclo não separador: rejeitar sem alterar original;
+- loop plano inclinado, escala não uniforme e unidade conhecida;
+- loop não plano: rejeição explícita na primeira entrega; na 3A.2, validar tampa interna e impedir cruzamento da casca;
+- tampas coincidentes com orientação oposta, conservação de volume e zero sobreposição indevida com folga zero;
+- extrusão que atinge outra pata: preview deve revelar essa região adicional;
+- alcance insuficiente, cortador degenerado e resultado vazio: bloquear;
+- persistência, undo/redo e mudança de topologia invalidando a captura;
+- folga do conector independente da folga de interface, sem escala global da pata;
+- exportar e reimportar pata/corpo para checar fechamento e medidas.
+
+Teste manual de aceite: abrir gato real -> selecionar loop ao redor da pata -> capturar -> indicar lado da pata -> gerar preview -> inspecionar tampa -> inserir encaixe -> confirmar -> conferir as duas peças no fatiador. Testes de montagem física continuam necessários. A aprovação de D1 não significa que D2 ou loops não planos foram validados.
+
 ### Fase 4 — Assistência por materiais
 
 Entregar:
@@ -540,7 +599,7 @@ Testes:
 | Unidades | mm correto, escala de cena diferente, importação suspeita 1000x |
 | Transformações | rotação, escala não uniforme, parent, origem deslocada |
 | Topologia | manifold, aberto, degenerado, múltiplos componentes, alta densidade |
-| Corte | plano central, inclinado, tangente, sem interseção, cortador côncavo |
+| Corte | plano central, inclinado, tangente, sem interseção, cortador côncavo, loop da pata, ciclo aberto/ramificado/não separador, tampa não plana |
 | Encaixe | cilindro, cápsula, 4 folgas, invertido, borda, parede fina |
 | Estado | undo/redo, save/reopen, renomear/apagar alvo, recarregar extensão |
 | Recursos | previews repetidos, liberação de meshes, limite de tempo/triângulos |
@@ -561,7 +620,7 @@ O MVP está pronto quando o usuário consegue:
 9. reimportar ou abrir no Bambu Studio com medidas corretas;
 10. imprimir um corpo de prova e registrar a folga aprovada.
 
-Detecção por materiais e cortadores abstratos completos não bloqueiam o MVP. Eles vêm depois que o corte plano e os encaixes estiverem fisicamente validados.
+Detecção por materiais e cortadores abstratos completos não bloqueiam o MVP. Eles vêm depois que o corte plano e os encaixes estiverem fisicamente validados. A solicitação de loop fechado é atendida especificamente na Fase 3A: não declarar a entrega completa do fluxo da pata antes de seus testes de aceite passarem.
 
 ## 12. Fora do escopo inicial
 

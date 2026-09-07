@@ -45,7 +45,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 icon='MOD_FLUIDSIM'
             )
 
-            # Avisos e diagnósticos preventivos
+            # Avisos preventivos
             if settings.diag_has_unapplied_scale:
                 box_warn = box_target.box()
                 box_warn.alert = True
@@ -75,25 +75,120 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
         layout.separator()
 
-        # --- SEÇÃO 2: MODO DE DIVISÃO (Preview de Roadmap) ---
-        box_mode = layout.box()
-        box_mode.label(text="2. Divisão de Partes", icon='MOD_BOOLEAN')
-        col_mode = box_mode.column()
+        # --- SEÇÃO 2: DIVISÃO DE PARTES ---
+        box_split = layout.box()
+        box_split.label(text="2. Divisão de Partes", icon='MOD_BOOLEAN')
+
+        col_mode = box_split.column()
         col_mode.prop(settings, "split_mode", expand=True)
 
         if settings.split_mode == 'PLANE':
-            col_mode.label(text="Corte por plano orientado (Fase 1)", icon='INFO')
+            if obj:
+                # --- Guia de Corte e Alinhamentos ---
+                box_guide = box_split.box()
+                box_guide.label(text="Posicionamento do Plano", icon='ORIENTATION_LOCAL')
+
+                row_guide_btn = box_guide.row(align=True)
+                row_guide_btn.operator("chest.splitter_create_or_focus_guide", text="Focar Guia 3D", icon='GIZMO')
+
+                box_guide.label(text="Alinhamentos Rápidos:")
+                row_align_view = box_guide.row(align=True)
+                op_v = row_align_view.operator("chest.splitter_align_plane", text="Vista", icon='VIEW_CAMERA')
+                op_v.align_mode = 'VIEW'
+                op_c = row_align_view.operator("chest.splitter_align_plane", text="Cursor", icon='PIVOT_CURSOR')
+                op_c.align_mode = 'CURSOR'
+                op_f = row_align_view.operator("chest.splitter_align_plane", text="Face", icon='FACESEL')
+                op_f.align_mode = 'FACE'
+
+                row_align_axes = box_guide.row(align=True)
+                op_x = row_align_axes.operator("chest.splitter_align_plane", text="Eixo X")
+                op_x.align_mode = 'X'
+                op_y = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Y")
+                op_y.align_mode = 'Y'
+                op_z = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Z")
+                op_z.align_mode = 'Z'
+
+                # --- Botões de Ação de Preview ---
+                box_preview_act = box_split.box()
+                row_preview = box_preview_act.row(align=True)
+                row_preview.scale_y = 1.3
+                row_preview.operator("chest.splitter_generate_preview", text="Gerar / Atualizar Preview", icon='PLAY')
+
+                row_inv = box_preview_act.row(align=True)
+                lbl_inv = "Inverter Lados (Ativo)" if settings.invert_sides else "Inverter Lados A / B"
+                row_inv.operator("chest.splitter_invert_sides", text=lbl_inv, icon='ARROW_LEFTRIGHT')
+
+                # --- Visualização Montada / Explodida ---
+                if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):
+                    box_view = box_split.box()
+                    box_view.label(text="Modo de Visualização", icon='RESTRICT_VIEW_OFF')
+                    box_view.prop(settings, "view_mode", expand=True)
+
+                    if settings.view_mode == 'EXPLODED':
+                        box_view.prop(settings, "explosion_distance_mm", slider=True)
+
+                    # --- Diagnósticos de Partes A e B ---
+                    box_diag_parts = box_split.box()
+                    box_diag_parts.label(text="Resultados do Corte", icon='CHECKMARK')
+
+                    col_a = box_diag_parts.box()
+                    col_a.label(text="Parte A (Azul)", icon='MESH_CUBE')
+                    col_a.label(text=f"Volume: {settings.part_a_volume_mm3:,.1f} mm³")
+                    dims_a = settings.part_a_dims_mm
+                    col_a.label(text=f"Dimensões: {dims_a[0]:.1f} x {dims_a[1]:.1f} x {dims_a[2]:.1f} mm")
+                    col_a.label(text=f"Malha: {settings.part_a_triangles:,} tris | {settings.part_a_components} ilha(s)")
+                    if not settings.part_a_is_manifold:
+                        col_a.label(text=f"Aviso: {settings.part_a_non_manifold_edges} aresta(s) abertas", icon='ERROR')
+
+                    col_b = box_diag_parts.box()
+                    col_b.label(text="Parte B (Laranja)", icon='MESH_CUBE')
+                    col_b.label(text=f"Volume: {settings.part_b_volume_mm3:,.1f} mm³")
+                    dims_b = settings.part_b_dims_mm
+                    col_b.label(text=f"Dimensões: {dims_b[0]:.1f} x {dims_b[1]:.1f} x {dims_b[2]:.1f} mm")
+                    col_b.label(text=f"Malha: {settings.part_b_triangles:,} tris | {settings.part_b_components} ilha(s)")
+                    if not settings.part_b_is_manifold:
+                        col_b.label(text=f"Aviso: {settings.part_b_non_manifold_edges} aresta(s) abertas", icon='ERROR')
+
+                    # Balanço de Volume
+                    box_vol = box_diag_parts.box()
+                    vol_ok = settings.volume_diff_pct < 0.5
+                    icon_vol = 'CHECKMARK' if vol_ok else 'ERROR'
+                    box_vol.label(
+                        text=f"Soma Volumes: {settings.part_sum_volume_mm3:,.1f} mm³ (dif: {settings.volume_diff_pct:.2f}%)",
+                        icon=icon_vol
+                    )
+
+                # --- Confirmação e Restauração ---
+                box_commit = box_split.box()
+                if settings.session_status == 'PREVIEW_VALID':
+                    row_commit = box_commit.row()
+                    row_commit.scale_y = 1.4
+                    row_commit.operator("chest.splitter_commit_parts", text="Confirmar Divisão", icon='CHECKMARK')
+
+                    row_rest = box_commit.row()
+                    row_rest.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
+
+                elif settings.session_status == 'COMMITTED':
+                    box_commit.label(text="Peças finais geradas na coleção CHEST_SPLITTER_PARTS.", icon='CHECKMARK')
+                    box_commit.operator("chest.splitter_redo_session", text="Refazer / Novo Corte", icon='FILE_REFRESH')
+                    box_commit.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
+
+                elif settings.session_status == 'CONFIGURED':
+                    box_commit.label(text="Posicione o plano e clique em 'Gerar Preview'.", icon='INFO')
+            else:
+                box_split.label(text="Defina um objeto alvo primeiro.", icon='INFO')
+
         elif settings.split_mode == 'SOLID':
-            col_mode.label(text="Cortador sólido fechado (Fase 3)", icon='INFO')
+            box_split.label(text="Cortador sólido fechado planejado para a Fase 3.", icon='INFO')
         else:
-            col_mode.label(text="Segmentação por materiais (Fase 4)", icon='INFO')
+            box_split.label(text="Segmentação por materiais planejada para a Fase 4.", icon='INFO')
 
         layout.separator()
 
-        # --- SEÇÃO 3: ENCAIXES E FOLGA (Preview de Roadmap) ---
+        # --- SEÇÃO 3: ENCAIXES E FOLGA (Fase 2) ---
         box_conn = layout.box()
         box_conn.label(text="3. Encaixes & Folgas (Fase 2)", icon='SNAP_VERTEX')
-        box_conn.label(text="Pinos cilíndricos e cápsula com folga em mm.")
+        box_conn.label(text="Pinos cilíndricos e cápsula com folga física em mm.")
 
         # --- FEEDBACK DE STATUS ---
         if settings.last_status:

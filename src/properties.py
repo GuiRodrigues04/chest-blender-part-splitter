@@ -12,7 +12,18 @@ from bpy.props import (
 )
 
 
+def _on_preview_transform_update(self, context):
+    """Callback disparado quando o modo de visualização ou a distância de explosão é alterada."""
+    if context and hasattr(context, "scene"):
+        try:
+            from .operators import update_preview_positions
+            update_preview_positions(context.scene)
+        except Exception:
+            pass
+
+
 class ChestSplitterSettings(bpy.types.PropertyGroup):
+
     """Estado persistente da sessão do Part Splitter na cena."""
 
     session_id: StringProperty(
@@ -97,6 +108,130 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     diag_degenerate_faces: IntProperty(
         name="Faces Degeneradas",
         default=0,
+    )
+
+    # --- Configurações do Plano de Corte (Fase 1) ---
+    plane_origin: FloatVectorProperty(
+        name="Origem do Plano",
+        size=3,
+        default=(0.0, 0.0, 0.0),
+        precision=3,
+        description="Ponto 3D por onde passa o plano de corte",
+    )
+
+    plane_normal: FloatVectorProperty(
+        name="Normal do Plano",
+        size=3,
+        default=(0.0, 0.0, 1.0),
+        precision=3,
+        description="Vetor normal de orientação do corte",
+    )
+
+    invert_sides: BoolProperty(
+        name="Inverter Lados A/B",
+        default=False,
+        description="Inverte os papéis de Parte A e Parte B",
+    )
+
+    view_mode: EnumProperty(
+        name="Visualização",
+        items=[
+            ('ASSEMBLED', "Montado", "Peças unidas na posição original"),
+            ('EXPLODED', "Explodido", "Peças afastadas para inspeção do corte"),
+        ],
+        default='ASSEMBLED',
+        description="Modo de visualização das partes de preview",
+        update=lambda self, context: _on_preview_transform_update(self, context),
+    )
+
+    explosion_distance_mm: FloatProperty(
+        name="Distância de Explosão (mm)",
+        default=30.0,
+        min=0.0,
+        max=500.0,
+        precision=1,
+        description="Distância de afastamento entre as partes na vista explodida",
+        update=lambda self, context: _on_preview_transform_update(self, context),
+    )
+
+
+    # --- Diagnósticos das Partes Divididas ---
+    part_a_volume_mm3: FloatProperty(
+        name="Volume Parte A (mm³)",
+        default=0.0,
+        precision=2,
+    )
+
+    part_a_dims_mm: FloatVectorProperty(
+        name="Dimensões Parte A (mm)",
+        size=3,
+        default=(0.0, 0.0, 0.0),
+        precision=2,
+    )
+
+    part_a_triangles: IntProperty(
+        name="Triângulos Parte A",
+        default=0,
+    )
+
+    part_a_is_manifold: BoolProperty(
+        name="Parte A Manifold",
+        default=True,
+    )
+
+    part_a_non_manifold_edges: IntProperty(
+        name="Arestas Abertas A",
+        default=0,
+    )
+
+    part_a_components: IntProperty(
+        name="Componentes Parte A",
+        default=0,
+    )
+
+    part_b_volume_mm3: FloatProperty(
+        name="Volume Parte B (mm³)",
+        default=0.0,
+        precision=2,
+    )
+
+    part_b_dims_mm: FloatVectorProperty(
+        name="Dimensões Parte B (mm)",
+        size=3,
+        default=(0.0, 0.0, 0.0),
+        precision=2,
+    )
+
+    part_b_triangles: IntProperty(
+        name="Triângulos Parte B",
+        default=0,
+    )
+
+    part_b_is_manifold: BoolProperty(
+        name="Parte B Manifold",
+        default=True,
+    )
+
+    part_b_non_manifold_edges: IntProperty(
+        name="Arestas Abertas B",
+        default=0,
+    )
+
+    part_b_components: IntProperty(
+        name="Componentes Parte B",
+        default=0,
+    )
+
+    part_sum_volume_mm3: FloatProperty(
+        name="Soma dos Volumes (mm³)",
+        default=0.0,
+        precision=2,
+    )
+
+    volume_diff_pct: FloatProperty(
+        name="Diferença de Volume (%)",
+        default=0.0,
+        precision=3,
     )
 
     # Feedback de mensagens ao usuário

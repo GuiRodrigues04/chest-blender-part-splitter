@@ -642,8 +642,6 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 bm_b.free()
                 
                 # Para conectores, precisamos de origin e normal. Calculamos do loop atual.
-                import bmesh
-                from mathutils import Vector
                 bm = bmesh.new()
                 bm.from_mesh(target.data)
                 bm.verts.ensure_lookup_table()

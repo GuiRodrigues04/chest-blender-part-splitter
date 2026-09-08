@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "chest_part_splitter"
-version = "0.4.0"
+version = "0.5.0"
 name = "Chest Part Splitter"
 tagline = "Divisão de modelos em peças e encaixes para 3D"
 maintainer = "Chest Team"

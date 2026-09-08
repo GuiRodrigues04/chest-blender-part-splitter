@@ -39,6 +39,7 @@ SOLID_CUTTER_NAME = "CHEST_SPLITTER_SOLID_CUTTER"
 SPLIT_MODES = [
     ('PLANE', "Plano", "Divisão rápida por plano infinito orientável"),
     ('SOLID', "Cortador Sólido", "Divisão volumétrica por sólido fechado (Interseção / Diferença)"),
+    ('LOOP', "Loop de Arestas", "Divisão direta por anel de arestas fechado (Modo D)"),
     ('MATERIAL', "Material", "Divisão assistida por fronteiras de materiais (Fase 4)"),
 ]
 

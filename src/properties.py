@@ -176,6 +176,39 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         description="Inverte os papéis de Parte A e Parte B",
     )
 
+    # --- Fase 3A (Modo D): Loop de Arestas ---
+    loop_is_captured: BoolProperty(
+        name="Loop Capturado",
+        default=False,
+    )
+    loop_vertex_count: IntProperty(
+        name="Vértices no Loop",
+        default=0,
+    )
+    loop_vertex_indices: StringProperty(
+        name="Índices dos Vértices do Loop",
+        default="",
+    )
+    loop_is_planar: BoolProperty(
+        name="Loop é Plano",
+        default=False,
+    )
+    loop_planarity_deviation_mm: FloatProperty(
+        name="Desvio de Planicidade (mm)",
+        default=0.0,
+    )
+    loop_seed_face_index: IntProperty(
+        name="Índice da Face Semente (Região A)",
+        default=-1,
+    )
+    loop_topology_signature: StringProperty(
+        name="Assinatura Topológica",
+        default="",
+    )
+
+    # --- Fim Loop ---
+
+    # --- Guias de Visualização ---
     view_mode: EnumProperty(
         name="Visualização",
         items=[

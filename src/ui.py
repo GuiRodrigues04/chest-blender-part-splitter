@@ -143,6 +143,29 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     box_cutter_warn.label(text=f"Erro: {settings.solid_cutter_non_manifold_edges} aresta(s) abertas!", icon='ERROR')
                     box_cutter_warn.label(text="Cortador precisa ser um sólido 3D estanque.")
 
+        elif settings.split_mode == 'LOOP':
+            box_loop = box_split.box()
+            box_loop.label(text="Configuração de Loop (Fase 3A)", icon='MOD_EDGESPLIT')
+            
+            row_cap = box_loop.row(align=True)
+            row_cap.scale_y = 1.2
+            row_cap.operator("chest.splitter_capture_loop", text="Capturar Loop Fechado", icon='VIEW_ORTHO')
+            
+            if settings.loop_is_captured:
+                box_loop.label(text=f"Vértices no loop: {settings.loop_vertex_count}", icon='VERTEXSEL')
+                if settings.loop_is_planar:
+                    box_loop.label(text=f"Status: Planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)", icon='CHECKMARK')
+                else:
+                    box_loop.label(text=f"Aviso: Não-planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)", icon='ERROR')
+            
+            row_seed = box_loop.row(align=True)
+            row_seed.scale_y = 1.2
+            row_seed.operator("chest.splitter_define_seed_face", text="Definir Região (Face Ativa)", icon='FACESEL')
+            
+            if settings.loop_seed_face_index >= 0:
+                box_loop.label(text=f"Face Semente: {settings.loop_seed_face_index}", icon='CHECKMARK')
+
+
         elif settings.split_mode == 'MATERIAL':
             box_split.label(text="Segmentação por materiais planejada para a Fase 4.", icon='INFO')
 

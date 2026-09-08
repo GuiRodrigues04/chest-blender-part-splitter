@@ -619,6 +619,65 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 self.report({'ERROR'}, str(e))
                 return {'CANCELLED'}
 
+        elif settings.split_mode == 'LOOP':
+            if not settings.loop_is_captured or not settings.loop_vertex_indices:
+                settings.last_status = "Nenhum loop capturado."
+                settings.last_status_level = 'ERROR'
+                self.report({'ERROR'}, settings.last_status)
+                return {'CANCELLED'}
+            if settings.loop_seed_face_index < 0:
+                settings.last_status = "Nenhuma região definida."
+                settings.last_status_level = 'ERROR'
+                self.report({'ERROR'}, settings.last_status)
+                return {'CANCELLED'}
+            
+            indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i]
+            
+            from .geometry_loop import slice_mesh_by_loop
+            try:
+                bm_a, bm_b = slice_mesh_by_loop(target, target.name, indices, settings.loop_seed_face_index, context.scene)
+                bm_a.to_mesh(mesh_a)
+                bm_b.to_mesh(mesh_b)
+                bm_a.free()
+                bm_b.free()
+                
+                # Para conectores, precisamos de origin e normal. Calculamos do loop atual.
+                import bmesh
+                from mathutils import Vector
+                bm = bmesh.new()
+                bm.from_mesh(target.data)
+                bm.verts.ensure_lookup_table()
+                coords = [bm.verts[i].co for i in indices if i < len(bm.verts)]
+                bm.free()
+                
+                if coords:
+                    plane_origin = sum(coords, Vector()) / len(coords)
+                    n = Vector((0.0, 0.0, 0.0))
+                    for i in range(len(coords)):
+                        v1 = coords[i]
+                        v2 = coords[(i+1) % len(coords)]
+                        n.x += (v1.y - v2.y) * (v1.z + v2.z)
+                        n.y += (v1.z - v2.z) * (v1.x + v2.x)
+                        n.z += (v1.x - v2.x) * (v1.y + v2.y)
+                    if n.length > 0:
+                        n.normalize()
+                    plane_normal = n
+                else:
+                    plane_origin = Vector((0,0,0))
+                    plane_normal = Vector((0,0,1))
+                
+                report = {
+                    "vol_a_mm3": 0, "vol_b_mm3": 0,
+                    "dims_mm": (0, 0, 0)
+                }
+            except Exception as e:
+                bpy.data.meshes.remove(mesh_a, do_unlink=True)
+                bpy.data.meshes.remove(mesh_b, do_unlink=True)
+                settings.session_status = 'PREVIEW_INVALID'
+                settings.last_status = f"Erro no loop: {str(e)}"
+                settings.last_status_level = 'ERROR'
+                self.report({'ERROR'}, str(e))
+                return {'CANCELLED'}
         else:
             # Modo PLANAR
             plane_origin, plane_normal = read_plane_geometry(context)
@@ -955,6 +1014,88 @@ class CHEST_OT_splitter_redo_session(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class CHEST_OT_splitter_capture_loop(bpy.types.Operator):
+    """Captura e valida um loop fechado de arestas no Modo D"""
+    bl_idname = "chest.splitter_capture_loop"
+    bl_label = "Capturar Loop Fechado"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.chest_splitter
+        return settings.target_object is not None and settings.target_object.type == 'MESH' and context.active_object == settings.target_object
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        obj = settings.target_object
+        
+        from .geometry_loop import capture_edge_loop, get_topology_signature
+        
+        success, indices, is_planar, dev_mm, err_msg = capture_edge_loop(obj)
+        
+        if not success:
+            settings.loop_is_captured = False
+            settings.last_status = f"Erro na captura: {err_msg}"
+            settings.last_status_level = 'ERROR'
+            self.report({'ERROR'}, err_msg)
+            return {'CANCELLED'}
+            
+        settings.loop_is_captured = True
+        settings.loop_vertex_count = len(indices)
+        settings.loop_vertex_indices = ",".join(str(i) for i in indices)
+        settings.loop_is_planar = is_planar
+        settings.loop_planarity_deviation_mm = dev_mm
+        settings.loop_topology_signature = get_topology_signature(obj)
+        
+        if not is_planar:
+            msg = f"Aviso: Loop capturado com {len(indices)} vértices, mas NÃO é perfeitamente plano (desvio {dev_mm:.2f}mm). O corte planar direto pode ter gaps na tampa interna."
+            settings.last_status = msg
+            settings.last_status_level = 'WARNING'
+            self.report({'WARNING'}, msg)
+        else:
+            msg = f"Sucesso: Loop planar capturado com {len(indices)} vértices."
+            settings.last_status = msg
+            settings.last_status_level = 'SUCCESS'
+            self.report({'INFO'}, msg)
+            
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_define_seed_face(bpy.types.Operator):
+    """Define a face semente (selecionada) que indica qual região será a Parte A"""
+    bl_idname = "chest.splitter_define_seed_face"
+    bl_label = "Definir Região a Separar"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.chest_splitter
+        return settings.target_object is not None and settings.target_object.type == 'MESH' and context.active_object == settings.target_object
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        obj = settings.target_object
+        
+        from .geometry_loop import get_selected_seed_face
+        
+        seed_idx = get_selected_seed_face(obj)
+        if seed_idx < 0:
+            settings.last_status = "Selecione pelo menos uma face em Edit Mode."
+            settings.last_status_level = 'ERROR'
+            self.report({'ERROR'}, settings.last_status)
+            return {'CANCELLED'}
+            
+        settings.loop_seed_face_index = seed_idx
+        
+        msg = f"Sucesso: Face {seed_idx} definida como semente para a Parte A."
+        settings.last_status = msg
+        settings.last_status_level = 'SUCCESS'
+        self.report({'INFO'}, msg)
+            
+        return {'FINISHED'}
+
+
+
 classes = (
     CHEST_OT_splitter_set_target,
     CHEST_OT_splitter_clear_target,
@@ -970,6 +1111,8 @@ classes = (
     CHEST_OT_splitter_commit_parts,
     CHEST_OT_splitter_restore_original,
     CHEST_OT_splitter_redo_session,
+    CHEST_OT_splitter_capture_loop,
+    CHEST_OT_splitter_define_seed_face,
 )
 
 
@@ -987,3 +1130,4 @@ def unregister():
             bpy.utils.unregister_class(cls)
         except RuntimeError:
             pass
+

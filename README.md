@@ -4,14 +4,14 @@ Extensão interna para **Blender 5.2+** (compatível com Blender 4.2+) projetada
 
 ---
 
-## 🎯 Status Atual: v0.4.0 (Fase 3 Concluída)
+## 🎯 Status Atual: v0.5.0 (Fase 3 Concluída)
 
-A extensão está na versão **`v0.4.0`**, com as seguintes capacidades ativas e validadas:
+A extensão está na versão **`v0.5.0`**, com as seguintes capacidades ativas e validadas:
 - **Fase 0 (Fundação)**: Diagnóstico físico em mm, integridade manifold, volume, escala e coleções dedicadas.
 - **Fase 1 (Corte Planar)**: Bisect 2D, capping manifold automático, guia visual, visualização montada/explodida e inversão de lados.
 - **Fase 2 (Encaixes FDM)**: Pinos cilíndricos e chaves tipo cápsula com folga física calibrada (presets de 0,10 a 0,25 mm), chanfro de entrada e distribuições simétricas.
 - **Fase 3 (Cortador Sólido)**: Corte 3D volumétrico via primitivas paramétricas (Caixa, Cilindro, Esfera, Cápsula) ou malhas existentes da cena, com solver booleano EXACT e conservação de volume.
-- **Próxima: Fase 3A (Loop Fechado de Arestas / Corte de Pata)**: Separação direta por anel de arestas selecionado na malha (ex.: pata de gato/animal) com tampas internas compartilhadas.
+- **Fase 3A (Loop Fechado de Arestas / Corte de Pata)**: Separação direta por anel de arestas selecionado na malha (ex.: pata de gato/animal) com tampas internas compartilhadas.
 
 > Para detalhes completos da arquitetura, roadmap de fases e critérios de aceite, consulte [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 

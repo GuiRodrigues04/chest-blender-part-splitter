@@ -728,20 +728,29 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
         preview_col.objects.link(obj_a)
         preview_col.objects.link(obj_b)
+        # Determina qual parte está geometricamente no topo (maior Z médio no espaço de mundo)
+        try:
+            az = sum((obj_a.matrix_world @ Vector(c)).z for c in obj_a.bound_box) / 8.0
+            bz = sum((obj_b.matrix_world @ Vector(c)).z for c in obj_b.bound_box) / 8.0
+            settings.part_a_is_superior = (az >= bz)
+        except Exception:
+            settings.part_a_is_superior = True
 
         # Aplica encaixes (macho e cavidade) se ativados na sessão
         if settings.connector_enabled:
             if settings.split_mode == 'SOLID':
                 self.report({'INFO'}, "Encaixes automáticos são suportados no modo Plano.")
             else:
+                # O vetor normal de interface deve respeitar o lado invertido:
+                effective_normal_a = -plane_normal if settings.invert_sides else plane_normal
                 if settings.connector_male_part == 'A':
                     male_obj = obj_a
                     female_obj = obj_b
-                    norm = plane_normal
+                    norm = effective_normal_a
                 else:
                     male_obj = obj_b
                     female_obj = obj_a
-                    norm = -plane_normal
+                    norm = -effective_normal_a
 
             try:
                 positions = compute_connector_positions(
@@ -857,11 +866,14 @@ class CHEST_OT_splitter_invert_male_female(bpy.types.Operator):
     def execute(self, context):
         settings = context.scene.chest_splitter
         settings.connector_male_part = 'B' if settings.connector_male_part == 'A' else 'A'
-        msg = f"Macho agora na Parte {settings.connector_male_part} (Cavidade na Parte {'B' if settings.connector_male_part == 'A' else 'A'})."
+        
+        is_top = (settings.connector_male_part == 'A' and settings.part_a_is_superior) or (settings.connector_male_part == 'B' and not settings.part_a_is_superior)
+        pos_desc = "Parte Superior" if is_top else "Parte Inferior"
+        msg = f"Encaixes invertidos! Pinos (macho) agora na {pos_desc} ({'Parte A' if settings.connector_male_part == 'A' else 'Parte B'})."
         settings.last_status = msg
         settings.last_status_level = 'INFO'
         self.report({'INFO'}, msg)
-        if settings.session_status == 'PREVIEW_VALID':
+        if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):
             bpy.ops.chest.splitter_generate_preview()
         return {'FINISHED'}
 

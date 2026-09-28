@@ -388,6 +388,12 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         description="Define qual parte recebe o pino saliente",
     )
 
+    part_a_is_superior: BoolProperty(
+        name="Parte A é Superior",
+        default=True,
+        description="Indica se a Parte A está geometricamente no topo em relação ao eixo Z de corte",
+    )
+
     connector_diameter_mm: FloatProperty(
         name="Diâmetro Nominal (mm)",
         default=6.0,

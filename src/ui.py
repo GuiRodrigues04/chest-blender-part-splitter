@@ -184,6 +184,17 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     lbl_inv = "Inverter Lados (Ativo)" if settings.invert_sides else "Inverter Lados A / B"
                 row_inv.operator("chest.splitter_invert_sides", text=lbl_inv, icon='ARROW_LEFTRIGHT')
 
+                # Botão direto de inversão de encaixes (Macho no Topo vs Base)
+                if settings.connector_enabled:
+                    is_top = (settings.connector_male_part == 'A' and settings.part_a_is_superior) or (settings.connector_male_part == 'B' and not settings.part_a_is_superior)
+                    pos_txt = "Superior" if is_top else "Inferior"
+                    row_inv_m = box_preview_act.row(align=True)
+                    row_inv_m.operator(
+                        "chest.splitter_invert_male_female",
+                        text=f"Inverter Pinos: Macho na {pos_txt}",
+                        icon='SNAP_VERTEX'
+                    )
+
             # --- Visualização Montada / Explodida e Cores ---
             if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):
                 box_view = box_split.box()
@@ -199,8 +210,11 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 box_diag_parts = box_split.box()
                 box_diag_parts.label(text="Resultados do Corte", icon='CHECKMARK')
 
+                lbl_tag_a = " (Superior)" if settings.part_a_is_superior else " (Inferior)"
+                lbl_tag_b = " (Inferior)" if settings.part_a_is_superior else " (Superior)"
+
                 col_a = box_diag_parts.box()
-                col_a.label(text="Parte A", icon='MESH_CUBE')
+                col_a.label(text=f"Parte A{lbl_tag_a}", icon='MESH_CUBE')
                 col_a.label(text=f"Volume: {settings.part_a_volume_mm3:,.1f} mm³")
                 dims_a = settings.part_a_dims_mm
                 col_a.label(text=f"Dimensões: {dims_a[0]:.1f} x {dims_a[1]:.1f} x {dims_a[2]:.1f} mm")
@@ -209,7 +223,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     col_a.label(text=f"Aviso: {settings.part_a_non_manifold_edges} aresta(s) abertas", icon='ERROR')
 
                 col_b = box_diag_parts.box()
-                col_b.label(text="Parte B", icon='MESH_CUBE')
+                col_b.label(text=f"Parte B{lbl_tag_b}", icon='MESH_CUBE')
                 col_b.label(text=f"Volume: {settings.part_b_volume_mm3:,.1f} mm³")
                 dims_b = settings.part_b_dims_mm
                 col_b.label(text=f"Dimensões: {dims_b[0]:.1f} x {dims_b[1]:.1f} x {dims_b[2]:.1f} mm")
@@ -265,9 +279,23 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             col_shape.prop(settings, "connector_type", expand=True)
 
             # Lado do Macho / Fêmea
-            row_male = box_conn.row(align=True)
-            male_label = f"Macho na Parte {settings.connector_male_part} (Fêmea na {'B' if settings.connector_male_part == 'A' else 'A'})"
-            row_male.operator("chest.splitter_invert_male_female", text=f"Inverter: {male_label}", icon='ARROW_LEFTRIGHT')
+            box_male = box_conn.box()
+            box_male.label(text="Posição dos Pinos (Macho):", icon='SNAP_NORMAL')
+            
+            top_part = 'A' if settings.part_a_is_superior else 'B'
+            is_top = (settings.connector_male_part == top_part)
+            cur_desc = "Parte Superior" if is_top else "Parte Inferior"
+
+            row_male_pick = box_male.row(align=True)
+            row_male_pick.prop(settings, "connector_male_part", expand=True)
+
+            row_male_btn = box_male.row(align=True)
+            row_male_btn.scale_y = 1.2
+            row_male_btn.operator(
+                "chest.splitter_invert_male_female",
+                text=f"Inverter: Pinos na {cur_desc}",
+                icon='ARROW_LEFTRIGHT'
+            )
 
             # Dimensões Nominais do Macho
             box_dims = box_conn.box()

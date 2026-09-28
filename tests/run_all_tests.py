@@ -10,6 +10,7 @@ TESTS = [
     "tests/test_smoke_phase3.py",
     "tests/test_stress_phases0_3.py",
     "tests/test_phase3a_loop.py",
+    "tests/test_multicolor_support.py",
 ]
 
 def main():

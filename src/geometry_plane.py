@@ -62,10 +62,12 @@ def cap_open_cut_boundaries(bm: bmesh.types.BMesh, cut_edges: Optional[list] = N
     if not target_edges:
         return 0
 
+    created_all = []
     # 1. Tentativa com edgenet_fill
     try:
         res = bmesh.ops.edgenet_fill(bm, edges=target_edges)
         created = res.get("faces", [])
+        created_all.extend(created)
         faces_created += len(created)
     except Exception:
         pass
@@ -76,9 +78,23 @@ def cap_open_cut_boundaries(bm: bmesh.types.BMesh, cut_edges: Optional[list] = N
         try:
             res_holes = bmesh.ops.holes_fill(bm, edges=remaining_boundary, sides=0)
             created_holes = res_holes.get("faces", [])
+            created_all.extend(created_holes)
             faces_created += len(created_holes)
         except Exception:
             pass
+
+    # Atribuição inteligente de material para as novas faces da tampa (interface de corte):
+    # As novas faces herdam o material mais frequente das faces vizinhas imediatas
+    if created_all:
+        created_set = set(created_all)
+        for f in created_all:
+            adj_mats = []
+            for e in f.edges:
+                for lf in e.link_faces:
+                    if lf not in created_set:
+                        adj_mats.append(lf.material_index)
+            if adj_mats:
+                f.material_index = max(set(adj_mats), key=adj_mats.count)
 
     # Recalcula normais para garantir orientação exterior consistente
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
@@ -199,6 +215,10 @@ def slice_mesh_by_plane(
         # Escreve na malha de destino correspondente
         target_mesh = target_mesh_a if side_key == "A" else target_mesh_b
         target_mesh.clear_geometry()
+        # Sincroniza materiais da malha fonte ANTES do to_mesh para que o Blender preserve os índices de materiais
+        target_mesh.materials.clear()
+        for mat in source_mesh.materials:
+            target_mesh.materials.append(mat)
         bm.to_mesh(target_mesh)
         target_mesh.update()
         bm.free()

@@ -486,6 +486,46 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         default='INFO',
     )
 
+    # --- Visualização de Cores e Exportação Multicolor (Fase 5) ---
+    preview_color_mode: EnumProperty(
+        name="Modo de Cor do Preview",
+        items=[
+            ('MATERIALS', "Cores Originais (Materiais)", "Mantém a visualização dos materiais e texturas reais do modelo"),
+            ('PARTS', "Cores A / B (Contraste)", "Destaca Parte A e Parte B com azul e laranja para conferir a divisão"),
+        ],
+        default='MATERIALS',
+        description="Alterna entre as cores reais dos materiais do modelo e as cores de contraste das partes",
+    )
+
+    export_directory: StringProperty(
+        name="Pasta de Exportação",
+        subtype='DIR_PATH',
+        default="//",
+        description="Diretório onde os arquivos de impressão 3D serão salvos",
+    )
+
+    export_format: EnumProperty(
+        name="Formato",
+        items=[
+            ('3MF', "3MF Multimaterial (.3mf)", "Formato nativo para Bambu Studio / OrcaSlicer com cores preservadas"),
+            ('STL_PER_MATERIAL', "STL por Material / Cor (.stl)", "Arquivos STL separados por cor para importação multipartes"),
+            ('STL_PARTS', "STL por Parte (.stl)", "Arquivos STL separados para cada parte"),
+            ('OBJ', "Wavefront OBJ (.obj + .mtl)", "Geometria e materiais em formato OBJ"),
+        ],
+        default='3MF',
+        description="Formato de exportação para fatiamento e impressão 3D",
+    )
+
+    export_layout: EnumProperty(
+        name="Disposição",
+        items=[
+            ('ASSEMBLED', "Posição Montada", "Exporta no espaço global de montagem original"),
+            ('PRINT_BED', "Mesa de Impressão", "Exporta as peças assentadas lado a lado"),
+        ],
+        default='ASSEMBLED',
+        description="Orientação espacial dos modelos no arquivo de exportação",
+    )
+
 
 def register():
     try:

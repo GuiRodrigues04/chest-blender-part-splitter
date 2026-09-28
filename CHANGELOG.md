@@ -5,6 +5,35 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.6.0] - 2026-09-28
+
+### Adicionado
+- **Suporte Completo a Modelos Multicores e Materiais**:
+  - Preservação estrita de todos os slots de materiais e índices de faces originais durante cortes nos modos Plano (`PLANE`), Cortador Sólido (`SOLID`) e Loop Fechado (`LOOP`).
+  - Atribuição inteligente de materiais nas tampas de interface de corte (capping faces), herdando automaticamente o material predominante das faces vizinhas imediatas.
+  - Sincronização de materiais em pinos e cavidades de encaixe, prevenindo a criação de slots nulos (`None`) após operações booleanas.
+- **Alternador de Modo de Exibição de Cores na Viewport (`preview_color_mode`)**:
+  - Modo `Cores Originais (Materiais)`: exibe fielmente as cores, materiais e shaders originais do modelo.
+  - Modo `Cores A / B (Contraste)`: destaca Parte A (Azul) e Parte B (Laranja) para inspeção geométrica rápida.
+- **Operador "Separar Peças por Cores / Materiais" (`chest.splitter_separate_by_material`)**:
+  - Divide qualquer peça multicolor em sub-objetos individuais por material/cor, mantendo o alinhamento espacial perfeito para impressão multicolor em sistemas tipo AMS / MMU.
+- **Módulo de Exportação Direta para Fatiadores (`src/io_export.py` e `chest.splitter_export_parts`)**:
+  - Exportação nativa em **3MF Multimaterial (.3mf)** com `<m:colorgroup>` compatível com Bambu Studio, OrcaSlicer e PrusaSlicer.
+  - Exportação em **STLs por Material / Cor (.stl)** com coordenadas globais alinhadas para importação como objeto multipartes.
+  - Exportação em **Wavefront OBJ (.obj + .mtl)**.
+- **Correção de Interface**:
+  - Botão de Gerar Preview, visualização e confirmação de divisão habilitados também para o Modo Loop Fechado (`LOOP`).
+- **Suíte de Testes Automatizados**:
+  - Adicionado `tests/test_multicolor_support.py` cobrindo cortes planares, sólidos, encaixes com materiais, separação por material e exportação para 3MF e STL. Total de 7 suítes com 100% de aprovação no Blender 5.2 LTS.
+
+## [0.5.0] - 2026-09-08
+
+### Adicionado
+- **Fase 3A — Modo Loop Fechado de Arestas**:
+  - Captura e validação de loop de arestas em Edit Mode (`capture_edge_loop`).
+  - Separação direta da geometria (Caminho D1) por região e face-semente (`slice_mesh_by_loop`).
+  - Fechamento manifold de tampas internas compartilhadas.
+
 ## [0.4.0] - 2026-09-06
 
 ### Adicionado

@@ -170,34 +170,37 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             box_split.label(text="Segmentação por materiais planejada para a Fase 4.", icon='INFO')
 
         # --- Controles de Ação, Preview e Confirmação (comuns aos modos de corte com alvo) ---
-        if obj and settings.split_mode in ('PLANE', 'SOLID'):
+        if obj and settings.split_mode in ('PLANE', 'SOLID', 'LOOP'):
             box_preview_act = box_split.box()
             row_preview = box_preview_act.row(align=True)
             row_preview.scale_y = 1.3
             row_preview.operator("chest.splitter_generate_preview", text="Gerar / Atualizar Preview", icon='PLAY')
 
-            row_inv = box_preview_act.row(align=True)
-            if settings.split_mode == 'SOLID':
-                lbl_inv = "Inverter: A=Ext / B=Int" if settings.invert_sides else "Inverter: A=Int / B=Ext"
-            else:
-                lbl_inv = "Inverter Lados (Ativo)" if settings.invert_sides else "Inverter Lados A / B"
-            row_inv.operator("chest.splitter_invert_sides", text=lbl_inv, icon='ARROW_LEFTRIGHT')
+            if settings.split_mode in ('PLANE', 'SOLID'):
+                row_inv = box_preview_act.row(align=True)
+                if settings.split_mode == 'SOLID':
+                    lbl_inv = "Inverter: A=Ext / B=Int" if settings.invert_sides else "Inverter: A=Int / B=Ext"
+                else:
+                    lbl_inv = "Inverter Lados (Ativo)" if settings.invert_sides else "Inverter Lados A / B"
+                row_inv.operator("chest.splitter_invert_sides", text=lbl_inv, icon='ARROW_LEFTRIGHT')
 
-            # --- Visualização Montada / Explodida ---
+            # --- Visualização Montada / Explodida e Cores ---
             if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):
                 box_view = box_split.box()
-                box_view.label(text="Modo de Visualização", icon='RESTRICT_VIEW_OFF')
+                box_view.label(text="Modo de Visualização & Cores", icon='RESTRICT_VIEW_OFF')
                 box_view.prop(settings, "view_mode", expand=True)
 
                 if settings.view_mode == 'EXPLODED':
                     box_view.prop(settings, "explosion_distance_mm", slider=True)
+
+                box_view.prop(settings, "preview_color_mode", text="")
 
                 # --- Diagnósticos de Partes A e B ---
                 box_diag_parts = box_split.box()
                 box_diag_parts.label(text="Resultados do Corte", icon='CHECKMARK')
 
                 col_a = box_diag_parts.box()
-                col_a.label(text="Parte A (Azul)", icon='MESH_CUBE')
+                col_a.label(text="Parte A", icon='MESH_CUBE')
                 col_a.label(text=f"Volume: {settings.part_a_volume_mm3:,.1f} mm³")
                 dims_a = settings.part_a_dims_mm
                 col_a.label(text=f"Dimensões: {dims_a[0]:.1f} x {dims_a[1]:.1f} x {dims_a[2]:.1f} mm")
@@ -206,7 +209,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     col_a.label(text=f"Aviso: {settings.part_a_non_manifold_edges} aresta(s) abertas", icon='ERROR')
 
                 col_b = box_diag_parts.box()
-                col_b.label(text="Parte B (Laranja)", icon='MESH_CUBE')
+                col_b.label(text="Parte B", icon='MESH_CUBE')
                 col_b.label(text=f"Volume: {settings.part_b_volume_mm3:,.1f} mm³")
                 dims_b = settings.part_b_dims_mm
                 col_b.label(text=f"Dimensões: {dims_b[0]:.1f} x {dims_b[1]:.1f} x {dims_b[2]:.1f} mm")
@@ -222,6 +225,10 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     text=f"Soma Volumes: {settings.part_sum_volume_mm3:,.1f} mm³ (dif: {settings.volume_diff_pct:.2f}%)",
                     icon=icon_vol
                 )
+
+                # Ação rápida de separação por material/cor
+                row_sep = box_diag_parts.row()
+                row_sep.operator("chest.splitter_separate_by_material", text="Separar por Cores / Materiais", icon='COLOR')
 
             # --- Confirmação e Restauração ---
             box_commit = box_split.box()
@@ -290,6 +297,19 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             box_dist.prop(settings, "connector_distribution", expand=True)
             box_dist.prop(settings, "connector_edge_margin_mm", slider=True)
 
+        # --- SEÇÃO 4: EXPORTAÇÃO PARA IMPRESSÃO 3D (Fase 5) ---
+        if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):
+            layout.separator()
+            box_exp = layout.box()
+            box_exp.label(text="4. Exportação para Fatiador (Bambu / Orca / Prusa)", icon='EXPORT')
+
+            col_exp_cfg = box_exp.column(align=True)
+            col_exp_cfg.prop(settings, "export_format")
+            col_exp_cfg.prop(settings, "export_directory")
+
+            row_exp_act = box_exp.row()
+            row_exp_act.scale_y = 1.3
+            row_exp_act.operator("chest.splitter_export_parts", text="Exportar Peças Selecionadas", icon='EXPORT')
 
         # --- FEEDBACK DE STATUS ---
         if settings.last_status:

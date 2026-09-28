@@ -636,6 +636,12 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             from .geometry_loop import slice_mesh_by_loop
             try:
                 bm_a, bm_b = slice_mesh_by_loop(target, target.name, indices, settings.loop_seed_face_index, context.scene)
+                # Sincroniza materiais da malha fonte ANTES do to_mesh para preservar índices de materiais
+                mesh_a.materials.clear()
+                mesh_b.materials.clear()
+                for mat in target.data.materials:
+                    mesh_a.materials.append(mat)
+                    mesh_b.materials.append(mat)
                 bm_a.to_mesh(mesh_a)
                 bm_b.to_mesh(mesh_b)
                 bm_a.free()
@@ -712,8 +718,13 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
         obj_b = bpy.data.objects.new(PREVIEW_B_NAME, mesh_b)
 
         # Configura cores de visualização
-        obj_a.color = COLOR_PART_A
-        obj_b.color = COLOR_PART_B
+        if settings.preview_color_mode == 'PARTS':
+            obj_a.color = COLOR_PART_A
+            obj_b.color = COLOR_PART_B
+        else:
+            # Em modo MATERIALS, cores do objeto ficam neutras para destacar os materiais reais
+            obj_a.color = (1.0, 1.0, 1.0, 1.0)
+            obj_b.color = (1.0, 1.0, 1.0, 1.0)
 
         preview_col.objects.link(obj_a)
         preview_col.objects.link(obj_b)
@@ -1093,6 +1104,161 @@ class CHEST_OT_splitter_define_seed_face(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class CHEST_OT_splitter_separate_by_material(bpy.types.Operator):
+    """Separa as peças divididas em sub-objetos individuais por material/cor para impressão 3D multicolor"""
+    bl_idname = "chest.splitter_separate_by_material"
+    bl_label = "Separar Peças por Cores / Materiais"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.chest_splitter
+        return settings.session_status in ('PREVIEW_VALID', 'COMMITTED')
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        parts_col = get_or_create_collection(context.scene, COLLECTION_PARTS_NAME)
+        preview_col = find_collection(context.scene, COLLECTION_PREVIEWS_NAME)
+
+        from .io_export import separate_object_by_material
+
+        objs_to_process = []
+        if settings.session_status == 'COMMITTED':
+            objs_to_process = [o for o in parts_col.objects if o.type == 'MESH']
+            target_col = parts_col
+        else:
+            objs_to_process = [o for o in preview_col.objects if o.type == 'MESH'] if preview_col else []
+            target_col = parts_col
+
+        if not objs_to_process:
+            self.report({'WARNING'}, "Nenhuma peça encontrada para separação.")
+            return {'CANCELLED'}
+
+        created_count = 0
+        for src_obj in objs_to_process:
+            if len(src_obj.data.materials) > 1:
+                sub_objs = separate_object_by_material(src_obj, target_col)
+                if len(sub_objs) > 1:
+                    created_count += len(sub_objs)
+                    if src_obj.name in target_col.objects:
+                        target_col.objects.unlink(src_obj)
+
+        if created_count > 0:
+            msg = f"{created_count} sub-peças por cor/material criadas na coleção '{COLLECTION_PARTS_NAME}'."
+            settings.last_status = msg
+            settings.last_status_level = 'SUCCESS'
+            self.report({'INFO'}, msg)
+            return {'FINISHED'}
+        else:
+            msg = "As peças já possuem apenas 1 material ou não possuem múltiplos materiais."
+            settings.last_status = msg
+            settings.last_status_level = 'INFO'
+            self.report({'INFO'}, msg)
+            return {'FINISHED'}
+
+
+class CHEST_OT_splitter_export_parts(bpy.types.Operator):
+    """Exporta as partes cortadas nos formatos 3MF Multimaterial, STL por Material ou OBJ"""
+    bl_idname = "chest.splitter_export_parts"
+    bl_label = "Exportar Peças para Impressão 3D"
+    bl_options = {'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.chest_splitter
+        return settings.session_status in ('PREVIEW_VALID', 'COMMITTED')
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        target = settings.target_object
+        parts_col = find_collection(context.scene, COLLECTION_PARTS_NAME)
+        preview_col = find_collection(context.scene, COLLECTION_PREVIEWS_NAME)
+
+        objects = []
+        if parts_col and parts_col.objects:
+            objects = [o for o in parts_col.objects if o.type == 'MESH']
+        elif preview_col and preview_col.objects:
+            objects = [o for o in preview_col.objects if o.type == 'MESH']
+
+        if not objects:
+            self.report({'ERROR'}, "Nenhuma peça encontrada para exportação.")
+            return {'CANCELLED'}
+
+        raw_dir = settings.export_directory
+        export_dir = bpy.path.abspath(raw_dir) if raw_dir else ""
+        if not export_dir or export_dir in ("//", ""):
+            if bpy.data.is_saved and bpy.data.filepath:
+                export_dir = os.path.dirname(bpy.data.filepath)
+            else:
+                export_dir = os.path.expanduser(r"~\OneDrive\Desktop\Modelos 3D IA\Placas")
+                if not os.path.exists(export_dir):
+                    export_dir = os.path.expanduser(r"~\Desktop")
+
+        os.makedirs(export_dir, exist_ok=True)
+        unit_scale = get_scene_scale_to_mm(context.scene)
+        base_name = target.name if target else "Chest_Model"
+        base_name = "".join(c for c in base_name if c.isalnum() or c in ('_', '-'))
+
+        from .io_export import export_objects_to_3mf, export_objects_to_stl_by_material
+
+        try:
+            if settings.export_format == '3MF':
+                out_path = os.path.join(export_dir, f"{base_name}__parts.3mf")
+                export_objects_to_3mf(objects, out_path, unit_scale=unit_scale)
+                msg = f"Arquivo 3MF Multimaterial exportado: '{out_path}'"
+                settings.last_status = msg
+                settings.last_status_level = 'SUCCESS'
+                self.report({'INFO'}, msg)
+
+            elif settings.export_format == 'STL_PER_MATERIAL':
+                exported = export_objects_to_stl_by_material(objects, export_dir, unit_scale=unit_scale)
+                msg = f"{len(exported)} arquivos STL por cor exportados em '{export_dir}'"
+                settings.last_status = msg
+                settings.last_status_level = 'SUCCESS'
+                self.report({'INFO'}, msg)
+
+            elif settings.export_format == 'STL_PARTS':
+                exported = []
+                for obj in objects:
+                    safe_o = "".join(c for c in obj.name if c.isalnum() or c in ('_', '-'))
+                    p = os.path.join(export_dir, f"{safe_o}.stl")
+                    bpy.ops.object.select_all(action='DESELECT')
+                    obj.select_set(True)
+                    bpy.context.view_layer.objects.active = obj
+                    if hasattr(bpy.ops.wm, "stl_export"):
+                        bpy.ops.wm.stl_export(filepath=p, export_selected_objects=True)
+                    else:
+                        bpy.ops.export_mesh.stl(filepath=p, use_selection=True)
+                    exported.append(p)
+                msg = f"{len(exported)} peças STL exportadas em '{export_dir}'"
+                settings.last_status = msg
+                settings.last_status_level = 'SUCCESS'
+                self.report({'INFO'}, msg)
+
+            elif settings.export_format == 'OBJ':
+                out_path = os.path.join(export_dir, f"{base_name}__parts.obj")
+                bpy.ops.object.select_all(action='DESELECT')
+                for o in objects:
+                    o.select_set(True)
+                if hasattr(bpy.ops.wm, "obj_export"):
+                    bpy.ops.wm.obj_export(filepath=out_path, export_selected_objects=True, export_materials=True)
+                else:
+                    bpy.ops.export_scene.obj(filepath=out_path, use_selection=True)
+                msg = f"Arquivo OBJ com materiais exportado: '{out_path}'"
+                settings.last_status = msg
+                settings.last_status_level = 'SUCCESS'
+                self.report({'INFO'}, msg)
+
+        except Exception as e:
+            msg = f"Falha na exportação: {str(e)}"
+            settings.last_status = msg
+            settings.last_status_level = 'ERROR'
+            self.report({'ERROR'}, msg)
+            return {'CANCELLED'}
+
+        return {'FINISHED'}
+
+
 
 classes = (
     CHEST_OT_splitter_set_target,
@@ -1111,6 +1277,8 @@ classes = (
     CHEST_OT_splitter_redo_session,
     CHEST_OT_splitter_capture_loop,
     CHEST_OT_splitter_define_seed_face,
+    CHEST_OT_splitter_separate_by_material,
+    CHEST_OT_splitter_export_parts,
 )
 
 

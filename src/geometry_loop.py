@@ -188,13 +188,23 @@ def slice_mesh_by_loop(obj, target_name, indices, seed_face_idx, scene):
     
     edges_hole_a = [e for e in bm_a.edges if e.is_wire or len(e.link_faces) == 1]
     if edges_hole_a:
-        bmesh.ops.holes_fill(bm_a, edges=edges_hole_a, sides=len(loop_verts))
+        res_a = bmesh.ops.holes_fill(bm_a, edges=edges_hole_a, sides=len(loop_verts))
+        created_a = set(res_a.get("faces", []))
+        for f in created_a:
+            adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_a]
+            if adj:
+                f.material_index = max(set(adj), key=adj.count)
         # Remove flat faces to prevent shading artifacts? (Triangulate maybe?)
         bmesh.ops.triangulate(bm_a, faces=[f for f in bm_a.faces if len(f.verts) > 4])
         
     edges_hole_b = [e for e in bm_b.edges if e.is_wire or len(e.link_faces) == 1]
     if edges_hole_b:
-        bmesh.ops.holes_fill(bm_b, edges=edges_hole_b, sides=len(loop_verts))
+        res_b = bmesh.ops.holes_fill(bm_b, edges=edges_hole_b, sides=len(loop_verts))
+        created_b = set(res_b.get("faces", []))
+        for f in created_b:
+            adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_b]
+            if adj:
+                f.material_index = max(set(adj), key=adj.count)
         bmesh.ops.triangulate(bm_b, faces=[f for f in bm_b.faces if len(f.verts) > 4])
         
     return bm_a, bm_b

@@ -284,6 +284,9 @@ def apply_connectors_boolean(
             is_cavity=False,
         )
         pin_obj = bpy.data.objects.new(f"temp_pin_{idx}", pin_mesh)
+        # Sincroniza materiais no pino para que a união booleana preserve o material
+        for mat in obj_male.data.materials:
+            pin_mesh.materials.append(mat)
         pin_obj.location = pos
         pin_obj.rotation_euler = rot_quat.to_euler()
         temp_col.objects.link(pin_obj)
@@ -307,6 +310,9 @@ def apply_connectors_boolean(
             clearance_end=clear_end_bu,
         )
         cavity_obj = bpy.data.objects.new(f"temp_cavity_{idx}", cavity_mesh)
+        # Sincroniza materiais na cavidade para que a diferença booleana herde o material
+        for mat in obj_female.data.materials:
+            cavity_mesh.materials.append(mat)
         cavity_obj.location = pos
         cavity_obj.rotation_euler = rot_quat.to_euler()
         temp_col.objects.link(cavity_obj)
@@ -332,6 +338,11 @@ def apply_connectors_boolean(
 
         # Remove modificadores já processados
         obj.modifiers.clear()
+
+        # Remove eventuais slots vazios (None) adicionados pela operação booleana
+        empty_slots = [i for i, m in enumerate(obj.data.materials) if m is None]
+        for i in reversed(empty_slots):
+            obj.data.materials.pop(index=i)
 
         if old_mesh and old_mesh.users == 0:
             bpy.data.meshes.remove(old_mesh, do_unlink=True)

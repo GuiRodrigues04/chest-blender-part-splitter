@@ -347,8 +347,17 @@ def slice_mesh_by_solid(
             metrics = evaluate_bmesh_metrics(bm, unit_scale=unit_scale)
             results[side_key] = metrics
 
+            # Garante que faces geradas pela casca do cortador herdam o material base do modelo
+            for f in bm.faces:
+                if f.material_index >= len(source_mesh.materials):
+                    f.material_index = 0
+
             dest_mesh = target_mesh_a if side_key == "A" else target_mesh_b
             dest_mesh.clear_geometry()
+            # Sincroniza materiais da malha fonte ANTES do to_mesh para preservar atribuição de cores
+            dest_mesh.materials.clear()
+            for mat in source_mesh.materials:
+                dest_mesh.materials.append(mat)
             bm.to_mesh(dest_mesh)
             dest_mesh.update()
             bm.free()

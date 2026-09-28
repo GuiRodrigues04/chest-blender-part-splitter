@@ -4,9 +4,13 @@ Extensão interna para **Blender 5.2+** (compatível com Blender 4.2+) projetada
 
 ---
 
-## 🎯 Status Atual: v0.5.0 (Fase 3 Concluída)
+## 🎯 Status Atual: v0.6.0 (Multicolor & Exportação 3MF/STL)
 
-A extensão está na versão **`v0.5.0`**, com as seguintes capacidades ativas e validadas:
+A extensão está na versão **`v0.6.0`**, com as seguintes capacidades ativas e validadas:
+- **Suporte Total a Multicolor**: Preservação de todos os materiais e slots de cores em cortes planares, volumétricos e por loop, com atribuição inteligente de material para tampas de interface.
+- **Modos de Visualização**: Alternância direta entre visualização por materiais originais do modelo e cores de contraste A/B.
+- **Separação por Cor / Material**: Desmembramento rápido de peças multicolor em sub-objetos individuais para impressão em sistemas multi-filamento (Bambu AMS / Prusa MMU).
+- **Exportação Integrada (Fase 5)**: Exportação nativa em 3MF Multimaterial (.3mf) com grupos de cores, STLs separados por material/cor ou STLs por parte.
 - **Fase 0 (Fundação)**: Diagnóstico físico em mm, integridade manifold, volume, escala e coleções dedicadas.
 - **Fase 1 (Corte Planar)**: Bisect 2D, capping manifold automático, guia visual, visualização montada/explodida e inversão de lados.
 - **Fase 2 (Encaixes FDM)**: Pinos cilíndricos e chaves tipo cápsula com folga física calibrada (presets de 0,10 a 0,25 mm), chanfro de entrada e distribuições simétricas.

@@ -5,6 +5,15 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.6.1] - 2026-09-28
+
+### Corrigido & Aprimorado
+- **Orientação e Inversão de Encaixes (Macho / Fêmea)**:
+  - Corrigido cálculo do vetor normal dos encaixes quando `invert_sides` está ativo (`effective_normal_a`), evitando que pinos fossem gerados voltados para o interior do modelo.
+  - Adicionada detecção geométrica automática de qual parte é Superior e qual é Inferior com base na coordenada Z de mundo.
+  - Adicionado botão direto de inversão de encaixes na Seção 2 (`Inverter Pinos: Macho na Parte Superior / Inferior`).
+  - Adicionado seletor visual e botão de inversão detalhado na Seção 3 com indicação textual imediata de status.
+
 ## [0.6.0] - 2026-09-28
 
 ### Adicionado

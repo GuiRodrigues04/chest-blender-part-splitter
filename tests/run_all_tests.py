@@ -11,6 +11,7 @@ TESTS = [
     "tests/test_stress_phases0_3.py",
     "tests/test_phase3a_loop.py",
     "tests/test_multicolor_support.py",
+    "tests/test_capsule_lateral_size.py",
 ]
 
 def main():

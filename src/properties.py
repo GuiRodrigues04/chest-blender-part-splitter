@@ -403,6 +403,22 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         description="Diâmetro ou largura nominal do pino",
     )
 
+    connector_capsule_length_mm: FloatProperty(
+        name="Comprimento Lateral (mm)",
+        default=14.0,
+        min=2.0,
+        max=150.0,
+        precision=1,
+        description="Comprimento/largura lateral total do encaixe cápsula no plano de corte (mínimo = diâmetro)",
+    )
+
+    connector_max_safe_lateral_mm: FloatProperty(
+        name="Limite Máx Seguro (mm)",
+        default=0.0,
+        precision=1,
+        description="Limite máximo de comprimento lateral calculado para evitar colisão entre encaixes ou com a borda",
+    )
+
     connector_length_mm: FloatProperty(
         name="Comprimento de Inserção (mm)",
         default=8.0,

@@ -300,8 +300,17 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             # Dimensões Nominais do Macho
             box_dims = box_conn.box()
             box_dims.label(text="Dimensões Nominais:", icon='CON_SIZELIMIT')
-            box_dims.prop(settings, "connector_diameter_mm", slider=True)
-            box_dims.prop(settings, "connector_length_mm", slider=True)
+            if settings.connector_type == 'CAPSULE':
+                box_dims.prop(settings, "connector_diameter_mm", text="Espessura / Diâmetro (mm)", slider=True)
+                box_dims.prop(settings, "connector_capsule_length_mm", text="Comprimento Lateral (mm)", slider=True)
+                if settings.connector_max_safe_lateral_mm > 0:
+                    box_dims.label(
+                        text=f"Limite Seguro Máx: {settings.connector_max_safe_lateral_mm:.1f} mm (anti-colisão)",
+                        icon='INFO',
+                    )
+            else:
+                box_dims.prop(settings, "connector_diameter_mm", slider=True)
+            box_dims.prop(settings, "connector_length_mm", text="Profundidade de Inserção (mm)", slider=True)
             box_dims.prop(settings, "connector_chamfer_mm", slider=True)
 
             # Folgas de Encaixe Físico

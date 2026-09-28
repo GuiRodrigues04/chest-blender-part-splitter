@@ -5,6 +5,22 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.7.0] - 2026-09-28
+
+### Adicionado
+- **Controle de Comprimento Lateral de Encaixes Tipo Cápsula (`connector_capsule_length_mm`)**:
+  - Nova opção na Seção 3 para expandir a largura lateral dos pinos oblongos/cápsula ao longo do plano de corte.
+  - Folga física uniforme (offset radial) em toda a periferia do encaixe fêmea (tanto na espessura quanto no comprimento lateral alargado).
+  - Chanfro perimetral proporcional com offset uniforme nas extremidades.
+  - Alinhamento de orientação determinístico: o eixo maior da cápsula acompanha a direção longitudinal da interface de corte e a linha de pinos.
+- **Sistema de Limites Coerentes Anti-Colisão (`compute_connector_layout` & `connector_max_safe_lateral_mm`)**:
+  - Cálculo automático em tempo real da distância entre centros de encaixes vizinhos, deduzindo folgas e garantindo uma parede sólida mínima de segurança entre cavidades adjacentes.
+  - Cálculo da margem segura em relação à borda externa da peça (`edge_margin_mm`).
+  - Exibição do limite seguro máximo diretamente na interface do Blender.
+  - Ajuste protetor automático (clamping) com aviso amigável quando o valor inserido ultrapassar o limite seguro, prevenindo erros booleanos ou contato indevido.
+- **Nova Suíte de Testes Automatizados**:
+  - Adicionado `tests/test_capsule_lateral_size.py` cobrindo geometria, folgas uniformes, limites matemáticos, detecção de colisão e corte completo (8/8 suítes aprovadas).
+
 ## [0.6.1] - 2026-09-28
 
 ### Corrigido & Aprimorado

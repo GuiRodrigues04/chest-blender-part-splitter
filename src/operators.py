@@ -33,6 +33,7 @@ from .geometry_plane import (
 )
 from .geometry_connectors import (
     compute_connector_positions,
+    compute_connector_layout,
     validate_connectors,
     apply_connectors_boolean,
     ConnectorValidationError,
@@ -753,7 +754,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     norm = -effective_normal_a
 
             try:
-                positions = compute_connector_positions(
+                layout = compute_connector_layout(
                     target_mesh=target.data,
                     matrix_world=target.matrix_world,
                     plane_origin=plane_origin,
@@ -761,12 +762,29 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     distribution=settings.connector_distribution,
                     edge_margin_mm=settings.connector_edge_margin_mm,
                     unit_scale=unit_scale,
+                    diameter_mm=settings.connector_diameter_mm,
+                    clearance_per_side_mm=settings.clearance_per_side_mm,
                 )
+                positions = layout["positions"]
+                major_axis = layout["major_axis"]
+                max_safe_lateral_mm = layout["max_safe_lateral_mm"]
+                settings.connector_max_safe_lateral_mm = max_safe_lateral_mm
+
+                cap_len = settings.connector_capsule_length_mm
+                if settings.connector_type == 'CAPSULE':
+                    # Limite seguro e coerente para não colidir com outros encaixes nem ultrapassar a borda
+                    if cap_len > max_safe_lateral_mm:
+                        self.report({'WARNING'}, f"Comprimento lateral ({cap_len:.1f} mm) excedia limite seguro. Ajustado para {max_safe_lateral_mm:.1f} mm.")
+                        settings.connector_capsule_length_mm = max_safe_lateral_mm
+                        cap_len = max_safe_lateral_mm
+
                 validate_connectors(
                     positions=positions,
                     diameter_mm=settings.connector_diameter_mm,
                     clearance_per_side_mm=settings.clearance_per_side_mm,
                     unit_scale=unit_scale,
+                    connector_type=settings.connector_type,
+                    capsule_length_mm=cap_len,
                 )
                 apply_connectors_boolean(
                     obj_male=male_obj,
@@ -780,6 +798,8 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     clearance_side_mm=settings.clearance_per_side_mm,
                     end_clearance_mm=settings.end_clearance_mm,
                     unit_scale=unit_scale,
+                    capsule_length_mm=cap_len,
+                    major_axis=major_axis,
                 )
             except ConnectorValidationError as cve:
                 settings.last_status = f"Aviso de encaixe: {str(cve)}"

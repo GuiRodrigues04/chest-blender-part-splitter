@@ -21,18 +21,19 @@ class ConnectorValidationError(Exception):
     pass
 
 
-def create_capsule_2d_profile(w: float, half_len: float, segments: int = 32) -> List[Tuple[float, float]]:
-    """Gera pontos 2D fechados e ordenados para o perfil de estádio/cápsula."""
+def create_capsule_2d_profile(w: float, half_len: float, segments: int = 32, offset: float = 0.0) -> List[Tuple[float, float]]:
+    """Gera pontos 2D fechados e ordenados para o perfil de estádio/cápsula com suporte a offset uniforme de chanfro."""
     pts = []
     half_segs = max(8, segments // 2)
+    r = max(1e-5, w - offset)
     # Arco superior: centro (0, half_len), ângulo de 0 a pi
     for i in range(half_segs):
         ang = 0.0 + math.pi * (i / half_segs)
-        pts.append((w * math.cos(ang), half_len + w * math.sin(ang)))
+        pts.append((r * math.cos(ang), half_len + r * math.sin(ang)))
     # Arco inferior: centro (0, -half_len), ângulo de pi a 2*pi
     for i in range(half_segs):
         ang = math.pi + math.pi * (i / half_segs)
-        pts.append((w * math.cos(ang), -half_len + w * math.sin(ang)))
+        pts.append((r * math.cos(ang), -half_len + r * math.sin(ang)))
     return pts
 
 
@@ -46,12 +47,14 @@ def create_pin_mesh_data(
     clearance_side: float = 0.0,
     clearance_end: float = 0.0,
     segments: int = 32,
+    capsule_length: float = 0.0,
 ) -> bpy.types.Mesh:
     """Cria uma malha sólida para o pino macho ou cavidade fêmea.
     
     Convenção de Folga:
     - Macho (is_cavity=False): diâmetro nominal exato, comprimento nominal, chanfro de entrada na ponta.
     - Cavidade (is_cavity=True): diâmetro nominal + 2 * clearance_side, comprimento nominal + clearance_end.
+    - Cápsula: comprimento lateral ajustável, com folga uniforme em toda a periferia.
     """
     bm = bmesh.new()
 
@@ -70,18 +73,23 @@ def create_pin_mesh_data(
     tip_verts = []
 
     if connector_type == 'CAPSULE':
-        # Chave tipo cápsula / oblongo (anti-rotação):
+        # Chave tipo cápsula / oblongo (anti-rotação e extensão lateral ajustável):
         w = eff_radius
-        aspect = 1.4  # proporção oblonga
-        half_len = w * aspect
-        chamfer_scale = max(0.2, (w - eff_chamfer) / w) if w > 1e-6 else 1.0
+        if capsule_length <= 0.0:
+            eff_cap_len = diameter * 2.4
+        else:
+            eff_cap_len = max(diameter, capsule_length)
+        half_len = (eff_cap_len - diameter) / 2.0
 
         prof = create_capsule_2d_profile(w, half_len, segments=segments)
-        for (x, y) in prof:
+        prof_tip = create_capsule_2d_profile(w, half_len, segments=segments, offset=eff_chamfer) if eff_chamfer > 0.0 else []
+
+        for idx, (x, y) in enumerate(prof):
             base_verts.append(bm.verts.new((x, y, z_min)))
             shoulder_verts.append(bm.verts.new((x, y, z_shoulder)))
             if eff_chamfer > 0.0:
-                tip_verts.append(bm.verts.new((x * chamfer_scale, y * chamfer_scale, z_max)))
+                tx, ty = prof_tip[idx]
+                tip_verts.append(bm.verts.new((tx, ty, z_max)))
 
     else:
         # Padrão: Pino Cilíndrico
@@ -119,7 +127,7 @@ def create_pin_mesh_data(
     return mesh_data
 
 
-def compute_connector_positions(
+def compute_connector_layout(
     target_mesh: bpy.types.Mesh,
     matrix_world: Matrix,
     plane_origin: Vector,
@@ -127,16 +135,10 @@ def compute_connector_positions(
     distribution: str = 'CENTER',
     edge_margin_mm: float = 3.0,
     unit_scale: float = 1000.0,
-) -> List[Vector]:
-    """Calcula os pontos 3D na interface do corte para os encaixes.
-    
-    Distribuições suportadas:
-    - 'CENTER': 1 conector no centro
-    - 'LINEAR_2': 2 conectores alinhados
-    - 'LINEAR_3': 3 conectores em linha
-    - 'GRID_4': 4 conectores em grade 2x2
-    """
-    # Cria uma BMesh temporária para extrair os vértices na interface de corte
+    diameter_mm: float = 6.0,
+    clearance_per_side_mm: float = 0.15,
+) -> Dict[str, Any]:
+    """Calcula posições, eixos de alinhamento e limites seguros para encaixes na interface de corte."""
     bm = bmesh.new()
     bm.from_mesh(target_mesh)
     bm.transform(matrix_world)
@@ -157,14 +159,22 @@ def compute_connector_positions(
     cut_pts = [v.co.copy() for e in cut_edges for v in e.verts]
     bm.free()
 
-    if not cut_pts:
-        return [plane_origin.copy()]
-
-
-    # Cria base ortonormal no plano (tangente U e bitangente V)
     ref_up = Vector((0, 0, 1)) if abs(norm.z) < 0.9 else Vector((0, 1, 0))
     u_axis = norm.cross(ref_up).normalized()
     v_axis = norm.cross(u_axis).normalized()
+
+    if not cut_pts:
+        return {
+            "positions": [plane_origin.copy()],
+            "major_axis": u_axis,
+            "minor_axis": v_axis,
+            "span_major_mm": diameter_mm * 2.0,
+            "span_minor_mm": diameter_mm * 2.0,
+            "min_pitch_mm": 0.0,
+            "pitch_limit_mm": 1e9,
+            "edge_limit_mm": diameter_mm * 2.0,
+            "max_safe_lateral_mm": diameter_mm * 2.0,
+        }
 
     # Projeta os pontos no sistema UV local
     u_coords = [(p - plane_origin).dot(u_axis) for p in cut_pts]
@@ -183,6 +193,16 @@ def compute_connector_positions(
     avail_v = max(0.0, (span_v / 2.0) - margin_bu)
 
     positions = []
+    if span_u >= span_v:
+        major_axis = u_axis
+        minor_axis = v_axis
+        span_major = span_u
+        span_minor = span_v
+    else:
+        major_axis = v_axis
+        minor_axis = u_axis
+        span_major = span_v
+        span_minor = span_u
 
     if distribution == 'CENTER' or (avail_u < 1e-4 and avail_v < 1e-4):
         p = plane_origin + (u_axis * center_u) + (v_axis * center_v)
@@ -221,7 +241,66 @@ def compute_connector_positions(
         p4 = plane_origin + (u_axis * (center_u + d_u)) + (v_axis * (center_v + d_v))
         positions.extend([p1, p2, p3, p4])
 
-    return positions
+    span_major_mm = span_major * unit_scale
+    span_minor_mm = span_minor * unit_scale
+
+    # Cálculo dos limites coerentes de tamanho lateral
+    min_pitch_mm = 1e9
+    if len(positions) >= 2:
+        for i in range(len(positions)):
+            for j in range(i + 1, len(positions)):
+                dist = (positions[i] - positions[j]).length * unit_scale
+                if dist < min_pitch_mm:
+                    min_pitch_mm = dist
+        # Limite entre encaixes: deixa parede sólida mínima de 2.0 mm entre cavidades
+        pitch_limit_mm = max(diameter_mm, min_pitch_mm - (2.0 * clearance_per_side_mm) - 2.0)
+    else:
+        min_pitch_mm = 0.0
+        pitch_limit_mm = 1e9
+
+    if len(positions) == 1:
+        edge_limit_mm = max(diameter_mm, span_major_mm - (2.0 * edge_margin_mm))
+    else:
+        center_pos = sum(positions, Vector()) / len(positions)
+        max_dist_center_mm = max((p - center_pos).length * unit_scale for p in positions)
+        avail_outer_mm = (span_major_mm / 2.0) - max_dist_center_mm
+        edge_limit_mm = max(diameter_mm, 2.0 * max(diameter_mm / 2.0, avail_outer_mm - edge_margin_mm))
+
+    max_safe_lateral_mm = round(min(pitch_limit_mm, edge_limit_mm), 1)
+
+    return {
+        "positions": positions,
+        "major_axis": major_axis,
+        "minor_axis": minor_axis,
+        "span_major_mm": span_major_mm,
+        "span_minor_mm": span_minor_mm,
+        "min_pitch_mm": min_pitch_mm,
+        "pitch_limit_mm": pitch_limit_mm,
+        "edge_limit_mm": edge_limit_mm,
+        "max_safe_lateral_mm": max_safe_lateral_mm,
+    }
+
+
+def compute_connector_positions(
+    target_mesh: bpy.types.Mesh,
+    matrix_world: Matrix,
+    plane_origin: Vector,
+    plane_normal: Vector,
+    distribution: str = 'CENTER',
+    edge_margin_mm: float = 3.0,
+    unit_scale: float = 1000.0,
+) -> List[Vector]:
+    """Calcula os pontos 3D na interface do corte para os encaixes (mantém compatibilidade)."""
+    layout = compute_connector_layout(
+        target_mesh=target_mesh,
+        matrix_world=matrix_world,
+        plane_origin=plane_origin,
+        plane_normal=plane_normal,
+        distribution=distribution,
+        edge_margin_mm=edge_margin_mm,
+        unit_scale=unit_scale,
+    )
+    return layout["positions"]
 
 
 def validate_connectors(
@@ -229,16 +308,19 @@ def validate_connectors(
     diameter_mm: float,
     clearance_per_side_mm: float,
     unit_scale: float = 1000.0,
+    connector_type: str = 'CYLINDER',
+    capsule_length_mm: float = 0.0,
 ):
     """Verifica se há sobreposição entre múltiplos encaixes."""
-    min_dist_bu = (diameter_mm + 2.0 * clearance_per_side_mm) / unit_scale
+    eff_length = capsule_length_mm if (connector_type == 'CAPSULE' and capsule_length_mm > diameter_mm) else diameter_mm
+    min_dist_bu = (eff_length + 2.0 * clearance_per_side_mm) / unit_scale
 
     for i in range(len(positions)):
         for j in range(i + 1, len(positions)):
             dist = (positions[i] - positions[j]).length
             if dist < min_dist_bu:
                 dist_mm = dist * unit_scale
-                req_mm = diameter_mm + 2.0 * clearance_per_side_mm
+                req_mm = eff_length + 2.0 * clearance_per_side_mm
                 raise ConnectorValidationError(
                     f"Sobreposição entre encaixes detectada: distância {dist_mm:.2f} mm < mínimo {req_mm:.2f} mm."
                 )
@@ -256,11 +338,29 @@ def apply_connectors_boolean(
     clearance_side_mm: float,
     end_clearance_mm: float,
     unit_scale: float = 1000.0,
+    capsule_length_mm: float = 0.0,
+    major_axis: Optional[Vector] = None,
 ):
     """Executa as operações booleanas para unir os machos e subtrair as cavidades."""
     norm = plane_normal.normalized()
-    # Rotação para alinhar o eixo +Z do conector com a normal do plano de corte
-    rot_quat = Vector((0.0, 0.0, 1.0)).rotation_difference(norm)
+
+    # Determina o eixo maior (direção de alinhamento das cápsulas no plano de corte)
+    if major_axis is None:
+        if len(positions) >= 2:
+            delta = positions[1] - positions[0]
+            delta_proj = delta - norm * delta.dot(norm)
+            if delta_proj.length > 1e-6:
+                major_axis = delta_proj.normalized()
+        if major_axis is None:
+            ref_up = Vector((0, 0, 1)) if abs(norm.z) < 0.9 else Vector((0, 1, 0))
+            major_axis = norm.cross(ref_up).normalized()
+
+    # Constrói sistema ortonormal estável: local_z = norm, local_y = major_axis, local_x = local_y x local_z
+    local_z = norm.normalized()
+    local_y = (major_axis - local_z * major_axis.dot(local_z)).normalized()
+    local_x = local_y.cross(local_z).normalized()
+    rot_mat = Matrix((local_x, local_y, local_z)).transposed()
+    pin_rot = rot_mat.to_euler()
 
     cutters_to_clean = []
 
@@ -272,6 +372,7 @@ def apply_connectors_boolean(
     chamf_bu = chamfer_mm / unit_scale
     clear_side_bu = clearance_side_mm / unit_scale
     clear_end_bu = end_clearance_mm / unit_scale
+    cap_len_bu = (capsule_length_mm / unit_scale) if capsule_length_mm > 0 else 0.0
 
     # 1. Aplica machos (UNION) no obj_male
     for idx, pos in enumerate(positions):
@@ -282,13 +383,14 @@ def apply_connectors_boolean(
             length=len_bu,
             chamfer=chamf_bu,
             is_cavity=False,
+            capsule_length=cap_len_bu,
         )
         pin_obj = bpy.data.objects.new(f"temp_pin_{idx}", pin_mesh)
         # Sincroniza materiais no pino para que a união booleana preserve o material
         for mat in obj_male.data.materials:
             pin_mesh.materials.append(mat)
         pin_obj.location = pos
-        pin_obj.rotation_euler = rot_quat.to_euler()
+        pin_obj.rotation_euler = pin_rot
         temp_col.objects.link(pin_obj)
         cutters_to_clean.append(pin_obj)
 
@@ -308,13 +410,14 @@ def apply_connectors_boolean(
             is_cavity=True,
             clearance_side=clear_side_bu,
             clearance_end=clear_end_bu,
+            capsule_length=cap_len_bu,
         )
         cavity_obj = bpy.data.objects.new(f"temp_cavity_{idx}", cavity_mesh)
         # Sincroniza materiais na cavidade para que a diferença booleana herde o material
         for mat in obj_female.data.materials:
             cavity_mesh.materials.append(mat)
         cavity_obj.location = pos
-        cavity_obj.rotation_euler = rot_quat.to_euler()
+        cavity_obj.rotation_euler = pin_rot
         temp_col.objects.link(cavity_obj)
         cutters_to_clean.append(cavity_obj)
 

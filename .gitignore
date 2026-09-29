@@ -22,4 +22,5 @@ Thumbs.db
 # Test export outputs
 output/
 temp_test/
+scratch/
 *.log

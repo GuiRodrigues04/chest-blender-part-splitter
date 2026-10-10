@@ -30,10 +30,19 @@ def _on_preview_transform_update(self, context):
             pass
 
 
+def _on_param_change_mark_stale(self, context):
+    """Callback para marcar o preview como desatualizado quando parâmetros de corte ou encaixe mudam."""
+    if self.session_status == 'PREVIEW_VALID':
+        self.session_status = 'PREVIEW_STALE'
+        self.last_status = "Os ajustes mudaram. Atualize a prévia antes de criar as peças."
+        self.last_status_level = 'WARNING'
+
+
 def _on_clearance_preset_update(self, context):
     """Atualiza a folga por lado quando o usuário seleciona um preset."""
     if self.clearance_preset in CLEARANCE_PRESETS:
         self.clearance_per_side_mm = CLEARANCE_PRESETS[self.clearance_preset]
+    _on_param_change_mark_stale(self, context)
 
 
 def _poll_mesh_cutter(self, obj):
@@ -68,6 +77,12 @@ def _on_cutter_object_update(self, context):
             bm.free()
         except Exception:
             pass
+    _on_param_change_mark_stale(self, context)
+
+
+def _on_target_object_update(self, context):
+    """Callback ao alterar ou limpar o objeto alvo."""
+    _on_param_change_mark_stale(self, context)
 
 
 class ChestSplitterSettings(bpy.types.PropertyGroup):
@@ -75,21 +90,30 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
 
     session_id: StringProperty(
         name="ID da Sessão",
-        default="session_01",
+        default="",
         description="Identificador único da sessão de corte",
+    )
+
+    session_input_signature: StringProperty(
+        name="Assinatura de Entrada da Prévia",
+        default="",
+        description="Assinatura criptográfica dos parâmetros de entrada da prévia gerada",
     )
 
     target_object: PointerProperty(
         name="Objeto Alvo",
         type=bpy.types.Object,
         description="Objeto malha original que será dividido em partes",
+        update=_on_target_object_update,
     )
+
 
     split_mode: EnumProperty(
         name="Modo de Divisão",
         items=SPLIT_MODES,
         default='PLANE',
         description="Método de divisão do modelo",
+        update=_on_param_change_mark_stale,
     )
 
     session_status: EnumProperty(
@@ -98,6 +122,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
             ('EMPTY', "Vazio", "Nenhum alvo selecionado"),
             ('CONFIGURED', "Alvo Configurado", "Alvo selecionado e analisado"),
             ('PREVIEW_VALID', "Preview Válido", "Preview gerado com sucesso"),
+            ('PREVIEW_STALE', "Preview Desatualizado", "Os ajustes mudaram. Atualize a prévia antes de criar as peças"),
             ('PREVIEW_INVALID', "Preview Inválido", "Falha na geração do preview"),
             ('COMMITTED', "Confirmado", "Partes finais geradas"),
         ],
@@ -174,6 +199,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         name="Inverter Lados A/B",
         default=False,
         description="Inverte os papéis de Parte A e Parte B",
+        update=_on_param_change_mark_stale,
     )
 
     # --- Fase 3A (Modo D): Loop de Arestas ---
@@ -205,8 +231,88 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         name="Assinatura Topológica",
         default="",
     )
+    loop_interface_normal: FloatVectorProperty(
+        name="Normal da Interface do Loop",
+        size=3,
+        default=(0.0, 0.0, 1.0),
+        subtype='DIRECTION',
+        description="Vetor normal de mundo apontando da Parte A para a Parte B",
+    )
+    loop_interface_origin: FloatVectorProperty(
+        name="Origem da Interface do Loop",
+        size=3,
+        default=(0.0, 0.0, 0.0),
+        subtype='TRANSLATION',
+        description="Centro da interface do loop em coordenadas de mundo",
+    )
+    loop_behavior: EnumProperty(
+        name="Comportamento do Loop",
+        items=[
+            ('AUTO', "Automático", "Detecta automaticamente entre destacar saliência ou extrair com profundidade"),
+            ('DETACH', "Destacar Parte", "Destaca a região fechada pelo loop criando uma tampa na base"),
+            ('EXTRUDE', "Extrair com Profundidade", "Projeta o contorno para dentro do sólido até a profundidade especificada"),
+        ],
+        default='AUTO',
+        description="Comportamento do corte por contorno: automático, destacar parte ou extrair com profundidade",
+        update=_on_param_change_mark_stale,
+    )
+    loop_extrude_depth_mm: FloatProperty(
+        name="Profundidade de Extração (mm)",
+        description="Profundidade física da extração para dentro do sólido",
+        default=5.0,
+        min=0.1,
+        precision=2,
+        update=_on_param_change_mark_stale,
+    )
+    loop_through_cut: BoolProperty(
+        name="Corte Passante",
+        description="Permite que a profundidade de extração atravesse completamente o modelo",
+        default=False,
+        update=_on_param_change_mark_stale,
+    )
+    loop_detected_mode: EnumProperty(
+        name="Modo Detectado",
+        items=[
+            ('DETACH', "Destacar", "Saliência 3D detectada"),
+            ('EXTRUDE', "Extrair", "Região plana detectada"),
+            ('AMBIGUOUS', "Ambíguo", "Escolha manual necessária"),
+        ],
+        default='DETACH',
+    )
+    loop_auto_reason: StringProperty(
+        name="Motivo da Decisão",
+        default="",
+    )
 
     # --- Fim Loop ---
+
+    # --- Configurações do Corte por Material (Etapa 6) ---
+    material_split_index: IntProperty(
+        name="Material da Parte A",
+        default=0,
+        min=0,
+        description="Índice do slot de material que será isolado como Parte A",
+        update=_on_param_change_mark_stale,
+    )
+    material_region_index: IntProperty(
+        name="Região do Material",
+        default=0,
+        min=0,
+        description="Qual área separada (ilha) do material será extraída, quando a mesma cor aparece em vários lugares",
+        update=_on_param_change_mark_stale,
+    )
+    material_extrude_depth_mm: FloatProperty(
+        name="Profundidade da Peça (mm)",
+        default=5.0,
+        min=0.1,
+        precision=2,
+        description="Profundidade física da peça caso a região do material seja superficial",
+        update=_on_param_change_mark_stale,
+    )
+    material_detected_type: StringProperty(
+        name="Diagnóstico do Material",
+        default="",
+    )
 
     # --- Guias de Visualização ---
     view_mode: EnumProperty(
@@ -366,6 +472,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         name="Ativar Encaixes",
         default=False,
         description="Gera pinos macho e cavidades fêmea na interface do corte",
+        update=_on_param_change_mark_stale,
     )
 
     connector_type: EnumProperty(
@@ -376,6 +483,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         ],
         default='CYLINDER',
         description="Formato geométrico do encaixe",
+        update=_on_param_change_mark_stale,
     )
 
     connector_male_part: EnumProperty(
@@ -386,6 +494,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         ],
         default='A',
         description="Define qual parte recebe o pino saliente",
+        update=_on_param_change_mark_stale,
     )
 
     part_a_is_superior: BoolProperty(
@@ -401,6 +510,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=40.0,
         precision=2,
         description="Diâmetro ou largura nominal do pino",
+        update=_on_param_change_mark_stale,
     )
 
     connector_capsule_length_mm: FloatProperty(
@@ -410,6 +520,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=150.0,
         precision=1,
         description="Comprimento/largura lateral total do encaixe cápsula no plano de corte (mínimo = diâmetro)",
+        update=_on_param_change_mark_stale,
     )
 
     connector_max_safe_lateral_mm: FloatProperty(
@@ -426,6 +537,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=50.0,
         precision=2,
         description="Profundidade útil nominal do encaixe",
+        update=_on_param_change_mark_stale,
     )
 
     connector_chamfer_mm: FloatProperty(
@@ -435,6 +547,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=5.0,
         precision=2,
         description="Chanfro na ponta do pino para facilitar a inserção",
+        update=_on_param_change_mark_stale,
     )
 
     clearance_preset: EnumProperty(
@@ -458,6 +571,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=1.0,
         precision=3,
         description="Folga radial por lado na cavidade fêmea (folga total no diâmetro = 2x este valor)",
+        update=_on_param_change_mark_stale,
     )
 
     end_clearance_mm: FloatProperty(
@@ -467,6 +581,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=3.0,
         precision=2,
         description="Espaço extra no fundo da cavidade fêmea para evitar colisão",
+        update=_on_param_change_mark_stale,
     )
 
     connector_distribution: EnumProperty(
@@ -479,6 +594,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         ],
         default='CENTER',
         description="Padrão de distribuição dos encaixes no plano",
+        update=_on_param_change_mark_stale,
     )
 
     connector_edge_margin_mm: FloatProperty(
@@ -488,6 +604,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=30.0,
         precision=1,
         description="Distância mínima de segurança até a casca externa do modelo",
+        update=_on_param_change_mark_stale,
     )
 
 
@@ -555,9 +672,13 @@ def register():
     except ValueError:
         pass
     bpy.types.Scene.chest_splitter = PointerProperty(type=ChestSplitterSettings)
+    # Alias para compatibilidade e nova identidade (Seção 8 do Plano Antigravity)
+    bpy.types.Scene.part_splitter = property(lambda self: self.chest_splitter)
 
 
 def unregister():
+    if hasattr(bpy.types.Scene, "part_splitter"):
+        del bpy.types.Scene.part_splitter
     if hasattr(bpy.types.Scene, "chest_splitter"):
         del bpy.types.Scene.chest_splitter
     try:

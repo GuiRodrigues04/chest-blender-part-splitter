@@ -70,14 +70,18 @@ def analyze_target_mesh(obj: bpy.types.Object, scene: bpy.types.Scene) -> dict:
     try:
         bm = bmesh.new()
         bm.from_mesh(eval_mesh)
+        # Transforma o snapshot para World Space para métricas físicas fidedignas sob qualquer escala/rotação
+        bm.transform(obj.matrix_world)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        bm.verts.ensure_lookup_table()
         bm.edges.ensure_lookup_table()
         bm.faces.ensure_lookup_table()
 
         face_count = len(bm.faces)
         tri_count = sum(len(f.verts) - 2 for f in bm.faces)
 
-        # Cálculo de volume físico em mm³
-        vol_bu = bm.calc_volume(signed=False)
+        # Cálculo de volume físico em mm³ (World Space)
+        vol_bu = abs(bm.calc_volume(signed=True))
         vol_mm3 = vol_bu * (scale_to_mm ** 3)
 
         # Checagem de arestas não-manifold
@@ -90,15 +94,25 @@ def analyze_target_mesh(obj: bpy.types.Object, scene: bpy.types.Scene) -> dict:
             )
 
         # Checagem de faces degeneradas
-        degenerate_faces = sum(1 for f in bm.faces if f.calc_area() < MIN_FACE_AREA_BU)
+        min_area_bu = MIN_FACE_AREA_BU
+        degenerate_faces = sum(1 for f in bm.faces if f.calc_area() < min_area_bu)
         if degenerate_faces > 0:
             warnings.append(
                 f"Malha possui {degenerate_faces} face(s) com área nula ou degenerada."
             )
 
-        # Dimensões físicas avaliadas em mm
-        dims = eval_obj.dimensions * scale_to_mm
-        dims_mm = (round(dims.x, 2), round(dims.y, 2), round(dims.z, 2))
+        # Dimensões físicas avaliadas no espaço de mundo em mm
+        xs = [v.co.x for v in bm.verts]
+        ys = [v.co.y for v in bm.verts]
+        zs = [v.co.z for v in bm.verts]
+        if xs:
+            dims_mm = (
+                round((max(xs) - min(xs)) * scale_to_mm, 2),
+                round((max(ys) - min(ys)) * scale_to_mm, 2),
+                round((max(zs) - min(zs)) * scale_to_mm, 2),
+            )
+        else:
+            dims_mm = (0.0, 0.0, 0.0)
 
         bm.free()
     finally:

@@ -11,10 +11,12 @@ import os
 import io
 import zipfile
 import math
+import html
 from typing import List, Dict, Any, Tuple
 import bpy
 import bmesh
 from mathutils import Vector, Matrix
+
 
 
 def get_material_rgba(mat: bpy.types.Material) -> Tuple[float, float, float, float]:
@@ -99,7 +101,8 @@ def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -
         bm.verts.ensure_lookup_table()
         bm.faces.ensure_lookup_table()
 
-        xml_lines.append(f'  <object id="{obj_id}" type="model" name="{obj.name}">')
+        escaped_name = html.escape(obj.name, quote=True)
+        xml_lines.append(f'  <object id="{obj_id}" type="model" name="{escaped_name}">')
         xml_lines.append('   <mesh>')
         xml_lines.append('    <vertices>')
         for v in bm.verts:
@@ -161,14 +164,22 @@ def export_objects_to_3mf(objects: List[bpy.types.Object], filepath: str, unit_s
 
     os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
     temp_path = filepath + ".tmp"
-    with zipfile.ZipFile(temp_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr('[Content_Types].xml', content_types_xml)
-        zf.writestr('_rels/.rels', rels_xml)
-        zf.writestr('3D/3dmodel.model', model_xml.encode('utf-8'))
+    try:
+        with zipfile.ZipFile(temp_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr('[Content_Types].xml', content_types_xml)
+            zf.writestr('_rels/.rels', rels_xml)
+            zf.writestr('3D/3dmodel.model', model_xml.encode('utf-8'))
 
-    if os.path.exists(filepath):
-        os.remove(filepath)
-    os.rename(temp_path, filepath)
+        # Substituição atômica sem apagar prematuramente o arquivo anterior em falhas
+        os.replace(temp_path, filepath)
+    except Exception:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+        raise
+
 
 
 def separate_object_by_material(source_obj: bpy.types.Object, target_collection: bpy.types.Collection) -> List[bpy.types.Object]:
@@ -217,6 +228,19 @@ def separate_object_by_material(source_obj: bpy.types.Object, target_collection:
         if mat:
             sub_obj.color = mat.diffuse_color
 
+        # Validação estrita de contrato de sólidos para impressão 3D (Seção 9)
+        bm_check = bmesh.new()
+        bm_check.from_mesh(sub_mesh)
+        is_manifold = all(e.is_manifold for e in bm_check.edges)
+        open_edges = len([e for e in bm_check.edges if not e.is_manifold])
+        bm_check.free()
+
+        sub_obj["is_manifold"] = is_manifold
+        sub_obj["open_edges"] = open_edges
+        sub_obj["is_solid_for_printing"] = is_manifold
+        sub_obj["chest_session_id"] = source_obj.get("chest_session_id", source_obj.get("chest_splitter_session_id", ""))
+        sub_obj["chest_role"] = "SUBPART_MATERIAL"
+
         target_collection.objects.link(sub_obj)
         created_objs.append(sub_obj)
 
@@ -230,12 +254,16 @@ def export_objects_to_stl_by_material(
 ) -> List[str]:
     """Exporta os objetos divididos em arquivos STL separados por material/cor.
     
-    Arquivos gerados compartilham o mesmo sistema de coordenadas globais.
+    Arquivos gerados compartilham o mesmo sistema de coordenadas globais em milímetros.
     Ao importar todos de uma vez no Bambu Studio ou PrusaSlicer, o fatiador os carrega
     como um único objeto multipartes, permitindo atribuir filamentos/cores a cada um.
     """
     os.makedirs(output_dir, exist_ok=True)
     exported_files = []
+
+    # Preserva seleção e objeto ativo
+    prev_selected = list(bpy.context.selected_objects) if bpy.context else []
+    prev_active = bpy.context.view_layer.objects.active if bpy.context and bpy.context.view_layer else None
 
     # Cria coleção temporária isolada
     temp_col = bpy.data.collections.new("TEMP_CHEST_EXPORT")
@@ -252,6 +280,22 @@ def export_objects_to_stl_by_material(
             else:
                 sub_parts = [obj]
 
+            # Valida todas as subpeças (B06 - não exportar cascas no modo de sólido STL)
+            for part in sub_parts:
+                bm_part = bmesh.new()
+                bm_part.from_mesh(part.data)
+                
+                # Importa validate_printable_mesh dinamicamente para evitar import circular, 
+                # ou implementamos validação inline
+                from .operators import validate_printable_mesh
+                is_valid, msg, _ = validate_printable_mesh(bm_part, part_name=part.name, unit_scale=unit_scale, check_manifold=True)
+                bm_part.free()
+                
+                if not is_valid:
+                    raise ValueError(f"Material superficial detectado na peça '{obj.name}' ({msg}). "
+                                     f"Para imprimir separadamente, utilize o modo de corte 'Material' "
+                                     f"com profundidade, gerando um sólido real.")
+
             for part in sub_parts:
                 safe_name = "".join(c for c in part.name if c.isalnum() or c in ('_', '-'))
                 out_path = os.path.join(output_dir, f"{safe_name}.stl")
@@ -261,19 +305,22 @@ def export_objects_to_stl_by_material(
                 part.select_set(True)
                 bpy.context.view_layer.objects.active = part
 
-                # Exporta STL binário com Blender 5.2
+                # Exporta STL com escala física garantida em milímetros
                 if hasattr(bpy.ops.wm, "stl_export"):
                     bpy.ops.wm.stl_export(
                         filepath=out_path,
                         export_selected_objects=True,
-                        global_scale=1.0,
+                        global_scale=unit_scale,
+                        use_scene_unit=False,
+                        apply_modifiers=True,
                     )
                 else:
                     # Fallback clássico
                     bpy.ops.export_mesh.stl(
                         filepath=out_path,
                         use_selection=True,
-                        global_scale=1.0,
+                        global_scale=unit_scale,
+                        use_scene_unit=False,
                     )
 
                 exported_files.append(out_path)
@@ -286,7 +333,19 @@ def export_objects_to_stl_by_material(
             bpy.data.objects.remove(o, do_unlink=True)
             if m and m.users == 0:
                 bpy.data.meshes.remove(m, do_unlink=True)
-        bpy.context.scene.collection.children.unlink(temp_col)
+        if temp_col.name in bpy.context.scene.collection.children:
+            bpy.context.scene.collection.children.unlink(temp_col)
         bpy.data.collections.remove(temp_col)
 
+        # Restaura contexto anterior de seleção e ativo
+        if bpy.context:
+            for o in bpy.context.selected_objects:
+                o.select_set(False)
+            for o in prev_selected:
+                if o.name in bpy.data.objects:
+                    o.select_set(True)
+            if prev_active and prev_active.name in bpy.data.objects:
+                bpy.context.view_layer.objects.active = prev_active
+
     return exported_files
+

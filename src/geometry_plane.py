@@ -212,6 +212,10 @@ def slice_mesh_by_plane(
         metrics = evaluate_bmesh_metrics(bm, unit_scale=unit_scale)
         results[side_key] = metrics
 
+        # Coleta pontos de borda do corte para construção da interface compartilhada
+        if side_key == "A":
+            interface_points = [v.co.copy() for e in cut_edges for v in e.verts]
+
         # Escreve na malha de destino correspondente
         target_mesh = target_mesh_a if side_key == "A" else target_mesh_b
         target_mesh.clear_geometry()
@@ -228,6 +232,18 @@ def slice_mesh_by_plane(
         raise NoIntersectionError("O plano não cortou o objeto em duas partes distintas.")
 
     results["sum_volume_mm3"] = results["A"]["volume_mm3"] + results["B"]["volume_mm3"]
+
+    # Constrói CutInterface formal para o corte planar
+    from .geometry_contract import build_cut_interface
+    cut_interface = build_cut_interface(
+        origin_world=plane_origin,
+        normal_a_to_b=effective_normal_a,
+        boundary_points_world=interface_points if 'interface_points' in locals() else [],
+        unit_scale=unit_scale,
+        source_mode="PLANE",
+    )
+    results["interface"] = cut_interface
+
     return results
 
 

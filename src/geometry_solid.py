@@ -299,6 +299,8 @@ def slice_mesh_by_solid(
     work_mesh_intersect = source_mesh.copy()
     work_obj_intersect = bpy.data.objects.new("temp_work_intersect", work_mesh_intersect)
     work_obj_intersect.matrix_world = matrix_world.copy()
+    work_obj_intersect.hide_viewport = False
+    work_obj_intersect.hide_render = False
     temp_col.objects.link(work_obj_intersect)
 
     mod_intersect = work_obj_intersect.modifiers.new(name="Mod_Intersect", type='BOOLEAN')
@@ -310,6 +312,8 @@ def slice_mesh_by_solid(
     work_mesh_diff = source_mesh.copy()
     work_obj_diff = bpy.data.objects.new("temp_work_diff", work_mesh_diff)
     work_obj_diff.matrix_world = matrix_world.copy()
+    work_obj_diff.hide_viewport = False
+    work_obj_diff.hide_render = False
     temp_col.objects.link(work_obj_diff)
 
     mod_diff = work_obj_diff.modifiers.new(name="Mod_Difference", type='BOOLEAN')

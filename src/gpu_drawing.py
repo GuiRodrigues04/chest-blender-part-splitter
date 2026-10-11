@@ -131,6 +131,88 @@ def _draw_loop_overlay(context, settings):
         pass
 
 
+def _compute_cut_line_segments(mesh_or_bm, matrix_world: Matrix, plane_co: Vector, plane_no: Vector, is_bmesh: bool = False) -> List[Vector]:
+    """Calcula segmentos de linha estritos da interseção entre o plano e cada triângulo/face da malha (C04).
+    
+    Garante que cada segmento pertença a uma única face, eliminando traços espúrios que cortam o vazio.
+    """
+    segments = []
+    norm = plane_no.normalized()
+
+    if is_bmesh:
+        bm = mesh_or_bm
+        for f in bm.faces:
+            if not f.is_valid or len(f.verts) < 3:
+                continue
+            v_coords = [matrix_world @ v.co for v in f.verts]
+            n_v = len(v_coords)
+            for i in range(1, n_v - 1):
+                tri = (v_coords[0], v_coords[i], v_coords[i + 1])
+                dists = [(p - plane_co).dot(norm) for p in tri]
+                has_pos = any(d > 1e-6 for d in dists)
+                has_neg = any(d < -1e-6 for d in dists)
+                if not (has_pos and has_neg):
+                    continue
+                inter_pts = []
+                for e_idx in range(3):
+                    p_a = tri[e_idx]
+                    p_b = tri[(e_idx + 1) % 3]
+                    d_a = dists[e_idx]
+                    d_b = dists[(e_idx + 1) % 3]
+                    if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
+                        t = d_a / (d_a - d_b)
+                        inter_pts.append(p_a + t * (p_b - p_a))
+                    elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
+                        inter_pts.append(p_a)
+
+                if len(inter_pts) == 2:
+                    segments.append(inter_pts[0])
+                    segments.append(inter_pts[1])
+    else:
+        mesh = mesh_or_bm
+        if not mesh or not mesh.polygons or not mesh.vertices:
+            return []
+        mw = matrix_world
+        verts_co = [mw @ v.co for v in mesh.vertices]
+        for poly in mesh.polygons:
+            p_verts = poly.vertices
+            n_v = len(p_verts)
+            if n_v < 3:
+                continue
+            v0_co = verts_co[p_verts[0]]
+            d0 = (v0_co - plane_co).dot(norm)
+            for i in range(1, n_v - 1):
+                v1_co = verts_co[p_verts[i]]
+                v2_co = verts_co[p_verts[i + 1]]
+                d1 = (v1_co - plane_co).dot(norm)
+                d2 = (v2_co - plane_co).dot(norm)
+
+                dists = (d0, d1, d2)
+                has_pos = any(d > 1e-6 for d in dists)
+                has_neg = any(d < -1e-6 for d in dists)
+                if not (has_pos and has_neg):
+                    continue
+
+                tri = (v0_co, v1_co, v2_co)
+                inter_pts = []
+                for e_idx in range(3):
+                    p_a = tri[e_idx]
+                    p_b = tri[(e_idx + 1) % 3]
+                    d_a = dists[e_idx]
+                    d_b = dists[(e_idx + 1) % 3]
+                    if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
+                        t = d_a / (d_a - d_b)
+                        inter_pts.append(p_a + t * (p_b - p_a))
+                    elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
+                        inter_pts.append(p_a)
+
+                if len(inter_pts) == 2:
+                    segments.append(inter_pts[0])
+                    segments.append(inter_pts[1])
+
+    return segments
+
+
 def _draw_plane_overlay(context, settings):
     """Desenha o retângulo translúcido e a linha de corte do plano na Viewport 3D (F02)."""
     show_plane = getattr(settings, "show_plane_preview", True)
@@ -181,37 +263,21 @@ def _draw_plane_overlay(context, settings):
     quad_border = [p0, p1, p1, p2, p2, p3, p3, p0]
 
     # Calcula linha de interseção (corte) se ativada
-    cut_line_coords = []
+    cut_line_segments = []
     if show_cut_line:
         try:
-            # Calcula interseção com as arestas da malha no espaço de mundo
             if target.mode == 'EDIT':
                 import bmesh
                 bm = bmesh.from_edit_mesh(target.data)
-                edges = list(bm.edges)
-                for e in edges:
-                    co1 = mw @ e.verts[0].co
-                    co2 = mw @ e.verts[1].co
-                    d1 = (co1 - origin).dot(norm)
-                    d2 = (co2 - origin).dot(norm)
-                    if (d1 > 1e-6 and d2 < -1e-6) or (d1 < -1e-6 and d2 > 1e-6):
-                        t = d1 / (d1 - d2)
-                        p_int = co1 + t * (co2 - co1)
-                        cut_line_coords.append(p_int)
+                cut_line_segments = _compute_cut_line_segments(bm, mw, origin, norm, is_bmesh=True)
             else:
                 mesh = target.data
-                if mesh and mesh.edges:
-                    for e in mesh.edges:
-                        co1 = mw @ mesh.vertices[e.vertices[0]].co
-                        co2 = mw @ mesh.vertices[e.vertices[1]].co
-                        d1 = (co1 - origin).dot(norm)
-                        d2 = (co2 - origin).dot(norm)
-                        if (d1 > 1e-6 and d2 < -1e-6) or (d1 < -1e-6 and d2 > 1e-6):
-                            t = d1 / (d1 - d2)
-                            p_int = co1 + t * (co2 - co1)
-                            cut_line_coords.append(p_int)
+                cut_line_segments = _compute_cut_line_segments(mesh, mw, origin, norm, is_bmesh=False)
         except Exception:
-            cut_line_coords = []
+            cut_line_segments = []
+
+    is_exploded = (getattr(settings, "view_mode", "ASSEMBLED") == 'EXPLODED' and
+                   getattr(settings, "session_status", "") in ('PREVIEW_VALID', 'PREVIEW_STALE'))
 
     try:
         import gpu
@@ -227,8 +293,8 @@ def _draw_plane_overlay(context, settings):
             if hasattr(gpu.state, 'blend_set'):
                 gpu.state.blend_set('ALPHA')
 
-            # 1. Preenchimento translúcido do plano (Laranja suave com opacidade ajustável)
-            if show_plane:
+            # 1. Preenchimento translúcido do plano (apenas na vista montada para não flutuar no vazio - C04)
+            if show_plane and not is_exploded:
                 opacity = max(0.0, min(1.0, getattr(settings, "plane_preview_opacity", 15.0) / 100.0))
                 if opacity > 0.01:
                     if hasattr(gpu.state, 'depth_test_set'):
@@ -254,12 +320,24 @@ def _draw_plane_overlay(context, settings):
                 batch_border.draw(shader)
 
             # 2. Linha de corte na geometria (Laranja contrastante / Amarelo ouro de alta visibilidade)
-            if show_cut_line and len(cut_line_coords) >= 2:
-                # Agrupa em pares de pontos para linhas
+            if show_cut_line and cut_line_segments:
                 pairs = []
-                for i in range(0, len(cut_line_coords) - 1, 2):
-                    pairs.append(cut_line_coords[i])
-                    pairs.append(cut_line_coords[i + 1])
+                if is_exploded:
+                    # Na vista explodida, desenha o contorno projetado nas superfícies afastadas de A e B (C04 / P01)
+                    from .operators import get_current_session_parts
+                    parts = get_current_session_parts(context.scene)
+                    obj_a = next((o for o in parts if o.get("chest_role") == 'A'), None)
+                    obj_b = next((o for o in parts if o.get("chest_role") == 'B'), None)
+                    offset_a = obj_a.location if obj_a else Vector((0, 0, 0))
+                    offset_b = obj_b.location if obj_b else Vector((0, 0, 0))
+
+                    if offset_a.length_squared > 1e-8 or offset_b.length_squared > 1e-8:
+                        pairs.extend([p + offset_a for p in cut_line_segments])
+                        pairs.extend([p + offset_b for p in cut_line_segments])
+                    else:
+                        pairs = cut_line_segments
+                else:
+                    pairs = cut_line_segments
 
                 if pairs:
                     if hasattr(gpu.state, 'line_width_set'):

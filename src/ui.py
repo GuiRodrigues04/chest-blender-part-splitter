@@ -507,9 +507,20 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 icon_status = 'CHECKMARK'
             elif settings.last_status_level == 'WARNING':
                 icon_status = 'ERROR'
+                box_status.alert = True
             elif settings.last_status_level == 'ERROR':
                 icon_status = 'CANCEL'
-            box_status.label(text=settings.last_status, icon=icon_status)
+                box_status.alert = True
+
+            import textwrap
+            paragraphs = settings.last_status.split('\n')
+            for p_idx, para in enumerate(paragraphs):
+                lines = textwrap.wrap(para, width=44) or [para]
+                for l_idx, line in enumerate(lines):
+                    if p_idx == 0 and l_idx == 0:
+                        box_status.label(text=line, icon=icon_status)
+                    else:
+                        box_status.label(text=line)
 
 
 def register():

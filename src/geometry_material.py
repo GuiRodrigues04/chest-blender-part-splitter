@@ -14,9 +14,20 @@ import bmesh
 from mathutils import Vector
 from typing import List, Dict, Any, Tuple, Optional
 from .geometry_contract import CutInterface, SplitResult, build_cut_interface
-from .geometry_loop import create_loop_prism_cutter, LoopSliceResult
+from .geometry_loop import create_loop_prism_cutter, LoopSliceResult, triangulate_polygon_2d
 from .geometry_plane import evaluate_bmesh_metrics
 from .diagnostic import get_scene_scale_to_mm
+
+
+def _get_orthonormal_basis(normal: Vector) -> Tuple[Vector, Vector]:
+    """Retorna dois vetores unitários ortogonais à normal fornecida."""
+    n = normal.normalized()
+    if abs(n.z) < 0.9:
+        u = n.cross(Vector((0.0, 0.0, 1.0))).normalized()
+    else:
+        u = n.cross(Vector((0.0, 1.0, 0.0))).normalized()
+    v = n.cross(u).normalized()
+    return u, v
 
 
 def get_material_regions(bm, material_index: int) -> List[List[int]]:
@@ -219,6 +230,11 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
 
     bm.free()
 
+    scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+    dists = [abs((p - centroid).dot(n)) for p in coords_world]
+    max_dev_mm = (max(dists) if dists else 0.0) * scale_to_mm
+    is_planar_base = (max_dev_mm <= 0.15)
+
     info = dict(base_info)
     info.update({
         "valid": True,
@@ -228,6 +244,9 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
         "centroid_world": centroid,
         "normal_world": n,
         "inward_dir_world": inward_dir,
+        "is_planar_base": is_planar_base,
+        "base_deviation_mm": max_dev_mm,
+        "base_normal_world": n,
     })
     return info
 
@@ -310,10 +329,17 @@ def slice_mesh_by_material(
     scene: Optional[bpy.types.Scene] = None,
     through_cut: bool = False,
     region_index: int = 0,
+    extraction_mode: str = 'EXTRUDE',
+    interface_mat_mode: str = 'SOURCE',
+    part_clearance_mm: float = 0.0,
+    part_clearance_apply_to: str = 'PART',
 ) -> LoopSliceResult:
     """Realiza a separação da malha com base em uma região do material selecionado.
     
-    Garante peças sólidas 100% manifold em ambos os casos (componentes ou superfície).
+    Suporta os modos:
+    - 'BASE': Destaca a saliência volumétrica inteira pela base com tampas planas (C01),
+              conservação estrita de volume (C02) e alívio dimensional calibrado (C03).
+    - 'EXTRUDE': Extração prismática superficial com profundidade definida e cavidade complementar (M03).
     """
     actual_scene = scene if scene else bpy.context.scene
     scale_to_mm = get_scene_scale_to_mm(actual_scene)
@@ -347,7 +373,6 @@ def slice_mesh_by_material(
         sep = cb - ca
         sep_norm = sep.normalized() if sep.length > 1e-9 else Vector((0.0, 0.0, -1.0))
 
-        # Cria interface simbólica
         cut_iface = CutInterface(
             origin_world=ca.copy(),
             normal_a_to_b_world=sep_norm,
@@ -377,28 +402,226 @@ def slice_mesh_by_material(
         )
         return LoopSliceResult(bm_a, bm_b, split_res)
 
+    elif extraction_mode == 'BASE':
+        # C01 / C02 / C03: Destacar saliência pela base com fechamento planar e conservação volumétrica
+        if not analysis.get("is_planar_base", True):
+            raise ValueError(
+                f"A base da saliência não é estritamente planar (desvio de planicidade: "
+                f"{analysis.get('base_deviation_mm', 0.0):.2f} mm > 0.15 mm). "
+                "Pinte todas as faces da saliência até sua ligação com o corpo ou utilize o modo Loop de Arestas."
+            )
+
+        region_set = set(analysis["region_face_indices"])
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.transform(obj.matrix_world)
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
+        centroid_base = analysis["centroid_world"]
+        n_base = analysis["base_normal_world"].copy()
+
+        # Determina a direção normal da base apontando para a saliência (+n_base)
+        protrusion_center = sum((f.calc_center_median() for f in bm.faces if f.index in region_set), Vector()) / max(1, len(region_set))
+        if (protrusion_center - centroid_base).dot(n_base) < 0.0:
+            n_base = -n_base
+
+        # Altura útil da saliência para validação prévia de folga
+        protrusion_height_mm = max(
+            0.0,
+            max(((v.co - centroid_base).dot(n_base) for f in bm.faces if f.index in region_set for v in f.verts), default=0.0) * scale_to_mm
+        )
+
+        if part_clearance_mm > 0.0:
+            if part_clearance_mm >= protrusion_height_mm - 0.1:
+                bm.free()
+                raise ValueError(
+                    f"A folga de material ({part_clearance_mm:.2f} mm) excede ou elimina a altura útil da saliência "
+                    f"({protrusion_height_mm:.2f} mm). Reduza a folga."
+                )
+
+        u_vec, v_vec = _get_orthonormal_basis(n_base)
+
+        # 1. PARTE A: Saliência destacada sólida com tampa na base
+        bm_a = bm.copy()
+        bm_a.faces.ensure_lookup_table()
+        bm_a.verts.ensure_lookup_table()
+        bm_a.edges.ensure_lookup_table()
+        bmesh.ops.delete(bm_a, geom=[f for f in bm_a.faces if f.index not in region_set], context='FACES')
+
+        boundary_edges_a = [e for e in bm_a.edges if len(e.link_faces) == 1]
+        loops_a = _order_boundary_loops(boundary_edges_a)
+        if not loops_a or len(loops_a) != 1:
+            bm.free()
+            bm_a.free()
+            raise ValueError("Não foi possível encontrar um ciclo fechado simples na base da saliência.")
+
+        ordered_verts_a = loops_a[0]
+        pts_2d_a = [Vector(((v.co - centroid_base).dot(u_vec), (v.co - centroid_base).dot(v_vec))) for v in ordered_verts_a]
+        tris_a = triangulate_polygon_2d(pts_2d_a)
+
+        cap_faces_a = []
+        for i, j, k in tris_a:
+            try:
+                f = bm_a.faces.new((ordered_verts_a[i], ordered_verts_a[j], ordered_verts_a[k]))
+                cap_faces_a.append(f)
+            except ValueError:
+                try:
+                    f = bm_a.faces.new((ordered_verts_a[i], ordered_verts_a[k], ordered_verts_a[j]))
+                    cap_faces_a.append(f)
+                except Exception:
+                    pass
+
+        # Aplica folga na base de Parte A (encurtamento axial da saliência)
+        clearance_bu = part_clearance_mm / scale_to_mm
+        if clearance_bu > 1e-7 and part_clearance_apply_to in ('PART', 'BOTH'):
+            shift_a = clearance_bu if part_clearance_apply_to == 'PART' else (0.5 * clearance_bu)
+            for v in ordered_verts_a:
+                v.co += n_base * shift_a
+
+        bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
+
+        # Material da tampa de Parte A
+        for f in cap_faces_a:
+            f.material_index = material_index
+
+        # 2. PARTE B: Corpo receptor com parede plana restaurada
+        bm_b = bm.copy()
+        bm.free()
+        bm_b.faces.ensure_lookup_table()
+        bm_b.verts.ensure_lookup_table()
+        bm_b.edges.ensure_lookup_table()
+        bmesh.ops.delete(bm_b, geom=[f for f in bm_b.faces if f.index in region_set], context='FACES')
+
+        boundary_edges_b = [e for e in bm_b.edges if len(e.link_faces) == 1]
+        loops_b = _order_boundary_loops(boundary_edges_b)
+        if not loops_b or len(loops_b) != 1:
+            bm_a.free()
+            bm_b.free()
+            raise ValueError("Não foi possível encontrar o contorno fechado correspondente no corpo receptor.")
+
+        ordered_verts_b = loops_b[0]
+        pts_2d_b = [Vector(((v.co - centroid_base).dot(u_vec), (v.co - centroid_base).dot(v_vec))) for v in ordered_verts_b]
+        tris_b = triangulate_polygon_2d(pts_2d_b)
+
+        cap_faces_b = []
+        for i, j, k in tris_b:
+            try:
+                f = bm_b.faces.new((ordered_verts_b[i], ordered_verts_b[j], ordered_verts_b[k]))
+                cap_faces_b.append(f)
+            except ValueError:
+                try:
+                    f = bm_b.faces.new((ordered_verts_b[i], ordered_verts_b[k], ordered_verts_b[j]))
+                    cap_faces_b.append(f)
+                except Exception:
+                    pass
+
+        # Aplica folga na base de Parte B (recesso axial no corpo)
+        if clearance_bu > 1e-7 and part_clearance_apply_to in ('CAVITY', 'BOTH'):
+            shift_b = clearance_bu if part_clearance_apply_to == 'CAVITY' else (0.5 * clearance_bu)
+            for v in ordered_verts_b:
+                v.co -= n_base * shift_b
+
+        bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
+
+        # Material da tampa de Parte B: herda material predominante das faces adjacentes do corpo
+        adj_mats = []
+        for v in ordered_verts_b:
+            for lf in v.link_faces:
+                if lf not in cap_faces_b:
+                    adj_mats.append(lf.material_index)
+        body_mat = max(set(adj_mats), key=adj_mats.count) if adj_mats else 0
+        for f in cap_faces_b:
+            f.material_index = body_mat
+
+        # Interface de corte formal
+        cut_iface = build_cut_interface(
+            origin_world=centroid_base,
+            normal_a_to_b=n_base,
+            boundary_points_world=analysis["coords_world"],
+            unit_scale=scale_to_mm,
+            source_mode='MATERIAL',
+        )
+
+        metrics_a = evaluate_bmesh_metrics(bm_a, scale_to_mm)
+        metrics_b = evaluate_bmesh_metrics(bm_b, scale_to_mm)
+
+        if metrics_a["faces"] == 0 or metrics_b["faces"] == 0:
+            raise RuntimeError("O destaque por material gerou peça vazia.")
+        if metrics_a["volume_mm3"] <= 1e-4 or metrics_b["volume_mm3"] <= 1e-4:
+            raise RuntimeError("O destaque por material gerou peça com volume nulo ou desprezível.")
+        if not metrics_a["is_manifold"] or not metrics_b["is_manifold"]:
+            raise RuntimeError(
+                f"O destaque por base gerou peça não-manifold "
+                f"(arestas abertas: Parte A={metrics_a['non_manifold_edges']}, Parte B={metrics_b['non_manifold_edges']})."
+            )
+
+        split_res = SplitResult(
+            part_a_metrics=metrics_a,
+            part_b_metrics=metrics_b,
+            interface=cut_iface,
+            diagnostics_before_connectors={
+                "part_a_volume_mm3": metrics_a["volume_mm3"],
+                "part_b_volume_mm3": metrics_b["volume_mm3"],
+                "sum_volume_mm3": metrics_a["volume_mm3"] + metrics_b["volume_mm3"],
+            },
+            success=True,
+        )
+        return LoopSliceResult(bm_a, bm_b, split_res)
+
     else:
-        # Superfície com contorno: extrai com profundidade via prisma booleano
+        # Extração superficial com profundidade (M03)
+        if part_clearance_mm > 0.0:
+            if part_clearance_mm >= depth_mm - 0.1:
+                raise ValueError(
+                    f"A folga de material ({part_clearance_mm:.2f} mm) excede ou elimina a profundidade útil da peça "
+                    f"({depth_mm:.2f} mm). Reduza a folga ou aumente a profundidade."
+                )
+
         inward_dir = analysis["inward_dir_world"]
         depth_bu = depth_mm / scale_to_mm
         outward_ext_bu = max(0.5 / scale_to_mm, 1.0 / scale_to_mm)
 
+        clearance_bu = (part_clearance_mm / scale_to_mm) if part_clearance_mm > 0.0 else 0.0
+        if part_clearance_apply_to == 'PART':
+            depth_a_bu = max(0.05 / scale_to_mm, depth_bu - clearance_bu)
+            depth_b_bu = depth_bu
+        elif part_clearance_apply_to == 'CAVITY':
+            depth_a_bu = depth_bu
+            depth_b_bu = depth_bu + clearance_bu
+        elif part_clearance_apply_to == 'BOTH':
+            depth_a_bu = max(0.05 / scale_to_mm, depth_bu - 0.5 * clearance_bu)
+            depth_b_bu = depth_bu + 0.5 * clearance_bu
+        else:
+            depth_a_bu = depth_bu
+            depth_b_bu = depth_bu
+
         temp_obj_a = None
         temp_obj_b = None
-        prism_obj = None
+        prism_obj_a = None
+        prism_obj_b = None
         eval_a = None
         eval_b = None
         mesh_a = None
         mesh_b = None
 
         try:
-            prism_obj = create_material_patch_prism_cutter(
+            prism_obj_a = create_material_patch_prism_cutter(
                 obj=obj,
                 region_face_indices=analysis["region_face_indices"],
                 inward_dir=inward_dir,
-                depth_bu=depth_bu,
+                depth_bu=depth_a_bu,
                 outward_ext_bu=outward_ext_bu,
-                name=f"{obj.name}_mat_prism",
+                name=f"{obj.name}_mat_prism_a",
+            )
+            prism_obj_b = create_material_patch_prism_cutter(
+                obj=obj,
+                region_face_indices=analysis["region_face_indices"],
+                inward_dir=inward_dir,
+                depth_bu=depth_b_bu,
+                outward_ext_bu=outward_ext_bu,
+                name=f"{obj.name}_mat_prism_b",
             )
 
             bpy.context.view_layer.update()
@@ -411,7 +634,7 @@ def slice_mesh_by_material(
             mod_a = temp_obj_a.modifiers.new(name="Mat_Intersect", type='BOOLEAN')
             mod_a.operation = 'INTERSECT'
             mod_a.solver = 'EXACT'
-            mod_a.object = prism_obj
+            mod_a.object = prism_obj_a
 
             temp_obj_b = obj.copy()
             temp_obj_b.data = obj.data.copy()
@@ -421,7 +644,7 @@ def slice_mesh_by_material(
             mod_b = temp_obj_b.modifiers.new(name="Mat_Difference", type='BOOLEAN')
             mod_b.operation = 'DIFFERENCE'
             mod_b.solver = 'EXACT'
-            mod_b.object = prism_obj
+            mod_b.object = prism_obj_b
 
             bpy.context.view_layer.update()
             dg = bpy.context.evaluated_depsgraph_get()
@@ -439,6 +662,11 @@ def slice_mesh_by_material(
             # Transforma para World Space
             bm_a.transform(obj.matrix_world)
             bm_b.transform(obj.matrix_world)
+
+            if interface_mat_mode == 'EXTRACTED':
+                for f in bm_a.faces:
+                    if f.material_index != material_index:
+                        f.material_index = material_index
 
             # Extrai contorno da fronteira para a CutInterface formal (B08)
             mw = obj.matrix_world
@@ -504,11 +732,12 @@ def slice_mesh_by_material(
                     if t_mesh and t_mesh.users == 0:
                         bpy.data.meshes.remove(t_mesh, do_unlink=True)
 
-            if prism_obj:
-                p_mesh = prism_obj.data
-                if prism_obj.name in actual_scene.collection.objects:
-                    actual_scene.collection.objects.unlink(prism_obj)
-                if prism_obj.name in bpy.data.objects:
-                    bpy.data.objects.remove(prism_obj, do_unlink=True)
-                if p_mesh and p_mesh.users == 0:
-                    bpy.data.meshes.remove(p_mesh, do_unlink=True)
+            for p_o in (prism_obj_a, prism_obj_b):
+                if p_o:
+                    p_mesh = p_o.data
+                    if p_o.name in actual_scene.collection.objects:
+                        actual_scene.collection.objects.unlink(p_o)
+                    if p_o.name in bpy.data.objects:
+                        bpy.data.objects.remove(p_o, do_unlink=True)
+                    if p_mesh and p_mesh.users == 0:
+                        bpy.data.meshes.remove(p_mesh, do_unlink=True)

@@ -7,7 +7,26 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [0.8.7] - 2026-10-11
 
-### Corrigido
+### Corrigido (Pós-Testes 0.8.7)
+- **C01 & C02: Modo BASE de Extração por Material e Conservação Estrita de Volume**:
+  - Implementação do modo `BASE` ("Destacar saliência pela base") em `slice_mesh_by_material`: destaca o ressalto sólido íntegro com tampa plana fechada na base (ex: Z=100 mm), enquanto o corpo receptor mantém sua parede exterior plana restaurada com o material original adjacente, eliminando o núcleo interno oco e lâminas espúrias.
+  - Conservação de volume total garantida (\(\Sigma V_{\text{partes}} = V_{\text{original}}\)) sem resíduos ou fragmentos desconexos na cena.
+  - Modo `EXTRUDE` preservado para corte de cavidades e regiões planas (M03).
+- **C03: Calibração de Folga entre Peças (part_clearance_mm) e Assinatura de Sessão**:
+  - Alívio dimensional calibrado aplicado axialmente na interface de contato montada (`PART`, `CAVITY` ou `BOTH`), com validação prévia da espessura útil do sólido (rejeitando folgas \(\ge \text{espessura} - 0.1\text{ mm}\)).
+  - Parâmetros `part_clearance_mm`, `part_clearance_apply_to`, `material_extraction_mode` e `material_interface_mat_mode` integrados à assinatura de sessão (`compute_session_input_signature`).
+- **C04: Linhas de Corte Face a Face e Vista Explodida**:
+  - Interseção calculada estritamente face a face via `_compute_cut_line_segments`, eliminando conexões espúrias ou diagonais que cruzavam o vazio entre ilhas desconexas.
+  - Na visualização explodida (`EXPLODED`), o plano flutuante no vácuo é ocultado e os contornos de corte são desenhados diretamente sobre as interfaces deslocadas das peças A e B.
+- **C05: Grade GRID_4 em Seções Rotacionadas (OMBB) e Escala Segura**:
+  - Algoritmo de Oriented Minimum Bounding Box (OMBB) para alinhamento automático da grade de 4 pinos aos lados reais do quadrado/retângulo, mesmo com rotação de 45° ou eixos arbitrários no plano da interface (`Demonstracao_Grade_4.py`).
+  - Busca determinística de escala segura (passos de 0.55 a 0.15) acomodando todos os 4 pinos com margem de segurança dentro do domínio sólido.
+- **C06: Herança Fiel de Material nos Pinos por Área em World Space**:
+  - Pinos machos herdam fielmente o material da peça dona (ex: peça amarela gera pinos amarelos). Em interfaces multicoloridas ou ambíguas, o material é selecionado pela maior soma de área de faces em World Space (não por contagem de polígonos).
+- **C07: Resiliência em Falha de Atualização de Prévia e Bloqueio de Ações**:
+  - Quando uma atualização de parâmetros falha e a prévia anterior é preservada, um aviso persistente em destaque de alerta é exibido no painel ("Aviso: A última atualização falhou..."), bloqueando as operações de confirmação (`commit_parts`) e exportação (`export_parts`) até que a configuração seja válida.
+
+### Corrigido (Fase Inicial 0.8.7)
 - **B11 & P02/P03: Eliminação de Lâmina Coplanar no Alinhamento por Face**:
   - Classificação física pré-corte de faces coplanares e remoção seletiva da película e faces degeneradas da outra metade na peça retida. Em alinhamentos pela face de apoio, a saliência é gerada com contorno fiel e tampa fechada de base (ex: 30x30x20 mm), sem duplicar a face exterior da base (100x100 mm) nem produzir película de espessura zero.
   - Operador `CHEST_OT_splitter_align_plane` com validação estrita de Edit Mode e face ativa única no alvo, emitindo cancelamento controlado sem falso sucesso.

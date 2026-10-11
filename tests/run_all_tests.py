@@ -30,6 +30,7 @@ TESTS = [
     "tests/test_plan_086_commercial.py",
     "tests/test_reversion_086.py",
     "tests/test_plan_087.py",
+    "tests/test_pos_testes_087.py",
 ]
 
 def main():

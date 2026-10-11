@@ -78,6 +78,64 @@ def min_distance_to_polygon_boundaries(
     return math.sqrt(min_d_sq) if min_d_sq < 1e17 else 0.0
 
 
+def find_optimal_grid_axes(
+    outer_poly: List[Tuple[float, float]],
+    u_axis: Vector,
+    v_axis: Vector,
+) -> Tuple[Vector, Vector, float, float, float, float]:
+    """Determina os eixos alinhados à orientação natural do contorno para grade 2x2 (C05).
+    
+    Analisa os ângulos das arestas do polígono para encontrar a caixa envolvente mínima (OMBB).
+    Para retângulos e quadrados com qualquer rotação (ex: 45°), alinha perfeitamente a grade às arestas.
+    """
+    n_pts = len(outer_poly)
+    if n_pts < 3:
+        return u_axis, v_axis, 0.0, 0.0, 0.0, 0.0
+
+    best_area = 1e18
+    best_angle = 0.0
+    best_min_u, best_max_u = 0.0, 0.0
+    best_min_v, best_max_v = 0.0, 0.0
+
+    # Testa os ângulos de cada aresta do polígono
+    tested_angles = [0.0]
+    for i in range(n_pts):
+        p1 = outer_poly[i]
+        p2 = outer_poly[(i + 1) % n_pts]
+        dx = p2[0] - p1[0]
+        dy = p2[1] - p1[1]
+        length = math.hypot(dx, dy)
+        if length > 1e-6:
+            ang = math.atan2(dy, dx) % (math.pi / 2.0)
+            tested_angles.append(ang)
+
+    for ang in tested_angles:
+        cos_a = math.cos(ang)
+        sin_a = math.sin(ang)
+        proj_u = [x * cos_a + y * sin_a for x, y in outer_poly]
+        proj_v = [-x * sin_a + y * cos_a for x, y in outer_poly]
+        w = max(proj_u) - min(proj_u)
+        h = max(proj_v) - min(proj_v)
+        area = w * h
+        if area < best_area - 1e-6:
+            best_area = area
+            best_angle = ang
+            best_min_u, best_max_u = min(proj_u), max(proj_u)
+            best_min_v, best_max_v = min(proj_v), max(proj_v)
+
+    cos_b = math.cos(best_angle)
+    sin_b = math.sin(best_angle)
+    grid_u_axis = (u_axis * cos_b + v_axis * sin_b).normalized()
+    grid_v_axis = (-u_axis * sin_b + v_axis * cos_b).normalized()
+
+    span_u = best_max_u - best_min_u
+    span_v = best_max_v - best_min_v
+    center_u = (best_min_u + best_max_u) * 0.5
+    center_v = (best_min_v + best_max_v) * 0.5
+
+    return grid_u_axis, grid_v_axis, span_u, span_v, center_u, center_v
+
+
 def create_capsule_2d_profile(w: float, half_len: float, segments: int = 32, offset: float = 0.0) -> List[Tuple[float, float]]:
     """Gera pontos 2D fechados e ordenados para o perfil de estádio/cápsula com suporte a offset uniforme.
     
@@ -423,18 +481,80 @@ def compute_connector_layout(
     elif distribution == 'GRID_4':
         min_grid_major = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
         min_grid_minor = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
-        if span_major_mm < min_grid_major or span_minor_mm < min_grid_minor:
+
+        grid_u_axis = u_axis
+        grid_v_axis = v_axis
+        grid_span_u = span_u
+        grid_span_v = span_v
+        grid_center_u = center_u
+        grid_center_v = center_v
+
+        # Se houver contorno poligonal definido, calcula os eixos ótimos alinhados às arestas (OMBB - C05)
+        if outer_polys:
+            g_u, g_v, s_u, s_v, c_u, c_v = find_optimal_grid_axes(outer_polys[0], u_axis, v_axis)
+            if s_u > 1e-4 and s_v > 1e-4:
+                grid_u_axis = g_u
+                grid_v_axis = g_v
+                grid_span_u = s_u
+                grid_span_v = s_v
+                grid_center_u = c_u
+                grid_center_v = c_v
+
+        grid_span_u_mm = grid_span_u * unit_scale
+        grid_span_v_mm = grid_span_v * unit_scale
+
+        if grid_span_u_mm < min_grid_minor - 1e-3 or grid_span_v_mm < min_grid_minor - 1e-3:
             raise ConnectorValidationError(
                 f"Falta de espaço: a distribuição GRID_4 requer ao menos {min_grid_major:.1f}x{min_grid_minor:.1f} mm "
-                f"(disponível: {span_major_mm:.1f}x{span_minor_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes."
+                f"(disponível: {grid_span_u_mm:.1f}x{grid_span_v_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes."
             )
-        d_u = (span_u / 2.0 - margin_bu) * 0.55
-        d_v = (span_v / 2.0 - margin_bu) * 0.55
-        p1 = plane_origin + (u_axis * (center_u - d_u)) + (v_axis * (center_v - d_v))
-        p2 = plane_origin + (u_axis * (center_u + d_u)) + (v_axis * (center_v - d_v))
-        p3 = plane_origin + (u_axis * (center_u - d_u)) + (v_axis * (center_v + d_v))
-        p4 = plane_origin + (u_axis * (center_u + d_u)) + (v_axis * (center_v + d_v))
-        positions.extend([p1, p2, p3, p4])
+
+        avail_grid_u = max(0.0, (grid_span_u / 2.0) - margin_bu)
+        avail_grid_v = max(0.0, (grid_span_v / 2.0) - margin_bu)
+
+        check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
+        min_pitch_mm = cavity_diam_mm + 2.0
+
+        def _generate_4_cand(scale_f: float) -> List[Vector]:
+            du = avail_grid_u * scale_f
+            dv = avail_grid_v * scale_f
+            pts = []
+            for su, sv in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+                p = plane_origin + (grid_u_axis * (grid_center_u + su * du)) + (grid_v_axis * (grid_center_v + sv * dv))
+                pts.append(p)
+            return pts
+
+        def _is_4_cand_valid(pts: List[Vector]) -> bool:
+            if not outer_polys:
+                return True
+            for pos in pts:
+                up = (pos - plane_origin).dot(u_axis)
+                vp = (pos - plane_origin).dot(v_axis)
+                if not any(point_in_polygon_2d(up, vp, p) for p in outer_polys):
+                    return False
+                if any(point_in_polygon_2d(up, vp, hp) for hp in hole_polys):
+                    return False
+                d = min_distance_to_polygon_boundaries(up, vp, outer_polys, hole_polys)
+                if d < check_r - 1e-6:
+                    return False
+            return True
+
+        selected_cand = None
+        for test_scale in (0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15):
+            cand = _generate_4_cand(test_scale)
+            du_mm = 2.0 * avail_grid_u * test_scale * unit_scale
+            dv_mm = 2.0 * avail_grid_v * test_scale * unit_scale
+            if du_mm < min_pitch_mm or dv_mm < min_pitch_mm:
+                continue
+            if _is_4_cand_valid(cand):
+                selected_cand = cand
+                break
+
+        if selected_cand is not None:
+            positions.extend(selected_cand)
+        else:
+            cand_nom = _generate_4_cand(0.55)
+            positions.extend(cand_nom)
 
     # Cálculo dos limites laterais seguros para cápsula
     min_pitch_mm = 1e9
@@ -606,6 +726,74 @@ def validate_connectors(
 
 
 
+def determine_connector_material(
+    obj: bpy.types.Object,
+    positions: List[Vector],
+    connector_radius_bu: float,
+    plane_normal: Vector,
+) -> Optional[bpy.types.Material]:
+    """Determina o material a ser atribuído aos pinos conforme a regra C06.
+    
+    1. Verifica o material na área real de ligação dos pinos no modelo (world space).
+       Se todos os pontos de contato compartilham um único material, usa esse material.
+    2. Se houver múltiplos materiais no contato ou ambiguidade, calcula o material
+       predominante da peça por soma de área das faces em World Space.
+    3. Em caso de empate, usa o menor índice de material estável.
+    """
+    if not obj or not obj.data or not getattr(obj.data, "materials", None):
+        return None
+
+    valid_mats = [m for m in obj.data.materials if m is not None]
+    if not valid_mats:
+        return None
+    if len(valid_mats) == 1:
+        return valid_mats[0]
+
+    mw = obj.matrix_world
+    mesh = obj.data
+
+    # 1. Amostragem local nos pontos de ligação dos pinos
+    local_mats = set()
+    r_sq = (connector_radius_bu * 1.5) ** 2
+
+    for poly in mesh.polygons:
+        poly_center_world = mw @ poly.center
+        if any((poly_center_world - pos).length_squared <= r_sq for pos in positions):
+            mat_idx = poly.material_index
+            if 0 <= mat_idx < len(mesh.materials):
+                m = mesh.materials[mat_idx]
+                if m:
+                    local_mats.add(m)
+
+    if len(local_mats) == 1:
+        return next(iter(local_mats))
+
+    # 2. Fallback C06: Material predominante por área total das faces em World Space
+    mat_areas = {}
+    for poly in mesh.polygons:
+        mat_idx = poly.material_index
+        if 0 <= mat_idx < len(mesh.materials):
+            m = mesh.materials[mat_idx]
+            if m:
+                verts_w = [mw @ mesh.vertices[vi].co for vi in poly.vertices]
+                poly_area = 0.0
+                v0 = verts_w[0]
+                for i in range(1, len(verts_w) - 1):
+                    v1 = verts_w[i]
+                    v2 = verts_w[i + 1]
+                    poly_area += ((v1 - v0).cross(v2 - v0)).length * 0.5
+                mat_areas[m] = mat_areas.get(m, 0.0) + poly_area
+
+    if not mat_areas:
+        return valid_mats[0]
+
+    sorted_mats = sorted(
+        mat_areas.keys(),
+        key=lambda m: (-mat_areas[m], list(mesh.materials).index(m))
+    )
+    return sorted_mats[0]
+
+
 def apply_connectors_boolean(
     obj_male: bpy.types.Object,
     obj_female: bpy.types.Object,
@@ -670,6 +858,20 @@ def apply_connectors_boolean(
     cap_len_bu = (capsule_length_mm / unit_scale) if capsule_length_mm > 0 else 0.0
 
     try:
+        # C06: Determina o material dos pinos e das cavidades (local ou predominante por área em World Space)
+        chosen_mat_male = determine_connector_material(
+            obj_male,
+            positions=positions,
+            connector_radius_bu=diam_bu / 2.0,
+            plane_normal=norm,
+        )
+        chosen_mat_female = determine_connector_material(
+            obj_female,
+            positions=positions,
+            connector_radius_bu=(diam_bu / 2.0) + clear_side_bu,
+            plane_normal=-norm,
+        )
+
         # 1. Cria pinos para obj_male
         for idx, pos in enumerate(positions):
             pin_mesh = create_pin_mesh_data(
@@ -681,9 +883,16 @@ def apply_connectors_boolean(
                 is_cavity=False,
                 capsule_length=cap_len_bu,
             )
+            pin_mesh.materials.clear()
+            if chosen_mat_male:
+                pin_mesh.materials.append(chosen_mat_male)
+                for p in pin_mesh.polygons:
+                    p.material_index = 0
+            else:
+                for mat in obj_male.data.materials:
+                    pin_mesh.materials.append(mat)
+
             pin_obj = bpy.data.objects.new(f"temp_pin_{idx}", pin_mesh)
-            for mat in obj_male.data.materials:
-                pin_mesh.materials.append(mat)
             pin_obj.location = pos
             pin_obj.rotation_euler = pin_rot
             temp_col.objects.link(pin_obj)
@@ -709,9 +918,16 @@ def apply_connectors_boolean(
                 clearance_end=clear_end_bu,
                 capsule_length=cap_len_bu,
             )
+            cavity_mesh.materials.clear()
+            if chosen_mat_female:
+                cavity_mesh.materials.append(chosen_mat_female)
+                for p in cavity_mesh.polygons:
+                    p.material_index = 0
+            else:
+                for mat in obj_female.data.materials:
+                    cavity_mesh.materials.append(mat)
+
             cavity_obj = bpy.data.objects.new(f"temp_cavity_{idx}", cavity_mesh)
-            for mat in obj_female.data.materials:
-                cavity_mesh.materials.append(mat)
             cavity_obj.location = pos
             cavity_obj.rotation_euler = pin_rot
             temp_col.objects.link(cavity_obj)

@@ -339,6 +339,9 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
         po, pn = read_plane_geometry(context)
         tokens.append(f"plane_po:{po.x:.4f},{po.y:.4f},{po.z:.4f}")
         tokens.append(f"plane_pn:{pn.x:.4f},{pn.y:.4f},{pn.z:.4f}")
+        tokens.append(f"plane_offset:{getattr(settings, 'plane_offset_mm', 0.0):.4f}")
+        tokens.append(f"part_clearance:{getattr(settings, 'part_clearance_mm', 0.0):.4f}")
+        tokens.append(f"part_clearance_app:{getattr(settings, 'part_clearance_apply_to', 'PART')}")
         tokens.append(f"invert:{settings.invert_sides}")
 
     elif settings.split_mode == 'SOLID':
@@ -374,6 +377,10 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
         tokens.append(f"mat_idx:{settings.material_split_index}")
         tokens.append(f"mat_region:{settings.material_region_index}")
         tokens.append(f"mat_depth:{settings.material_extrude_depth_mm:.4f}")
+        tokens.append(f"mat_mode:{settings.material_extraction_mode}")
+        tokens.append(f"mat_iface_mat:{settings.material_interface_mat_mode}")
+        tokens.append(f"mat_clearance:{getattr(settings, 'part_clearance_mm', 0.0):.4f}")
+        tokens.append(f"mat_clearance_app:{getattr(settings, 'part_clearance_apply_to', 'PART')}")
 
     # 3. Encaixes (apenas se ativos e suportados no modo)
     tokens.append(f"conn_enabled:{settings.connector_enabled}")
@@ -1111,6 +1118,10 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     depth_mm=settings.material_extrude_depth_mm,
                     scene=context.scene,
                     region_index=settings.material_region_index,
+                    extraction_mode=getattr(settings, "material_extraction_mode", 'EXTRUDE'),
+                    interface_mat_mode=getattr(settings, "material_interface_mat_mode", 'SOURCE'),
+                    part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
+                    part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
                 )
                 bm_a, bm_b = mat_res[0], mat_res[1]
                 candidate_mesh_a.materials.clear()
@@ -1388,11 +1399,13 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             loc = _get_current_locale()
             settings.session_status = 'PREVIEW_INVALID'
             if had_previous_preview:
-                # Preserva o conjunto anterior intacto, mantendo bloqueio de confirmação e exportação
+                # Preserva o conjunto anterior intacto com aviso persistente e bloqueio de confirmação (C07)
                 msg = (
-                    f"Falha na geração do preview ({str(e)}). A prévia anterior foi mantida."
+                    f"Aviso: A última atualização falhou ({str(e)}).\n"
+                    f"A prévia visualizada é a anterior válida."
                     if loc == "pt_BR"
-                    else f"Preview generation failed ({str(e)}). Previous preview was preserved."
+                    else f"Warning: Last update failed ({str(e)}).\n"
+                    f"The visible preview is the previous valid one."
                 )
                 settings.last_status = msg
                 settings.last_status_level = 'WARNING'

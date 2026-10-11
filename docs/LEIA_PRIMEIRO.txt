@@ -1,0 +1,9 @@
+Plano focado nos bugs dos testes mais recentes.
+
+Abra Plano_Correcoes_0.8.7_Pos_Testes.md e envie este pacote ao Gemini Pro junto com o codigo realmente instalado.
+
+Inclui nove screenshots, sete grupos de correcao, dezoito testes e uma demonstracao matematica isolada da grade com quatro encaixes.
+
+Nao inclui implementacao dos consertos nem testes executados no Blender.
+A base instalada com as novas opcoes ainda precisa ser conferida.
+Preservar extracao por profundidade em regioes planas e adicionar destaque volumetrico correto de saliencias.

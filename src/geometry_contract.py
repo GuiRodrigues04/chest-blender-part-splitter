@@ -80,7 +80,7 @@ def build_cut_interface(
 
     # Centroide dos pontos da borda
     centroid = sum(all_points, Vector()) / len(all_points)
-    origin = origin_world if origin_world.length > 1e-6 else centroid
+    origin = origin_world.copy() if origin_world is not None else centroid
 
     # Base ortonormal inicial perpendicular à normal
     ref = Vector((0.0, 0.0, 1.0)) if abs(norm.z) < 0.9 else Vector((0.0, 1.0, 0.0))

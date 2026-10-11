@@ -811,19 +811,41 @@ class CHEST_OT_splitter_align_plane(bpy.types.Operator):
                 guide_obj.rotation_euler = r3d.view_rotation.to_euler()
 
         elif mode == 'FACE':
-            # Alinha com a face ativa do alvo se estiver em Edit Mode
-            if target and target.mode == 'EDIT':
-                bm = bmesh.from_edit_mesh(target.data)
-                active_face = bm.faces.active
-                if active_face:
-                    # Sob escala não uniforme, normais devem ser transformadas pela inversa transposta
-                    norm_matrix = target.matrix_world.to_3x3().inverted_safe().transposed()
-                    face_normal_world = (norm_matrix @ active_face.normal).normalized()
-                    face_center_world = target.matrix_world @ active_face.calc_center_median()
-                    guide_obj.location = face_center_world
-                    # Rotação que leva Vector(0,0,1) até face_normal_world
-                    rot_quat = Vector((0.0, 0.0, 1.0)).rotation_difference(face_normal_world)
-                    guide_obj.rotation_euler = rot_quat.to_euler()
+            # Validação estrita do alvo e Edit Mode (B11 / T37)
+            if not target or context.edit_object != target or target.mode != 'EDIT':
+                msg = "Para alinhar por Face, o modelo alvo deve estar selecionado e ativo em Edit Mode."
+                settings.last_status = msg
+                settings.last_status_level = 'WARNING'
+                self.report({'WARNING'}, msg)
+                return {'CANCELLED'}
+
+            bm = bmesh.from_edit_mesh(target.data)
+            active_face = bm.faces.active
+            if not active_face:
+                selected_faces = [f for f in bm.faces if f.select]
+                if len(selected_faces) == 1:
+                    active_face = selected_faces[0]
+                elif len(selected_faces) > 1:
+                    msg = "Múltiplas faces selecionadas sem face ativa. Selecione apenas uma face de referência."
+                    settings.last_status = msg
+                    settings.last_status_level = 'WARNING'
+                    self.report({'WARNING'}, msg)
+                    return {'CANCELLED'}
+                else:
+                    msg = "Nenhuma face selecionada no modelo alvo. Selecione uma face para alinhar o plano."
+                    settings.last_status = msg
+                    settings.last_status_level = 'WARNING'
+                    self.report({'WARNING'}, msg)
+                    return {'CANCELLED'}
+
+            # Sob escala não uniforme, normais devem ser transformadas pela inversa transposta
+            norm_matrix = target.matrix_world.to_3x3().inverted_safe().transposed()
+            face_normal_world = (norm_matrix @ active_face.normal).normalized()
+            face_center_world = target.matrix_world @ active_face.calc_center_median()
+            guide_obj.location = face_center_world
+            # Rotação que leva Vector(0,0,1) até face_normal_world
+            rot_quat = Vector((0.0, 0.0, 1.0)).rotation_difference(face_normal_world)
+            guide_obj.rotation_euler = rot_quat.to_euler()
 
         read_plane_geometry(context)
         msg = f"Plano alinhado por '{self.align_mode}'."
@@ -1014,8 +1036,18 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 if settings.loop_seed_face_index < 0:
                     raise RuntimeError("Nenhuma região definida.")
 
+                from .geometry_loop import slice_mesh_by_loop, slice_mesh_by_loop_extrude, analyze_loop_region, get_topology_signature
+                curr_sig = get_topology_signature(target)
+                if settings.loop_topology_signature and curr_sig != settings.loop_topology_signature:
+                    raise RuntimeError("A malha mudou. Capture o contorno novamente.")
+
                 indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i]
-                from .geometry_loop import slice_mesh_by_loop, slice_mesh_by_loop_extrude, analyze_loop_region
+                # Validação de limites dos índices e face semente (B02)
+                vert_len = len(target.data.vertices) if target.data else 0
+                if any(i < 0 or i >= vert_len for i in indices):
+                    raise RuntimeError("A malha mudou. Capture o contorno novamente.")
+                if target.data and settings.loop_seed_face_index >= len(target.data.polygons):
+                    raise RuntimeError("A face semente não é mais válida para a topologia atual.")
 
                 behavior = settings.loop_behavior
                 if behavior == 'AUTO':
@@ -1121,6 +1153,9 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     target_mesh_b=candidate_mesh_b,
                     invert_sides=settings.invert_sides,
                     unit_scale=unit_scale,
+                    plane_offset_mm=getattr(settings, "plane_offset_mm", 0.0),
+                    part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
+                    part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
                 )
 
             # Limpa malha avaliada temporária
@@ -1184,6 +1219,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                         interface=report.get("interface"),
                         connector_type=settings.connector_type,
                         capsule_length_mm=settings.connector_capsule_length_mm,
+                        adjust_to_valid_area=getattr(settings, "adjust_to_valid_area", False),
                     )
                     positions = layout["positions"]
                     major_axis = layout["major_axis"]
@@ -2440,7 +2476,7 @@ _in_depsgraph_handler = False
 
 @persistent
 def on_depsgraph_update_post(scene, depsgraph):
-    """Monitora alterações no alvo ou cortador sem avaliar malhas com to_mesh (B02)."""
+    """Monitora alterações no alvo ou cortador sem avaliar malhas com to_mesh (B04 / T23)."""
     global _in_depsgraph_handler, _is_generating_preview
     if _in_depsgraph_handler or _is_generating_preview:
         return
@@ -2458,13 +2494,16 @@ def on_depsgraph_update_post(scene, depsgraph):
         col = find_collection(scene, COLLECTION_GUIDES_NAME)
         cutter = col.objects.get(PLANE_GUIDE_NAME) if col else None
 
-    relevant_objects = {o for o in (target, cutter) if o is not None}
-    if not relevant_objects:
+    target_mesh = target.data if (target and target.type == 'MESH') else None
+    cutter_mesh = cutter.data if (cutter and cutter.type == 'MESH') else None
+
+    relevant_ids = {o for o in (target, target_mesh, cutter, cutter_mesh) if o is not None}
+    if not relevant_ids:
         return
 
     updated = False
     for update in depsgraph.updates:
-        if update.id in relevant_objects or update.id == scene:
+        if update.id in relevant_ids or update.id == scene:
             updated = True
             break
 
@@ -2477,14 +2516,22 @@ def on_depsgraph_update_post(scene, depsgraph):
             settings.session_status = 'PREVIEW_STALE'
             return
 
-        # Verificação rápida de transformação e dados básicos sem to_mesh (B02)
-        loc_str = f"{target.location.x:.4f},{target.location.y:.4f},{target.location.z:.4f}"
+        # Rastreia estado do alvo (World Space e contagens)
+        mw = target.matrix_world
+        loc_str = f"{mw.translation.x:.4f},{mw.translation.y:.4f},{mw.translation.z:.4f}"
         rot_str = f"{target.rotation_euler.x:.4f},{target.rotation_euler.y:.4f},{target.rotation_euler.z:.4f}"
         scale_str = f"{target.scale.x:.4f},{target.scale.y:.4f},{target.scale.z:.4f}"
         base_vert_count = len(target.data.vertices) if target.data else 0
+        base_poly_count = len(target.data.polygons) if target.data else 0
         mod_count = len(target.modifiers)
 
-        state_key = f"{loc_str}|{rot_str}|{scale_str}|{base_vert_count}|{mod_count}"
+        # Rastreia estado do cortador (B04 / T23)
+        cutter_state = "NONE"
+        if cutter and cutter.name in bpy.data.objects:
+            c_mw = cutter.matrix_world
+            cutter_state = f"{c_mw.translation.x:.4f},{c_mw.translation.y:.4f},{c_mw.translation.z:.4f}|{cutter.rotation_euler.x:.4f},{cutter.rotation_euler.y:.4f},{cutter.rotation_euler.z:.4f}|{cutter.scale.x:.4f},{cutter.scale.y:.4f},{cutter.scale.z:.4f}"
+
+        state_key = f"{loc_str}|{rot_str}|{scale_str}|{base_vert_count}|{base_poly_count}|{mod_count}|{cutter_state}"
         prev_key = target.get("_chest_last_known_state")
         if prev_key and prev_key != state_key:
             settings.session_status = 'PREVIEW_STALE'

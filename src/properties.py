@@ -239,6 +239,31 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         description="Inverte os papéis de Parte A e Parte B",
         update=_on_param_change_mark_stale,
     )
+    show_plane_preview: BoolProperty(
+        name="Mostrar Plano",
+        description="Exibe preenchimento translúcido indicando a orientação do corte planar infinito (F02)",
+        default=True,
+    )
+    show_plane_cut_line: BoolProperty(
+        name="Mostrar Linha de Corte",
+        description="Exibe a linha exata de interseção entre o plano de corte e o modelo alvo (F02)",
+        default=True,
+    )
+    plane_preview_opacity: FloatProperty(
+        name="Opacidade do Plano (%)",
+        description="Opacidade do preenchimento da prévia do plano no viewport",
+        default=15.0,
+        min=0.0,
+        max=100.0,
+        precision=1,
+    )
+    plane_offset_mm: FloatProperty(
+        name="Deslocamento do Plano (mm)",
+        description="Deslocamento explícito e medido do plano ao longo de sua normal",
+        default=0.0,
+        precision=3,
+        update=_on_param_change_mark_stale,
+    )
 
     # --- Fase 3A (Modo D): Loop de Arestas ---
     show_loop_highlight: BoolProperty(
@@ -355,6 +380,26 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     material_detected_type: StringProperty(
         name="Diagnóstico do Material",
         default="",
+    )
+    material_extraction_mode: EnumProperty(
+        name="Modo de Extração",
+        items=[
+            ('EXTRUDE', "Extrair com Profundidade", "Extrai a região superficial projetando um prisma com a profundidade indicada"),
+            ('BASE', "Destacar Saliência pela Base", "Localiza a base planar da saliência e separa o volume inteiro acima dela"),
+        ],
+        default='EXTRUDE',
+        description="Comportamento da extração da região por material (C02)",
+        update=_on_param_change_mark_stale,
+    )
+    material_interface_mat_mode: EnumProperty(
+        name="Material da Interface",
+        items=[
+            ('SOURCE', "Manter Origem", "Mantém o material herdado do corpo original na tampa"),
+            ('EXTRACTED', "Material da Peça Extraída", "Aplica o material da peça extraída na tampa da interface"),
+        ],
+        default='SOURCE',
+        description="Material atribuído às novas faces criadas na interface de corte (C03)",
+        update=_on_param_change_mark_stale,
     )
 
     # --- Guias de Visualização ---
@@ -566,6 +611,13 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         update=_on_param_change_mark_stale,
     )
 
+    adjust_to_valid_area: BoolProperty(
+        name="Ajustar à Área Válida",
+        default=False,
+        description="Reposiciona encaixes que cairiam no vazio ou furos para a maior região sólida contínua (D2)",
+        update=_on_param_change_mark_stale,
+    )
+
     connector_max_safe_lateral_mm: FloatProperty(
         name="Limite Máx Seguro (mm)",
         default=0.0,
@@ -647,6 +699,28 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=30.0,
         precision=1,
         description="Distância mínima de segurança até a casca externa do modelo",
+        update=_on_param_change_mark_stale,
+    )
+
+    # --- Folga Física entre Peças (Etapa E / E01) ---
+    part_clearance_mm: FloatProperty(
+        name="Folga entre Peças (mm)",
+        description="Folga física calibrada nas interfaces de contato entre as peças (E01)",
+        default=0.0,
+        min=0.0,
+        max=5.0,
+        precision=2,
+        update=_on_param_change_mark_stale,
+    )
+    part_clearance_apply_to: EnumProperty(
+        name="Aplicar Folga em",
+        items=[
+            ('PART', "Peça Extraída", "Aplica a folga reduzindo as paredes da peça extraída"),
+            ('CAVITY', "Cavidade", "Aplica a folga expandindo a cavidade receptora no corpo principal"),
+            ('BOTH', "Ambos (Bilateral)", "Aplica metade da folga em cada lado da interface"),
+        ],
+        default='PART',
+        description="Onde aplicar o alívio de folga entre as peças (E01)",
         update=_on_param_change_mark_stale,
     )
 

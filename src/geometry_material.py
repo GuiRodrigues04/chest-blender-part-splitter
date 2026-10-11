@@ -13,7 +13,7 @@ import bpy
 import bmesh
 from mathutils import Vector
 from typing import List, Dict, Any, Tuple, Optional
-from .geometry_contract import CutInterface, SplitResult
+from .geometry_contract import CutInterface, SplitResult, build_cut_interface
 from .geometry_loop import create_loop_prism_cutter, LoopSliceResult
 from .geometry_plane import evaluate_bmesh_metrics
 from .diagnostic import get_scene_scale_to_mm
@@ -383,16 +383,24 @@ def slice_mesh_by_material(
         depth_bu = depth_mm / scale_to_mm
         outward_ext_bu = max(0.5 / scale_to_mm, 1.0 / scale_to_mm)
 
-        prism_obj = create_material_patch_prism_cutter(
-            obj=obj,
-            region_face_indices=analysis["region_face_indices"],
-            inward_dir=inward_dir,
-            depth_bu=depth_bu,
-            outward_ext_bu=outward_ext_bu,
-            name=f"{obj.name}_mat_prism",
-        )
+        temp_obj_a = None
+        temp_obj_b = None
+        prism_obj = None
+        eval_a = None
+        eval_b = None
+        mesh_a = None
+        mesh_b = None
 
         try:
+            prism_obj = create_material_patch_prism_cutter(
+                obj=obj,
+                region_face_indices=analysis["region_face_indices"],
+                inward_dir=inward_dir,
+                depth_bu=depth_bu,
+                outward_ext_bu=outward_ext_bu,
+                name=f"{obj.name}_mat_prism",
+            )
+
             bpy.context.view_layer.update()
 
             temp_obj_a = obj.copy()
@@ -428,23 +436,21 @@ def slice_mesh_by_material(
             bm_b = bmesh.new()
             bm_b.from_mesh(mesh_b)
 
-            eval_a.to_mesh_clear()
-            eval_b.to_mesh_clear()
-
             # Transforma para World Space
             bm_a.transform(obj.matrix_world)
             bm_b.transform(obj.matrix_world)
 
-            cut_iface = CutInterface(
+            # Extrai contorno da fronteira para a CutInterface formal (B08)
+            mw = obj.matrix_world
+            boundary_pts_world = [mw @ p for p in analysis.get("boundary_coords", [])]
+            if not boundary_pts_world:
+                boundary_pts_world = [mw @ Vector(v) for v in analysis.get("coords_world", [])]
+
+            cut_iface = build_cut_interface(
                 origin_world=analysis["centroid_world"],
-                normal_a_to_b_world=inward_dir,
-                axis_u_world=Vector((1.0, 0.0, 0.0)),
-                axis_v_world=Vector((0.0, 1.0, 0.0)),
-                outer_contours_uv=[],
-                hole_contours_uv=[],
-                interface_triangles_world=[],
-                is_planar=True,
-                deviation_mm=0.0,
+                normal_a_to_b=inward_dir,
+                boundary_points_world=boundary_pts_world,
+                unit_scale=scale_to_mm,
                 source_mode='MATERIAL',
             )
 
@@ -475,26 +481,34 @@ def slice_mesh_by_material(
             )
             return LoopSliceResult(bm_a, bm_b, split_res)
 
-
         finally:
-            # Limpeza estrita de temporários
-            if temp_obj_a.name in actual_scene.collection.objects:
-                actual_scene.collection.objects.unlink(temp_obj_a)
-            mesh_data_a = temp_obj_a.data
-            bpy.data.objects.remove(temp_obj_a, do_unlink=True)
-            if mesh_data_a:
-                bpy.data.meshes.remove(mesh_data_a, do_unlink=True)
+            # Liberação estrita no mesmo objeto avaliado (B03)
+            if eval_a and mesh_a:
+                try:
+                    eval_a.to_mesh_clear()
+                except Exception:
+                    pass
+            if eval_b and mesh_b:
+                try:
+                    eval_b.to_mesh_clear()
+                except Exception:
+                    pass
 
-            if temp_obj_b.name in actual_scene.collection.objects:
-                actual_scene.collection.objects.unlink(temp_obj_b)
-            mesh_data_b = temp_obj_b.data
-            bpy.data.objects.remove(temp_obj_b, do_unlink=True)
-            if mesh_data_b:
-                bpy.data.meshes.remove(mesh_data_b, do_unlink=True)
+            for t_o in (temp_obj_a, temp_obj_b):
+                if t_o:
+                    t_mesh = t_o.data
+                    if t_o.name in actual_scene.collection.objects:
+                        actual_scene.collection.objects.unlink(t_o)
+                    if t_o.name in bpy.data.objects:
+                        bpy.data.objects.remove(t_o, do_unlink=True)
+                    if t_mesh and t_mesh.users == 0:
+                        bpy.data.meshes.remove(t_mesh, do_unlink=True)
 
-            if prism_obj.name in actual_scene.collection.objects:
-                actual_scene.collection.objects.unlink(prism_obj)
-            prism_mesh = prism_obj.data
-            bpy.data.objects.remove(prism_obj, do_unlink=True)
-            if prism_mesh:
-                bpy.data.meshes.remove(prism_mesh, do_unlink=True)
+            if prism_obj:
+                p_mesh = prism_obj.data
+                if prism_obj.name in actual_scene.collection.objects:
+                    actual_scene.collection.objects.unlink(prism_obj)
+                if prism_obj.name in bpy.data.objects:
+                    bpy.data.objects.remove(prism_obj, do_unlink=True)
+                if p_mesh and p_mesh.users == 0:
+                    bpy.data.meshes.remove(p_mesh, do_unlink=True)

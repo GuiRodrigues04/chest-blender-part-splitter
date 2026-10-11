@@ -2,7 +2,7 @@
 
 Extensão do Blender para dividir modelos em peças para impressão 3D. Inclui cortes por plano, sólido, loop e material, prévia, encaixes em interfaces compatíveis e exportação.
 
-Versão desta base: 0.8.6. Próxima versão planejada: 0.8.7. Compatibilidade declarada: Blender 4.2 ou superior; a compatibilidade real deve ser confirmada nos testes.
+Versão desta base: 0.8.7. Homologada no Blender 5.2.0 LTS (compatibilidade declarada: Blender 4.2 ou superior).
 
 ## Instalação e uso
 
@@ -35,10 +35,8 @@ Também é possível definir BLENDER_BIN ou disponibilizar blender no PATH. O pa
 | docs/archive/ | Planos antigos para consulta |
 | dist/ | Pacotes gerados, fora do controle de versão |
 
-## Limites
+## Limites e Recursos
 
-Encaixes automáticos estão disponíveis em Plano e Loop nesta base. Material e Sólido precisam de interface de contato adequada para a ampliação prevista na 0.8.7. Presets de folga são pontos de partida e precisam de calibração de impressão.
-
-Esta cópia contém organização documental e ajustes nos scripts de desenvolvimento. Os algoritmos de corte continuam sendo os da 0.8.6 e possuem problemas descritos no plano da 0.8.7.
+Encaixes automáticos com suporte a ajuste determinístico à área sólida útil (polo de inacessibilidade em regiões côncavas U/L) disponíveis em interfaces compatíveis. A versão 0.8.7 implementa Ear Clipping 2D em loops côncavos, eliminação de lâminas coplanares no alinhamento por face, calibração física de folga entre peças (E01), extração avançada por material e ciclo de vida transacional com proteção de snapshots. Presets de folga de encaixes continuam sendo pontos de partida e podem requerer calibração conforme a tolerância da impressora 3D e filamento.
 
 Licença: GPL-2.0-or-later. Veja LICENSE.

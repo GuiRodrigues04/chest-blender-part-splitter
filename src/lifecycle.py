@@ -133,17 +133,14 @@ def record_unlinked_parent(op_record: Any, obj: bpy.types.Object):
 # -----------------------------------------------------------------------------
 
 def capture_target_snapshot(scene: bpy.types.Scene, op_record: Any, target: bpy.types.Object):
-    """Cria ou atualiza transacionalmente o snapshot do alvo antes de ocultá-lo."""
+    """Cria ou atualiza transacionalmente o snapshot do alvo antes de ocultá-lo (B13)."""
     if not op_record or not target or target.type != 'MESH':
         return
 
     backups_col = ensure_backups_collection(scene)
     op_id = op_record.operation_id
 
-    # Descarta snapshot anterior desta mesma operação se houver
-    discard_target_snapshot(scene, op_record)
-
-    # Cria cópia independente da malha base (sem depender de malha avaliada com modificadores)
+    # 1. Cria primeiro o candidato independente com integridade total (B13 / T40)
     snap_mesh = target.data.copy()
     snap_mesh.name = f"_snap_mesh_{op_id[:8]}"
 
@@ -155,6 +152,12 @@ def capture_target_snapshot(scene: bpy.types.Scene, op_record: Any, target: bpy.
 
     backups_col.objects.link(snap_obj)
 
+    # 2. Somente após garantir a criação do novo candidato, descarta o snapshot anterior
+    old_snap_obj = op_record.snapshot_object
+    if old_snap_obj and old_snap_obj != snap_obj:
+        discard_target_snapshot(scene, op_record)
+
+    # 3. Promove o novo snapshot validado
     op_record.snapshot_object = snap_obj
     op_record.snapshot_name = snap_obj.name
     op_record.target_object = target
@@ -164,7 +167,7 @@ def capture_target_snapshot(scene: bpy.types.Scene, op_record: Any, target: bpy.
 
 
 def discard_target_snapshot(scene: bpy.types.Scene, op_record: Any):
-    """Descarta o snapshot de backup associado a uma operação de prévia."""
+    """Descarta o snapshot de backup associado a uma operação de prévia com validação estrita (T42)."""
     if not op_record:
         return
     snap_obj = op_record.snapshot_object
@@ -174,13 +177,16 @@ def discard_target_snapshot(scene: bpy.types.Scene, op_record: Any):
 
     target_snap = snap_obj if (snap_obj and snap_obj.name in bpy.data.objects) else bpy.data.objects.get(snap_name)
     if target_snap:
-        snap_mesh = target_snap.data
-        if backups_col and target_snap.name in backups_col.objects:
-            backups_col.objects.unlink(target_snap)
-        if target_snap.name in bpy.data.objects:
-            bpy.data.objects.remove(target_snap, do_unlink=True)
-        if snap_mesh and snap_mesh.users == 0:
-            bpy.data.meshes.remove(snap_mesh, do_unlink=True)
+        # Validação estrita: só descartar se for realmente o snapshot desta operação (T42)
+        if (target_snap.get("chest_role") == ROLE_RESTORE_BACKUP and
+            target_snap.get("chest_operation_id") == op_record.operation_id):
+            snap_mesh = target_snap.data
+            if backups_col and target_snap.name in backups_col.objects:
+                backups_col.objects.unlink(target_snap)
+            if target_snap.name in bpy.data.objects:
+                bpy.data.objects.remove(target_snap, do_unlink=True)
+            if snap_mesh and snap_mesh.users == 0:
+                bpy.data.meshes.remove(snap_mesh, do_unlink=True)
 
     op_record.snapshot_object = None
     op_record.snapshot_name = ""
@@ -191,24 +197,33 @@ def discard_target_snapshot(scene: bpy.types.Scene, op_record: Any):
 # -----------------------------------------------------------------------------
 
 def resolve_operation(context: bpy.types.Context) -> Optional[Any]:
-    """Identifica de forma determinística e inequívoca a operação em foco."""
+    """Identifica de forma determinística e inequívoca a operação em foco (B14 / T41)."""
     scene = context.scene
     settings = getattr(scene, "chest_splitter", None)
     if not settings:
         return None
 
-    # 1. Pelo objeto ativo
+    # 1. Pelos objetos selecionados (detecta ambiguidade de múltiplas operações - T41)
+    selected_ops = set()
+    for o in context.selected_objects:
+        op_id = o.get("chest_operation_id")
+        if op_id:
+            selected_ops.add(op_id)
+
+    # Se há mais de uma operação selecionada simultaneamente, é ambíguo!
+    if len(selected_ops) > 1:
+        return None
+
+    if len(selected_ops) == 1:
+        single_op_id = next(iter(selected_ops))
+        rec = find_operation_record(scene, single_op_id)
+        if rec:
+            return rec
+
+    # 2. Pelo objeto ativo
     act_obj = context.active_object
     if act_obj:
         op_id = act_obj.get("chest_operation_id")
-        if op_id:
-            rec = find_operation_record(scene, op_id)
-            if rec:
-                return rec
-
-    # 2. Pelos objetos selecionados
-    for o in context.selected_objects:
-        op_id = o.get("chest_operation_id")
         if op_id:
             rec = find_operation_record(scene, op_id)
             if rec:
@@ -225,21 +240,30 @@ def resolve_operation(context: bpy.types.Context) -> Optional[Any]:
 
 
 def check_child_operations(scene: bpy.types.Scene, op_record: Any) -> Tuple[bool, str]:
-    """Verifica se existem operações filhas ativas (confirmadas) que dependem desta operação."""
+    """Verifica se existem operações filhas ativas (confirmadas ou prévias) que dependem desta operação (T44)."""
     if not op_record or not hasattr(scene, "chest_operations"):
         return False, ""
 
     parent_id = op_record.operation_id
+    loc = _get_current_locale()
     for other in scene.chest_operations:
         if other.operation_id != parent_id and other.parent_operation_id == parent_id:
             if other.status == 'COMMITTED':
-                loc = _get_current_locale()
                 msg = (
-                    f"A operação possui cortes posteriores ativos (ID: {other.operation_id[:8]}). "
+                    f"A operação possui cortes posteriores confirmados ativos (ID: {other.operation_id[:8]}). "
                     f"É necessário reverter primeiro o corte posterior antes de reverter o corte pai."
                     if loc == "pt_BR"
-                    else f"The operation has active child cuts (ID: {other.operation_id[:8]}). "
+                    else f"The operation has active committed child cuts (ID: {other.operation_id[:8]}). "
                          f"You must revert the posterior cut before reverting this parent cut."
+                )
+                return True, msg
+            elif other.status == 'PREVIEW':
+                msg = (
+                    f"A operação possui uma prévia de corte filha ativa (ID: {other.operation_id[:8]}). "
+                    f"Remova ou descarte a prévia filha antes de reverter o corte pai."
+                    if loc == "pt_BR"
+                    else f"The operation has an active preview child cut (ID: {other.operation_id[:8]}). "
+                         f"Remove or discard the child preview before reverting this parent cut."
                 )
                 return True, msg
     return False, ""
@@ -276,21 +300,24 @@ def remove_preview(context: bpy.types.Context, op_id: Optional[str] = None) -> T
         for o in list(preview_col.objects):
             if o.type != 'MESH':
                 continue
-            # Verifica propriedade estrita
+            # Verifica propriedade estrita (B12 / T39)
             o_op = o.get("chest_operation_id")
             o_sid = o.get("chest_session_id")
             o_role = o.get("chest_role")
-            if curr_op_id and (o_op == curr_op_id or o_sid == curr_op_id):
-                objs_to_remove.add(o)
-            elif o_role in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL):
-                objs_to_remove.add(o)
+            if curr_op_id:
+                if o_op == curr_op_id or o_sid == curr_op_id:
+                    objs_to_remove.add(o)
+            elif not hasattr(scene, "chest_operations") or len(scene.chest_operations) <= 1:
+                if o_role in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL):
+                    objs_to_remove.add(o)
 
     if op_record:
         for ref in op_record.created_objects:
             if ref.obj and ref.obj.name in bpy.data.objects and ref.role in (
                 ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL
             ):
-                objs_to_remove.add(ref.obj)
+                if not curr_op_id or ref.obj.get("chest_operation_id") == curr_op_id:
+                    objs_to_remove.add(ref.obj)
 
     # Exclusão segura dos objetos de prévia
     for obj in objs_to_remove:
@@ -388,6 +415,11 @@ def revert_committed_operation(context: bpy.types.Context, op_id: Optional[str] 
     snap_name = op_record.snapshot_name
     backup_snap = snap_obj if (snap_obj and snap_obj.name in bpy.data.objects) else bpy.data.objects.get(snap_name)
 
+    # Validação estrita do backup: não aceita objeto estranho ou sem tags de segurança (T42)
+    if backup_snap and (backup_snap.get("chest_role") != ROLE_RESTORE_BACKUP or
+                        backup_snap.get("chest_operation_id") != op_record.operation_id):
+        backup_snap = None
+
     if not target_exists and not backup_snap:
         msg = (
             f"Não foi possível reverter: o objeto alvo original foi apagado e não há backup válido."
@@ -414,11 +446,15 @@ def revert_committed_operation(context: bpy.types.Context, op_id: Optional[str] 
         target.hide_render = op_record.target_hide_render
         target.hide_set(False)
     else:
-        # Alvo foi apagado pelo usuário: recupera novo objeto a partir do backup
+        # Alvo foi apagado pelo usuário: recupera novo objeto a partir do backup mantendo modificadores (B15 / T43)
         rec_name = op_record.target_name or "Restored_Target"
-        rec_mesh = backup_snap.data.copy()
-        recovered_obj = bpy.data.objects.new(rec_name, rec_mesh)
-        recovered_obj.matrix_world = backup_snap.matrix_world.copy()
+        recovered_obj = backup_snap.copy()
+        recovered_obj.data = backup_snap.data.copy()
+        recovered_obj.name = rec_name
+        if "chest_role" in recovered_obj:
+            del recovered_obj["chest_role"]
+        if "chest_operation_id" in recovered_obj:
+            del recovered_obj["chest_operation_id"]
 
         # Vincula na coleção principal da cena
         scene.collection.objects.link(recovered_obj)

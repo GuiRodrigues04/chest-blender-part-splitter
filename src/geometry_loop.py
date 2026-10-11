@@ -576,7 +576,8 @@ def analyze_loop_region(
     bm_bvh.free()
     bm.free()
 
-    max_avail_depth_mm = (min_wall_depth_bu * scale_to_mm) if min_wall_depth_bu < 1e8 else 1000.0
+    thickness_determined = (min_wall_depth_bu < 1e8)
+    max_avail_depth_mm = (min_wall_depth_bu * scale_to_mm) if thickness_determined else 0.0
 
     if span_h_mm < 0.2:
         detected_mode = 'EXTRUDE'
@@ -601,9 +602,114 @@ def analyze_loop_region(
         "inward_dir_world": inward_dir,
         "loop_normal_world": n,
         "centroid_world": centroid,
+        "thickness_determined": thickness_determined,
         "max_avail_depth_mm": max_avail_depth_mm,
         "coords_world": loop_coords_world,
     }
+
+
+def _get_orthonormal_basis(normal: Vector) -> Tuple[Vector, Vector]:
+    """Retorna dois vetores unitários ortogonais à normal fornecida."""
+    n = normal.normalized()
+    if abs(n.z) < 0.9:
+        u = n.cross(Vector((0.0, 0.0, 1.0))).normalized()
+    else:
+        u = n.cross(Vector((0.0, 1.0, 0.0))).normalized()
+    v = n.cross(u).normalized()
+    return u, v
+
+
+def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
+    """Triangulação estrita por Ear Clipping para polígono simples 2D (B05 / L01-L06).
+    
+    Garante que 100% dos triângulos fiquem dentro do domínio do polígono,
+    inclusive em formas côncavas (L, U, etc.), sem criar pontes sobre aberturas.
+    """
+    n = len(pts_2d)
+    if n < 3:
+        return []
+    if n == 3:
+        return [(0, 1, 2)]
+
+    # Calcula área orientada para verificar orientação (CCW vs CW)
+    area = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        area += pts_2d[i].x * pts_2d[j].y - pts_2d[j].x * pts_2d[i].y
+
+    indices = list(range(n))
+    if area < 0:
+        indices = list(reversed(indices))
+
+    def is_point_in_tri(pt: Vector, a: Vector, b: Vector, c: Vector) -> bool:
+        v0 = c - a
+        v1 = b - a
+        v2 = pt - a
+        dot00 = v0.dot(v0)
+        dot01 = v0.dot(v1)
+        dot02 = v0.dot(v2)
+        dot11 = v1.dot(v1)
+        dot12 = v1.dot(v2)
+        denom = dot00 * dot11 - dot01 * dot01
+        if abs(denom) < 1e-12:
+            return False
+        inv_denom = 1.0 / denom
+        u = (dot11 * dot02 - dot01 * dot12) * inv_denom
+        v = (dot00 * dot12 - dot01 * dot02) * inv_denom
+        return (u > 1e-5) and (v > 1e-5) and (u + v < 1.0 - 1e-5)
+
+    def is_convex(p_prev: Vector, p_curr: Vector, p_next: Vector) -> bool:
+        cp = (p_curr.x - p_prev.x) * (p_next.y - p_curr.y) - (p_curr.y - p_prev.y) * (p_next.x - p_curr.x)
+        return cp > 1e-8
+
+    triangles = []
+    it = 0
+    max_it = len(indices) * len(indices) * 2
+
+    while len(indices) > 3 and it < max_it:
+        it += 1
+        ear_found = False
+        m = len(indices)
+        for i in range(m):
+            i_prev = (i - 1) % m
+            i_next = (i + 1) % m
+            idx_prev = indices[i_prev]
+            idx_curr = indices[i]
+            idx_next = indices[i_next]
+
+            p_prev = pts_2d[idx_prev]
+            p_curr = pts_2d[idx_curr]
+            p_next = pts_2d[idx_next]
+
+            if not is_convex(p_prev, p_curr, p_next):
+                continue
+
+            has_interior_pt = False
+            for k in range(m):
+                if k in (i_prev, i, i_next):
+                    continue
+                pt = pts_2d[indices[k]]
+                if is_point_in_tri(pt, p_prev, p_curr, p_next):
+                    has_interior_pt = True
+                    break
+
+            if not has_interior_pt:
+                triangles.append((idx_prev, idx_curr, idx_next))
+                indices.pop(i)
+                ear_found = True
+                break
+
+        if not ear_found:
+            idx_prev = indices[0]
+            idx_curr = indices[1]
+            idx_next = indices[2]
+            triangles.append((idx_prev, idx_curr, idx_next))
+            indices.pop(1)
+
+    if len(indices) == 3:
+        triangles.append((indices[0], indices[1], indices[2]))
+
+    return triangles
 
 
 def create_loop_prism_cutter(
@@ -613,12 +719,11 @@ def create_loop_prism_cutter(
     outward_ext_bu: float = 1e-3,
     name: str = "temp_loop_prism",
 ) -> bpy.types.Object:
-    """Constrói um prisma 3D fechado e manifold a partir de um contorno de coordenadas mundiais."""
+    """Constrói um prisma 3D fechado e manifold a partir de um contorno de coordenadas mundiais (B05)."""
     bm = bmesh.new()
     in_norm = inward_dir.normalized()
 
-    # Remove pontos colineares (ex: vértice no meio de uma aresta reta do contorno).
-    # Eles geram triângulos degenerados nas tampas e quebram o booleano EXACT.
+    # Remove pontos colineares para evitar triângulos degenerados
     pts = list(coords_world)
     changed = True
     while changed and len(pts) > 3:
@@ -634,18 +739,27 @@ def create_loop_prism_cutter(
     coords_world = pts
     n = len(coords_world)
 
+    # Projeta contorno para base 2D ortogonal para triangulação Ear Clipping
+    u_vec, v_vec = _get_orthonormal_basis(in_norm)
+    pts_2d = [Vector((p.dot(u_vec), p.dot(v_vec))) for p in coords_world]
+    triangles_2d = triangulate_polygon_2d(pts_2d)
+
     top_verts = [bm.verts.new(p - outward_ext_bu * in_norm) for p in coords_world]
     bot_verts = [bm.verts.new(p + depth_bu * in_norm) for p in coords_world]
     bm.verts.ensure_lookup_table()
 
+    # Paredes laterais
     for i in range(n):
         i_next = (i + 1) % n
         bm.faces.new((top_verts[i], top_verts[i_next], bot_verts[i_next], bot_verts[i]))
 
-    f_top = bm.faces.new(reversed(top_verts))
-    f_bot = bm.faces.new(bot_verts)
+    # Tampas superior e inferior trianguladas estritamente dentro do domínio côncavo (B05)
+    for t in triangles_2d:
+        # Tampa superior: normal para fora (contra inward_dir)
+        bm.faces.new((top_verts[t[2]], top_verts[t[1]], top_verts[t[0]]))
+        # Tampa inferior: normal para fora (a favor de inward_dir)
+        bm.faces.new((bot_verts[t[0]], bot_verts[t[1]], bot_verts[t[2]]))
 
-    bmesh.ops.triangulate(bm, faces=[f_top, f_bot])
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
 
     mesh = bpy.data.meshes.new(f"{name}_Mesh")
@@ -679,7 +793,13 @@ def slice_mesh_by_loop_extrude(
     analysis = analyze_loop_region(obj, indices, seed_face_idx, scene=actual_scene)
     max_avail_mm = analysis["max_avail_depth_mm"]
 
-    # Validação de espessura (Critério L5)
+    # Validação de espessura (T09)
+    if not analysis.get("thickness_determined", True) and not through_cut:
+        raise ValueError(
+            "Espessura da peça não pôde ser determinada no ponto selecionado. "
+            "Defina a profundidade manualmente ou ative a opção 'Corte Passante'."
+        )
+
     if depth_mm > (max_avail_mm + 1e-3) and not through_cut:
         raise ValueError(
             f"A profundidade de extração ({depth_mm:.1f} mm) ultrapassa a espessura da peça "
@@ -696,15 +816,23 @@ def slice_mesh_by_loop_extrude(
     if through_cut and depth_mm >= max_avail_mm:
         depth_bu = max(depth_bu, (max_avail_mm / scale_to_mm) + (1.0 / scale_to_mm))
 
-    prism_obj = create_loop_prism_cutter(
-        coords_world=coords_world,
-        inward_dir=inward_dir,
-        depth_bu=depth_bu,
-        outward_ext_bu=outward_ext_bu,
-        name=f"{target_name}_loop_prism",
-    )
+    prism_obj = None
+    temp_obj_a = None
+    temp_obj_b = None
+    eval_obj_a = None
+    eval_obj_b = None
+    eval_a = None
+    eval_b = None
 
     try:
+        prism_obj = create_loop_prism_cutter(
+            coords_world=coords_world,
+            inward_dir=inward_dir,
+            depth_bu=depth_bu,
+            outward_ext_bu=outward_ext_bu,
+            name=f"{target_name}_loop_prism",
+        )
+
         bpy.context.view_layer.update()
 
         temp_obj_a = obj.copy()
@@ -730,8 +858,11 @@ def slice_mesh_by_loop_extrude(
         bpy.context.view_layer.update()
         dg = bpy.context.evaluated_depsgraph_get()
 
-        eval_a = temp_obj_a.evaluated_get(dg).to_mesh()
-        eval_b = temp_obj_b.evaluated_get(dg).to_mesh()
+        eval_obj_a = temp_obj_a.evaluated_get(dg)
+        eval_a = eval_obj_a.to_mesh()
+
+        eval_obj_b = temp_obj_b.evaluated_get(dg)
+        eval_b = eval_obj_b.to_mesh()
 
         bm_a = bmesh.new()
         bm_a.from_mesh(eval_a)
@@ -740,20 +871,6 @@ def slice_mesh_by_loop_extrude(
         bm_b = bmesh.new()
         bm_b.from_mesh(eval_b)
         bm_b.transform(temp_obj_b.matrix_world)
-
-        temp_obj_a.to_mesh_clear()
-        temp_obj_b.to_mesh_clear()
-
-        m_a_data = temp_obj_a.data
-        m_b_data = temp_obj_b.data
-        actual_scene.collection.objects.unlink(temp_obj_a)
-        actual_scene.collection.objects.unlink(temp_obj_b)
-        bpy.data.objects.remove(temp_obj_a, do_unlink=True)
-        bpy.data.objects.remove(temp_obj_b, do_unlink=True)
-        if m_a_data and m_a_data.users == 0:
-            bpy.data.meshes.remove(m_a_data, do_unlink=True)
-        if m_b_data and m_b_data.users == 0:
-            bpy.data.meshes.remove(m_b_data, do_unlink=True)
 
         if len(bm_a.verts) == 0 or len(bm_b.verts) == 0:
             bm_a.free()
@@ -792,10 +909,33 @@ def slice_mesh_by_loop_extrude(
         return LoopSliceResult(bm_a, bm_b, split_result)
 
     finally:
-        p_mesh = prism_obj.data
-        if prism_obj.name in actual_scene.collection.objects:
-            actual_scene.collection.objects.unlink(prism_obj)
-        if prism_obj.name in bpy.data.objects:
-            bpy.data.objects.remove(prism_obj, do_unlink=True)
-        if p_mesh and p_mesh.users == 0:
-            bpy.data.meshes.remove(p_mesh, do_unlink=True)
+        # Liberação estrita no mesmo objeto avaliado que gerou o to_mesh (B03)
+        if eval_obj_a and eval_a:
+            try:
+                eval_obj_a.to_mesh_clear()
+            except Exception:
+                pass
+        if eval_obj_b and eval_b:
+            try:
+                eval_obj_b.to_mesh_clear()
+            except Exception:
+                pass
+
+        for temp_o in (temp_obj_a, temp_obj_b):
+            if temp_o:
+                m_data = temp_o.data
+                if temp_o.name in actual_scene.collection.objects:
+                    actual_scene.collection.objects.unlink(temp_o)
+                if temp_o.name in bpy.data.objects:
+                    bpy.data.objects.remove(temp_o, do_unlink=True)
+                if m_data and m_data.users == 0:
+                    bpy.data.meshes.remove(m_data, do_unlink=True)
+
+        if prism_obj:
+            p_mesh = prism_obj.data
+            if prism_obj.name in actual_scene.collection.objects:
+                actual_scene.collection.objects.unlink(prism_obj)
+            if prism_obj.name in bpy.data.objects:
+                bpy.data.objects.remove(prism_obj, do_unlink=True)
+            if p_mesh and p_mesh.users == 0:
+                bpy.data.meshes.remove(p_mesh, do_unlink=True)

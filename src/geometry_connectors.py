@@ -38,6 +38,46 @@ def point_in_polygon_2d(x: float, y: float, poly: List[Tuple[float, float]]) -> 
     return inside
 
 
+def point_to_segment_dist_sq(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> float:
+    """Calcula o quadrado da distância euclidiana de um ponto 2D a um segmento de reta."""
+    dx = x2 - x1
+    dy = y2 - y1
+    l2 = dx * dx + dy * dy
+    if l2 < 1e-12:
+        return (px - x1) ** 2 + (py - y1) ** 2
+    t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / l2))
+    proj_x = x1 + t * dx
+    proj_y = y1 + t * dy
+    return (px - proj_x) ** 2 + (py - proj_y) ** 2
+
+
+def min_distance_to_polygon_boundaries(
+    px: float,
+    py: float,
+    outer_polys: List[List[Tuple[float, float]]],
+    hole_polys: List[List[Tuple[float, float]]],
+) -> float:
+    """Calcula a menor distância euclidiana de um ponto até as bordas da interface (B06 / D2)."""
+    min_d_sq = 1e18
+    for poly in outer_polys:
+        m = len(poly)
+        for i in range(m):
+            p1 = poly[i]
+            p2 = poly[(i + 1) % m]
+            d_sq = point_to_segment_dist_sq(px, py, p1[0], p1[1], p2[0], p2[1])
+            if d_sq < min_d_sq:
+                min_d_sq = d_sq
+    for h_poly in hole_polys:
+        m = len(h_poly)
+        for i in range(m):
+            p1 = h_poly[i]
+            p2 = h_poly[(i + 1) % m]
+            d_sq = point_to_segment_dist_sq(px, py, p1[0], p1[1], p2[0], p2[1])
+            if d_sq < min_d_sq:
+                min_d_sq = d_sq
+    return math.sqrt(min_d_sq) if min_d_sq < 1e17 else 0.0
+
+
 def create_capsule_2d_profile(w: float, half_len: float, segments: int = 32, offset: float = 0.0) -> List[Tuple[float, float]]:
     """Gera pontos 2D fechados e ordenados para o perfil de estádio/cápsula com suporte a offset uniforme.
     
@@ -231,6 +271,7 @@ def compute_connector_layout(
     interface: Optional[Any] = None,
     connector_type: str = 'CYLINDER',
     capsule_length_mm: float = 0.0,
+    adjust_to_valid_area: bool = False,
 ) -> Dict[str, Any]:
     """Calcula posições, eixos de alinhamento e limites seguros para encaixes na interface de corte."""
     outer_polys = []
@@ -320,7 +361,38 @@ def compute_connector_layout(
 
     # Validação de distribuições múltiplas (Critério C4: sem redução silenciosa)
     if distribution == 'CENTER':
-        p = plane_origin + (u_axis * center_u) + (v_axis * center_v)
+        cand_u, cand_v = center_u, center_v
+        check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
+        is_center_valid = False
+        if outer_polys:
+            in_outer = any(point_in_polygon_2d(cand_u, cand_v, poly) for poly in outer_polys)
+            not_in_hole = not any(point_in_polygon_2d(cand_u, cand_v, h_poly) for h_poly in hole_polys)
+            if in_outer and not_in_hole:
+                dist_to_edges = min_distance_to_polygon_boundaries(cand_u, cand_v, outer_polys, hole_polys)
+                if dist_to_edges >= check_r - 1e-6:
+                    is_center_valid = True
+
+        if not is_center_valid and outer_polys and adjust_to_valid_area:
+            # Em regiões côncavas (como U ou L), o centro da bounding box cai no vazio (B06 / D2 / T12).
+            # Busca determinística pelo ponto de maior distância útil das bordas (pólo de inacessibilidade)
+            best_pt = None
+            best_dist = -1.0
+            steps = 25
+            for si in range(1, steps):
+                gu = min_u + (span_u * si / steps)
+                for sj in range(1, steps):
+                    gv = min_v + (span_v * sj / steps)
+                    if any(point_in_polygon_2d(gu, gv, poly) for poly in outer_polys):
+                        if not any(point_in_polygon_2d(gu, gv, h_poly) for h_poly in hole_polys):
+                            d = min_distance_to_polygon_boundaries(gu, gv, outer_polys, hole_polys)
+                            if d > best_dist:
+                                best_dist = d
+                                best_pt = (gu, gv)
+
+            if best_pt is not None:
+                cand_u, cand_v = best_pt[0], best_pt[1]
+
+        p = plane_origin + (u_axis * cand_u) + (v_axis * cand_v)
         positions.append(p)
 
     elif distribution == 'LINEAR_2':

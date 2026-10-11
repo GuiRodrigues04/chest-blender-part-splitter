@@ -120,6 +120,15 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             op_z = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Z")
             op_z.align_mode = 'Z'
 
+            # Visualização do Plano (F02)
+            col_plane_vis = box_guide.column(align=True)
+            row_pvis = col_plane_vis.row(align=True)
+            row_pvis.prop(settings, "show_plane_preview", text="Mostrar Plano")
+            row_pvis.prop(settings, "show_plane_cut_line", text="Linha de Corte")
+            if settings.show_plane_preview:
+                col_plane_vis.prop(settings, "plane_preview_opacity", text="Opacidade (%)", slider=True)
+            col_plane_vis.prop(settings, "plane_offset_mm", text="Deslocamento (mm)")
+
         elif settings.split_mode == 'LOOP':
             box_loop = box_split.box()
             row_loop_head = box_loop.row(align=True)
@@ -269,8 +278,11 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                         box_diag_mat.label(text="Tipo: Região Superficial (Com Profundidade)", icon='INFO')
                         box_diag_mat.label(text=f"Faces: {analysis['face_count']:,} | Fronteira contínua.")
                         box_mat_depth = box_mat.box()
-                        box_mat_depth.label(text="Espessura da Peça Extraída:", icon='CON_SIZELIMIT')
-                        box_mat_depth.prop(settings, "material_extrude_depth_mm", text="Profundidade (mm)")
+                        box_mat_depth.label(text="Opções de Extração (C02/C03):", icon='PREFERENCES')
+                        box_mat_depth.prop(settings, "material_extraction_mode", text="Modo")
+                        if settings.material_extraction_mode == 'EXTRUDE':
+                            box_mat_depth.prop(settings, "material_extrude_depth_mm", text="Profundidade (mm)")
+                        box_mat_depth.prop(settings, "material_interface_mat_mode", text="Interface")
                 else:
                     box_diag_mat.alert = True
                     box_diag_mat.label(text=f"Aviso: {analysis.get('error', 'Estrutura inválida')}", icon='ERROR')
@@ -283,8 +295,15 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
         row_conn_head.label(text="3. Encaixes & Folgas", icon='SNAP_VERTEX')
         draw_help_button(row_conn_head, "connectors")
 
+        # Folga Física entre Peças (E01)
+        box_part_clearance = box_conn.box()
+        box_part_clearance.label(text="Folga da Interface entre Peças:", icon='DRIVER_DISTANCE')
+        box_part_clearance.prop(settings, "part_clearance_mm", text="Folga (mm)", slider=True)
+        if settings.part_clearance_mm > 0.0:
+            box_part_clearance.prop(settings, "part_clearance_apply_to", text="Aplicar em")
+
         if settings.split_mode in ('SOLID', 'MATERIAL'):
-            box_conn.label(text="Encaixes automáticos não se aplicam a cortes por sólido/material.", icon='INFO')
+            box_conn.label(text="Encaixes de pinos automáticos disponíveis apenas para Plano e Loop.", icon='INFO')
         else:
             row_enable = box_conn.row(align=True)
             row_enable.prop(settings, "connector_enabled", text="Ativar Encaixes", toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')

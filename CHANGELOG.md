@@ -5,6 +5,39 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.8.7] - 2026-10-11
+
+### Corrigido
+- **B11 & P02/P03: Eliminação de Lâmina Coplanar no Alinhamento por Face**:
+  - Classificação física pré-corte de faces coplanares e remoção seletiva da película e faces degeneradas da outra metade na peça retida. Em alinhamentos pela face de apoio, a saliência é gerada com contorno fiel e tampa fechada de base (ex: 30x30x20 mm), sem duplicar a face exterior da base (100x100 mm) nem produzir película de espessura zero.
+  - Operador `CHEST_OT_splitter_align_plane` com validação estrita de Edit Mode e face ativa única no alvo, emitindo cancelamento controlado sem falso sucesso.
+- **B05 & L01/L02: Triangulação Ear Clipping 2D em Contornos Côncavos (U/L)**:
+  - Algoritmo de triangulação por Ear Clipping 2D implementado para as tampas do prisma cortador de loop, garantindo que 100% dos triângulos permaneçam estritamente dentro do domínio sólido sem gerar pontes ou membranas que atravessavam o vazio.
+  - Diagnóstico fiel de espessura (`thickness_determined`) sem recurso ao fallback arbitrário de 1000 mm quando a região aberta não encontra parede oposta.
+- **B06 & D2: Encaixes em Domínios Côncavos e Ajuste à Área Válida**:
+  - Implementada função de amostragem determinística da área sólida útil (polo de inacessibilidade) ativada por `adjust_to_valid_area`. Quando a distribuição `CENTER` cairia no vazio ou furos de formatos em U ou anéis, reposiciona o conector na região com maior margem física útil das bordas.
+  - Correção na função `build_cut_interface` para aceitar explicitamente origem `Vector((0,0,0))` válida sem sobrescrever pelo centroide.
+- **B03: Desalocação Estrita de Recursos e Limpeza de Memória**:
+  - Blocos `finally` sistemáticos com `eval_obj.to_mesh_clear()` aplicados ao mesmo objeto avaliado gerador em todas as rotinas de corte por loop e material, evitando vazamento de malhas em depurações sucessivas.
+- **B04 & T23: Rastreamento Completo de Cortador no Depsgraph**:
+  - O manipulador `depsgraph_update_post` monitora transformações e topologia tanto do alvo quanto do cortador (`cutter.matrix_world`), marcando `PREVIEW_STALE` quando o cortador é movido individualmente.
+- **B12, B13, B14 & B15: Atomicidade e Isolamento do Ciclo de Vida**:
+  - `capture_target_snapshot`: Procedimento transacional criando um candidato validado antes de substituir snapshots legados.
+  - `discard_target_snapshot`: Checagem rigorosa de propriedade (`chest_role` e `chest_operation_id`), rejeitando objetos do usuário com mesmo nome.
+  - `resolve_operation`: Detecção de seleção ambígua quando objetos de operações distintas são selecionados simultaneamente, retornando `None`.
+  - `check_child_operations`: Bloqueio de reversão de operação pai se houver operações filhas confirmadas OU prévias de filhas ativas.
+  - `revert_committed_operation`: Restauração fiel de alvos deletados clonando o snapshot com modificadores preservados.
+
+### Adicionado
+- **Etapa E (E01) — Folga Física entre Peças**:
+  - Propriedades `part_clearance_mm` e `part_clearance_apply_to` ('PART', 'CAVITY', 'BOTH') permitindo alívio dimensional calibrado entre as peças cortadas para montagem física justa pós-impressão 3D.
+- **Etapa C (C01-C03) — Modos de Extração por Material**:
+  - Propriedades `material_extraction_mode` ('EXTRUDE' vs 'BASE') e `material_interface_mat_mode` ('SOURCE' vs 'EXTRACTED') permitindo destacar a saliência inteira pela base ou extrair com profundidade nominal.
+- **Etapa F (F01-F02) — Visualização GPU Aprimorada e Isolada**:
+  - Prévia visual do corte planar com preenchimento translúcido e linha de corte contrastante no contorno do modelo alvo.
+  - Salvamento e restauração estrita do estado gráfico do Blender (`gpu.state`) em bloco `finally`, prevenindo interferências no renderizador da viewport.
+  - Separação estrita de visualizadores por modo (`LOOP` vs `PLANE`) com leitura de BMesh em tempo real no Modo de Edição.
+
 ## [0.8.6] - 2026-10-10
 
 ### Corrigido

@@ -43,11 +43,17 @@ def count_mesh_islands(bm: bmesh.types.BMesh) -> int:
     return islands
 
 
-def cap_open_cut_boundaries(bm: bmesh.types.BMesh, cut_edges: Optional[list] = None) -> int:
+def cap_open_cut_boundaries(
+    bm: bmesh.types.BMesh,
+    cut_edges: Optional[list] = None,
+    plane_origin: Optional[Vector] = None,
+    plane_normal: Optional[Vector] = None,
+    coplanar_tol_bu: float = 1e-4,
+) -> int:
     """Fecha bordas abertas resultantes do corte planar para garantir malha manifold.
     
-    Tenta primeiro 'edgenet_fill' nas arestas de corte. Caso restem bordas abertas
-    (por exemplo em geometrias com furos ou ilhas múltiplas), recorre a 'holes_fill'.
+    Restringe o fechamento às bordas realmente geradas pelo corte e ao domínio no plano (B11 / T38),
+    impedindo o preenchimento de aberturas pré-existentes do modelo em outros locais.
     Retorna o número de faces de fechamento geradas.
     """
     faces_created = 0
@@ -56,8 +62,18 @@ def cap_open_cut_boundaries(bm: bmesh.types.BMesh, cut_edges: Optional[list] = N
     target_edges = []
     if cut_edges:
         target_edges = [e for e in cut_edges if e.is_valid and e.is_boundary]
-    if not target_edges:
-        target_edges = [e for e in bm.edges if e.is_boundary]
+
+    if not target_edges and plane_origin is not None and plane_normal is not None:
+        norm = plane_normal.normalized()
+        target_edges = [
+            e for e in bm.edges
+            if e.is_valid and e.is_boundary and
+            abs((e.verts[0].co - plane_origin).dot(norm)) <= coplanar_tol_bu and
+            abs((e.verts[1].co - plane_origin).dot(norm)) <= coplanar_tol_bu
+        ]
+
+    if not target_edges and cut_edges is None and plane_origin is None:
+        target_edges = [e for e in bm.edges if e.is_valid and e.is_boundary]
 
     if not target_edges:
         return 0
@@ -72,8 +88,18 @@ def cap_open_cut_boundaries(bm: bmesh.types.BMesh, cut_edges: Optional[list] = N
     except Exception:
         pass
 
-    # 2. Fallback: verifica se ainda há arestas abertas e usa holes_fill
-    remaining_boundary = [e for e in bm.edges if e.is_boundary]
+    # 2. Fallback: fecha arestas abertas remanescentes
+    if plane_origin is not None and plane_normal is not None:
+        norm = plane_normal.normalized()
+        remaining_boundary = [
+            e for e in bm.edges
+            if e.is_valid and e.is_boundary and
+            abs((e.verts[0].co - plane_origin).dot(norm)) <= coplanar_tol_bu and
+            abs((e.verts[1].co - plane_origin).dot(norm)) <= coplanar_tol_bu
+        ]
+    else:
+        remaining_boundary = [e for e in bm.edges if e.is_valid and e.is_boundary]
+
     if remaining_boundary:
         try:
             res_holes = bmesh.ops.holes_fill(bm, edges=remaining_boundary, sides=0)
@@ -84,7 +110,6 @@ def cap_open_cut_boundaries(bm: bmesh.types.BMesh, cut_edges: Optional[list] = N
             pass
 
     # Atribuição inteligente de material para as novas faces da tampa (interface de corte):
-    # As novas faces herdam o material mais frequente das faces vizinhas imediatas
     if created_all:
         created_set = set(created_all)
         for f in created_all:
@@ -220,11 +245,15 @@ def slice_mesh_by_plane(
     target_mesh_b: bpy.types.Mesh,
     invert_sides: bool = False,
     unit_scale: float = 1000.0,
+    coplanar_tol_mm: float = 0.05,
+    plane_offset_mm: float = 0.0,
+    part_clearance_mm: float = 0.0,
+    part_clearance_apply_to: str = 'PART',
 ) -> Dict[str, Any]:
-    """Corta uma malha pelo plano dado, gerando Parte A e Parte B fechadas.
+    """Corta uma malha pelo plano dado, gerando Parte A e Parte B fechadas (B11 / P02 / P03).
     
-    A malha é processada no espaço global de coordenadas (World Space) para evitar
-    distorções provocadas por escalas não uniformes ou rotações no objeto original.
+    Elimina lâminas e películas coplanares espúrias em alinhamentos por face,
+    aplica folga física calibrada entre peças (E01) e processa em World Space.
     """
     norm = plane_normal.normalized()
     if norm.length < 1e-6:
@@ -234,27 +263,90 @@ def slice_mesh_by_plane(
     effective_normal_a = -norm if invert_sides else norm
     effective_normal_b = -effective_normal_a
 
+    # Deslocamento explícito do usuário (mm -> BU)
+    base_origin = plane_origin.copy()
+    if abs(plane_offset_mm) > 1e-7:
+        base_origin += (plane_offset_mm / unit_scale) * norm
+
+    coplanar_tol_bu = max(1e-6, coplanar_tol_mm / unit_scale)
+    clearance_bu = max(0.0, part_clearance_mm / unit_scale)
+
     results = {}
 
     for side_key, cut_normal in [("A", effective_normal_a), ("B", effective_normal_b)]:
+        # Calcula origem específica considerando folga entre peças (Etapa E / E01)
+        side_origin = base_origin.copy()
+        if clearance_bu > 1e-7:
+            if part_clearance_apply_to == 'PART':
+                if side_key == 'A':
+                    side_origin -= (clearance_bu * effective_normal_a)
+            elif part_clearance_apply_to == 'CAVITY':
+                if side_key == 'B':
+                    side_origin -= (clearance_bu * effective_normal_b)
+            elif part_clearance_apply_to == 'BOTH':
+                half_c = clearance_bu * 0.5
+                if side_key == 'A':
+                    side_origin -= (half_c * effective_normal_a)
+                elif side_key == 'B':
+                    side_origin -= (half_c * effective_normal_b)
+
         bm = bmesh.new()
         bm.from_mesh(source_mesh)
-
-        # Transforma para o espaço global de coordenadas
         bm.transform(matrix_world)
 
-        # Executa corte bisect
-        # clear_outer=True descarta a geometria na direção de cut_normal
+        # 1. Classificação pré-corte de faces coplanares para eliminar lâminas (B11 / P02 / P03)
+        # Identifica se o plano de corte coincide com alguma face planar real do modelo
+        coplanar_faces_pre = []
+        for f in bm.faces:
+            if f.calc_area() < 1e-8:
+                continue
+            dists = [(v.co - side_origin).dot(norm) for v in f.verts]
+            if all(abs(d) <= coplanar_tol_bu for d in dists):
+                dot_val = f.normal.dot(norm)
+                if abs(dot_val) > 0.8:
+                    coplanar_faces_pre.append((f.index, dot_val))
+
+        has_coplanar = len(coplanar_faces_pre) > 0
+
+        # 2. Executa corte bisect
         bisect_res = bmesh.ops.bisect_plane(
             bm,
             geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
-            plane_co=plane_origin,
+            plane_co=side_origin,
             plane_no=cut_normal,
             clear_outer=True,
             clear_inner=False,
         )
 
-        cut_edges = [e for e in bisect_res.get("geom_cut", []) if isinstance(e, bmesh.types.BMEdge)]
+        cut_edges = [e for e in bisect_res.get("geom_cut", []) if isinstance(e, bmesh.types.BMEdge) and e.is_valid]
+
+        # 3. Eliminação estrita de lâminas coplanares da outra metade quando o corte for coplanar (B11 / P02 / P03)
+        if has_coplanar:
+            retained_positive_halfspace = (cut_normal.dot(norm) < 0)
+            faces_to_remove = []
+            for f in bm.faces:
+                if not f.is_valid:
+                    continue
+                dists = [(v.co - side_origin).dot(norm) for v in f.verts]
+                if all(abs(d) <= coplanar_tol_bu for d in dists):
+                    dot_val = f.normal.dot(norm)
+                    if retained_positive_halfspace and dot_val > 0.8:
+                        # Face exterior do corpo inferior não deve virar tampa/lâmina na peça superior
+                        faces_to_remove.append(f)
+                    elif not retained_positive_halfspace and dot_val < -0.8:
+                        faces_to_remove.append(f)
+                    elif f.calc_area() < 1e-8:
+                        faces_to_remove.append(f)
+
+            if faces_to_remove:
+                bmesh.ops.delete(bm, geom=faces_to_remove, context='FACES')
+                loose_edges = [e for e in bm.edges if e.is_valid and not e.link_faces]
+                if loose_edges:
+                    bmesh.ops.delete(bm, geom=loose_edges, context='EDGES')
+                loose_verts = [v for v in bm.verts if v.is_valid and not v.link_faces]
+                if loose_verts:
+                    bmesh.ops.delete(bm, geom=loose_verts, context='VERTS')
+                cut_edges = [e for e in cut_edges if e.is_valid and e.is_boundary]
 
         # Se a malha resultante ficou completamente vazia, o plano não cortou o modelo
         if len(bm.verts) == 0:
@@ -263,7 +355,7 @@ def slice_mesh_by_plane(
                 f"O plano de corte não intersecta o modelo (lado {side_key} ficou vazio)."
             )
 
-        # Fecha bordas abertas no plano de corte
+        # 4. Fecha bordas abertas no plano de corte
         cap_open_cut_boundaries(bm, cut_edges=cut_edges)
 
         # Avalia métricas
@@ -273,12 +365,11 @@ def slice_mesh_by_plane(
         # Coleta loops ordenados de borda do corte para construção da interface compartilhada
         if side_key == "A":
             interface_loops = reconstruct_boundary_loops(cut_edges)
-            interface_points = [p for loop in interface_loops for p in loop] if interface_loops else [v.co.copy() for e in cut_edges for v in e.verts]
+            interface_points = [p for loop in interface_loops for p in loop] if interface_loops else [v.co.copy() for e in cut_edges if e.is_valid for v in e.verts]
 
         # Escreve na malha de destino correspondente
         target_mesh = target_mesh_a if side_key == "A" else target_mesh_b
         target_mesh.clear_geometry()
-        # Sincroniza materiais da malha fonte ANTES do to_mesh para que o Blender preserve os índices de materiais
         target_mesh.materials.clear()
         for mat in source_mesh.materials:
             target_mesh.materials.append(mat)
@@ -295,7 +386,7 @@ def slice_mesh_by_plane(
     # Constrói CutInterface formal para o corte planar
     from .geometry_contract import build_cut_interface
     cut_interface = build_cut_interface(
-        origin_world=plane_origin,
+        origin_world=base_origin,
         normal_a_to_b=effective_normal_a,
         boundary_points_world=interface_points if 'interface_points' in locals() else [],
         boundary_loops_world=interface_loops if 'interface_loops' in locals() else None,

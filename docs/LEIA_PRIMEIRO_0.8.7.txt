@@ -1,0 +1,14 @@
+Plano 0.8.7 baseado no repositorio completo atualizado da 0.8.6.
+
+Abra Plano_Chest_Part_Splitter_0.8.7.md e envie este pacote ao Gemini Pro.
+
+Conteudo:
+- plano detalhado, referencias oficiais e 46 testes de aceitacao;
+- 14 screenshots originais com nomes claros;
+- repositorio_organizado_0.8.6: fontes completas, testes, README sem emojis e scripts ajustados.
+
+O plano substitui a revisao anterior baseada no ZIP reduzido.
+As mudancas funcionais da 0.8.7 ainda nao foram implementadas.
+A copia organizada continua identificada como 0.8.6.
+Nao substitua nem apague a pasta .git do seu checkout.
+Testes no Blender e build oficial ainda precisam ser executados.

@@ -1,23 +1,12 @@
+"""Run the selected Blender regression suites in separate processes."""
+import argparse
+import os
+from pathlib import Path
+import shutil
 import subprocess
 import sys
-import os
-import shutil
 
-# Localiza o executÃ¡vel do Blender: variÃ¡vel de ambiente, argumento ou padrÃ£o
-BLENDER_BIN = os.environ.get("BLENDER_BIN")
-if not BLENDER_BIN:
-    for arg in sys.argv[1:]:
-        if arg.startswith("--blender="):
-            BLENDER_BIN = arg.split("=", 1)[1]
-            break
-if not BLENDER_BIN:
-    which_blender = shutil.which("blender")
-    if which_blender:
-        BLENDER_BIN = which_blender
-if not BLENDER_BIN:
-    default_path = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
-    if os.path.exists(default_path):
-        BLENDER_BIN = default_path
+ROOT = Path(__file__).resolve().parents[1]
 
 TESTS = [
     "tests/test_smoke_phase0.py",
@@ -43,31 +32,29 @@ TESTS = [
 ]
 
 def main():
-    print("=" * 70)
-    print("EXECUTANDO BATERIA COMPLETA DE TESTES AUTOMATIZADOS")
-    print(f"Blender Binario: {BLENDER_BIN}")
-    print("=" * 70)
-    
-    passed_count = 0
-    total_count = len(TESTS)
-    
-    for test in TESTS:
-        print(f"\n>> Executando: {test} ...")
-        cmd = [BLENDER_BIN, "--background", "--factory-startup", "--python-exit-code", "1", "--python", test]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if res.returncode == 0:
-            print(f"   [OK] {test} passou com sucesso!")
-            passed_count += 1
-        else:
-            print(f"   [FALHA] {test} falhou com cÃ³digo {res.returncode}")
-            print(res.stdout[-1000:])
-            print(res.stderr[-1000:])
-            sys.exit(1)
-            
-    print("\n" + "=" * 70)
-    print(f"RESULTADO GERAL: {passed_count}/{total_count} SUÃTES DE TESTES PASSARAM (100% OK)")
-    print("=" * 70)
+    parser = argparse.ArgumentParser(description=__doc__)
+    default_bin = os.environ.get('BLENDER_BIN') or shutil.which('blender')
+    if not default_bin:
+        win_blender = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
+        if os.path.exists(win_blender):
+            default_bin = win_blender
+        elif 'blender' in sys.executable.lower():
+            default_bin = sys.executable
 
-if __name__ == "__main__":
+    parser.add_argument('--blender', default=default_bin)
+    argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+    args = parser.parse_args(argv)
+    if not args.blender:
+        parser.error('Set --blender, BLENDER_BIN or add blender to PATH')
+    for test in TESTS:
+        path = ROOT / test
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        print(f'Running: {test}', flush=True)
+        result = subprocess.run([args.blender, '--background', '--factory-startup', '--python-exit-code', '1', '--python', str(path)], cwd=ROOT)
+        if result.returncode:
+            raise SystemExit(result.returncode)
+    print(f'Passed: {len(TESTS)}/{len(TESTS)} suites')
+
+if __name__ == '__main__':
     main()

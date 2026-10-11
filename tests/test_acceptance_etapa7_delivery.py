@@ -40,11 +40,13 @@ class TestAcceptanceEtapa7Delivery(unittest.TestCase):
         bpy.ops.wm.read_homefile(use_empty=True)
 
     def test_01_commercial_zip_purity(self):
-        """Valida que o pacote .zip não contém artefatos de dev, testes ou scratch (Seção 8)."""
-        zip_path_085 = os.path.join(parent_dir, "chest_part_splitter-0.8.5.zip")
-        zip_path_084 = os.path.join(parent_dir, "chest_part_splitter-0.8.4.zip")
-        zip_path = zip_path_085 if os.path.exists(zip_path_085) else zip_path_084
-        self.assertTrue(os.path.exists(zip_path), f"Arquivo ZIP não encontrado: {zip_path}")
+        import glob
+        zip_candidates = (
+            glob.glob(os.path.join(parent_dir, "dist", "chest_part_splitter-*.zip")) +
+            glob.glob(os.path.join(parent_dir, "chest_part_splitter-*.zip"))
+        )
+        zip_path = zip_candidates[0] if zip_candidates else None
+        self.assertTrue(zip_path and os.path.exists(zip_path), f"Arquivo ZIP não encontrado: {zip_path}")
 
         with zipfile.ZipFile(zip_path, "r") as zf:
             names = zf.namelist()

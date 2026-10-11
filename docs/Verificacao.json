@@ -1,0 +1,22 @@
+{
+  "base_original": "chest-blender-part-splitter-0.8.6.zip",
+  "sha256_original": "fb6cdb60a7d83e7b460fe6e1c6a2273502aad200ddda320cb7b7a996397cd44b",
+  "source_syntax_checked": 44,
+  "production_files_unchanged": 18,
+  "existing_test_scripts": 26,
+  "selected_runner_suites": 20,
+  "acceptance_cases": 46,
+  "image_references": 14,
+  "checks": [
+    "AST syntax",
+    "production byte comparison",
+    "image link resolution",
+    "README emoji absence",
+    "staging allowlist inspection"
+  ],
+  "not_executed": [
+    "Blender runtime",
+    "official build/validate",
+    "printing tests"
+  ]
+}

@@ -232,6 +232,77 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
     return info
 
 
+def create_material_patch_prism_cutter(
+    obj: bpy.types.Object,
+    region_face_indices: List[int],
+    inward_dir: Vector,
+    depth_bu: float,
+    outward_ext_bu: float = 1e-3,
+    name: str = "temp_mat_prism",
+) -> bpy.types.Object:
+    """Constrói um prisma 3D estanque a partir das faces exatas da região de material (B06).
+    
+    Preserva a tesselação e concavidades reais da região (ex: silhuetas em U ou reentrâncias),
+    evitando tampas em n-gons planos que cruzam aberturas e geram películas/membranas espúrias.
+    """
+    bm_src = bmesh.new()
+    bm_src.from_mesh(obj.data)
+    bm_src.transform(obj.matrix_world)
+    bm_src.verts.ensure_lookup_table()
+    bm_src.edges.ensure_lookup_table()
+    bm_src.faces.ensure_lookup_table()
+
+    region_set = set(region_face_indices)
+    region_faces = [bm_src.faces[i] for i in region_face_indices if i < len(bm_src.faces)]
+
+    in_norm = inward_dir.normalized()
+    bm_prism = bmesh.new()
+
+    top_map = {}
+    bot_map = {}
+    used_verts = {v for f in region_faces for v in f.verts}
+
+    for v in used_verts:
+        top_map[v] = bm_prism.verts.new(v.co - outward_ext_bu * in_norm)
+        bot_map[v] = bm_prism.verts.new(v.co + depth_bu * in_norm)
+
+    bm_prism.verts.ensure_lookup_table()
+
+    # Tampas superior e inferior preservando a tesselação exata das faces
+    for f in region_faces:
+        bm_prism.faces.new([top_map[v] for v in f.verts])
+        bm_prism.faces.new(reversed([bot_map[v] for v in f.verts]))
+
+    # Paredes laterais apenas nas arestas de fronteira da região
+    for e in bm_src.edges:
+        inc = [f for f in e.link_faces if f.index in region_set]
+        if len(inc) == 1:
+            f = inc[0]
+            v1, v2 = e.verts[0], e.verts[1]
+            f_v = list(f.verts)
+            idx1 = f_v.index(v1)
+            if f_v[(idx1 + 1) % len(f_v)] == v2:
+                va, vb = v1, v2
+            else:
+                va, vb = v2, v1
+            bm_prism.faces.new((top_map[vb], top_map[va], bot_map[va], bot_map[vb]))
+
+    bm_src.free()
+
+    bmesh.ops.triangulate(bm_prism, faces=bm_prism.faces[:])
+    bmesh.ops.recalc_face_normals(bm_prism, faces=bm_prism.faces[:])
+
+    mesh = bpy.data.meshes.new(f"{name}_Mesh")
+    bm_prism.to_mesh(mesh)
+    bm_prism.free()
+
+    prism_obj = bpy.data.objects.new(name, mesh)
+    prism_obj.hide_viewport = False
+    prism_obj.hide_render = False
+    bpy.context.scene.collection.objects.link(prism_obj)
+    return prism_obj
+
+
 def slice_mesh_by_material(
     obj: bpy.types.Object,
     material_index: int,
@@ -308,13 +379,13 @@ def slice_mesh_by_material(
 
     else:
         # Superfície com contorno: extrai com profundidade via prisma booleano
-        coords_world = analysis["coords_world"]
         inward_dir = analysis["inward_dir_world"]
         depth_bu = depth_mm / scale_to_mm
         outward_ext_bu = max(0.5 / scale_to_mm, 1.0 / scale_to_mm)
 
-        prism_obj = create_loop_prism_cutter(
-            coords_world=coords_world,
+        prism_obj = create_material_patch_prism_cutter(
+            obj=obj,
+            region_face_indices=analysis["region_face_indices"],
             inward_dir=inward_dir,
             depth_bu=depth_bu,
             outward_ext_bu=outward_ext_bu,

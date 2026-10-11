@@ -129,6 +129,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             row_cap = box_loop.row(align=True)
             row_cap.scale_y = 1.2
             row_cap.operator("chest.splitter_capture_loop", text="Capturar Contorno", icon='VIEW_ORTHO')
+            row_cap.operator("chest.splitter_capture_face_boundary", text="Capturar das Faces", icon='FACESEL')
 
             if settings.loop_is_captured:
                 box_loop.label(text=f"Vértices no contorno: {settings.loop_vertex_count}", icon='VERTEXSEL')
@@ -136,6 +137,13 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     box_loop.label(text=f"Status: Planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)", icon='CHECKMARK')
                 else:
                     box_loop.label(text=f"Aviso: Não-planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)", icon='ERROR')
+                
+                box_loop.prop(
+                    settings, 
+                    "show_loop_highlight", 
+                    text="Destacar Contorno no Viewport", 
+                    icon='RESTRICT_VIEW_OFF' if settings.show_loop_highlight else 'RESTRICT_VIEW_ON'
+                )
 
             row_seed = box_loop.row(align=True)
             row_seed.scale_y = 1.2
@@ -364,6 +372,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             row_preview = box_preview.row(align=True)
             row_preview.scale_y = 1.3
             row_preview.operator("chest.splitter_generate_preview", text="Gerar / Atualizar Preview", icon='PLAY')
+            row_preview.operator("chest.splitter_remove_preview", text="Remover Prévia", icon='X')
 
             if settings.split_mode in ('PLANE', 'SOLID'):
                 row_inv = box_preview.row(align=True)
@@ -437,18 +446,20 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 row_commit.operator("chest.splitter_commit_parts", text="Confirmar Divisão", icon='CHECKMARK')
 
                 row_rest = box_commit.row()
-                row_rest.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
+                row_rest.operator("chest.splitter_remove_preview", text="Remover Prévia", icon='X')
 
             elif settings.session_status == 'PREVIEW_STALE':
                 box_warn_commit = box_commit.box()
                 box_warn_commit.label(text="Atualize a prévia antes de confirmar as peças.", icon='INFO')
                 row_rest = box_commit.row()
-                row_rest.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
+                row_rest.operator("chest.splitter_remove_preview", text="Remover Prévia", icon='X')
 
             elif settings.session_status == 'COMMITTED':
                 box_commit.label(text="Peças finais geradas na coleção CHEST_SPLITTER_PARTS.", icon='CHECKMARK')
+                row_revert = box_commit.row()
+                row_revert.scale_y = 1.2
+                row_revert.operator("chest.splitter_revert_cut", text="Reverter este corte", icon='LOOP_BACK')
                 box_commit.operator("chest.splitter_redo_session", text="Refazer / Novo Corte", icon='FILE_REFRESH')
-                box_commit.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
 
             elif settings.session_status == 'CONFIGURED':
                 hint_text = "Posicione o cortador e clique em 'Gerar / Atualizar Preview'." if settings.split_mode == 'SOLID' else "Posicione o plano ou contorno e clique em 'Gerar / Atualizar Preview'."

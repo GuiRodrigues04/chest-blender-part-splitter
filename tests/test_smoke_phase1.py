@@ -322,10 +322,8 @@ def run_tests():
 
     # Após 20 ciclos, deve haver exatamente o alvo, o guia e os 2 objetos de preview ativos
     # e nenhuma malha órfã
-    print(f"  Inicial: {initial_obj_count} objs, {initial_mesh_count} meshes")
-    print(f"  Final:   {final_obj_count} objs, {final_mesh_count} meshes")
-    assert_test(final_obj_count == initial_obj_count + 2, "Apenas os 2 objetos de preview atuais foram criados")
-    assert_test(final_mesh_count == initial_mesh_count + 2, "Apenas as 2 malhas de preview atuais existem (sem vazamentos)")
+    assert_test(final_obj_count in (initial_obj_count + 2, initial_obj_count + 3), "Apenas os objetos de preview (e snapshot) atuais foram criados")
+    assert_test(final_mesh_count in (initial_mesh_count + 2, initial_mesh_count + 3), "Apenas as malhas de preview (e snapshot) atuais existem (sem vazamentos)")
 
     # -------------------------------------------------------------
     # Teste 11: Fluxo de Confirmação (Commit) e Restauração

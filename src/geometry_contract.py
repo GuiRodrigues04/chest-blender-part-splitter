@@ -52,13 +52,19 @@ def build_cut_interface(
     interface_triangles: Optional[List[Tuple[Vector, Vector, Vector]]] = None,
     unit_scale: float = 1000.0,
     source_mode: str = "PLANE",
+    boundary_loops_world: Optional[List[List[Vector]]] = None,
 ) -> CutInterface:
     """Constrói uma CutInterface formal com eixos principais (U=maior, V=menor) via PCA."""
     norm = normal_a_to_b.normalized()
     if norm.length < 1e-6:
         norm = Vector((0.0, 0.0, 1.0))
 
-    if not boundary_points_world:
+    all_points = list(boundary_points_world)
+    if boundary_loops_world:
+        for loop in boundary_loops_world:
+            all_points.extend(loop)
+
+    if not all_points:
         ref = Vector((0.0, 0.0, 1.0)) if abs(norm.z) < 0.9 else Vector((0.0, 1.0, 0.0))
         u = norm.cross(ref).normalized()
         v = norm.cross(u).normalized()
@@ -73,7 +79,7 @@ def build_cut_interface(
         )
 
     # Centroide dos pontos da borda
-    centroid = sum(boundary_points_world, Vector()) / len(boundary_points_world)
+    centroid = sum(all_points, Vector()) / len(all_points)
     origin = origin_world if origin_world.length > 1e-6 else centroid
 
     # Base ortonormal inicial perpendicular à normal
@@ -84,7 +90,7 @@ def build_cut_interface(
     # Projeção 2D dos pontos em relação ao centroide para análise de componentes principais (PCA)
     pts_2d = [
         ((p - centroid).dot(u_init), (p - centroid).dot(v_init))
-        for p in boundary_points_world
+        for p in all_points
     ]
 
     c_xx = sum(x * x for x, y in pts_2d)
@@ -100,8 +106,8 @@ def build_cut_interface(
     axis_v = norm.cross(axis_u).normalized()
 
     # Mede extensões ao longo de U e V
-    u_vals = [(p - origin).dot(axis_u) for p in boundary_points_world]
-    v_vals = [(p - origin).dot(axis_v) for p in boundary_points_world]
+    u_vals = [(p - origin).dot(axis_u) for p in all_points]
+    v_vals = [(p - origin).dot(axis_v) for p in all_points]
 
     span_u = max(u_vals) - min(u_vals)
     span_v = max(v_vals) - min(v_vals)
@@ -116,32 +122,65 @@ def build_cut_interface(
     height_mm = span_v * unit_scale
 
     # Cálculo do desvio de planicidade
-    dists = [abs((p - centroid).dot(norm)) for p in boundary_points_world]
+    dists = [abs((p - centroid).dot(norm)) for p in all_points]
     max_dev_bu = max(dists) if dists else 0.0
     dev_mm = max_dev_bu * unit_scale
     is_planar = dev_mm <= 0.1  # Tolerância de 0.1 mm
 
-    # Polígono UV do contorno externo
-    uv_contour = list(zip(u_vals, v_vals))
+    outer_contours_uv = []
+    hole_contours_uv = []
 
-    # Área aproximada pelo polígono 2D
+    if boundary_loops_world:
+        from .geometry_connectors import point_in_polygon_2d
+        all_uv_loops = []
+        for loop in boundary_loops_world:
+            uv_pts = [((p - origin).dot(axis_u), (p - origin).dot(axis_v)) for p in loop]
+            cleaned = []
+            for pt in uv_pts:
+                if not cleaned or (pt[0] - cleaned[-1][0]) ** 2 + (pt[1] - cleaned[-1][1]) ** 2 > 1e-12:
+                    cleaned.append(pt)
+            if len(cleaned) > 1 and (cleaned[0][0] - cleaned[-1][0]) ** 2 + (cleaned[0][1] - cleaned[-1][1]) ** 2 < 1e-12:
+                cleaned.pop()
+            if len(cleaned) >= 3:
+                all_uv_loops.append(cleaned)
+
+        for i, loop_a in enumerate(all_uv_loops):
+            test_x, test_y = (loop_a[0][0] + loop_a[1][0]) * 0.5, (loop_a[0][1] + loop_a[1][1]) * 0.5
+            containment_count = 0
+            for j, loop_b in enumerate(all_uv_loops):
+                if i != j:
+                    if point_in_polygon_2d(test_x, test_y, loop_b):
+                        containment_count += 1
+            if containment_count % 2 == 0:
+                outer_contours_uv.append(loop_a)
+            else:
+                hole_contours_uv.append(loop_a)
+    elif boundary_points_world:
+        uv_contour = list(zip(u_vals[:len(boundary_points_world)], v_vals[:len(boundary_points_world)]))
+        if uv_contour:
+            outer_contours_uv.append(uv_contour)
+
+    # Área pelo somatório dos polígonos UV
     area_bu = 0.0
-    n_pts = len(uv_contour)
-    if n_pts >= 3:
-        for i in range(n_pts):
-            x1, y1 = uv_contour[i]
-            x2, y2 = uv_contour[(i + 1) % n_pts]
-            area_bu += (x1 * y2 - x2 * y1)
-        area_bu = 0.5 * abs(area_bu)
-    area_mm2 = area_bu * (unit_scale ** 2)
+    for poly in outer_contours_uv:
+        n_pts = len(poly)
+        if n_pts >= 3:
+            a = sum(poly[i][0] * poly[(i + 1) % n_pts][1] - poly[(i + 1) % n_pts][0] * poly[i][1] for i in range(n_pts))
+            area_bu += abs(a) * 0.5
+    for poly in hole_contours_uv:
+        n_pts = len(poly)
+        if n_pts >= 3:
+            a = sum(poly[i][0] * poly[(i + 1) % n_pts][1] - poly[(i + 1) % n_pts][0] * poly[i][1] for i in range(n_pts))
+            area_bu -= abs(a) * 0.5
+    area_mm2 = max(0.0, area_bu) * (unit_scale ** 2)
 
     return CutInterface(
         origin_world=origin,
         normal_a_to_b_world=norm,
         axis_u_world=axis_u,
         axis_v_world=axis_v,
-        outer_contours_uv=[uv_contour] if uv_contour else [],
-        hole_contours_uv=[],
+        outer_contours_uv=outer_contours_uv,
+        hole_contours_uv=hole_contours_uv,
         interface_triangles_world=interface_triangles or [],
         is_planar=is_planar,
         deviation_mm=dev_mm,

@@ -233,17 +233,19 @@ def compute_connector_layout(
     capsule_length_mm: float = 0.0,
 ) -> Dict[str, Any]:
     """Calcula posições, eixos de alinhamento e limites seguros para encaixes na interface de corte."""
-    outer_poly = None
+    outer_polys = []
+    hole_polys = []
 
     if interface is not None and getattr(interface, "outer_contours_uv", None) and interface.outer_contours_uv:
         plane_origin = interface.origin_world
         norm = interface.normal_a_to_b_world.normalized()
         u_axis = interface.axis_u_world
         v_axis = interface.axis_v_world
-        outer_poly = interface.outer_contours_uv[0]
-        u_coords = [pt[0] for pt in outer_poly]
-        v_coords = [pt[1] for pt in outer_poly]
-        cut_pts = [interface.uv_to_world(pt[0], pt[1]) for pt in outer_poly]
+        outer_polys = interface.outer_contours_uv
+        hole_polys = getattr(interface, "hole_contours_uv", []) or []
+        u_coords = [pt[0] for poly in outer_polys for pt in poly]
+        v_coords = [pt[1] for poly in outer_polys for pt in poly]
+        cut_pts = [interface.uv_to_world(pt[0], pt[1]) for poly in outer_polys for pt in poly]
     else:
         bm = bmesh.new()
         bm.from_mesh(target_mesh)
@@ -362,22 +364,6 @@ def compute_connector_layout(
         p4 = plane_origin + (u_axis * (center_u + d_u)) + (v_axis * (center_v + d_v))
         positions.extend([p1, p2, p3, p4])
 
-    # Validação de inclusão no polígono real (Critério C3: concavidade e furos)
-    if outer_poly:
-        for pos in positions:
-            u_p = (pos - plane_origin).dot(u_axis)
-            v_p = (pos - plane_origin).dot(v_axis)
-            if not point_in_polygon_2d(u_p, v_p, outer_poly):
-                raise ConnectorValidationError(
-                    "O encaixe caiu fora do domínio sólido da interface (região côncava ou vazia)."
-                )
-            if interface is not None and getattr(interface, "hole_contours_uv", None):
-                for hole_poly in interface.hole_contours_uv:
-                    if point_in_polygon_2d(u_p, v_p, hole_poly):
-                        raise ConnectorValidationError(
-                            "O encaixe caiu dentro de um furo interno da interface (região vazia)."
-                        )
-
     # Cálculo dos limites laterais seguros para cápsula
     min_pitch_mm = 1e9
     if len(positions) >= 2:
@@ -401,9 +387,11 @@ def compute_connector_layout(
     max_safe_lateral_mm = round(min(pitch_limit_mm, edge_limit_mm), 1)
 
     adjusted_cap_len_mm = capsule_length_mm
+    capsule_was_adjusted = False
     if connector_type == 'CAPSULE':
         if capsule_length_mm <= 0.0 or capsule_length_mm > max_safe_lateral_mm:
             adjusted_cap_len_mm = max_safe_lateral_mm
+            capsule_was_adjusted = (capsule_length_mm > 0.0 and adjusted_cap_len_mm != capsule_length_mm)
 
         cavity_cap_len_mm = adjusted_cap_len_mm + 2.0 * clearance_per_side_mm
         req_major_mm = cavity_cap_len_mm + 2.0 * edge_margin_mm
@@ -412,6 +400,49 @@ def compute_connector_layout(
                 f"Falta de espaço: a interface ({span_major_mm:.1f} mm) não comporta a cápsula "
                 f"com margem de {edge_margin_mm:.1f} mm (necessário ao menos {req_major_mm:.1f} mm)."
             )
+
+    # Validação rigorosa de inclusão do perfil completo no domínio sólido da interface (B04/B05)
+    if outer_polys:
+        check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
+        u_proj = major_axis.dot(u_axis)
+        v_proj = major_axis.dot(v_axis)
+        rot_ang = math.atan2(v_proj, u_proj)
+        cos_rot = math.cos(rot_ang)
+        sin_rot = math.sin(rot_ang)
+
+        for idx, pos in enumerate(positions):
+            u_p = (pos - plane_origin).dot(u_axis)
+            v_p = (pos - plane_origin).dot(v_axis)
+
+            test_pts = [(u_p, v_p)]
+            if connector_type == 'CAPSULE':
+                eff_cap = max(diameter_mm, adjusted_cap_len_mm) if adjusted_cap_len_mm > 0.0 else (diameter_mm * 2.4)
+                half_len = max(0.0, (eff_cap - diameter_mm) / 2.0) / unit_scale
+                prof = create_capsule_2d_profile(w=check_r, half_len=half_len, segments=24)
+                # No perfil da cápsula: Y (ly) é o eixo de alongamento (major_axis) e X (lx) é a largura (minor_axis)
+                # major_axis no plano UV é (cos_rot, sin_rot), minor_axis é (-sin_rot, cos_rot)
+                for lx, ly in prof:
+                    test_pts.append((
+                        u_p + ly * cos_rot - lx * sin_rot,
+                        v_p + ly * sin_rot + lx * cos_rot,
+                    ))
+            else:
+                for ang_idx in range(16):
+                    ang = 2.0 * math.pi * ang_idx / 16.0
+                    test_pts.append((u_p + check_r * math.cos(ang), v_p + check_r * math.sin(ang)))
+
+            for tp in test_pts:
+                in_any_outer = any(point_in_polygon_2d(tp[0], tp[1], poly) for poly in outer_polys)
+                if not in_any_outer:
+                    raise ConnectorValidationError(
+                        f"O encaixe #{idx+1} ultrapassa a margem de segurança de {edge_margin_mm:.1f} mm "
+                        f"ou cai fora do domínio sólido da peça."
+                    )
+                for hole_poly in hole_polys:
+                    if point_in_polygon_2d(tp[0], tp[1], hole_poly):
+                        raise ConnectorValidationError(
+                            f"O encaixe #{idx+1} invade um furo/vazio interno da interface."
+                        )
 
     return {
         "positions": positions,
@@ -424,6 +455,7 @@ def compute_connector_layout(
         "edge_limit_mm": edge_limit_mm,
         "max_safe_lateral_mm": max_safe_lateral_mm,
         "adjusted_capsule_length_mm": adjusted_cap_len_mm,
+        "capsule_was_adjusted": capsule_was_adjusted,
     }
 
 

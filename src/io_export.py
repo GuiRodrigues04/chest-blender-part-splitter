@@ -12,10 +12,29 @@ import io
 import zipfile
 import math
 import html
-from typing import List, Dict, Any, Tuple
+import tempfile
+import shutil
+from typing import List, Dict, Any, Tuple, Set
 import bpy
 import bmesh
 from mathutils import Vector, Matrix
+
+
+def sanitize_unique_filename(name: str, used_names: Set[str], ext: str = ".stl") -> str:
+    """Sanitiza um nome de arquivo e garante unicidade evitando colisões ou sobrescrita silenciosa."""
+    clean = "".join(c for c in name if c.isalnum() or c in ('_', '-'))
+    clean = clean.strip("._-")
+    if not clean:
+        clean = "Part"
+    
+    candidate = clean
+    counter = 1
+    while candidate.lower() in used_names:
+        counter += 1
+        candidate = f"{clean}_{counter}"
+    used_names.add(candidate.lower())
+    return f"{candidate}{ext}"
+
 
 
 
@@ -95,7 +114,19 @@ def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -
         build_items.append(obj_id)
 
         bm = bmesh.new()
-        bm.from_mesh(obj.data)
+        eval_obj = None
+        eval_mesh = None
+        if len(obj.modifiers) > 0 and bpy.context:
+            try:
+                depsgraph = bpy.context.evaluated_depsgraph_get()
+                eval_obj = obj.evaluated_get(depsgraph)
+                eval_mesh = eval_obj.to_mesh()
+                bm.from_mesh(eval_mesh)
+            except Exception:
+                bm.from_mesh(obj.data)
+        else:
+            bm.from_mesh(obj.data)
+
         bm.transform(obj.matrix_world)
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
         bm.verts.ensure_lookup_table()
@@ -134,6 +165,8 @@ def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -
         xml_lines.append('  </object>')
 
         bm.free()
+        if eval_obj and eval_mesh:
+            eval_obj.to_mesh_clear()
 
     xml_lines.append(' </resources>')
     xml_lines.append(' <build>')
@@ -240,6 +273,8 @@ def separate_object_by_material(source_obj: bpy.types.Object, target_collection:
         sub_obj["is_solid_for_printing"] = is_manifold
         sub_obj["chest_session_id"] = source_obj.get("chest_session_id", source_obj.get("chest_splitter_session_id", ""))
         sub_obj["chest_role"] = "SUBPART_MATERIAL"
+        if "chest_splitter_part" in source_obj:
+            sub_obj["chest_splitter_part"] = source_obj["chest_splitter_part"]
 
         target_collection.objects.link(sub_obj)
         created_objs.append(sub_obj)
@@ -257,6 +292,7 @@ def export_objects_to_stl_by_material(
     Arquivos gerados compartilham o mesmo sistema de coordenadas globais em milímetros.
     Ao importar todos de uma vez no Bambu Studio ou PrusaSlicer, o fatiador os carrega
     como um único objeto multipartes, permitindo atribuir filamentos/cores a cada um.
+    Utiliza transação atômica em diretório temporário para evitar saídas parciais ou corrompidas.
     """
     os.makedirs(output_dir, exist_ok=True)
     exported_files = []
@@ -269,7 +305,11 @@ def export_objects_to_stl_by_material(
     temp_col = bpy.data.collections.new("TEMP_CHEST_EXPORT")
     bpy.context.scene.collection.children.link(temp_col)
 
+    temp_stage_dir = tempfile.mkdtemp(prefix="chest_export_stl_")
+    staged_files = []
+
     try:
+        all_sub_parts = []
         for obj in objects:
             if obj.type != 'MESH' or not obj.data:
                 continue
@@ -277,55 +317,86 @@ def export_objects_to_stl_by_material(
             mats = obj.data.materials
             if len(mats) > 1:
                 sub_parts = separate_object_by_material(obj, temp_col)
+                all_sub_parts.extend([(obj, p) for p in sub_parts])
             else:
-                sub_parts = [obj]
+                all_sub_parts.append((obj, obj))
 
-            # Valida todas as subpeças (B06 - não exportar cascas no modo de sólido STL)
-            for part in sub_parts:
-                bm_part = bmesh.new()
+        # Valida todas as subpeças ANTES de qualquer gravação (P07 e T23)
+        for parent_obj, part in all_sub_parts:
+            bm_part = bmesh.new()
+            eval_obj = None
+            eval_mesh = None
+            if len(part.modifiers) > 0 and bpy.context:
+                try:
+                    depsgraph = bpy.context.evaluated_depsgraph_get()
+                    eval_obj = part.evaluated_get(depsgraph)
+                    eval_mesh = eval_obj.to_mesh()
+                    bm_part.from_mesh(eval_mesh)
+                except Exception:
+                    bm_part.from_mesh(part.data)
+            else:
                 bm_part.from_mesh(part.data)
-                
-                # Importa validate_printable_mesh dinamicamente para evitar import circular, 
-                # ou implementamos validação inline
-                from .operators import validate_printable_mesh
-                is_valid, msg, _ = validate_printable_mesh(bm_part, part_name=part.name, unit_scale=unit_scale, check_manifold=True)
-                bm_part.free()
-                
-                if not is_valid:
-                    raise ValueError(f"Material superficial detectado na peça '{obj.name}' ({msg}). "
-                                     f"Para imprimir separadamente, utilize o modo de corte 'Material' "
-                                     f"com profundidade, gerando um sólido real.")
+            
+            from .operators import validate_printable_mesh
+            is_valid, msg, _ = validate_printable_mesh(bm_part, part_name=part.name, unit_scale=unit_scale, check_manifold=True)
+            bm_part.free()
+            if eval_obj and eval_mesh:
+                eval_obj.to_mesh_clear()
+            
+            if not is_valid:
+                raise ValueError(f"Material superficial detectado na peça '{parent_obj.name}' ({msg}). "
+                                 f"Para imprimir separadamente, utilize o modo de corte 'Material' "
+                                 f"com profundidade, gerando um sólido real.")
 
-            for part in sub_parts:
-                safe_name = "".join(c for c in part.name if c.isalnum() or c in ('_', '-'))
-                out_path = os.path.join(output_dir, f"{safe_name}.stl")
-                
-                # Desmarca todos e seleciona apenas esta peça
-                bpy.ops.object.select_all(action='DESELECT')
-                part.select_set(True)
-                bpy.context.view_layer.objects.active = part
+        used_names: Set[str] = set()
+        # Gravação no diretório de staging temporário
+        for parent_obj, part in all_sub_parts:
+            filename = sanitize_unique_filename(part.name, used_names, ext=".stl")
+            stage_path = os.path.join(temp_stage_dir, filename)
+            
+            bpy.ops.object.select_all(action='DESELECT')
+            part.select_set(True)
+            bpy.context.view_layer.objects.active = part
 
-                # Exporta STL com escala física garantida em milímetros
-                if hasattr(bpy.ops.wm, "stl_export"):
-                    bpy.ops.wm.stl_export(
-                        filepath=out_path,
-                        export_selected_objects=True,
-                        global_scale=unit_scale,
-                        use_scene_unit=False,
-                        apply_modifiers=True,
-                    )
-                else:
-                    # Fallback clássico
-                    bpy.ops.export_mesh.stl(
-                        filepath=out_path,
-                        use_selection=True,
-                        global_scale=unit_scale,
-                        use_scene_unit=False,
-                    )
+            if hasattr(bpy.ops.wm, "stl_export"):
+                res = bpy.ops.wm.stl_export(
+                    filepath=stage_path,
+                    export_selected_objects=True,
+                    global_scale=unit_scale,
+                    use_scene_unit=False,
+                    apply_modifiers=True,
+                )
+                if 'FINISHED' not in res:
+                    raise RuntimeError(f"Exportador STL nativo falhou para '{part.name}'")
+            else:
+                res = bpy.ops.export_mesh.stl(
+                    filepath=stage_path,
+                    use_selection=True,
+                    global_scale=unit_scale,
+                    use_scene_unit=False,
+                )
+                if 'FINISHED' not in res:
+                    raise RuntimeError(f"Exportador STL clássico falhou para '{part.name}'")
 
-                exported_files.append(out_path)
+            if not os.path.exists(stage_path) or os.path.getsize(stage_path) == 0:
+                raise RuntimeError(f"Exportação falhou: arquivo vazio ou ausente para '{part.name}' ({filename})")
+
+            staged_files.append((stage_path, filename))
+
+        # Sucesso completo de todos os arquivos: publicação atômica para o diretório de destino
+        for stage_path, filename in staged_files:
+            final_path = os.path.join(output_dir, filename)
+            shutil.copy2(stage_path, final_path)
+            exported_files.append(final_path)
 
     finally:
+        # Limpa staging temporário
+        if os.path.exists(temp_stage_dir):
+            try:
+                shutil.rmtree(temp_stage_dir)
+            except OSError:
+                pass
+
         # Limpa objetos temporários da coleção
         for o in list(temp_col.objects):
             m = o.data

@@ -1,0 +1,62 @@
+{
+  "base_zip": "chest-blender-part-splitter-0.8.5.zip",
+  "sha256": "33673fff35715ab441b32e3e2e1950eb3b4b225ea3117e47e5081ff121267b9f",
+  "python_files_syntax_checked": 39,
+  "syntax_errors": 0,
+  "blender_runtime_tests_executed": false,
+  "native_crash_cause_confirmed": false,
+  "images": [
+    {
+      "original": "image(3).png",
+      "included": "01_selecao_face.png"
+    },
+    {
+      "original": "image(4).png",
+      "included": "02_regiao_5_faces.png"
+    },
+    {
+      "original": "image(5).png",
+      "included": "03_crash_undo.png"
+    },
+    {
+      "original": "image(6).png",
+      "included": "04_encaixes_erro.png"
+    },
+    {
+      "original": "image(7).png",
+      "included": "05_dois_encaixes.png"
+    },
+    {
+      "original": "image(8).png",
+      "included": "06_bloco_plano.png"
+    },
+    {
+      "original": "image(9).png",
+      "included": "07_um_encaixe_funciona.png"
+    },
+    {
+      "original": "image(10).png",
+      "included": "08_medidas_secao.png"
+    },
+    {
+      "original": "image(20261010-183355).png",
+      "included": "09_dois_menores_falham.png"
+    },
+    {
+      "original": "image(20261010-184011).png",
+      "included": "10_material_montado.png"
+    },
+    {
+      "original": "image(20261010-184144).png",
+      "included": "11_material_explodido.png"
+    },
+    {
+      "original": "image(20261010-184158).png",
+      "included": "12_membrana_detalhe.png"
+    },
+    {
+      "original": "image(20261010-184221).png",
+      "included": "13_material_original.png"
+    }
+  ]
+}

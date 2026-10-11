@@ -4,6 +4,7 @@ from . import translations
 from . import properties
 from . import operators
 from . import ui
+from . import gpu_drawing
 
 
 def register():
@@ -11,9 +12,11 @@ def register():
     properties.register()
     operators.register()
     ui.register()
+    gpu_drawing.register_overlay()
 
 
 def unregister():
+    gpu_drawing.unregister_overlay()
     ui.unregister()
     operators.unregister()
     properties.unregister()

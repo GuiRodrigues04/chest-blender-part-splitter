@@ -35,17 +35,27 @@ def get_topology_signature(obj) -> str:
     """Retorna uma assinatura de integridade topológica do objeto."""
     if not obj or obj.type != 'MESH' or not obj.data:
         return ""
+    import array
+    
     mesh = obj.data
     v_count = len(mesh.vertices)
     e_count = len(mesh.edges)
     f_count = len(mesh.polygons)
-    edge_sample = []
-    step = max(1, e_count // 20)
-    for i in range(0, e_count, step):
-        edge = mesh.edges[i]
-        edge_sample.append(f"{edge.vertices[0]}-{edge.vertices[1]}")
-    conn_hash = hashlib.sha256(";".join(edge_sample).encode("utf-8")).hexdigest()[:8]
-    return f"V{v_count}E{e_count}F{f_count}H{conn_hash}"
+    
+    h = hashlib.sha256()
+    h.update(f"V{v_count}E{e_count}F{f_count}".encode('utf-8'))
+    
+    if e_count > 0:
+        edges = array.array('i', [0] * (e_count * 2))
+        mesh.edges.foreach_get("vertices", edges)
+        h.update(edges.tobytes())
+        
+    if len(mesh.loops) > 0:
+        loops = array.array('i', [0] * len(mesh.loops))
+        mesh.loops.foreach_get("vertex_index", loops)
+        h.update(loops.tobytes())
+        
+    return f"V{v_count}E{e_count}F{f_count}H{h.hexdigest()[:8]}"
 
 
 def capture_edge_loop(obj: bpy.types.Object, scene: Optional[bpy.types.Scene] = None) -> Tuple[bool, List[int], bool, float, str]:
@@ -133,6 +143,119 @@ def capture_edge_loop(obj: bpy.types.Object, scene: Optional[bpy.types.Scene] = 
 
     indices = [v.index for v in ordered_verts]
     return True, indices, is_planar, max_deviation_mm, ""
+
+
+def capture_face_boundary_loop(obj: bpy.types.Object, scene: Optional[bpy.types.Scene] = None) -> Tuple[bool, List[int], bool, float, int, str]:
+    """Captura o perímetro (contorno de arestas) de uma seleção contígua de faces em Edit Mode (F02).
+    
+    Identifica arestas de fronteira com exatamente 1 face incidente selecionada.
+    Valida um único ciclo fechado contínuo e sem furos ou bifurcações.
+    Retorna (sucesso, indices_ordenados, is_planar, desvio_mm, seed_face_idx, erro_msg).
+    """
+    if not obj or obj.mode != 'EDIT':
+        return False, [], False, 0.0, -1, "O objeto precisa estar em Edit Mode."
+
+    bm = bmesh.from_edit_mesh(obj.data)
+    bm.faces.ensure_lookup_table()
+    bm.edges.ensure_lookup_table()
+    bm.verts.ensure_lookup_table()
+
+    selected_faces = set(f for f in bm.faces if f.select)
+    if not selected_faces:
+        return False, [], False, 0.0, -1, "Nenhuma face selecionada. Selecione as faces da área desejada."
+
+    # Determina a face semente da seleção
+    if bm.faces.active and bm.faces.active in selected_faces:
+        seed_face_idx = bm.faces.active.index
+    else:
+        seed_face_idx = next(iter(selected_faces)).index
+
+    # Valida conectividade da região de faces selecionadas (ilha única)
+    visited = set()
+    start_f = next(f for f in selected_faces if f.index == seed_face_idx)
+    queue = [start_f]
+    visited.add(start_f)
+    while queue:
+        cur = queue.pop(0)
+        for e in cur.edges:
+            for nf in e.link_faces:
+                if nf in selected_faces and nf not in visited:
+                    visited.add(nf)
+                    queue.append(nf)
+
+    if len(visited) != len(selected_faces):
+        return False, [], False, 0.0, -1, "A seleção contém múltiplas ilhas desconectadas. Selecione uma única região contígua."
+
+    # Identifica arestas de contorno (exatamente 1 face selecionada incidente)
+    boundary_edges = []
+    for e in bm.edges:
+        inc = [lf for lf in e.link_faces if lf in selected_faces]
+        if len(inc) == 1:
+            boundary_edges.append(e)
+        elif len(inc) > 2:
+            return False, [], False, 0.0, -1, "Aresta não-manifold detectada na seleção de faces."
+
+    if not boundary_edges:
+        return False, [], False, 0.0, -1, "A seleção não possui bordas abertas (toda a superfície fechada está selecionada)."
+
+    # Mapeia vértices do contorno
+    vert_to_edges = {}
+    for e in boundary_edges:
+        for v in e.verts:
+            vert_to_edges.setdefault(v, []).append(e)
+
+    for v, edges in vert_to_edges.items():
+        if len(edges) != 2:
+            if len(edges) > 2:
+                return False, [], False, 0.0, -1, "Ramificação/bifurcação no perímetro (regiões tocando-se apenas por vértice ou auto-interseção)."
+            else:
+                return False, [], False, 0.0, -1, "Perímetro aberto na borda da malha. O contorno precisa ser um ciclo fechado."
+
+    # Ordena o ciclo de vértices
+    start_v = next(iter(vert_to_edges.keys()))
+    ordered_verts = [start_v]
+    current_v = start_v
+    current_e = vert_to_edges[current_v][0]
+
+    while True:
+        next_v = current_e.verts[0] if current_e.verts[1] == current_v else current_e.verts[1]
+        if next_v == start_v:
+            break
+        ordered_verts.append(next_v)
+        edges_of_next = vert_to_edges[next_v]
+        next_e = edges_of_next[0] if edges_of_next[0] != current_e else edges_of_next[1]
+        current_v = next_v
+        current_e = next_e
+
+    if len(ordered_verts) != len(vert_to_edges):
+        return False, [], False, 0.0, -1, "A seleção possui múltiplos ciclos ou furos internos. Selecione uma região contígua simples."
+
+    coords_world = [obj.matrix_world @ v.co for v in ordered_verts]
+    centroid = sum(coords_world, Vector()) / len(coords_world)
+
+    # Normal via Newell
+    n = Vector((0.0, 0.0, 0.0))
+    n_pts = len(coords_world)
+    for i in range(n_pts):
+        v1 = coords_world[i]
+        v2 = coords_world[(i + 1) % n_pts]
+        n.x += (v1.y - v2.y) * (v1.z + v2.z)
+        n.y += (v1.z - v2.z) * (v1.x + v2.x)
+        n.z += (v1.x - v2.x) * (v1.y + v2.y)
+
+    if n.length > 1e-7:
+        n.normalize()
+    else:
+        return False, [], False, 0.0, -1, "Contorno degenerado (área nula)."
+
+    max_deviation_bu = max(abs((v - centroid).dot(n)) for v in coords_world)
+    actual_scene = scene if scene else (bpy.context.scene if hasattr(bpy.context, "scene") else None)
+    scale_to_mm = get_scene_scale_to_mm(actual_scene)
+    max_deviation_mm = max_deviation_bu * scale_to_mm
+    is_planar = max_deviation_mm <= 0.1
+
+    indices = [v.index for v in ordered_verts]
+    return True, indices, is_planar, max_deviation_mm, seed_face_idx, ""
 
 
 def get_selected_seed_face(obj: bpy.types.Object) -> int:

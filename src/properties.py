@@ -9,6 +9,7 @@ from bpy.props import (
     BoolProperty,
     FloatVectorProperty,
     EnumProperty,
+    CollectionProperty,
 )
 
 
@@ -85,6 +86,38 @@ def _on_target_object_update(self, context):
     _on_param_change_mark_stale(self, context)
 
 
+class ChestObjectRef(bpy.types.PropertyGroup):
+    """Referência persistente a um objeto envolvido ou gerado por uma operação."""
+    obj: PointerProperty(type=bpy.types.Object)
+    name: StringProperty(default="")
+    role: StringProperty(default="")
+
+
+class ChestOperationRecord(bpy.types.PropertyGroup):
+    """Registro persistente de uma operação de divisão ou corte no modelo."""
+    operation_id: StringProperty(name="ID da Operação", default="")
+    status: EnumProperty(
+        name="Status da Operação",
+        items=[
+            ('PREVIEW', "Prévia", "Prévia gerada e ativa"),
+            ('COMMITTED', "Confirmado", "Corte confirmado em peças finais"),
+            ('REVERTED', "Revertido", "Operação revertida"),
+            ('BROKEN', "Incompleto/Quebrado", "Registro incompleto ou danificado"),
+        ],
+        default='PREVIEW',
+    )
+    target_object: PointerProperty(type=bpy.types.Object)
+    target_name: StringProperty(default="")
+    parent_operation_id: StringProperty(default="")
+    snapshot_object: PointerProperty(type=bpy.types.Object)
+    snapshot_name: StringProperty(default="")
+    target_hide_viewport: BoolProperty(default=False)
+    target_hide_render: BoolProperty(default=False)
+    created_objects: CollectionProperty(type=ChestObjectRef)
+    unlinked_parents: CollectionProperty(type=ChestObjectRef)
+    version: IntProperty(default=1)
+
+
 class ChestSplitterSettings(bpy.types.PropertyGroup):
     """Estado persistente da sessão do Part Splitter na cena."""
 
@@ -92,6 +125,11 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         name="ID da Sessão",
         default="",
         description="Identificador único da sessão de corte",
+    )
+    active_operation_id: StringProperty(
+        name="ID da Operação Ativa",
+        default="",
+        description="UUID da operação atualmente em foco na sessão",
     )
 
     session_input_signature: StringProperty(
@@ -203,6 +241,11 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     )
 
     # --- Fase 3A (Modo D): Loop de Arestas ---
+    show_loop_highlight: BoolProperty(
+        name="Destacar Contorno no Viewport",
+        description="Exibe uma linha destacada sobreposta ao contorno capturado na viewport 3D",
+        default=True,
+    )
     loop_is_captured: BoolProperty(
         name="Loop Capturado",
         default=False,
@@ -666,12 +709,21 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     )
 
 
+classes = (
+    ChestObjectRef,
+    ChestOperationRecord,
+    ChestSplitterSettings,
+)
+
+
 def register():
-    try:
-        bpy.utils.register_class(ChestSplitterSettings)
-    except ValueError:
-        pass
+    for cls in classes:
+        try:
+            bpy.utils.register_class(cls)
+        except ValueError:
+            pass
     bpy.types.Scene.chest_splitter = PointerProperty(type=ChestSplitterSettings)
+    bpy.types.Scene.chest_operations = CollectionProperty(type=ChestOperationRecord)
     # Alias para compatibilidade e nova identidade (Seção 8 do Plano Antigravity)
     bpy.types.Scene.part_splitter = property(lambda self: self.chest_splitter)
 
@@ -679,9 +731,12 @@ def register():
 def unregister():
     if hasattr(bpy.types.Scene, "part_splitter"):
         del bpy.types.Scene.part_splitter
+    if hasattr(bpy.types.Scene, "chest_operations"):
+        del bpy.types.Scene.chest_operations
     if hasattr(bpy.types.Scene, "chest_splitter"):
         del bpy.types.Scene.chest_splitter
-    try:
-        bpy.utils.unregister_class(ChestSplitterSettings)
-    except RuntimeError:
-        pass
+    for cls in reversed(classes):
+        try:
+            bpy.utils.unregister_class(cls)
+        except RuntimeError:
+            pass

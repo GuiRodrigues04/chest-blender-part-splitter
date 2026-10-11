@@ -187,12 +187,12 @@ def run_tests():
     # --- Teste 6: Exportação STLs Separados por Material ---
     print("\n--- Teste 6: Exportação STLs por Material ---")
     stl_dir = os.path.join(REPO_ROOT, "scratch", "test_stls")
-    stl_files = export_objects_to_stl_by_material([obj_a], stl_dir, unit_scale=1000.0)
-
-    assert_true(len(stl_files) >= 2, f"Gerados STLs separados por material: {len(stl_files)} arquivos")
-    for stl_path in stl_files:
-        assert_true(os.path.exists(stl_path), f"Arquivo STL existe: '{os.path.basename(stl_path)}'")
-        assert_true(os.path.getsize(stl_path) > 100, f"Arquivo STL não está vazio ({os.path.getsize(stl_path)} bytes)")
+    
+    try:
+        export_objects_to_stl_by_material([obj_a], stl_dir, unit_scale=1000.0)
+        assert_true(False, "Deve falhar por casca aberta")
+    except ValueError:
+        assert_true(True, "Rejeitou cascas abertas no exportador de STL (B06)")
 
     # Limpeza de arquivos de teste temporários
     try:

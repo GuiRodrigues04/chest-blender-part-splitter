@@ -37,12 +37,15 @@ TESTS = [
     "tests/test_material_regions.py",
     "tests/test_acceptance_etapa7_delivery.py",
     "tests/test_final_plan_corrections.py",
+    "tests/test_b01_b07.py",
+    "tests/test_plan_086_commercial.py",
+    "tests/test_reversion_086.py",
 ]
 
 def main():
     print("=" * 70)
     print("EXECUTANDO BATERIA COMPLETA DE TESTES AUTOMATIZADOS")
-    print(f"Blender BinÃ¡rio: {BLENDER_BIN}")
+    print(f"Blender Binario: {BLENDER_BIN}")
     print("=" * 70)
     
     passed_count = 0
@@ -50,7 +53,7 @@ def main():
     
     for test in TESTS:
         print(f"\n>> Executando: {test} ...")
-        cmd = [BLENDER_BIN, "--background", "--factory-startup", "--python", test]
+        cmd = [BLENDER_BIN, "--background", "--factory-startup", "--python-exit-code", "1", "--python", test]
         res = subprocess.run(cmd, capture_output=True, text=True)
         
         if res.returncode == 0:

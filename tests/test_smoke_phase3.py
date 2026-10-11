@@ -302,9 +302,9 @@ def run_tests():
     objs_after = len(bpy.data.objects)
     meshes_after = len(bpy.data.meshes)
 
-    # Devem existir exatamente os 2 objetos e 2 malhas de preview ativos do último ciclo
-    assert_test(objs_after - objs_before <= 2, f"Apenas os previews ativos foram criados em objetos ({objs_after} vs {objs_before})")
-    assert_test(meshes_after - meshes_before <= 2, f"Apenas as malhas de preview ativas existem ({meshes_after} vs {meshes_before})")
+    # Devem existir exatamente os 2 objetos e 2 malhas de preview ativos do último ciclo (e o snapshot de backup em 0.8.6)
+    assert_test(objs_after - objs_before <= 3, f"Apenas os previews ativos foram criados em objetos ({objs_after} vs {objs_before})")
+    assert_test(meshes_after - meshes_before <= 3, f"Apenas as malhas de preview ativas existem ({meshes_after} vs {meshes_before})")
 
     print(f"\n>>> TODOS OS {passed}/{total} TESTES DA FASE 3 PASSARAM COM SUCESSO! <<<\n")
 

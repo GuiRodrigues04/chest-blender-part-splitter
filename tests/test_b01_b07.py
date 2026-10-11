@@ -147,4 +147,7 @@ class TestCorrecoesB01B07(unittest.TestCase):
                 bpy.ops.chest.splitter_export_parts()
 
 if __name__ == '__main__':
-    unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(TestCorrecoesB01B07))
+    res = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(TestCorrecoesB01B07))
+    if not res.wasSuccessful():
+        import sys
+        sys.exit(1)

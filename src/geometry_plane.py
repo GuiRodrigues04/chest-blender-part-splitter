@@ -4,7 +4,7 @@ Este módulo não depende de seleção ativa nem de contexto de interface da Vie
 permitindo execução determinística e testes automatizados headless.
 """
 
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 import bpy
 import bmesh
 from mathutils import Vector
@@ -153,6 +153,64 @@ def evaluate_bmesh_metrics(bm: bmesh.types.BMesh, unit_scale: float = 1000.0) ->
     }
 
 
+def reconstruct_boundary_loops(cut_edges: List[bmesh.types.BMEdge]) -> List[List[Vector]]:
+    """Reconstrói ciclos ordenados e contínuos a partir das arestas de corte geradas por bisect.
+    
+    Remove vértices finais repetidos e duplicações consecutivas; valida fechamento,
+    continuidade e ausência de ramificações, evitando diagonais e cruzamentos espúrios.
+    """
+    from collections import defaultdict
+    vert_to_edges = defaultdict(list)
+    for e in cut_edges:
+        if e.is_valid:
+            vert_to_edges[e.verts[0]].append(e)
+            vert_to_edges[e.verts[1]].append(e)
+
+    visited_edges = set()
+    loops = []
+
+    for e_start in cut_edges:
+        if not e_start.is_valid or e_start in visited_edges:
+            continue
+        v_start = e_start.verts[0]
+        curr_v = e_start.verts[1]
+        visited_edges.add(e_start)
+        loop_verts = [v_start, curr_v]
+        curr_e = e_start
+        closed = False
+
+        while True:
+            candidates = [e for e in vert_to_edges[curr_v] if e != curr_e and e not in visited_edges and e.is_valid]
+            if not candidates:
+                # Verifica se fechou no vértice inicial
+                if curr_v == v_start or any(e == e_start for e in vert_to_edges[curr_v]):
+                    closed = True
+                break
+            next_e = candidates[0]
+            visited_edges.add(next_e)
+            next_v = next_e.verts[0] if next_e.verts[1] == curr_v else next_e.verts[1]
+            if next_v == v_start:
+                closed = True
+                break
+            loop_verts.append(next_v)
+            curr_v = next_v
+            curr_e = next_e
+
+        if closed and len(loop_verts) >= 3:
+            pts = []
+            for v in loop_verts:
+                co = v.co.copy()
+                if not pts or (co - pts[-1]).length > 1e-6:
+                    pts.append(co)
+            # Remove vértice final repetido se coincidir com o inicial
+            if len(pts) > 1 and (pts[0] - pts[-1]).length < 1e-6:
+                pts.pop()
+            if len(pts) >= 3:
+                loops.append(pts)
+
+    return loops
+
+
 def slice_mesh_by_plane(
     source_mesh: bpy.types.Mesh,
     matrix_world,
@@ -212,9 +270,10 @@ def slice_mesh_by_plane(
         metrics = evaluate_bmesh_metrics(bm, unit_scale=unit_scale)
         results[side_key] = metrics
 
-        # Coleta pontos de borda do corte para construção da interface compartilhada
+        # Coleta loops ordenados de borda do corte para construção da interface compartilhada
         if side_key == "A":
-            interface_points = [v.co.copy() for e in cut_edges for v in e.verts]
+            interface_loops = reconstruct_boundary_loops(cut_edges)
+            interface_points = [p for loop in interface_loops for p in loop] if interface_loops else [v.co.copy() for e in cut_edges for v in e.verts]
 
         # Escreve na malha de destino correspondente
         target_mesh = target_mesh_a if side_key == "A" else target_mesh_b
@@ -239,6 +298,7 @@ def slice_mesh_by_plane(
         origin_world=plane_origin,
         normal_a_to_b=effective_normal_a,
         boundary_points_world=interface_points if 'interface_points' in locals() else [],
+        boundary_loops_world=interface_loops if 'interface_loops' in locals() else None,
         unit_scale=unit_scale,
         source_mode="PLANE",
     )

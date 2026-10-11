@@ -5,6 +5,169 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.8.6] - 2026-10-10
+
+### Corrigido
+- **B01: Seleção por Face Confiável no Objeto Correto**:
+  - Restrição estrita do operador `pick_material_region` ao objeto alvo em Modo de Edição (`context.edit_object == target`), impedindo interferência de objetos de prévia ou outros elementos na cena.
+  - Rejeição determinística e amigável quando múltiplos objetos estão em edição ou quando não há face ativa válida identificável.
+  - Atualização automática dos slots e regiões de material diretamente a partir da topologia atual em edição.
+- **B02: Estabilidade e Prevenção de Crash em Undo/Redo**:
+  - Remoção de alocação de malhas avaliadas (`eval_obj.to_mesh()`) de dentro do handler `depsgraph_update_post`, eliminando a causa raiz de falhas de segmentação e referências mortas em operações de desfazer/refazer.
+  - Handlers dedicados `on_undo_post` e `on_redo_post` registrados com verificação leve e proteção contra `ReferenceError`.
+  - Guard global de execução `_is_generating_preview` prevenindo reentrâncias descontroladas durante o pipeline booleano.
+- **B03: Geração de Prévia Segura e Transacional com Rollback**:
+  - Criação de malhas e objetos em namespace isolado de candidatos (`_cand_{exec_id}_...`).
+  - Em falhas intermediárias do corte, da topologia ou dos pinos, a prévia existente é preservada intacta (sinalizada como `PREVIEW_STALE`) e os candidatos transitórios são purgados sem deixar resíduos na cena.
+  - Swap e limpeza da prévia anterior executados unicamente após 100% de sucesso.
+- **B04 & B05: Reconstrução Ordenada do Contorno no Corte Planar e Múltiplos Encaixes**:
+  - Função `reconstruct_boundary_loops` ordenando arestas de corte em loops cíclicos fechados orientados pela conectividade real do BMesh.
+  - Classificação robusta em contornos externos e furos (`outer_contours_uv` e `hole_contours_uv`) via inclusão 2D ponto-em-polígono.
+  - Eliminação de falsos negativos de encaixes: teste de footprint com amostragem perimétrica multiponto garantindo posicionamento exato de 2 ou mais pinos sem colisões espúrias.
+- **B06: Eliminação Definitiva da Película na Extração por Material**:
+  - Nova geração de cortador prismático `create_material_patch_prism_cutter` duplicando a topologia exata das faces da região para compor as tampas e extrudando paredes exclusivamente no perímetro de fronteira.
+  - Eliminação total de n-gons planos que atravessavam concavidades abertas, preservando o rebaixo complementar na Parte B e gerando a Parte A como sólido estanque (0 arestas não-manifold).
+- **Integridade e Confiabilidade de Exportação**:
+  - Transação atômica em diretório de staging temporário para exportações STL por material e STL por peças: arquivos só são publicados na pasta de destino após validação de 100% dos itens gerados.
+  - Função `sanitize_unique_filename` prevenindo sobrescrita silenciosa de arquivos quando nomes de peças geram nomes de arquivos idênticos.
+  - Avaliação fiel de modificadores (`apply_modifiers=True`) durante a checagem prévia de solidez imprimível.
+
+### Adicionado
+- **F01: Destaque Persistente do Contorno no Viewport (GPU Overlay)**:
+  - Módulo `src/gpu_drawing.py` renderizando o anel de arestas capturado em ciano dinâmico via callback de viewport do Blender (`SpaceView3D.draw_handler_add`).
+  - Suporte completo a transformações e posições do objeto alvo na viewport.
+  - Propriedade e controle na interface `show_loop_highlight` para alternar a exibição.
+- **F02: Captura do Contorno Perimetral a partir de Seleção de Faces**:
+  - Função `capture_face_boundary_loop` em `src/geometry_loop.py` e operador `chest.splitter_capture_face_boundary` ("Capturar das Faces").
+  - Identificação de arestas de fronteira com incidência de exatamente uma face selecionada, validação de ciclo simples conexo e rejeição de ilhas, furos ou seleção total da malha.
+  - Definição automática da semente para a Parte A a partir de face válida da seleção.
+- **F03: Remoção de Prévia e Reversão Segura de Cortes**:
+  - Operador `chest.splitter_remove_preview` ("Remover Prévia") permitindo descarte imediato da geometria de prévia sem perder a cópia de trabalho nem edições do usuário no alvo, com reativação e seleção do alvo na viewport.
+  - Operador `chest.splitter_revert_cut` ("Reverter este corte") com diálogo nativo de confirmação exibindo o modelo alvo e a contagem de peças afetadas, desfazendo o corte confirmado, removendo as peças geradas/subpeças e restaurando o modelo alvo ao seu estado pré-corte.
+  - Modelo persistente com `ChestOperationRecord` e `ChestObjectRef` vinculado a `Scene.chest_operations` e `active_operation_id` para rastreamento por UUID e estados de ciclo de vida (`PREVIEW`, `COMMITTED`, `REVERTED`, `BROKEN`).
+  - Coleção interna oculta `CHEST_SPLITTER_BACKUPS` para snapshots intactos de malha base, permitindo restauração mesmo se o usuário tiver apagado acidentalmente o objeto alvo após a confirmação.
+  - Bloqueio hierárquico determinístico (`check_child_operations`): proteção contra reversão de corte pai quando existem cortes filhos confirmados ativos, com mensagem explicativa ao usuário.
+  - Proteção de duplicatas manuais feitas pelo usuário e rastreamento de peças renomeadas ou movidas para outras coleções.
+- **Suíte de Testes Comercial & Reversão (20 Suítes / 100% OK)**:
+  - Bateria completa de 20 suítes de testes automatizados cobrindo os 24 casos comerciais e os 12 casos do plano de reversão (`tests/test_reversion_086.py`), incluindo teste de estresse de 10 ciclos consecutivos com zero vazamento de malhas ou snapshots.
+
+## [0.8.5] - 2026-10-09
+
+### Corrigido
+- **Isolamento e Preservação de Cópias de Trabalho (Seção 2 / R01-R02)**:
+  - Criação da coleção dedicada `CHEST_SPLITTER_WORK` para cópias de trabalho e atribuição de metadados `chest_role="WORK_COPY"`.
+  - Reformulação de `cleanup_collection_objects`: garantia de tolerância zero à remoção do objeto alvo, cópias de trabalho ou malhas do usuário durante atualizações sucessivas de prévia. Migração automática de cópias legadas.
+  - Implementação de restauração segura em `CHEST_OT_splitter_restore_original` reativando a visibilidade do modelo base original (`hide_set(False)` e `hide_viewport=False`), reatribuindo `target_object` e limpando a cópia de trabalho sem deixar datablocks órfãos.
+- **Contrato Físico em Milímetros & Retornos do Operador (Seção 3 / R03-R04)**:
+  - Adição de retorno explícito `{'FINISHED'}` e caminhos determinísticos de cancelamento `{'CANCELLED'}` em `CHEST_OT_splitter_export_parts`.
+  - Padronização física em milímetros para STL (`global_scale=unit_scale`, `use_scene_unit=False`, `apply_modifiers=True`), garantindo que modelos exportados mantenham dimensões idênticas ao 3MF em qualquer escala de cena (`scale_length = 1.0`, `0.01` ou `0.001`).
+  - Padronização em milímetros para exportação Wavefront OBJ (`global_scale=unit_scale`, 1 unidade = 1 mm).
+  - Remoção de diretórios Windows/OneDrive fixos; fallback inteligente para diretório da cena salva, Desktop do usuário ou pasta temporária do sistema.
+  - Alinhamento canônico na exportação de prévias: objetos na visualização explodida são temporariamente exportados na posição original montada `(0, 0, 0)` com restauração transparente da visualização na viewport em bloco `finally:`.
+  - Escaping XML com `html.escape` em `build_3mf_xml` para suporte total a nomes de objetos com aspas, e-comercial (`&`) e colchetes angulares (`<`, `>`).
+  - Gravação atômica de arquivos 3MF via arquivo temporário `.tmp` e `os.replace` para evitar corrupção ou perda de arquivos pré-existentes em falhas de escrita.
+- **Isolamento de Sessões & Invalidação de Prévias (Seções 4 e 5 / R05-R08)**:
+  - Geração de identificadores únicos UUID para cada sessão de corte.
+  - Assinatura determinística SHA-256 (`session_input_signature`) rastreando transformações, posições, rotações, escalas, contagens e amostras geométricas do alvo e cortadores, além de escala de cena e parâmetros de corte.
+  - Invalidação automática (`PREVIEW_STALE`) e bloqueio preventivo de confirmação/exportação quando o alvo ou cortador forem movidos ou alterados na viewport.
+  - Handler de depsgraph (`on_depsgraph_update_post`) monitorando alterações em tempo real sem loops de redesenho.
+  - Independência da vista explodida e modos de cor em relação à assinatura geométrica do corte.
+  - Função centralizada `get_current_session_parts` garantindo que exportações e separações por material processem exclusivamente peças da sessão ativa, preservando cortes anteriores na mesma cena.
+- **Validação Geométrica e Tolerâncias de Encaixe (Seção 6 / R11-R12)**:
+  - Auto-ajuste de comprimento de conectores cápsula (`adjusted_capsule_length_mm` e `max_safe_lateral_mm`) para interfaces estreitas sem falha prematura da operação.
+  - Amostragem perimétrica multiponto em `check_receiving_wall_thickness` para detecção de perfurações em paredes inclinadas e diagnóstico de ausência de corpo receptor (`hit_loc is None`).
+  - Verificação de malhas válidas e imprimíveis antes de confirmar ou exportar peças, bloqueando a exportação de cascas abertas como sólidos individuais.
+- **Internacionalização & Correção de Localização (Seção 8 / R16)**:
+  - Correção de `_get_current_locale()` para retornar `pt_BR` apenas quando o locale do Blender iniciar com `pt`, adotando `en_US` como padrão internacional nos demais casos.
+  - Correção de caracteres UTF-8 no manifesto e `__init__.py`.
+
+### Adicionado
+- Nova suíte de testes de regressão automatizada cobrindo os 18 requisitos de aceite (`tests/test_final_plan_corrections.py`).
+
+## [0.8.4] - 2026-10-09
+
+### Corrigido
+- **Corte por Material com várias áreas da mesma cor**: cada área separada (ilha) agora é uma região independente, com contorno e direção próprios. Antes, duas áreas da mesma cor eram misturadas num único contorno inválido, gerando peças deformadas.
+- **Seleção da cor base**: escolher o material do corpo (que envolve as outras áreas) agora mostra um aviso claro em vez de gerar um corte quebrado.
+- **Vista explodida no modo Material**: as peças se afastam na direção real da extração (peça sai, corpo recua), e a distância é ajustada automaticamente para a peça sair totalmente da cavidade.
+- **Prisma de extração**: pontos colineares do contorno são removidos, corrigindo malhas não-manifold e volume errado em áreas com mais de uma face (afeta também o Loop com profundidade).
+
+### Adicionado
+- Lista de "Áreas" quando uma cor aparece em vários lugares e botão **Usar Face Selecionada (Edit Mode)**.
+
+## [0.8.3] - 2026-10-08
+
+### Adicionado
+- **Corte por Material com Contrato Estrito de Sólidos Estanques (Etapa 6 / Seção 9)**:
+  - Criação do módulo `src/geometry_material.py` com análise topológica estrutural (`analyze_material_structure`) e corte determinístico (`slice_mesh_by_material`).
+  - Distinção automática entre **Componentes Fechados** (`CLOSED_COMPONENT`, ex: corpos desconexos com materiais dedicados) e **Regiões Superficiais** (`SURFACE_PATCH`, ex: decalques ou faces pintadas em superfície contínua).
+  - Componentes isolados são separados diretamente preservando manifoldness estrita (0 arestas abertas).
+  - Superfícies contínuas com materiais diferentes são extraídas através de projeção prismática com profundidade física ajustável (`material_extrude_depth_mm`), gerando uma peça sólida inserível e a cavidade receptora correspondente no corpo principal.
+  - Preservação estrita de slots de materiais e índices de faces em ambas as partes (Critério M1).
+- **Diagnóstico e Alerta contra Cascas Abertas em `separate_object_by_material`**:
+  - Detecção e registro de `open_edges`, `is_manifold` e `is_solid_for_printing` em sub-peças geradas por simples separação de faces.
+  - Aviso explicativo na interface e no operador indicando quando cascas abertas não-imprimíveis foram geradas, orientando o usuário a utilizar o corte por Material com Profundidade.
+- **Identidade e Coexistência de Estado (Seção 8)**:
+  - Adição do alias `scene.part_splitter` apontando diretamente para `scene.chest_splitter`, permitindo interoperabilidade com novas APIs e migração progressiva.
+- **Bateria de Testes Automatizados (Etapa 6)**:
+  - Adição da suíte `tests/test_acceptance_etapa6_material.py` cobrindo separação manifold de componentes fechados, extração volumétrica de superfícies contínuas com conservação de volume, Critério M1, detecção de cascas e alias de cena (14/14 suítes aprovadas com 100% de sucesso).
+
+## [0.8.2] - 2026-10-08
+
+### Adicionado
+- **Reorganização Didática da Interface e Fluxo Linear (Etapa 5 / Seção 7.1)**:
+  - Estruturação do painel em 6 seções lógicas: (1) Objeto Alvo, (2) Método de Corte, (3) Encaixes & Folgas, (4) Prévia do Corte, (5) Criar Peças e (6) Exportação.
+  - A Seção 3 (Encaixes) foi posicionada antes do botão de geração da Prévia, respeitando o fluxo natural de que os encaixes alteram a geometria gerada.
+  - Remoção de todos os jargões técnicos confusos (ex: "Fase 3A", "Modo D", "Face Semente: 19").
+  - Adição de instruções claras no modo Contorno: *"Dica: Selecione apenas 1 face dentro da região desejada (o contorno delimita a seleção automaticamente)"*.
+- **Sistema de Ajuda Contextual e Popups Didáticos (`src/translations.py` & `CHEST_OT_splitter_help`)**:
+  - Implementação de botões de ajuda compactos com ícone `INFO` em cada seção e recurso principal.
+  - Ao passar o mouse, exibe tooltips explicativos detalhados para iniciantes.
+  - Ao clicar no botão `INFO`, abre um popup menu legível (`popup_menu`) detalhando o funcionamento, recomendações práticas e exemplos de uso em milímetros.
+  - Catálogo nativo de tradução bilíngue (`pt_BR` e `en_US`) registrado via `bpy.app.translations`.
+- **Proteção Transacional de Estado Desatualizado (`PREVIEW_STALE` / Critério U2)**:
+  - Alterações em qualquer parâmetro de corte ou de encaixe após um preview válido marcam a sessão automaticamente como `PREVIEW_STALE`.
+  - Exibição de aviso claro em destaque: *"Os ajustes mudaram. Atualize a prévia antes de criar as peças."*
+  - Bloqueio preventivo do botão de confirmação (`commit_parts.poll() == False`) até que o usuário clique em "Gerar / Atualizar Preview", prevenindo inconsistências.
+- **Auto-Ajuste Inteligente da Distância de Explosão para Pinos Longos**:
+  - Ao gerar a prévia com encaixes ativados, a extensão calcula dinamicamente a distância mínima necessária para que o pino e a cavidade se desacoplem totalmente ($\text{Inserção} + \text{Folga de fundo} + 15\text{ mm}$).
+  - Caso o slider de explosão esteja menor que essa medida, ele é elevado automaticamente para garantir visualização perfeita do pino 100% fora do furo na vista explodida.
+- **Bateria de Testes U1/U2 (`tests/test_acceptance_etapa5_ui.py`)**:
+  - Testes cobrindo integridade do catálogo de ajuda, execução do operador, transição de `PREVIEW_STALE` com bloqueio de commit, e auto-ajuste da visão explodida (13/13 testes aprovados).
+
+## [0.8.1] - 2026-10-08
+
+### Corrigido
+- **Correção da Avaliação do Depsgraph Booleano em Atualização de Preview (`geometry_loop` & `geometry_solid`)**:
+  - Correção de bug crítico onde `temp_obj_a`, `temp_obj_b`, `cutter_obj` e objetos de trabalho herdavam `hide_viewport = True` do objeto original ocultado após a primeira geração de preview.
+  - No Blender 4.x/5.x, o Dependency Graph (`evaluated_depsgraph_get()`) ignora silenciosamente a avaliação de modificadores booleanos para economizar recursos caso o objeto esteja oculto na viewport (`hide_viewport = True`).
+  - Como consequência, ao ajustar parâmetros (ex: profundidade do corte ou corte passante) e atualizar o preview, as operações booleanas retornavam a malha original inteira para ambas as partes (duplicando o bloco sem corte e causando Z-fighting).
+  - Todos os objetos de trabalho temporários agora forçam explicitamente `hide_viewport = False` e `hide_render = False` antes da resolução booleana, garantindo corte perfeito e determinístico em qualquer reexecução de preview.
+  - Adicionado teste de aceitação automatizado de regressão (`tests/test_verify_bug_and_fix.py`) integrado à suíte de testes.
+
+## [0.8.0] - 2026-10-08
+
+### Adicionado
+- **Extração Plana com Profundidade (Modo Loop `EXTRUDE`)**:
+  - Projeção prismática fechada e manifold do contorno capturado para dentro do modelo até a profundidade física $d$.
+  - Preservação estrita de concavidades e relevos superficiais com extensão externa de segurança anti-coplanaridade.
+  - Verificação automática de espessura de parede via `BVHTree.ray_cast` para prevenção de perfuração acidental.
+  - Opção explícita de **Corte Passante** (`loop_through_cut`) para furos passantes limpos e contínuos.
+- **Decisão Automática Inteligente (Modo Loop `AUTO`)**:
+  - Análise geométrica em tempo real do relevo da região selecionada em relação ao plano médio.
+  - Seleção automática entre **Destacar Saliência** (`DETACH`) e **Extrair com Profundidade** (`EXTRUDE`) acompanhada de justificativa didática em texto na interface.
+- **Contrato Formal de Geometria (`CutInterface` & `SplitResult`)**:
+  - Padronização em World Space de todas as operações de corte, eixos principais (U/V) via PCA, dimensões reais da interface e normais de contato.
+  - Invariância topológica estrita à ordem dos vértices no contorno fechado.
+- **Encaixes Transacionais Robustos e Tolerâncias Perfeitas**:
+  - Perfil de cápsula com tangentes fechadas e folga perimetral estritamente uniforme em toda a periferia.
+  - Validação de espessura de parede na peça receptora (`check_receiving_wall_thickness`) antes de qualquer alteração na malha.
+  - Validação de inclusão em polígonos côncavos e detecção de furos internos para evitar encaixes no vazio.
+  - Rollback atômico em caso de falha booleana, impedindo estados parciais e protegendo a integridade da cena.
+  - Proteção de estado contra operações pós-confirmação (`COMMITTED`).
+- **Bateria Completa de Testes de Aceitação Formal**:
+  - 11 suítes de testes automatizados integradas cobrindo P1-P2, L1-L5, G1-G2, C1-C5 e E1-E3 com 100% de aprovação no Blender 5.2.0 LTS.
+
 ## [0.7.0] - 2026-09-28
 
 ### Adicionado

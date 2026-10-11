@@ -120,8 +120,9 @@ def test_etapa5():
         f"Distância de explosão auto-ajustada para {settings.explosion_distance_mm:.1f} mm (>= {expected_min_explosion:.1f} mm)"
     )
 
-    preview_a = scene.objects.get("CHEST_SPLITTER_PREVIEW_A")
-    preview_b = scene.objects.get("CHEST_SPLITTER_PREVIEW_B")
+    parts = [o for o in scene.objects if o.get("chest_session_id") == settings.session_id]
+    preview_a = next((o for o in parts if o.get("chest_role") == 'PREVIEW_A'), None)
+    preview_b = next((o for o in parts if o.get("chest_role") == 'PREVIEW_B'), None)
     assert_true(preview_a is not None and preview_b is not None, "Partes de preview presentes")
 
     sep_distance = (preview_b.location - preview_a.location).length * 1000.0  # Em mm

@@ -1,0 +1,504 @@
+0001: """Interface de usuário para o Chest Part Splitter (Sidebar N > Chest > Part Splitter)."""
+0002: 
+0003: import bpy
+0004: 
+0005: 
+0006: def draw_help_button(layout, topic: str):
+0007:     """Desenha botão compacto com ícone INFO para exibir ajuda e popup dinâmico."""
+0008:     row = layout.row(align=True)
+0009:     op = row.operator("chest.splitter_help", text="", icon='INFO', emboss=False)
+0010:     op.topic = topic
+0011: 
+0012: 
+0013: class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
+0014:     """Painel principal do Chest Part Splitter na barra lateral da Viewport 3D"""
+0015:     bl_label = "Part Splitter"
+0016:     bl_idname = "VIEW3D_PT_chest_part_splitter"
+0017:     bl_space_type = 'VIEW_3D'
+0018:     bl_region_type = 'UI'
+0019:     bl_category = 'Chest'
+0020: 
+0021:     def draw(self, context):
+0022:         layout = self.layout
+0023:         scene = context.scene
+0024:         settings = scene.chest_splitter
+0025:         obj = settings.target_object
+0026: 
+0027:         # --- SEÇÃO 1: OBJETO ALVO ---
+0028:         box_target = layout.box()
+0029:         row_target_head = box_target.row(align=True)
+0030:         row_target_head.label(text="1. Objeto Alvo", icon='OBJECT_DATA')
+0031:         draw_help_button(row_target_head, "target_model")
+0032: 
+0033:         row_set = box_target.row(align=True)
+0034:         row_set.operator("chest.splitter_set_target", text="Usar selecionado como alvo", icon='EYEDROPPER')
+0035: 
+0036:         if obj:
+0037:             row_target_info = box_target.row(align=True)
+0038:             row_target_info.label(text=f"Alvo: {obj.name}", icon='CHECKMARK')
+0039:             row_target_info.operator("chest.splitter_clear_target", text="", icon='X')
+0040: 
+0041:             # Métricas físicas e topológicas
+0042:             col_metrics = box_target.column(align=True)
+0043:             dims = settings.diag_dims_mm
+0044:             col_metrics.label(
+0045:                 text=f"Dimensões: {dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm",
+0046:                 icon='CON_SIZELIMIT'
+0047:             )
+0048:             col_metrics.label(
+0049:                 text=f"Malha: {settings.diag_triangles:,} triângulos ({settings.diag_faces:,} faces)",
+0050:                 icon='MESH_DATA'
+0051:             )
+0052:             col_metrics.label(
+0053:                 text=f"Volume: {settings.diag_volume_mm3:,.1f} mm³",
+0054:                 icon='MOD_FLUIDSIM'
+0055:             )
+0056: 
+0057:             # Avisos preventivos
+0058:             if settings.diag_has_unapplied_scale:
+0059:                 box_warn = box_target.box()
+0060:                 box_warn.alert = True
+0061:                 box_warn.label(text="Aviso: Escala não aplicada!", icon='ERROR')
+0062:                 box_warn.label(text="Cortes e folgas podem ser distorcidos.")
+0063:                 box_warn.operator(
+0064:                     "chest.splitter_create_work_copy",
+0065:                     text="Criar cópia com escala aplicada",
+0066:                     icon='DUPLICATE'
+0067:                 )
+0068: 
+0069:             if not settings.diag_is_manifold:
+0070:                 box_mani = box_target.box()
+0071:                 box_mani.alert = True
+0072:                 box_mani.label(
+0073:                     text=f"Aviso: {settings.diag_non_manifold_edges} aresta(s) abertas/não-manifold.",
+0074:                     icon='ERROR'
+0075:                 )
+0076: 
+0077:             if settings.diag_degenerate_faces > 0:
+0078:                 box_target.label(
+0079:                     text=f"{settings.diag_degenerate_faces} face(s) degeneradas detectadas.",
+0080:                     icon='INFO'
+0081:                 )
+0082:         else:
+0083:             box_target.label(text="Nenhum alvo selecionado. Selecione um objeto malha.", icon='INFO')
+0084: 
+0085:         layout.separator()
+0086: 
+0087:         # --- SEÇÃO 2: MÉTODO DE CORTE ---
+0088:         box_split = layout.box()
+0089:         box_split.label(text="2. Método de Corte", icon='MOD_BOOLEAN')
+0090: 
+0091:         col_mode = box_split.column()
+0092:         col_mode.prop(settings, "split_mode", expand=True)
+0093: 
+0094:         if not obj:
+0095:             box_split.label(text="Defina um objeto alvo primeiro.", icon='INFO')
+0096:         elif settings.split_mode == 'PLANE':
+0097:             # --- Guia de Corte e Alinhamentos ---
+0098:             box_guide = box_split.box()
+0099:             row_guide_head = box_guide.row(align=True)
+0100:             row_guide_head.label(text="Posicionamento do Plano", icon='ORIENTATION_LOCAL')
+0101:             draw_help_button(row_guide_head, "split_plane")
+0102: 
+0103:             row_guide_btn = box_guide.row(align=True)
+0104:             row_guide_btn.operator("chest.splitter_create_or_focus_guide", text="Focar Guia 3D", icon='GIZMO')
+0105: 
+0106:             box_guide.label(text="Alinhamentos Rápidos:")
+0107:             row_align_view = box_guide.row(align=True)
+0108:             op_v = row_align_view.operator("chest.splitter_align_plane", text="Vista", icon='VIEW_CAMERA')
+0109:             op_v.align_mode = 'VIEW'
+0110:             op_c = row_align_view.operator("chest.splitter_align_plane", text="Cursor", icon='PIVOT_CURSOR')
+0111:             op_c.align_mode = 'CURSOR'
+0112:             op_f = row_align_view.operator("chest.splitter_align_plane", text="Face", icon='FACESEL')
+0113:             op_f.align_mode = 'FACE'
+0114: 
+0115:             row_align_axes = box_guide.row(align=True)
+0116:             op_x = row_align_axes.operator("chest.splitter_align_plane", text="Eixo X")
+0117:             op_x.align_mode = 'X'
+0118:             op_y = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Y")
+0119:             op_y.align_mode = 'Y'
+0120:             op_z = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Z")
+0121:             op_z.align_mode = 'Z'
+0122: 
+0123:         elif settings.split_mode == 'LOOP':
+0124:             box_loop = box_split.box()
+0125:             row_loop_head = box_loop.row(align=True)
+0126:             row_loop_head.label(text="Corte por Contorno (Loop)", icon='MOD_EDGESPLIT')
+0127:             draw_help_button(row_loop_head, "split_loop")
+0128: 
+0129:             row_cap = box_loop.row(align=True)
+0130:             row_cap.scale_y = 1.2
+0131:             row_cap.operator("chest.splitter_capture_loop", text="Capturar Contorno", icon='VIEW_ORTHO')
+0132:             row_cap.operator("chest.splitter_capture_face_boundary", text="Capturar das Faces", icon='FACESEL')
+0133: 
+0134:             if settings.loop_is_captured:
+0135:                 box_loop.label(text=f"Vértices no contorno: {settings.loop_vertex_count}", icon='VERTEXSEL')
+0136:                 if settings.loop_is_planar:
+0137:                     box_loop.label(text=f"Status: Planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)", icon='CHECKMARK')
+0138:                 else:
+0139:                     box_loop.label(text=f"Aviso: Não-planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)", icon='ERROR')
+0140:                 
+0141:                 box_loop.prop(
+0142:                     settings, 
+0143:                     "show_loop_highlight", 
+0144:                     text="Destacar Contorno no Viewport", 
+0145:                     icon='RESTRICT_VIEW_OFF' if settings.show_loop_highlight else 'RESTRICT_VIEW_ON'
+0146:                 )
+0147: 
+0148:             row_seed = box_loop.row(align=True)
+0149:             row_seed.scale_y = 1.2
+0150:             row_seed.operator("chest.splitter_define_seed_face", text="Escolher Região", icon='FACESEL')
+0151:             draw_help_button(row_seed, "loop_region")
+0152: 
+0153:             col_seed_hint = box_loop.column()
+0154:             col_seed_hint.scale_y = 0.8
+0155:             col_seed_hint.label(text="Dica: Selecione apenas 1 face dentro da região desejada.", icon='INFO')
+0156: 
+0157:             if settings.loop_seed_face_index >= 0:
+0158:                 box_loop.label(text=f"Região de Referência: Face #{settings.loop_seed_face_index}", icon='CHECKMARK')
+0159: 
+0160:             # Comportamento de corte por contorno
+0161:             box_behavior = box_loop.box()
+0162:             box_behavior.prop(settings, "loop_behavior", text="Comportamento")
+0163: 
+0164:             if settings.loop_behavior == 'AUTO' and settings.loop_auto_reason:
+0165:                 box_dec = box_behavior.box()
+0166:                 lbl_mode = "Destacar Saliência" if settings.loop_detected_mode == 'DETACH' else "Extrair com Profundidade"
+0167:                 box_dec.label(text=f"Decisão: {lbl_mode}", icon='INFO')
+0168:                 col_r = box_dec.column()
+0169:                 col_r.scale_y = 0.8
+0170:                 col_r.label(text=settings.loop_auto_reason)
+0171: 
+0172:             show_depth = (settings.loop_behavior == 'EXTRUDE') or (
+0173:                 settings.loop_behavior == 'AUTO' and settings.loop_detected_mode == 'EXTRUDE'
+0174:             )
+0175:             if show_depth:
+0176:                 box_depth = box_behavior.box()
+0177:                 row_depth_head = box_depth.row(align=True)
+0178:                 row_depth_head.label(text="Extração com Profundidade", icon='CON_SIZELIMIT')
+0179:                 draw_help_button(row_depth_head, "loop_extrude")
+0180:                 box_depth.prop(settings, "loop_extrude_depth_mm", text="Profundidade (mm)")
+0181:                 box_depth.prop(settings, "loop_through_cut", text="Corte Passante")
+0182: 
+0183:         elif settings.split_mode == 'SOLID':
+0184:             box_solid = box_split.box()
+0185:             box_solid.label(text="Configuração do Cortador Sólido", icon='MESH_UVSPHERE')
+0186: 
+0187:             col_src = box_solid.column(align=True)
+0188:             col_src.prop(settings, "solid_source", expand=True)
+0189: 
+0190:             if settings.solid_source == 'PRIMITIVE':
+0191:                 col_prim = box_solid.column(align=True)
+0192:                 col_prim.prop(settings, "solid_primitive_type", text="Formato")
+0193:                 row_prim_btn = box_solid.row(align=True)
+0194:                 row_prim_btn.scale_y = 1.2
+0195:                 row_prim_btn.operator("chest.splitter_create_or_focus_solid_cutter", text="Criar / Focar Cortador", icon='GIZMO')
+0196:             else:
+0197:                 col_exist = box_solid.column(align=True)
+0198:                 col_exist.prop(settings, "solid_cutter_object", text="Cortador")
+0199:                 row_pick = box_solid.row(align=True)
+0200:                 row_pick.operator("chest.splitter_select_existing_cutter", text="Usar Selecionado como Cortador", icon='EYEDROPPER')
+0201: 
+0202:             # Diagnóstico do Cortador Selecionado
+0203:             cutter = settings.solid_cutter_object
+0204:             if cutter and cutter.name in bpy.data.objects:
+0205:                 box_cutter_diag = box_solid.box()
+0206:                 box_cutter_diag.label(text=f"Cortador: '{cutter.name}'", icon='OUTLINER_OB_MESH')
+0207:                 if settings.solid_cutter_is_manifold:
+0208:                     box_cutter_diag.label(text=f"Status: Fechado / 100% Manifold ({settings.solid_cutter_triangles:,} tris)", icon='CHECKMARK')
+0209:                     box_cutter_diag.label(text=f"Volume: {settings.solid_cutter_volume_mm3:,.1f} mm³")
+0210:                 else:
+0211:                     box_cutter_warn = box_cutter_diag.box()
+0212:                     box_cutter_warn.alert = True
+0213:                     box_cutter_warn.label(text=f"Erro: {settings.solid_cutter_non_manifold_edges} aresta(s) abertas!", icon='ERROR')
+0214:                     box_cutter_warn.label(text="Cortador precisa ser um sólido 3D estanque.")
+0215: 
+0216:         elif settings.split_mode == 'MATERIAL':
+0217:             box_mat = box_split.box()
+0218:             row_mat_head = box_mat.row(align=True)
+0219:             row_mat_head.label(text="Divisão por Material (Fase 4)", icon='MATERIAL')
+0220:             draw_help_button(row_mat_head, "split_material")
+0221: 
+0222:             mats = obj.data.materials if (obj and obj.data) else []
+0223:             if not mats:
+0224:                 box_mat.label(text="O modelo não possui materiais atribuídos.", icon='ERROR')
+0225:                 box_mat.label(text="Adicione slots de materiais na aba Material.")
+0226:             else:
+0227:                 col_mat_list = box_mat.column(align=True)
+0228:                 col_mat_list.label(text="Escolha a cor/área a extrair (Parte A):")
+0229:                 for idx, m in enumerate(mats):
+0230:                     mat_name = m.name if m else f"Material #{idx}"
+0231:                     is_active = (settings.material_split_index == idx)
+0232:                     icon_btn = 'CHECKBOX_HLT' if is_active else 'CHECKBOX_DEHLT'
+0233:                     row_m = col_mat_list.row(align=True)
+0234:                     op_sel = row_m.operator("chest.splitter_select_split_material", text=f"{idx}: {mat_name}", icon=icon_btn)
+0235:                     op_sel.material_index = idx
+0236:                     op_sel.region_index = 0
+0237: 
+0238:                 # Atalho: escolher pela face selecionada no Modo de Edição
+0239:                 row_pick = box_mat.row(align=True)
+0240:                 row_pick.operator("chest.splitter_pick_material_region", text="Usar Face Selecionada (Edit Mode)", icon='RESTRICT_SELECT_OFF')
+0241: 
+0242:                 # Diagnóstico dinâmico do material selecionado
+0243:                 from .geometry_material import analyze_material_structure, list_material_regions
+0244:                 mat_idx = min(settings.material_split_index, len(mats) - 1)
+0245: 
+0246:                 regions = list_material_regions(obj, mat_idx)
+0247:                 if len(regions) > 1:
+0248:                     box_reg = box_mat.box()
+0249:                     box_reg.label(text=f"Esta cor aparece em {len(regions)} áreas separadas:", icon='STICKY_UVS_DISABLE')
+0250:                     col_reg = box_reg.column(align=True)
+0251:                     for r in regions:
+0252:                         is_r = (settings.material_region_index == r["index"])
+0253:                         op_r = col_reg.operator(
+0254:                             "chest.splitter_select_split_material",
+0255:                             text=f"Área {r['index'] + 1} ({r['face_count']} faces)",
+0256:                             icon='RADIOBUT_ON' if is_r else 'RADIOBUT_OFF',
+0257:                         )
+0258:                         op_r.material_index = mat_idx
+0259:                         op_r.region_index = r["index"]
+0260: 
+0261:                 analysis = analyze_material_structure(obj, mat_idx, settings.material_region_index)
+0262:                 box_diag_mat = box_mat.box()
+0263:                 if analysis.get("valid"):
+0264:                     mat_type = analysis.get("type")
+0265:                     if mat_type == "CLOSED_COMPONENT":
+0266:                         box_diag_mat.label(text="Tipo: Componente 3D Fechado (Sólido)", icon='CHECKMARK')
+0267:                         box_diag_mat.label(text=f"Faces: {analysis['face_count']:,} | Malha estanque para fatiador.")
+0268:                     else:
+0269:                         box_diag_mat.label(text="Tipo: Região Superficial (Com Profundidade)", icon='INFO')
+0270:                         box_diag_mat.label(text=f"Faces: {analysis['face_count']:,} | Fronteira contínua.")
+0271:                         box_mat_depth = box_mat.box()
+0272:                         box_mat_depth.label(text="Espessura da Peça Extraída:", icon='CON_SIZELIMIT')
+0273:                         box_mat_depth.prop(settings, "material_extrude_depth_mm", text="Profundidade (mm)")
+0274:                 else:
+0275:                     box_diag_mat.alert = True
+0276:                     box_diag_mat.label(text=f"Aviso: {analysis.get('error', 'Estrutura inválida')}", icon='ERROR')
+0277: 
+0278:         layout.separator()
+0279: 
+0280:         # --- SEÇÃO 3: ENCAIXES E FOLGAS (Antes da Prévia!) ---
+0281:         box_conn = layout.box()
+0282:         row_conn_head = box_conn.row(align=True)
+0283:         row_conn_head.label(text="3. Encaixes & Folgas", icon='SNAP_VERTEX')
+0284:         draw_help_button(row_conn_head, "connectors")
+0285: 
+0286:         if settings.split_mode in ('SOLID', 'MATERIAL'):
+0287:             box_conn.label(text="Encaixes automáticos não se aplicam a cortes por sólido/material.", icon='INFO')
+0288:         else:
+0289:             row_enable = box_conn.row(align=True)
+0290:             row_enable.prop(settings, "connector_enabled", text="Ativar Encaixes", toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')
+0291: 
+0292:             if settings.connector_enabled:
+0293:                 # Formato do Encaixe
+0294:                 col_shape = box_conn.column(align=True)
+0295:                 col_shape.label(text="Formato do Encaixe:")
+0296:                 col_shape.prop(settings, "connector_type", expand=True)
+0297: 
+0298:                 # Lado do Macho / Fêmea
+0299:                 box_male = box_conn.box()
+0300:                 box_male.label(text="Posição dos Pinos (Macho):", icon='SNAP_NORMAL')
+0301: 
+0302:                 top_part = 'A' if settings.part_a_is_superior else 'B'
+0303:                 is_top = (settings.connector_male_part == top_part)
+0304:                 cur_desc = "Parte Superior" if is_top else "Parte Inferior"
+0305: 
+0306:                 row_male_pick = box_male.row(align=True)
+0307:                 row_male_pick.prop(settings, "connector_male_part", expand=True)
+0308: 
+0309:                 row_male_btn = box_male.row(align=True)
+0310:                 row_male_btn.scale_y = 1.2
+0311:                 row_male_btn.operator(
+0312:                     "chest.splitter_invert_male_female",
+0313:                     text=f"Inverter: Pinos na {cur_desc}",
+0314:                     icon='ARROW_LEFTRIGHT'
+0315:                 )
+0316: 
+0317:                 # Dimensões Nominais do Macho
+0318:                 box_dims = box_conn.box()
+0319:                 box_dims.label(text="Dimensões Nominais:", icon='CON_SIZELIMIT')
+0320:                 if settings.connector_type == 'CAPSULE':
+0321:                     box_dims.prop(settings, "connector_diameter_mm", text="Espessura / Diâmetro (mm)", slider=True)
+0322:                     box_dims.prop(settings, "connector_capsule_length_mm", text="Comprimento Lateral (mm)", slider=True)
+0323:                     if settings.connector_max_safe_lateral_mm > 0:
+0324:                         box_dims.label(
+0325:                             text=f"Limite Seguro Máx: {settings.connector_max_safe_lateral_mm:.1f} mm (anti-colisão)",
+0326:                             icon='INFO',
+0327:                         )
+0328:                 else:
+0329:                     box_dims.prop(settings, "connector_diameter_mm", slider=True)
+0330:                 box_dims.prop(settings, "connector_length_mm", text="Profundidade de Inserção (mm)", slider=True)
+0331:                 box_dims.prop(settings, "connector_chamfer_mm", slider=True)
+0332: 
+0333:                 # Folgas de Encaixe Físico
+0334:                 box_clear = box_conn.box()
+0335:                 row_clear_head = box_clear.row(align=True)
+0336:                 row_clear_head.label(text="Folgas Físicas de Montagem (FDM):", icon='DRIVER')
+0337:                 draw_help_button(row_clear_head, "clearance")
+0338: 
+0339:                 # Botões rápidos de preset
+0340:                 row_presets = box_clear.row(align=True)
+0341:                 row_presets.label(text="Presets:")
+0342:                 for p_code, p_lbl in [('TIGHT', "0.10"), ('NORMAL', "0.15"), ('EASY', "0.20"), ('LOOSE', "0.25")]:
+0343:                     op_p = row_presets.operator("chest.splitter_apply_connector_preset", text=p_lbl)
+0344:                     op_p.preset = p_code
+0345: 
+0346:                 box_clear.prop(settings, "clearance_per_side_mm", slider=True)
+0347:                 box_clear.label(text=f"Folga total no diâmetro: {settings.clearance_per_side_mm * 2:.2f} mm", icon='INFO')
+0348:                 box_clear.prop(settings, "end_clearance_mm", slider=True)
+0349: 
+0350:                 # Distribuição
+0351:                 box_dist = box_conn.box()
+0352:                 box_dist.label(text="Distribuição no Corte:", icon='PARTICLE_DATA')
+0353:                 box_dist.prop(settings, "connector_distribution", expand=True)
+0354:                 box_dist.prop(settings, "connector_edge_margin_mm", slider=True)
+0355: 
+0356:         layout.separator()
+0357: 
+0358:         # --- SEÇÃO 4: PRÉVIA E VISUALIZAÇÃO ---
+0359:         if obj and settings.split_mode in ('PLANE', 'SOLID', 'LOOP', 'MATERIAL'):
+0360:             box_preview = layout.box()
+0361:             box_preview.label(text="4. Prévia do Corte", icon='RESTRICT_VIEW_OFF')
+0362: 
+0363:             # Alerta de preview desatualizado (Critério U2)
+0364:             if settings.session_status == 'PREVIEW_STALE':
+0365:                 box_stale = box_preview.box()
+0366:                 box_stale.alert = True
+0367:                 box_stale.label(
+0368:                     text="Os ajustes mudaram. Atualize a prévia antes de criar as peças.",
+0369:                     icon='ERROR'
+0370:                 )
+0371: 
+0372:             row_preview = box_preview.row(align=True)
+0373:             row_preview.scale_y = 1.3
+0374:             row_preview.operator("chest.splitter_generate_preview", text="Gerar / Atualizar Preview", icon='PLAY')
+0375: 
+0376:             if settings.split_mode in ('PLANE', 'SOLID'):
+0377:                 row_inv = box_preview.row(align=True)
+0378:                 if settings.split_mode == 'SOLID':
+0379:                     lbl_inv = "Inverter: A=Ext / B=Int" if settings.invert_sides else "Inverter: A=Int / B=Ext"
+0380:                 else:
+0381:                     lbl_inv = "Inverter Lados (Ativo)" if settings.invert_sides else "Inverter Lados A / B"
+0382:                 row_inv.operator("chest.splitter_invert_sides", text=lbl_inv, icon='ARROW_LEFTRIGHT')
+0383: 
+0384:             # Visualização Montada / Explodida e Cores
+0385:             if settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE', 'COMMITTED'):
+0386:                 box_view = box_preview.box()
+0387:                 row_view_head = box_view.row(align=True)
+0388:                 row_view_head.label(text="Visualização & Cores:", icon='VIEW3D')
+0389:                 draw_help_button(row_view_head, "explosion")
+0390: 
+0391:                 box_view.prop(settings, "view_mode", expand=True)
+0392: 
+0393:                 if settings.view_mode == 'EXPLODED':
+0394:                     box_view.prop(settings, "explosion_distance_mm", slider=True)
+0395: 
+0396:                 box_view.prop(settings, "preview_color_mode", text="")
+0397: 
+0398:                 # Diagnósticos de Partes A e B
+0399:                 box_diag_parts = box_preview.box()
+0400:                 box_diag_parts.label(text="Resultados do Corte", icon='CHECKMARK')
+0401: 
+0402:                 lbl_tag_a = " (Superior)" if settings.part_a_is_superior else " (Inferior)"
+0403:                 lbl_tag_b = " (Inferior)" if settings.part_a_is_superior else " (Superior)"
+0404: 
+0405:                 col_a = box_diag_parts.box()
+0406:                 col_a.label(text=f"Parte A{lbl_tag_a}", icon='MESH_CUBE')
+0407:                 col_a.label(text=f"Volume: {settings.part_a_volume_mm3:,.1f} mm³")
+0408:                 dims_a = settings.part_a_dims_mm
+0409:                 col_a.label(text=f"Dimensões: {dims_a[0]:.1f} x {dims_a[1]:.1f} x {dims_a[2]:.1f} mm")
+0410:                 col_a.label(text=f"Malha: {settings.part_a_triangles:,} tris | {settings.part_a_components} ilha(s)")
+0411:                 if not settings.part_a_is_manifold:
+0412:                     col_a.label(text=f"Aviso: {settings.part_a_non_manifold_edges} aresta(s) abertas", icon='ERROR')
+0413: 
+0414:                 col_b = box_diag_parts.box()
+0415:                 col_b.label(text=f"Parte B{lbl_tag_b}", icon='MESH_CUBE')
+0416:                 col_b.label(text=f"Volume: {settings.part_b_volume_mm3:,.1f} mm³")
+0417:                 dims_b = settings.part_b_dims_mm
+0418:                 col_b.label(text=f"Dimensões: {dims_b[0]:.1f} x {dims_b[1]:.1f} x {dims_b[2]:.1f} mm")
+0419:                 col_b.label(text=f"Malha: {settings.part_b_triangles:,} tris | {settings.part_b_components} ilha(s)")
+0420:                 if not settings.part_b_is_manifold:
+0421:                     col_b.label(text=f"Aviso: {settings.part_b_non_manifold_edges} aresta(s) abertas", icon='ERROR')
+0422: 
+0423:                 # Balanço de Volume
+0424:                 box_vol = box_diag_parts.box()
+0425:                 vol_ok = settings.volume_diff_pct < 0.5
+0426:                 icon_vol = 'CHECKMARK' if vol_ok else 'ERROR'
+0427:                 box_vol.label(
+0428:                     text=f"Soma Volumes: {settings.part_sum_volume_mm3:,.1f} mm³ (dif: {settings.volume_diff_pct:.2f}%)",
+0429:                     icon=icon_vol
+0430:                 )
+0431: 
+0432:                 # Ação rápida de separação por material/cor
+0433:                 row_sep = box_diag_parts.row()
+0434:                 row_sep.operator("chest.splitter_separate_by_material", text="Separar por Cores / Materiais", icon='COLOR')
+0435: 
+0436:             layout.separator()
+0437: 
+0438:             # --- SEÇÃO 5: CRIAR PEÇAS (CONFIRMAÇÃO) ---
+0439:             box_commit = layout.box()
+0440:             box_commit.label(text="5. Criar Peças", icon='MOD_SOLIDIFY')
+0441: 
+0442:             if settings.session_status == 'PREVIEW_VALID':
+0443:                 row_commit = box_commit.row()
+0444:                 row_commit.scale_y = 1.4
+0445:                 row_commit.operator("chest.splitter_commit_parts", text="Confirmar Divisão", icon='CHECKMARK')
+0446: 
+0447:                 row_rest = box_commit.row()
+0448:                 row_rest.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
+0449: 
+0450:             elif settings.session_status == 'PREVIEW_STALE':
+0451:                 box_warn_commit = box_commit.box()
+0452:                 box_warn_commit.label(text="Atualize a prévia antes de confirmar as peças.", icon='INFO')
+0453:                 row_rest = box_commit.row()
+0454:                 row_rest.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
+0455: 
+0456:             elif settings.session_status == 'COMMITTED':
+0457:                 box_commit.label(text="Peças finais geradas na coleção CHEST_SPLITTER_PARTS.", icon='CHECKMARK')
+0458:                 box_commit.operator("chest.splitter_redo_session", text="Refazer / Novo Corte", icon='FILE_REFRESH')
+0459:                 box_commit.operator("chest.splitter_restore_original", text="Restaurar Original", icon='UNDO')
+0460: 
+0461:             elif settings.session_status == 'CONFIGURED':
+0462:                 hint_text = "Posicione o cortador e clique em 'Gerar / Atualizar Preview'." if settings.split_mode == 'SOLID' else "Posicione o plano ou contorno e clique em 'Gerar / Atualizar Preview'."
+0463:                 box_commit.label(text=hint_text, icon='INFO')
+0464: 
+0465:         # --- SEÇÃO 6: EXPORTAÇÃO PARA IMPRESSÃO 3D ---
+0466:         if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):
+0467:             layout.separator()
+0468:             box_exp = layout.box()
+0469:             box_exp.label(text="6. Exportação para Fatiador (Bambu / Orca / Prusa)", icon='EXPORT')
+0470: 
+0471:             col_exp_cfg = box_exp.column(align=True)
+0472:             col_exp_cfg.prop(settings, "export_format")
+0473:             col_exp_cfg.prop(settings, "export_directory")
+0474: 
+0475:             row_exp_act = box_exp.row()
+0476:             row_exp_act.scale_y = 1.3
+0477:             row_exp_act.operator("chest.splitter_export_parts", text="Exportar Peças Selecionadas", icon='EXPORT')
+0478: 
+0479:         # --- FEEDBACK DE STATUS ---
+0480:         if settings.last_status:
+0481:             layout.separator()
+0482:             box_status = layout.box()
+0483:             icon_status = 'INFO'
+0484:             if settings.last_status_level == 'SUCCESS':
+0485:                 icon_status = 'CHECKMARK'
+0486:             elif settings.last_status_level == 'WARNING':
+0487:                 icon_status = 'ERROR'
+0488:             elif settings.last_status_level == 'ERROR':
+0489:                 icon_status = 'CANCEL'
+0490:             box_status.label(text=settings.last_status, icon=icon_status)
+0491: 
+0492: 
+0493: def register():
+0494:     try:
+0495:         bpy.utils.register_class(VIEW3D_PT_chest_part_splitter)
+0496:     except ValueError:
+0497:         pass
+0498: 
+0499: 
+0500: def unregister():
+0501:     try:
+0502:         bpy.utils.unregister_class(VIEW3D_PT_chest_part_splitter)
+0503:     except RuntimeError:
+0504:         pass

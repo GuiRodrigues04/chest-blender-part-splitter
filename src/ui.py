@@ -422,6 +422,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
                 if settings.view_mode == 'EXPLODED':
                     box_view.prop(settings, "explosion_distance_mm", slider=True)
+                    box_view.prop(settings, "invert_explosion", toggle=True, icon='ARROW_LEFTRIGHT')
 
                 box_view.prop(settings, "preview_color_mode", text="")
 

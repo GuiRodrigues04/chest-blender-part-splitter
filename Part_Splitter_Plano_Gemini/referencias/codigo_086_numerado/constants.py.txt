@@ -1,0 +1,68 @@
+0001: """Constantes e definições padrão para o Chest Part Splitter."""
+0002: 
+0003: # Coleções de organização no Blender
+0004: COLLECTION_GUIDES_NAME = "CHEST_SPLITTER_GUIDES"
+0005: COLLECTION_PREVIEWS_NAME = "CHEST_SPLITTER_PREVIEWS"
+0006: COLLECTION_WORK_NAME = "CHEST_SPLITTER_WORK"
+0007: COLLECTION_PARTS_NAME = "CHEST_SPLITTER_PARTS"
+0008: 
+0009: # Prefixos de nomes para partes e objetos auxiliares
+0010: PART_A_SUFFIX = "__A"
+0011: PART_B_SUFFIX = "__B"
+0012: WORK_COPY_SUFFIX = "_work_copy"
+0013: PLANE_GUIDE_NAME = "CHEST_SPLITTER_PLANE_GUIDE"
+0014: PREVIEW_A_NAME = "CHEST_SPLITTER_PREVIEW_A"
+0015: PREVIEW_B_NAME = "CHEST_SPLITTER_PREVIEW_B"
+0016: 
+0017: # Papéis de objetos (Object roles para ciclo de vida seguro)
+0018: ROLE_WORK_COPY = "WORK_COPY"
+0019: ROLE_PREVIEW_A = "PREVIEW_A"
+0020: ROLE_PREVIEW_B = "PREVIEW_B"
+0021: ROLE_PREVIEW_PART = "PREVIEW_PART"
+0022: ROLE_COMMITTED_PART = "COMMITTED_PART"
+0023: ROLE_SUBPART_MATERIAL = "SUBPART_MATERIAL"
+0024: 
+0025: 
+0026: # Cores da Viewport (RGBA) para visualização clara de peças A e B
+0027: COLOR_PART_A = (0.2, 0.6, 0.9, 1.0)    # Azul ciano
+0028: COLOR_PART_B = (0.95, 0.55, 0.15, 1.0) # Laranja âmbar
+0029: 
+0030: # Tolerâncias geométricas
+0031: MIN_FACE_AREA_BU = 1e-7
+0032: SCALE_TOLERANCE = 1e-4
+0033: VOLUME_REL_TOLERANCE = 0.005  # 0.5% de tolerância relativa de volume
+0034: 
+0035: # Distância padrão de explosão (em mm)
+0036: DEFAULT_EXPLOSION_DIST_MM = 30.0
+0037: 
+0038: # Presets de folga de montagem por lado (Fase 2)
+0039: CLEARANCE_PRESETS = {
+0040:     'TIGHT': 0.10,    # Justo
+0041:     'NORMAL': 0.15,   # Normal
+0042:     'EASY': 0.20,     # Fácil
+0043:     'LOOSE': 0.25,    # Solto
+0044: }
+0045: 
+0046: # Constantes de Cortador Sólido (Fase 3)
+0047: SOLID_CUTTER_NAME = "CHEST_SPLITTER_SOLID_CUTTER"
+0048: 
+0049: SPLIT_MODES = [
+0050:     ('PLANE', "Plano", "Divisão rápida por plano infinito orientável"),
+0051:     ('SOLID', "Cortador Sólido", "Divisão volumétrica por sólido fechado (Interseção / Diferença)"),
+0052:     ('LOOP', "Loop de Arestas", "Divisão direta por anel de arestas fechado (Modo D)"),
+0053:     ('MATERIAL', "Material", "Divisão assistida por fronteiras de materiais (Fase 4)"),
+0054: ]
+0055: 
+0056: SOLID_SOURCE_TYPES = [
+0057:     ('PRIMITIVE', "Primitiva Paramétrica", "Gera uma primitiva volumétrica fechada na coleção de guias"),
+0058:     ('EXISTING', "Objeto Existente", "Utiliza um objeto fechado selecionado na cena"),
+0059: ]
+0060: 
+0061: SOLID_PRIMITIVE_TYPES = [
+0062:     ('BOX', "Caixa / Cubo", "Primitiva em bloco cúbico ou prismático"),
+0063:     ('CYLINDER', "Cilindro", "Primitiva cilíndrica com tampas fechadas"),
+0064:     ('SPHERE', "Esfera", "Primitiva esférica UV"),
+0065:     ('CAPSULE', "Cápsula", "Primitiva tipo cápsula / estádio tridimensional"),
+0066: ]
+0067: 
+0068: 

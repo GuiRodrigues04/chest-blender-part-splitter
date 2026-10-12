@@ -424,6 +424,20 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         update=lambda self, context: _on_preview_transform_update(self, context),
     )
 
+    invert_explosion: BoolProperty(
+        name="Inverter Sentido da Explosão",
+        default=False,
+        description="Inverte o sentido visual do afastamento entre as partes na vista explodida",
+        update=lambda self, context: _on_preview_transform_update(self, context),
+    )
+
+    preview_explosion_normal: FloatVectorProperty(
+        name="Normal da Explosão da Prévia",
+        size=3,
+        default=(0.0, 0.0, 1.0),
+        description="Vetor normal efetivo apontando de A para B gravado no snapshot da prévia",
+    )
+
     # --- Configurações do Cortador Sólido (Fase 3) ---
     solid_source: EnumProperty(
         name="Origem do Cortador",

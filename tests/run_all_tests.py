@@ -32,6 +32,11 @@ TESTS = [
     "tests/test_plan_087.py",
     "tests/test_pos_testes_087.py",
     "tests/test_plan_088.py",
+    "tests/test_inv_004_explosion.py",
+    "tests/test_inv_005_loop.py",
+    "tests/test_inv_002_material_base.py",
+    "tests/test_inv_001_003_material.py",
+    "tests/test_inv_006_thickness.py",
 ]
 
 def main():

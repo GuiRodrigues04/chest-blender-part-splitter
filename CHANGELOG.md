@@ -5,6 +5,30 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.8.9] - 2026-10-12
+
+### Corrigido (Resolução INV-001 a INV-006 — Plano Gemini Flash 3.8)
+- **INV-004 (A01–A05) — Explosão do Plano, Inversão e Invariância**:
+  - Implementação da propriedade `invert_explosion` desacoplada da normal geométrica do corte (`invert_sides`), permitindo inversão visual de afastamento sem alterar a identidade geométrica de A e B.
+  - Snapshot de posições montadas (`chest_assembled_loc`) e normal congelada por prévia (`chest_explosion_normal_a_to_b`), eliminando deriva cumulativa (drift) em ciclos sucessivos de explosão e contração.
+  - Garantia de exportação e confirmação (commit) nas coordenadas canônicas montadas, independentemente do estado do controle deslizante na viewport.
+- **INV-005 (B01–B05) — Contrato e Fechamento de Loop**:
+  - Validação precoce contra aberturas pré-existentes fora do loop de corte, recusando sólidos não-estanques de entrada sem mascaramento silencioso.
+  - Construção de interface compartilhada única (`triangulate_polygon_2d`) garantindo topologia complementar exata entre Parte A e Parte B sem furos na interface.
+  - Diagnóstico precoce em contornos não-planares incompatíveis no modo AUTO e fechamento restrito, impedindo a publicação de modelos não-manifold.
+- **INV-002 (C01–C04) — Destaque de Saliência por Material e Tampa Duplicada (BASE)**:
+  - Eliminação da exceção `faces.new(...): face already exists` no destaque por base: classificação automática de faces da região entre volumétricas (saliência útil) e coplanares da base, mantendo as faces planas no corpo receptor e prevenindo películas (fins) de espessura nula.
+  - Verificação de incidência topológica antes da criação de novas faces, reutilizando triângulos válidos ou diagnosticando duplicidades conflitantes.
+- **INV-001 & INV-003 (D01–D06) — Extração por Profundidade, Materiais e Folgas**:
+  - Validação de estanqueidade e volume estritamente positivo do cortador prismático antes de qualquer booleano, rejeitando patches dobrados degenerados com aviso informativo.
+  - Mapeamento explícito de slots de materiais no cortador e cópias de trabalho, respeitando a política de interface (`SOURCE` mantém material adjacente do corpo; `EXTRACTED` aplica a cor do inserto) e eliminando faces brancas/despadronizadas.
+  - Preservação comprovada do caso positivo INV-003 (inserto espesso com 10 mm de profundidade e folga zero) e progressão volumétrica calibrada em folgas de 0, 0.15 e 0.30 mm.
+- **INV-006 (E01–E03) — Diagnóstico de Espessura de Parede e Cunhas**:
+  - Distinção rigorosa entre películas espúrias (volume nulo / não-manifold) e cunhas geométricas fiéis (volume > 0, manifold com aresta viva), preservando a geometria nominal de corte sem recuos silenciosos.
+  - Diagnóstico por raycast com amostragem múltipla e estado explícito (`MEASURED` vs `INCONCLUSIVE`), evitando estimativas fictícias (ex: 1000 mm) em direções tangentes.
+- **Validação e Regressão**:
+  - 100% de aprovação em 28/28 suítes de testes automatizados no Blender 5.2.0 LTS.
+
 ## [0.8.8] - 2026-10-12
 
 ### Corrigido (Auditoria 0.8.7 e Plano 0.8.8)

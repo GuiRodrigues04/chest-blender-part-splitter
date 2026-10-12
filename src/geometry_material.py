@@ -128,6 +128,7 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
 
     bm = bmesh.new()
     bm.from_mesh(obj.data)
+    bm.transform(obj.matrix_world)
     bm.verts.ensure_lookup_table()
     bm.edges.ensure_lookup_table()
     bm.faces.ensure_lookup_table()
@@ -202,7 +203,7 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
         return info
 
     ordered_verts = loops[0]
-    coords_world = [obj.matrix_world @ v.co for v in ordered_verts]
+    coords_world = [v.co.copy() for v in ordered_verts]
     centroid = sum(coords_world, Vector()) / len(coords_world)
 
     # Normal média do contorno via Newell
@@ -219,21 +220,39 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
     else:
         n = Vector((0.0, 0.0, 1.0))
 
-    # Direção para dentro a partir da média ponderada por área das normais da região
-    normal_matrix = obj.matrix_world.to_3x3().inverted().transposed()
-    avg_norm = sum(((normal_matrix @ f.normal) * f.calc_area() for f in target_faces), Vector())
+    # Direção para dentro a partir da média ponderada por área em espaço de mundo
+    avg_norm = sum((f.normal * f.calc_area() for f in target_faces), Vector())
     if avg_norm.length > 1e-9:
         avg_norm.normalize()
     else:
         avg_norm = n
     inward_dir = -avg_norm
 
-    bm.free()
+    # Material adjacente predominante fora da região (corpo receptor)
+    adj_outside_mats = []
+    for e in boundary_edges:
+        for f in e.link_faces:
+            if f.index not in region_faces:
+                adj_outside_mats.append(f.material_index)
+    body_mat_index = max(set(adj_outside_mats), key=adj_outside_mats.count) if adj_outside_mats else 0
 
     scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
     dists = [abs((p - centroid).dot(n)) for p in coords_world]
     max_dev_mm = (max(dists) if dists else 0.0) * scale_to_mm
     is_planar_base = (max_dev_mm <= 0.15)
+
+    # Classificação de faces: saliência volumétrica vs faces coplanares da base
+    tol_planar_bu = 0.15 / scale_to_mm
+    protrusion_face_indices = []
+    coplanar_base_face_indices = []
+    for f in target_faces:
+        face_dists = [abs((v.co - centroid).dot(n)) for v in f.verts]
+        if max(face_dists) <= tol_planar_bu and abs(abs(f.normal.dot(n)) - 1.0) <= 0.05:
+            coplanar_base_face_indices.append(f.index)
+        else:
+            protrusion_face_indices.append(f.index)
+
+    bm.free()
 
     info = dict(base_info)
     info.update({
@@ -247,6 +266,9 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
         "is_planar_base": is_planar_base,
         "base_deviation_mm": max_dev_mm,
         "base_normal_world": n,
+        "body_mat_index": body_mat_index,
+        "protrusion_face_indices": protrusion_face_indices,
+        "coplanar_base_face_indices": coplanar_base_face_indices,
     })
     return info
 
@@ -258,11 +280,15 @@ def create_material_patch_prism_cutter(
     depth_bu: float,
     outward_ext_bu: float = 1e-3,
     name: str = "temp_mat_prism",
+    material_index: int = 0,
+    interface_mat_mode: str = 'SOURCE',
+    body_mat_index: int = 0,
 ) -> bpy.types.Object:
     """Constrói um prisma 3D estanque a partir das faces exatas da região de material (B06).
     
     Preserva a tesselação e concavidades reais da região (ex: silhuetas em U ou reentrâncias),
     evitando tampas em n-gons planos que cruzam aberturas e geram películas/membranas espúrias.
+    Valida a estanqueidade e ausência de degeneração antes da publicação (D01).
     """
     bm_src = bmesh.new()
     bm_src.from_mesh(obj.data)
@@ -287,10 +313,14 @@ def create_material_patch_prism_cutter(
 
     bm_prism.verts.ensure_lookup_table()
 
+    target_iface_mat = material_index if interface_mat_mode == 'EXTRACTED' else body_mat_index
+
     # Tampas superior e inferior preservando a tesselação exata das faces
     for f in region_faces:
-        bm_prism.faces.new([top_map[v] for v in f.verts])
-        bm_prism.faces.new(reversed([bot_map[v] for v in f.verts]))
+        f_top = bm_prism.faces.new([top_map[v] for v in f.verts])
+        f_top.material_index = material_index
+        f_bot = bm_prism.faces.new(reversed([bot_map[v] for v in f.verts]))
+        f_bot.material_index = target_iface_mat
 
     # Paredes laterais apenas nas arestas de fronteira da região
     for e in bm_src.edges:
@@ -304,14 +334,29 @@ def create_material_patch_prism_cutter(
                 va, vb = v1, v2
             else:
                 va, vb = v2, v1
-            bm_prism.faces.new((top_map[vb], top_map[va], bot_map[va], bot_map[vb]))
+            f_side = bm_prism.faces.new((top_map[vb], top_map[va], bot_map[va], bot_map[vb]))
+            f_side.material_index = target_iface_mat
 
     bm_src.free()
 
     bmesh.ops.triangulate(bm_prism, faces=bm_prism.faces[:])
     bmesh.ops.recalc_face_normals(bm_prism, faces=bm_prism.faces[:])
 
+    # Validação do cortador antes de qualquer operação booleana (D01)
+    scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+    metrics = evaluate_bmesh_metrics(bm_prism, scale_to_mm)
+    if not metrics["is_manifold"] or metrics["volume_mm3"] <= 1e-4:
+        bm_prism.free()
+        raise ValueError(
+            "O cortador prismático gerou geometria degenerada ou não-estanque (auto-interseção por faces dobradas no patch de material). "
+            "A extração prismática requer uma superfície com projeção desimpedida na direção de extração."
+        )
+
     mesh = bpy.data.meshes.new(f"{name}_Mesh")
+    # Copia os slots de material do objeto original para o cortador evitar faces com slot 0 genérico
+    for mat in obj.data.materials:
+        mesh.materials.append(mat)
+
     bm_prism.to_mesh(mesh)
     bm_prism.free()
 
@@ -411,7 +456,21 @@ def slice_mesh_by_material(
                 "Pinte todas as faces da saliência até sua ligação com o corpo ou utilize o modo Loop de Arestas."
             )
 
-        region_set = set(analysis["region_face_indices"])
+        protrusion_indices = analysis.get("protrusion_face_indices")
+        coplanar_indices = analysis.get("coplanar_base_face_indices", [])
+
+        # Se a região contém saliência E faces coplanares da base, extrai a saliência e mantém as faces coplanares no corpo (C01/C02)
+        if protrusion_indices and len(protrusion_indices) > 0:
+            target_indices = protrusion_indices
+        elif not protrusion_indices and len(coplanar_indices) > 0:
+            raise ValueError(
+                "A região de material selecionada é completamente coplanar com a base (não possui saliência volumétrica). "
+                "Para recortar superfícies planas, utilize o modo 'Extrair com Profundidade'."
+            )
+        else:
+            target_indices = analysis["region_face_indices"]
+
+        region_set = set(target_indices)
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bm.transform(obj.matrix_world)
@@ -464,6 +523,18 @@ def slice_mesh_by_material(
         cap_faces_a = []
         for i, j, k in tris_a:
             v_tri = (ordered_verts_a[i], ordered_verts_a[j], ordered_verts_a[k])
+            existing_f = bm_a.faces.get(v_tri) or bm_a.faces.get((v_tri[0], v_tri[2], v_tri[1]))
+            if existing_f is not None:
+                if all(len(e.link_faces) <= 1 for e in existing_f.edges):
+                    cap_faces_a.append(existing_f)
+                    continue
+                else:
+                    bm.free()
+                    bm_a.free()
+                    raise RuntimeError(
+                        f"Face duplicada conflitante na interface da base da Parte A: face {existing_f.index}. "
+                        "A seleção contém faces sobrepostas no plano de corte."
+                    )
             try:
                 f = bm_a.faces.new(v_tri)
                 cap_faces_a.append(f)
@@ -511,6 +582,18 @@ def slice_mesh_by_material(
         cap_faces_b = []
         for i, j, k in tris_b:
             v_tri = (ordered_verts_b[i], ordered_verts_b[j], ordered_verts_b[k])
+            existing_f = bm_b.faces.get(v_tri) or bm_b.faces.get((v_tri[0], v_tri[2], v_tri[1]))
+            if existing_f is not None:
+                if all(len(e.link_faces) <= 1 for e in existing_f.edges):
+                    cap_faces_b.append(existing_f)
+                    continue
+                else:
+                    bm_a.free()
+                    bm_b.free()
+                    raise RuntimeError(
+                        f"Face duplicada conflitante na interface da base da Parte B: face {existing_f.index}. "
+                        "A seleção contém faces sobrepostas no plano de corte."
+                    )
             try:
                 f = bm_b.faces.new(v_tri)
                 cap_faces_b.append(f)
@@ -532,12 +615,7 @@ def slice_mesh_by_material(
         bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
 
         # Material da tampa de Parte B: herda material predominante das faces adjacentes do corpo
-        adj_mats = []
-        for v in ordered_verts_b:
-            for lf in v.link_faces:
-                if lf not in cap_faces_b:
-                    adj_mats.append(lf.material_index)
-        body_mat = max(set(adj_mats), key=adj_mats.count) if adj_mats else 0
+        body_mat = analysis.get("body_mat_index", 0)
         for f in cap_faces_b:
             f.material_index = body_mat
 
@@ -545,10 +623,13 @@ def slice_mesh_by_material(
         cut_iface = build_cut_interface(
             origin_world=centroid_base,
             normal_a_to_b=-n_base,
-            boundary_points_world=analysis["coords_world"],
+            boundary_points_world=[v.co.copy() for v in ordered_verts_a],
             unit_scale=scale_to_mm,
             source_mode='MATERIAL',
         )
+        cut_iface.interface_triangles_world = [
+            tuple(ordered_verts_a[idx].co.copy() for idx in tri) for tri in tris_a
+        ]
 
         metrics_a = evaluate_bmesh_metrics(bm_a, scale_to_mm)
         metrics_b = evaluate_bmesh_metrics(bm_b, scale_to_mm)
@@ -613,6 +694,7 @@ def slice_mesh_by_material(
         mesh_b = None
 
         try:
+            body_mat_idx = analysis.get("body_mat_index", 0)
             prism_obj_a = create_material_patch_prism_cutter(
                 obj=obj,
                 region_face_indices=analysis["region_face_indices"],
@@ -620,6 +702,9 @@ def slice_mesh_by_material(
                 depth_bu=depth_a_bu,
                 outward_ext_bu=outward_ext_bu,
                 name=f"{obj.name}_mat_prism_a",
+                material_index=material_index,
+                interface_mat_mode=interface_mat_mode,
+                body_mat_index=body_mat_idx,
             )
             prism_obj_b = create_material_patch_prism_cutter(
                 obj=obj,
@@ -628,6 +713,9 @@ def slice_mesh_by_material(
                 depth_bu=depth_b_bu,
                 outward_ext_bu=outward_ext_bu,
                 name=f"{obj.name}_mat_prism_b",
+                material_index=material_index,
+                interface_mat_mode=interface_mat_mode,
+                body_mat_index=body_mat_idx,
             )
 
             bpy.context.view_layer.update()

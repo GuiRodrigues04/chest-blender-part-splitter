@@ -1,0 +1,500 @@
+0001: """Motor geométrico para divisão por materiais com contrato de sólidos estanques (Fase 4 / Etapa 6).
+0002: 
+0003: Implementa os requisitos da Seção 9 do plano:
+0004: 1. Componentes fechados (manifold) já definidos por slots de materiais são separados
+0005:    diretamente em sólidos fechados (manifold) para impressão 3D.
+0006: 2. Fronteiras de materiais em superfícies contínuas são identificadas via loops de contorno
+0007:    e convertidas em sólidos estanques através do motor de extração prismática com profundidade,
+0008:    deixando a cavidade correspondente na peça receptora.
+0009: 3. Preservação estrita de slots de materiais e índices de faces (Critério M1).
+0010: """
+0011: 
+0012: import bpy
+0013: import bmesh
+0014: from mathutils import Vector
+0015: from typing import List, Dict, Any, Tuple, Optional
+0016: from .geometry_contract import CutInterface, SplitResult
+0017: from .geometry_loop import create_loop_prism_cutter, LoopSliceResult
+0018: from .geometry_plane import evaluate_bmesh_metrics
+0019: from .diagnostic import get_scene_scale_to_mm
+0020: 
+0021: 
+0022: def get_material_regions(bm, material_index: int) -> List[List[int]]:
+0023:     """Agrupa as faces de um material em regiões conectadas (ilhas) por arestas compartilhadas.
+0024: 
+0025:     Retorna listas de índices de faces, ordenadas pelo menor índice de face (ordem estável).
+0026:     """
+0027:     bm.faces.ensure_lookup_table()
+0028:     visited = set()
+0029:     regions: List[List[int]] = []
+0030:     for f in bm.faces:
+0031:         if f.material_index != material_index or f.index in visited:
+0032:             continue
+0033:         stack = [f]
+0034:         visited.add(f.index)
+0035:         region = []
+0036:         while stack:
+0037:             cur = stack.pop()
+0038:             region.append(cur.index)
+0039:             for e in cur.edges:
+0040:                 for nf in e.link_faces:
+0041:                     if nf.material_index == material_index and nf.index not in visited:
+0042:                         visited.add(nf.index)
+0043:                         stack.append(nf)
+0044:         regions.append(sorted(region))
+0045:     regions.sort(key=lambda r: r[0])
+0046:     return regions
+0047: 
+0048: 
+0049: def _order_boundary_loops(boundary_edges):
+0050:     """Ordena arestas de fronteira em um ou mais ciclos fechados de vértices.
+0051: 
+0052:     Retorna None se houver bifurcações (vértice com número de arestas diferente de 2).
+0053:     """
+0054:     vert_to_edges: Dict[Any, List[Any]] = {}
+0055:     for e in boundary_edges:
+0056:         for v in e.verts:
+0057:             vert_to_edges.setdefault(v, []).append(e)
+0058:     if not vert_to_edges or any(len(es) != 2 for es in vert_to_edges.values()):
+0059:         return None
+0060: 
+0061:     loops = []
+0062:     used_edges = set()
+0063:     for start_v in list(vert_to_edges.keys()):
+0064:         if all(e in used_edges for e in vert_to_edges[start_v]):
+0065:             continue
+0066:         ordered = [start_v]
+0067:         curr_v = start_v
+0068:         curr_e = next(e for e in vert_to_edges[start_v] if e not in used_edges)
+0069:         while True:
+0070:             used_edges.add(curr_e)
+0071:             next_v = curr_e.other_vert(curr_v)
+0072:             if next_v == start_v:
+0073:                 break
+0074:             ordered.append(next_v)
+0075:             es = vert_to_edges[next_v]
+0076:             curr_e = es[0] if es[1] == curr_e else es[1]
+0077:             curr_v = next_v
+0078:         loops.append(ordered)
+0079:     return loops
+0080: 
+0081: 
+0082: def list_material_regions(obj: bpy.types.Object, material_index: int) -> List[Dict[str, Any]]:
+0083:     """Resumo das regiões (ilhas) de um material, para exibição na interface."""
+0084:     if not obj or obj.type != 'MESH':
+0085:         return []
+0086:     bm = bmesh.new()
+0087:     bm.from_mesh(obj.data)
+0088:     regions = get_material_regions(bm, material_index)
+0089:     bm.free()
+0090:     return [{"index": i, "face_count": len(r), "first_face": r[0]} for i, r in enumerate(regions)]
+0091: 
+0092: 
+0093: def find_region_of_face(obj: bpy.types.Object, face_index: int) -> Tuple[int, int]:
+0094:     """Retorna (material_index, region_index) da face informada, ou (-1, -1)."""
+0095:     if not obj or obj.type != 'MESH' or face_index < 0 or face_index >= len(obj.data.polygons):
+0096:         return (-1, -1)
+0097:     mat_idx = obj.data.polygons[face_index].material_index
+0098:     bm = bmesh.new()
+0099:     bm.from_mesh(obj.data)
+0100:     regions = get_material_regions(bm, mat_idx)
+0101:     bm.free()
+0102:     for i, r in enumerate(regions):
+0103:         if face_index in r:
+0104:             return (mat_idx, i)
+0105:     return (mat_idx, -1)
+0106: 
+0107: 
+0108: def analyze_material_structure(obj: bpy.types.Object, material_index: int, region_index: int = 0) -> Dict[str, Any]:
+0109:     """Analisa a topologia de UMA região conectada (ilha) de faces de um material.
+0110: 
+0111:     Um mesmo material pode aparecer em várias áreas separadas do modelo (ex: dois quadrados
+0112:     rosa em lados diferentes). Cada área é tratada como uma região independente, com seu
+0113:     próprio contorno e direção de extração.
+0114:     """
+0115:     if not obj or obj.type != 'MESH':
+0116:         return {"valid": False, "error": "Objeto inválido."}
+0117: 
+0118:     bm = bmesh.new()
+0119:     bm.from_mesh(obj.data)
+0120:     bm.verts.ensure_lookup_table()
+0121:     bm.edges.ensure_lookup_table()
+0122:     bm.faces.ensure_lookup_table()
+0123: 
+0124:     total_faces = len(bm.faces)
+0125:     regions = get_material_regions(bm, material_index)
+0126: 
+0127:     if not regions:
+0128:         bm.free()
+0129:         return {"valid": False, "error": f"Nenhuma face com o material #{material_index} encontrada.", "region_count": 0}
+0130: 
+0131:     region_count = len(regions)
+0132:     region_index = max(0, min(region_index, region_count - 1))
+0133:     region_faces = set(regions[region_index])
+0134: 
+0135:     if len(region_faces) == total_faces:
+0136:         bm.free()
+0137:         return {"valid": False, "error": "Todas as faces do modelo já utilizam este material.", "region_count": region_count}
+0138: 
+0139:     target_faces = [bm.faces[i] for i in region_faces]
+0140: 
+0141:     # Arestas de fronteira da região: uma face dentro e outra fora da região
+0142:     boundary_edges = []
+0143:     for e in bm.edges:
+0144:         inside = [f for f in e.link_faces if f.index in region_faces]
+0145:         if inside and len(inside) != len(e.link_faces):
+0146:             boundary_edges.append(e)
+0147: 
+0148:     base_info = {
+0149:         "region_count": region_count,
+0150:         "region_index": region_index,
+0151:         "region_face_indices": sorted(region_faces),
+0152:         "face_count": len(region_faces),
+0153:     }
+0154: 
+0155:     # Caso 1: região sem fronteira com outras faces -> componente fechado isolado
+0156:     if not boundary_edges:
+0157:         open_edges = [e for e in bm.edges
+0158:                       if any(f.index in region_faces for f in e.link_faces) and not e.is_manifold]
+0159:         is_manifold = len(open_edges) == 0
+0160:         bm.free()
+0161:         info = dict(base_info)
+0162:         info.update({
+0163:             "valid": True,
+0164:             "type": "CLOSED_COMPONENT",
+0165:             "description": "Componente 3D Fechado (Sólido estanque)",
+0166:             "is_manifold": is_manifold,
+0167:             "boundary_loops": [],
+0168:         })
+0169:         return info
+0170: 
+0171:     # Caso 2: região superficial com contorno
+0172:     loops = _order_boundary_loops(boundary_edges)
+0173:     if loops is None:
+0174:         bm.free()
+0175:         info = dict(base_info)
+0176:         info.update({
+0177:             "valid": False,
+0178:             "type": "COMPLEX_BOUNDARY",
+0179:             "error": "O contorno desta região tem bifurcações (cantos tocando outras regiões).",
+0180:         })
+0181:         return info
+0182: 
+0183:     if len(loops) > 1:
+0184:         bm.free()
+0185:         info = dict(base_info)
+0186:         info.update({
+0187:             "valid": False,
+0188:             "type": "BASE_REGION",
+0189:             "error": "Esta região é o corpo/base (envolve outras áreas). Escolha a cor da área menor.",
+0190:         })
+0191:         return info
+0192: 
+0193:     ordered_verts = loops[0]
+0194:     coords_world = [obj.matrix_world @ v.co for v in ordered_verts]
+0195:     centroid = sum(coords_world, Vector()) / len(coords_world)
+0196: 
+0197:     # Normal média do contorno via Newell
+0198:     n = Vector((0.0, 0.0, 0.0))
+0199:     n_pts = len(coords_world)
+0200:     for i in range(n_pts):
+0201:         v1 = coords_world[i]
+0202:         v2 = coords_world[(i + 1) % n_pts]
+0203:         n.x += (v1.y - v2.y) * (v1.z + v2.z)
+0204:         n.y += (v1.z - v2.z) * (v1.x + v2.x)
+0205:         n.z += (v1.x - v2.x) * (v1.y + v2.y)
+0206:     if n.length > 1e-6:
+0207:         n.normalize()
+0208:     else:
+0209:         n = Vector((0.0, 0.0, 1.0))
+0210: 
+0211:     # Direção para dentro a partir da média ponderada por área das normais da região
+0212:     normal_matrix = obj.matrix_world.to_3x3().inverted().transposed()
+0213:     avg_norm = sum(((normal_matrix @ f.normal) * f.calc_area() for f in target_faces), Vector())
+0214:     if avg_norm.length > 1e-9:
+0215:         avg_norm.normalize()
+0216:     else:
+0217:         avg_norm = n
+0218:     inward_dir = -avg_norm
+0219: 
+0220:     bm.free()
+0221: 
+0222:     info = dict(base_info)
+0223:     info.update({
+0224:         "valid": True,
+0225:         "type": "SURFACE_PATCH",
+0226:         "description": "Fronteira na Superfície (Requer profundidade de extração)",
+0227:         "coords_world": coords_world,
+0228:         "centroid_world": centroid,
+0229:         "normal_world": n,
+0230:         "inward_dir_world": inward_dir,
+0231:     })
+0232:     return info
+0233: 
+0234: 
+0235: def create_material_patch_prism_cutter(
+0236:     obj: bpy.types.Object,
+0237:     region_face_indices: List[int],
+0238:     inward_dir: Vector,
+0239:     depth_bu: float,
+0240:     outward_ext_bu: float = 1e-3,
+0241:     name: str = "temp_mat_prism",
+0242: ) -> bpy.types.Object:
+0243:     """Constrói um prisma 3D estanque a partir das faces exatas da região de material (B06).
+0244:     
+0245:     Preserva a tesselação e concavidades reais da região (ex: silhuetas em U ou reentrâncias),
+0246:     evitando tampas em n-gons planos que cruzam aberturas e geram películas/membranas espúrias.
+0247:     """
+0248:     bm_src = bmesh.new()
+0249:     bm_src.from_mesh(obj.data)
+0250:     bm_src.transform(obj.matrix_world)
+0251:     bm_src.verts.ensure_lookup_table()
+0252:     bm_src.edges.ensure_lookup_table()
+0253:     bm_src.faces.ensure_lookup_table()
+0254: 
+0255:     region_set = set(region_face_indices)
+0256:     region_faces = [bm_src.faces[i] for i in region_face_indices if i < len(bm_src.faces)]
+0257: 
+0258:     in_norm = inward_dir.normalized()
+0259:     bm_prism = bmesh.new()
+0260: 
+0261:     top_map = {}
+0262:     bot_map = {}
+0263:     used_verts = {v for f in region_faces for v in f.verts}
+0264: 
+0265:     for v in used_verts:
+0266:         top_map[v] = bm_prism.verts.new(v.co - outward_ext_bu * in_norm)
+0267:         bot_map[v] = bm_prism.verts.new(v.co + depth_bu * in_norm)
+0268: 
+0269:     bm_prism.verts.ensure_lookup_table()
+0270: 
+0271:     # Tampas superior e inferior preservando a tesselação exata das faces
+0272:     for f in region_faces:
+0273:         bm_prism.faces.new([top_map[v] for v in f.verts])
+0274:         bm_prism.faces.new(reversed([bot_map[v] for v in f.verts]))
+0275: 
+0276:     # Paredes laterais apenas nas arestas de fronteira da região
+0277:     for e in bm_src.edges:
+0278:         inc = [f for f in e.link_faces if f.index in region_set]
+0279:         if len(inc) == 1:
+0280:             f = inc[0]
+0281:             v1, v2 = e.verts[0], e.verts[1]
+0282:             f_v = list(f.verts)
+0283:             idx1 = f_v.index(v1)
+0284:             if f_v[(idx1 + 1) % len(f_v)] == v2:
+0285:                 va, vb = v1, v2
+0286:             else:
+0287:                 va, vb = v2, v1
+0288:             bm_prism.faces.new((top_map[vb], top_map[va], bot_map[va], bot_map[vb]))
+0289: 
+0290:     bm_src.free()
+0291: 
+0292:     bmesh.ops.triangulate(bm_prism, faces=bm_prism.faces[:])
+0293:     bmesh.ops.recalc_face_normals(bm_prism, faces=bm_prism.faces[:])
+0294: 
+0295:     mesh = bpy.data.meshes.new(f"{name}_Mesh")
+0296:     bm_prism.to_mesh(mesh)
+0297:     bm_prism.free()
+0298: 
+0299:     prism_obj = bpy.data.objects.new(name, mesh)
+0300:     prism_obj.hide_viewport = False
+0301:     prism_obj.hide_render = False
+0302:     bpy.context.scene.collection.objects.link(prism_obj)
+0303:     return prism_obj
+0304: 
+0305: 
+0306: def slice_mesh_by_material(
+0307:     obj: bpy.types.Object,
+0308:     material_index: int,
+0309:     depth_mm: float = 5.0,
+0310:     scene: Optional[bpy.types.Scene] = None,
+0311:     through_cut: bool = False,
+0312:     region_index: int = 0,
+0313: ) -> LoopSliceResult:
+0314:     """Realiza a separação da malha com base em uma região do material selecionado.
+0315:     
+0316:     Garante peças sólidas 100% manifold em ambos os casos (componentes ou superfície).
+0317:     """
+0318:     actual_scene = scene if scene else bpy.context.scene
+0319:     scale_to_mm = get_scene_scale_to_mm(actual_scene)
+0320: 
+0321:     analysis = analyze_material_structure(obj, material_index, region_index)
+0322:     if not analysis["valid"]:
+0323:         raise ValueError(analysis.get("error", "Estrutura de material não suportada."))
+0324: 
+0325:     mat_type = analysis["type"]
+0326: 
+0327:     if mat_type == "CLOSED_COMPONENT":
+0328:         region_set = set(analysis["region_face_indices"])
+0329:         # Separação direta de componente estanque já fechado
+0330:         bm = bmesh.new()
+0331:         bm.from_mesh(obj.data)
+0332:         bm.transform(obj.matrix_world)
+0333: 
+0334:         bm_a = bm.copy()
+0335:         bm_a.faces.ensure_lookup_table()
+0336:         bmesh.ops.delete(bm_a, geom=[f for f in bm_a.faces if f.index not in region_set], context='FACES')
+0337: 
+0338:         bm_b = bm.copy()
+0339:         bm_b.faces.ensure_lookup_table()
+0340:         bmesh.ops.delete(bm_b, geom=[f for f in bm_b.faces if f.index in region_set], context='FACES')
+0341: 
+0342:         bm.free()
+0343: 
+0344:         # Direção de separação A->B: do centro do componente para o centro do corpo
+0345:         ca = sum((v.co for v in bm_a.verts), Vector()) / max(1, len(bm_a.verts))
+0346:         cb = sum((v.co for v in bm_b.verts), Vector()) / max(1, len(bm_b.verts))
+0347:         sep = cb - ca
+0348:         sep_norm = sep.normalized() if sep.length > 1e-9 else Vector((0.0, 0.0, -1.0))
+0349: 
+0350:         # Cria interface simbólica
+0351:         cut_iface = CutInterface(
+0352:             origin_world=ca.copy(),
+0353:             normal_a_to_b_world=sep_norm,
+0354:             axis_u_world=Vector((1.0, 0.0, 0.0)),
+0355:             axis_v_world=Vector((0.0, 1.0, 0.0)),
+0356:             outer_contours_uv=[],
+0357:             hole_contours_uv=[],
+0358:             interface_triangles_world=[],
+0359:             is_planar=True,
+0360:             deviation_mm=0.0,
+0361:             source_mode='MATERIAL',
+0362:         )
+0363: 
+0364:         metrics_a = evaluate_bmesh_metrics(bm_a, scale_to_mm)
+0365:         metrics_b = evaluate_bmesh_metrics(bm_b, scale_to_mm)
+0366: 
+0367:         split_res = SplitResult(
+0368:             part_a_metrics=metrics_a,
+0369:             part_b_metrics=metrics_b,
+0370:             interface=cut_iface,
+0371:             diagnostics_before_connectors={
+0372:                 "part_a_volume_mm3": metrics_a["volume_mm3"],
+0373:                 "part_b_volume_mm3": metrics_b["volume_mm3"],
+0374:                 "sum_volume_mm3": metrics_a["volume_mm3"] + metrics_b["volume_mm3"],
+0375:             },
+0376:             success=True,
+0377:         )
+0378:         return LoopSliceResult(bm_a, bm_b, split_res)
+0379: 
+0380:     else:
+0381:         # Superfície com contorno: extrai com profundidade via prisma booleano
+0382:         inward_dir = analysis["inward_dir_world"]
+0383:         depth_bu = depth_mm / scale_to_mm
+0384:         outward_ext_bu = max(0.5 / scale_to_mm, 1.0 / scale_to_mm)
+0385: 
+0386:         prism_obj = create_material_patch_prism_cutter(
+0387:             obj=obj,
+0388:             region_face_indices=analysis["region_face_indices"],
+0389:             inward_dir=inward_dir,
+0390:             depth_bu=depth_bu,
+0391:             outward_ext_bu=outward_ext_bu,
+0392:             name=f"{obj.name}_mat_prism",
+0393:         )
+0394: 
+0395:         try:
+0396:             bpy.context.view_layer.update()
+0397: 
+0398:             temp_obj_a = obj.copy()
+0399:             temp_obj_a.data = obj.data.copy()
+0400:             temp_obj_a.hide_viewport = False
+0401:             temp_obj_a.hide_render = False
+0402:             actual_scene.collection.objects.link(temp_obj_a)
+0403:             mod_a = temp_obj_a.modifiers.new(name="Mat_Intersect", type='BOOLEAN')
+0404:             mod_a.operation = 'INTERSECT'
+0405:             mod_a.solver = 'EXACT'
+0406:             mod_a.object = prism_obj
+0407: 
+0408:             temp_obj_b = obj.copy()
+0409:             temp_obj_b.data = obj.data.copy()
+0410:             temp_obj_b.hide_viewport = False
+0411:             temp_obj_b.hide_render = False
+0412:             actual_scene.collection.objects.link(temp_obj_b)
+0413:             mod_b = temp_obj_b.modifiers.new(name="Mat_Difference", type='BOOLEAN')
+0414:             mod_b.operation = 'DIFFERENCE'
+0415:             mod_b.solver = 'EXACT'
+0416:             mod_b.object = prism_obj
+0417: 
+0418:             bpy.context.view_layer.update()
+0419:             dg = bpy.context.evaluated_depsgraph_get()
+0420: 
+0421:             eval_a = temp_obj_a.evaluated_get(dg)
+0422:             mesh_a = eval_a.to_mesh()
+0423:             eval_b = temp_obj_b.evaluated_get(dg)
+0424:             mesh_b = eval_b.to_mesh()
+0425: 
+0426:             bm_a = bmesh.new()
+0427:             bm_a.from_mesh(mesh_a)
+0428:             bm_b = bmesh.new()
+0429:             bm_b.from_mesh(mesh_b)
+0430: 
+0431:             eval_a.to_mesh_clear()
+0432:             eval_b.to_mesh_clear()
+0433: 
+0434:             # Transforma para World Space
+0435:             bm_a.transform(obj.matrix_world)
+0436:             bm_b.transform(obj.matrix_world)
+0437: 
+0438:             cut_iface = CutInterface(
+0439:                 origin_world=analysis["centroid_world"],
+0440:                 normal_a_to_b_world=inward_dir,
+0441:                 axis_u_world=Vector((1.0, 0.0, 0.0)),
+0442:                 axis_v_world=Vector((0.0, 1.0, 0.0)),
+0443:                 outer_contours_uv=[],
+0444:                 hole_contours_uv=[],
+0445:                 interface_triangles_world=[],
+0446:                 is_planar=True,
+0447:                 deviation_mm=0.0,
+0448:                 source_mode='MATERIAL',
+0449:             )
+0450: 
+0451:             metrics_a = evaluate_bmesh_metrics(bm_a, scale_to_mm)
+0452:             metrics_b = evaluate_bmesh_metrics(bm_b, scale_to_mm)
+0453: 
+0454:             # Validação geométrica estrita para sólidos imprimíveis (Seção 6)
+0455:             if metrics_a["faces"] == 0 or metrics_b["faces"] == 0:
+0456:                 raise RuntimeError("O corte por material resultou em uma peça vazia. Verifique a área ou profundidade selecionada.")
+0457:             if metrics_a["volume_mm3"] <= 1e-4 or metrics_b["volume_mm3"] <= 1e-4:
+0458:                 raise RuntimeError("O corte por material gerou uma peça com volume nulo ou desprezível.")
+0459:             if not metrics_a["is_manifold"] or not metrics_b["is_manifold"]:
+0460:                 raise RuntimeError(
+0461:                     f"O corte por material gerou peça não-manifold "
+0462:                     f"(arestas abertas: Parte A={metrics_a['non_manifold_edges']}, Parte B={metrics_b['non_manifold_edges']})."
+0463:                 )
+0464: 
+0465:             split_res = SplitResult(
+0466:                 part_a_metrics=metrics_a,
+0467:                 part_b_metrics=metrics_b,
+0468:                 interface=cut_iface,
+0469:                 diagnostics_before_connectors={
+0470:                     "part_a_volume_mm3": metrics_a["volume_mm3"],
+0471:                     "part_b_volume_mm3": metrics_b["volume_mm3"],
+0472:                     "sum_volume_mm3": metrics_a["volume_mm3"] + metrics_b["volume_mm3"],
+0473:                 },
+0474:                 success=True,
+0475:             )
+0476:             return LoopSliceResult(bm_a, bm_b, split_res)
+0477: 
+0478: 
+0479:         finally:
+0480:             # Limpeza estrita de temporários
+0481:             if temp_obj_a.name in actual_scene.collection.objects:
+0482:                 actual_scene.collection.objects.unlink(temp_obj_a)
+0483:             mesh_data_a = temp_obj_a.data
+0484:             bpy.data.objects.remove(temp_obj_a, do_unlink=True)
+0485:             if mesh_data_a:
+0486:                 bpy.data.meshes.remove(mesh_data_a, do_unlink=True)
+0487: 
+0488:             if temp_obj_b.name in actual_scene.collection.objects:
+0489:                 actual_scene.collection.objects.unlink(temp_obj_b)
+0490:             mesh_data_b = temp_obj_b.data
+0491:             bpy.data.objects.remove(temp_obj_b, do_unlink=True)
+0492:             if mesh_data_b:
+0493:                 bpy.data.meshes.remove(mesh_data_b, do_unlink=True)
+0494: 
+0495:             if prism_obj.name in actual_scene.collection.objects:
+0496:                 actual_scene.collection.objects.unlink(prism_obj)
+0497:             prism_mesh = prism_obj.data
+0498:             bpy.data.objects.remove(prism_obj, do_unlink=True)
+0499:             if prism_mesh:
+0500:                 bpy.data.meshes.remove(prism_mesh, do_unlink=True)

@@ -545,7 +545,7 @@ def ensure_solid_cutter(context: bpy.types.Context) -> bpy.types.Object:
 
 
 def update_preview_positions(scene: bpy.types.Scene):
-    """Atualiza a posição dos objetos de preview conforme modo montado ou explodido."""
+    """Atualiza a posição dos objetos de preview conforme modo montado ou explodido (INV-004)."""
     settings = scene.chest_splitter
     parts = get_current_session_parts(scene)
     
@@ -556,36 +556,64 @@ def update_preview_positions(scene: bpy.types.Scene):
         return
 
     unit_scale = get_scene_scale_to_mm(scene)
+    factor = -1.0 if getattr(settings, "invert_explosion", False) else 1.0
 
-    if settings.view_mode == 'EXPLODED':
-        if settings.split_mode == 'SOLID':
+    if settings.view_mode == 'EXPLODED' and settings.explosion_distance_mm > 0.0:
+        # Prioriza o snapshot de normal gravado na prévia validada atual (INV-004)
+        stored_norm = obj_a.get("chest_explosion_normal_a_to_b")
+        if stored_norm:
+            norm_a_to_b = Vector(stored_norm).normalized()
+            dist_bu = (settings.explosion_distance_mm / unit_scale) / 2.0
+            offset_a = -norm_a_to_b * dist_bu * factor
+            offset_b = norm_a_to_b * dist_bu * factor
+        elif settings.split_mode == 'SOLID':
             offset_a, offset_b = compute_solid_explosion_offsets(
                 obj_a,
                 obj_b,
                 settings.explosion_distance_mm,
                 unit_scale=unit_scale,
             )
+            offset_a = offset_a * factor
+            offset_b = offset_b * factor
         elif settings.split_mode in ('LOOP', 'MATERIAL'):
-            # Usa o vetor normal real da interface do loop para visão explodida fidedigna
             loop_norm = Vector(settings.loop_interface_normal)
             if loop_norm.length < 1e-6:
                 loop_norm = Vector((0.0, 0.0, 1.0))
             loop_norm.normalize()
             dist_bu = (settings.explosion_distance_mm / unit_scale) / 2.0
-            offset_a = -loop_norm * dist_bu
-            offset_b = loop_norm * dist_bu
+            offset_a = -loop_norm * dist_bu * factor
+            offset_b = loop_norm * dist_bu * factor
         else:
             plane_normal = Vector(settings.plane_normal).normalized()
+            if getattr(settings, "invert_sides", False):
+                plane_normal = -plane_normal
             offset_a, offset_b = compute_explosion_offsets(
                 plane_normal,
                 settings.explosion_distance_mm,
                 unit_scale=unit_scale,
+                invert_direction=getattr(settings, "invert_explosion", False),
             )
-        obj_a.location = offset_a
-        obj_b.location = offset_b
     else:
-        obj_a.location = Vector((0.0, 0.0, 0.0))
-        obj_b.location = Vector((0.0, 0.0, 0.0))
+        offset_a = Vector((0.0, 0.0, 0.0))
+        offset_b = Vector((0.0, 0.0, 0.0))
+
+    base_loc_a = Vector(obj_a.get("chest_assembled_loc", (0.0, 0.0, 0.0)))
+    base_loc_b = Vector(obj_b.get("chest_assembled_loc", (0.0, 0.0, 0.0)))
+
+    from mathutils import Matrix
+    if obj_a.parent:
+        mw_a = Matrix(obj_a["chest_assembled_matrix"]) if "chest_assembled_matrix" in obj_a else obj_a.matrix_world
+        world_loc_a = mw_a.to_translation() + offset_a
+        obj_a.location = obj_a.parent.matrix_world.inverted() @ world_loc_a
+    else:
+        obj_a.location = base_loc_a + offset_a
+
+    if obj_b.parent:
+        mw_b = Matrix(obj_b["chest_assembled_matrix"]) if "chest_assembled_matrix" in obj_b else obj_b.matrix_world
+        world_loc_b = mw_b.to_translation() + offset_b
+        obj_b.location = obj_b.parent.matrix_world.inverted() @ world_loc_b
+    else:
+        obj_b.location = base_loc_b + offset_b
 
 
 class CHEST_OT_splitter_set_target(bpy.types.Operator):
@@ -1343,6 +1371,23 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             if op_rec:
                 record_created_object(op_rec, candidate_obj_b, ROLE_PREVIEW_B)
 
+            # Snapshot de estado montado e direção efetiva da interface (INV-004)
+            normal_a_to_b = Vector((0.0, 0.0, 1.0))
+            if settings.split_mode == 'PLANE':
+                p_norm = Vector(settings.plane_normal).normalized()
+                normal_a_to_b = -p_norm if settings.invert_sides else p_norm
+            elif settings.split_mode in ('LOOP', 'MATERIAL'):
+                if Vector(settings.loop_interface_normal).length > 1e-6:
+                    normal_a_to_b = Vector(settings.loop_interface_normal).normalized()
+
+            candidate_obj_a["chest_assembled_loc"] = list(candidate_obj_a.location)
+            candidate_obj_b["chest_assembled_loc"] = list(candidate_obj_b.location)
+            candidate_obj_a["chest_assembled_matrix"] = [list(r) for r in candidate_obj_a.matrix_world]
+            candidate_obj_b["chest_assembled_matrix"] = [list(r) for r in candidate_obj_b.matrix_world]
+            candidate_obj_a["chest_explosion_normal_a_to_b"] = list(normal_a_to_b)
+            candidate_obj_b["chest_explosion_normal_a_to_b"] = list(normal_a_to_b)
+            settings.preview_explosion_normal = normal_a_to_b
+
             if settings.preview_color_mode == 'PARTS':
                 candidate_obj_a.color = COLOR_PART_A
                 candidate_obj_b.color = COLOR_PART_B
@@ -1625,9 +1670,9 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
         final_name_a = f"{base_name}{PART_A_SUFFIX}"
         final_name_b = f"{base_name}{PART_B_SUFFIX}"
 
-        # Reseta localizações para posição montada original
-        obj_a.location = Vector((0.0, 0.0, 0.0))
-        obj_b.location = Vector((0.0, 0.0, 0.0))
+        # Reseta localizações para posição montada original (INV-004)
+        obj_a.location = Vector(obj_a.get("chest_assembled_loc", (0.0, 0.0, 0.0)))
+        obj_b.location = Vector(obj_b.get("chest_assembled_loc", (0.0, 0.0, 0.0)))
 
         # Renomeia objetos e malhas
         obj_a.name = final_name_a
@@ -2187,7 +2232,7 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
         if settings.session_status == 'PREVIEW_VALID' and settings.view_mode == 'EXPLODED':
             for o in objects:
                 loc_backup[o] = o.location.copy()
-                o.location = Vector((0.0, 0.0, 0.0))
+                o.location = Vector(o.get("chest_assembled_loc", (0.0, 0.0, 0.0)))
             context.view_layer.update()
 
         try:

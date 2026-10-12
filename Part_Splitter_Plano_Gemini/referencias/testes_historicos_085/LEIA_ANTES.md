@@ -1,0 +1,1 @@
+Testes originais 0.8.5, não executados nesta análise. Vários limpam a cena com read_homefile: executar somente em processo Blender separado com --background --factory-startup. Copiar/adaptar para tests/ no checkout usado; imports src e registro podem precisar remapeamento. Não usar resultados antigos como aceite da correção atual.

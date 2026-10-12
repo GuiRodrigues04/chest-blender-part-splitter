@@ -283,6 +283,7 @@ TRANSLATIONS_DICT = {
         ("*", "Reverter este corte"): "Revert this cut",
         ("*", "Confirmar Reversão do Corte?"): "Confirm Reversion of Cut?",
         ("*", "Distância de Explosão (mm)"): "Explosion Distance (mm)",
+        ("*", "Inverter Sentido da Explosão"): "Invert Explosion Direction",
         ("*", "Corte por Contorno (Loop)"): "Boundary Loop Cut",
         ("*", "Resultados do Corte"): "Cut Results",
         ("*", "Separar por Cores / Materiais"): "Separate by Colors / Materials",

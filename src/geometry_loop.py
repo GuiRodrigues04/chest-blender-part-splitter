@@ -27,6 +27,14 @@ class LoopSliceResult(tuple):
         self.split_result = split_result
         self.interface = split_result.interface if split_result else None
 
+    @property
+    def bm_a(self):
+        return self[0]
+
+    @property
+    def bm_b(self):
+        return self[1]
+
 
 import hashlib
 
@@ -323,6 +331,15 @@ def slice_mesh_by_loop(
             raise ValueError("O ciclo de arestas não existe mais na malha (Topologia alterada).")
         loop_edges.add(edge)
 
+    # Valida integridade do modelo de entrada: não fecha aberturas prévias fora do loop (B03)
+    pre_open_edges = [e for e in bm.edges if e.is_boundary and e not in loop_edges]
+    if pre_open_edges:
+        bm.free()
+        raise ValueError(
+            "O modelo de entrada possui aberturas/arestas não-manifold fora do contorno selecionado. "
+            "Corrija a malha de entrada antes de realizar o corte por contorno."
+        )
+
     # Flood fill para coletar todas as faces pertencentes à Parte A (região da semente)
     seed_face = bm.faces[seed_face_idx]
     faces_a = set()
@@ -361,47 +378,134 @@ def slice_mesh_by_loop(
 
     # Cria BMesh da Parte A
     bm_a = bm.copy()
+    bm_a.verts.ensure_lookup_table()
     bm_a.faces.ensure_lookup_table()
+    loop_verts_a = [bm_a.verts[idx] for idx in indices]
     faces_to_delete_in_a = [bm_a.faces[f.index] for f in faces_b]
     bmesh.ops.delete(bm_a, geom=faces_to_delete_in_a, context='FACES')
 
     # Cria BMesh da Parte B
     bm_b = bm.copy()
+    bm_b.verts.ensure_lookup_table()
     bm_b.faces.ensure_lookup_table()
+    loop_verts_b = [bm_b.verts[idx] for idx in indices]
     faces_to_delete_in_b = [bm_b.faces[f.index] for f in faces_a]
     bmesh.ops.delete(bm_b, geom=faces_to_delete_in_b, context='FACES')
 
     bm.free()
 
-    # Identifica e fecha a borda do loop na Parte A
-    # Filtra arestas abertas correspondentes ao corte do loop
-    bm_a.edges.ensure_lookup_table()
-    bm_a.verts.ensure_lookup_table()
-    edges_hole_a = [e for e in bm_a.edges if e.is_boundary]
+    centroid_world = sum(loop_coords_world, Vector()) / len(loop_coords_world)
+    n = Vector((0.0, 0.0, 0.0))
+    n_pts = len(loop_coords_world)
+    for i in range(n_pts):
+        v1 = loop_coords_world[i]
+        v2 = loop_coords_world[(i + 1) % n_pts]
+        n.x += (v1.y - v2.y) * (v1.z + v2.z)
+        n.y += (v1.z - v2.z) * (v1.x + v2.x)
+        n.z += (v1.x - v2.x) * (v1.y + v2.y)
+    if n.length > 1e-7:
+        n.normalize()
+    else:
+        n = Vector((0.0, 0.0, 1.0))
+
+    max_dev_bu = max(abs((v - centroid_world).dot(n)) for v in loop_coords_world)
+    max_dev_mm = max_dev_bu * scale_to_mm
+
+    u_vec, v_vec = _get_orthonormal_basis(n)
+    pts_2d = [Vector(((v - centroid_world).dot(u_vec), (v - centroid_world).dot(v_vec))) for v in loop_coords_world]
+
+    # Constrói superfície única de interface compartilhada via ear clipping (INV-005 / B01-B05)
+    tri_indices = []
+    try:
+        tri_indices = triangulate_polygon_2d(pts_2d)
+    except Exception:
+        tri_indices = []
+
     created_faces_a = []
-    if edges_hole_a:
-        res_a = bmesh.ops.holes_fill(bm_a, edges=edges_hole_a, sides=len(loop_verts_local))
-        created_faces_a = res_a.get("faces", [])
-        if not created_faces_a:
-            res_a = bmesh.ops.edgenet_fill(bm_a, edges=edges_hole_a)
-            created_faces_a = res_a.get("faces", [])
+    created_faces_b = []
 
-        # Herança de materiais das faces vizinhas
-        if created_faces_a:
-            created_set_a = set(created_faces_a)
-            for f in created_faces_a:
-                adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set_a]
-                if adj:
-                    f.material_index = max(set(adj), key=adj.count)
-            # Triangula faces n-gons para garantir planicidade e solidez
-            tri_res = bmesh.ops.triangulate(bm_a, faces=[f for f in bm_a.faces if len(f.verts) > 4 or f in created_set_a])
-            created_faces_a = tri_res.get("faces", created_faces_a)
+    if tri_indices:
+        for i, j, k in tri_indices:
+            va = (loop_verts_a[i], loop_verts_a[j], loop_verts_a[k])
+            try:
+                fa = bm_a.faces.new(va)
+                created_faces_a.append(fa)
+            except ValueError:
+                try:
+                    fa = bm_a.faces.new((va[0], va[2], va[1]))
+                    created_faces_a.append(fa)
+                except Exception:
+                    pass
 
-    # Recalcula normais da Parte A (garante orientação externa no sólido manifold)
+            vb = (loop_verts_b[i], loop_verts_b[k], loop_verts_b[j])
+            try:
+                fb = bm_b.faces.new(vb)
+                created_faces_b.append(fb)
+            except ValueError:
+                try:
+                    fb = bm_b.faces.new((vb[0], vb[2], vb[1]))
+                    created_faces_b.append(fb)
+                except Exception:
+                    pass
+
+    # Fallback estrito apenas para arestas do contorno remanescentes
+    bm_a.edges.ensure_lookup_table()
+    bm_b.edges.ensure_lookup_table()
+    rem_a = [e for e in bm_a.edges if e.is_boundary]
+    rem_b = [e for e in bm_b.edges if e.is_boundary]
+
+    if rem_a:
+        res_a = bmesh.ops.holes_fill(bm_a, edges=rem_a, sides=len(rem_a))
+        c_a = res_a.get("faces", [])
+        if not c_a:
+            res_a = bmesh.ops.edgenet_fill(bm_a, edges=rem_a)
+            c_a = res_a.get("faces", [])
+        created_faces_a.extend(c_a)
+
+    if rem_b:
+        res_b = bmesh.ops.holes_fill(bm_b, edges=rem_b, sides=len(rem_b))
+        c_b = res_b.get("faces", [])
+        if not c_b:
+            res_b = bmesh.ops.edgenet_fill(bm_b, edges=rem_b)
+            c_b = res_b.get("faces", [])
+        created_faces_b.extend(c_b)
+
+    # Verificação estrita de fechamento (B01 / B05): nunca publica peças com arestas abertas
+    bm_a.edges.ensure_lookup_table()
+    bm_b.edges.ensure_lookup_table()
+    open_edges_a = [e for e in bm_a.edges if e.is_boundary]
+    open_edges_b = [e for e in bm_b.edges if e.is_boundary]
+
+    if open_edges_a or open_edges_b:
+        n_open = max(len(open_edges_a), len(open_edges_b))
+        bm_a.free()
+        bm_b.free()
+        raise ValueError(
+            f"Não foi possível fechar o contorno do loop (restaram {n_open} arestas abertas). "
+            f"O contorno possui desvio não-planar de {max_dev_mm:.2f} mm e não é compatível com fechamento direto. "
+            f"Selecione um contorno planar ou na ligação da base."
+        )
+
+    # Herança de materiais
+    if created_faces_a:
+        created_set_a = set(created_faces_a)
+        for f in created_faces_a:
+            adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set_a]
+            if adj:
+                f.material_index = max(set(adj), key=adj.count)
+
+    if created_faces_b:
+        created_set_b = set(created_faces_b)
+        for f in created_faces_b:
+            adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set_b]
+            if adj:
+                f.material_index = max(set(adj), key=adj.count)
+
+    # Recalcula normais da Parte A e Parte B (garante orientação externa no sólido manifold)
     bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
+    bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
 
     # Determina a normal da interface que aponta DE A PARA B
-    # As faces da tampa recém-criadas na Parte A apontam para fora da Parte A (entrando em B)
     normal_a_to_b = Vector((0.0, 0.0, 1.0))
     if created_faces_a:
         valid_caps = [f for f in created_faces_a if f.is_valid]
@@ -409,37 +513,20 @@ def slice_mesh_by_loop(
             avg_cap_norm = sum((f.normal for f in valid_caps), Vector()) / len(valid_caps)
             if avg_cap_norm.length > 1e-5:
                 normal_a_to_b = avg_cap_norm.normalized()
-
-    # Identifica e fecha a borda do loop na Parte B
-    bm_b.edges.ensure_lookup_table()
-    bm_b.verts.ensure_lookup_table()
-    edges_hole_b = [e for e in bm_b.edges if e.is_boundary]
-    created_faces_b = []
-    if edges_hole_b:
-        res_b = bmesh.ops.holes_fill(bm_b, edges=edges_hole_b, sides=len(loop_verts_local))
-        created_faces_b = res_b.get("faces", [])
-        if not created_faces_b:
-            res_b = bmesh.ops.edgenet_fill(bm_b, edges=edges_hole_b)
-            created_faces_b = res_b.get("faces", [])
-
-        if created_faces_b:
-            created_set_b = set(created_faces_b)
-            for f in created_faces_b:
-                adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set_b]
-                if adj:
-                    f.material_index = max(set(adj), key=adj.count)
-            tri_res_b = bmesh.ops.triangulate(bm_b, faces=[f for f in bm_b.faces if len(f.verts) > 4 or f in created_set_b])
-            created_faces_b = tri_res_b.get("faces", created_faces_b)
-
-    # Recalcula normais da Parte B
-    bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
+    else:
+        normal_a_to_b = n
 
     # Constrói CutInterface formal em World Space
-    origin_world = sum(loop_coords_world, Vector()) / len(loop_coords_world)
+    iface_tris = [
+        (loop_coords_world[i], loop_coords_world[j], loop_coords_world[k])
+        for i, j, k in tri_indices
+    ] if tri_indices else None
+
     cut_interface = build_cut_interface(
-        origin_world=origin_world,
+        origin_world=centroid_world,
         normal_a_to_b=normal_a_to_b,
         boundary_points_world=loop_coords_world,
+        interface_triangles=iface_tris,
         unit_scale=scale_to_mm,
         source_mode="LOOP",
     )
@@ -562,22 +649,39 @@ def analyze_loop_region(
     span_h_bu = max_h - min_h
     span_h_mm = span_h_bu * scale_to_mm
 
-    # Avalia espessura disponível na direção inward via BVHTree
+    # Avalia espessura disponível na direção inward via BVHTree (E02 / E03)
     min_wall_depth_bu = 1e9
+    sampled_hits = 0
     test_points = [centroid] + loop_coords_world
     for pt in test_points:
         ray_start = pt + inward_dir * 1e-4
         hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(ray_start, inward_dir)
         if hit_loc is not None:
             dist = (hit_loc - pt).length
+            sampled_hits += 1
             if dist < min_wall_depth_bu:
                 min_wall_depth_bu = dist
 
     bm_bvh.free()
     bm.free()
 
-    thickness_determined = (min_wall_depth_bu < 1e8)
+    thickness_determined = (min_wall_depth_bu < 1e8 and sampled_hits > 0)
     max_avail_depth_mm = (min_wall_depth_bu * scale_to_mm) if thickness_determined else 0.0
+    thickness_status = "MEASURED" if thickness_determined else "INCONCLUSIVE"
+
+    can_close_loop = True
+    u_chk, v_chk = _get_orthonormal_basis(n)
+    pts_2d_chk = [Vector(((v - centroid).dot(u_chk), (v - centroid).dot(v_chk))) for v in loop_coords_world]
+    try:
+        t_chk = triangulate_polygon_2d(pts_2d_chk)
+        if not t_chk:
+            can_close_loop = False
+    except Exception:
+        can_close_loop = False
+
+    max_dev_loop_bu = max(abs((v - centroid).dot(n)) for v in loop_coords_world)
+    max_dev_loop_mm = max_dev_loop_bu * scale_to_mm
+    is_planar_loop = (max_dev_loop_mm <= 0.1)
 
     if span_h_mm < 0.2:
         detected_mode = 'EXTRUDE'
@@ -588,10 +692,17 @@ def analyze_loop_region(
         is_planar_region = True
     else:
         detected_mode = 'DETACH'
-        reason = (
-            f"Saliência 3D detectada (altura saliente: {span_h_mm:.2f} mm). "
-            f"Destacando volume pela interface do contorno."
-        )
+        if not can_close_loop and not is_planar_loop:
+            reason = (
+                f"Saliência 3D com contorno não-planar (desvio: {max_dev_loop_mm:.2f} mm). "
+                f"Aviso: Fechamento direto não suportado para este contorno. "
+                f"Recomenda-se selecionar um contorno na base plana."
+            )
+        else:
+            reason = (
+                f"Saliência 3D detectada (altura saliente: {span_h_mm:.2f} mm). "
+                f"Destacando volume pela interface do contorno."
+            )
         is_planar_region = False
 
     return {
@@ -603,6 +714,9 @@ def analyze_loop_region(
         "loop_normal_world": n,
         "centroid_world": centroid,
         "thickness_determined": thickness_determined,
+        "thickness_status": thickness_status,
+        "thickness_sampled_points": len(test_points),
+        "thickness_hit_count": sampled_hits,
         "max_avail_depth_mm": max_avail_depth_mm,
         "coords_world": loop_coords_world,
     }

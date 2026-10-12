@@ -1,0 +1,692 @@
+0001: """Propriedades de configuração e estado persistente do Chest Part Splitter."""
+0002: 
+0003: import bpy
+0004: from bpy.props import (
+0005:     PointerProperty,
+0006:     StringProperty,
+0007:     FloatProperty,
+0008:     IntProperty,
+0009:     BoolProperty,
+0010:     FloatVectorProperty,
+0011:     EnumProperty,
+0012: )
+0013: 
+0014: 
+0015: from .constants import (
+0016:     CLEARANCE_PRESETS,
+0017:     SPLIT_MODES,
+0018:     SOLID_SOURCE_TYPES,
+0019:     SOLID_PRIMITIVE_TYPES,
+0020: )
+0021: 
+0022: 
+0023: def _on_preview_transform_update(self, context):
+0024:     """Callback disparado quando o modo de visualização ou a distância de explosão é alterada."""
+0025:     if context and hasattr(context, "scene"):
+0026:         try:
+0027:             from .operators import update_preview_positions
+0028:             update_preview_positions(context.scene)
+0029:         except Exception:
+0030:             pass
+0031: 
+0032: 
+0033: def _on_param_change_mark_stale(self, context):
+0034:     """Callback para marcar o preview como desatualizado quando parâmetros de corte ou encaixe mudam."""
+0035:     if self.session_status == 'PREVIEW_VALID':
+0036:         self.session_status = 'PREVIEW_STALE'
+0037:         self.last_status = "Os ajustes mudaram. Atualize a prévia antes de criar as peças."
+0038:         self.last_status_level = 'WARNING'
+0039: 
+0040: 
+0041: def _on_clearance_preset_update(self, context):
+0042:     """Atualiza a folga por lado quando o usuário seleciona um preset."""
+0043:     if self.clearance_preset in CLEARANCE_PRESETS:
+0044:         self.clearance_per_side_mm = CLEARANCE_PRESETS[self.clearance_preset]
+0045:     _on_param_change_mark_stale(self, context)
+0046: 
+0047: 
+0048: def _poll_mesh_cutter(self, obj):
+0049:     """Filtra objetos válidos para atuarem como cortador sólido."""
+0050:     return obj.type == 'MESH' and obj != self.target_object
+0051: 
+0052: 
+0053: def _on_cutter_object_update(self, context):
+0054:     """Atualiza diagnósticos imediatos ao alterar o objeto cortador."""
+0055:     if self.solid_cutter_object and self.solid_cutter_object.type == 'MESH':
+0056:         try:
+0057:             from .diagnostic import get_scene_scale_to_mm
+0058:             import bmesh
+0059:             scale_to_mm = get_scene_scale_to_mm(context.scene if context else None)
+0060:             bm = bmesh.new()
+0061:             bm.from_mesh(self.solid_cutter_object.data)
+0062:             bm.transform(self.solid_cutter_object.matrix_world)
+0063:             self.solid_cutter_is_manifold = all(e.is_manifold for e in bm.edges)
+0064:             self.solid_cutter_non_manifold_edges = len([e for e in bm.edges if not e.is_manifold])
+0065:             self.solid_cutter_triangles = sum(len(f.verts) - 2 for f in bm.faces)
+0066:             vol_bu = bm.calc_volume()
+0067:             self.solid_cutter_volume_mm3 = abs(vol_bu) * (scale_to_mm ** 3)
+0068:             xs = [v.co.x for v in bm.verts]
+0069:             ys = [v.co.y for v in bm.verts]
+0070:             zs = [v.co.z for v in bm.verts]
+0071:             if xs:
+0072:                 self.solid_cutter_dims_mm = (
+0073:                     (max(xs) - min(xs)) * scale_to_mm,
+0074:                     (max(ys) - min(ys)) * scale_to_mm,
+0075:                     (max(zs) - min(zs)) * scale_to_mm,
+0076:                 )
+0077:             bm.free()
+0078:         except Exception:
+0079:             pass
+0080:     _on_param_change_mark_stale(self, context)
+0081: 
+0082: 
+0083: def _on_target_object_update(self, context):
+0084:     """Callback ao alterar ou limpar o objeto alvo."""
+0085:     _on_param_change_mark_stale(self, context)
+0086: 
+0087: 
+0088: class ChestSplitterSettings(bpy.types.PropertyGroup):
+0089:     """Estado persistente da sessão do Part Splitter na cena."""
+0090: 
+0091:     session_id: StringProperty(
+0092:         name="ID da Sessão",
+0093:         default="",
+0094:         description="Identificador único da sessão de corte",
+0095:     )
+0096: 
+0097:     session_input_signature: StringProperty(
+0098:         name="Assinatura de Entrada da Prévia",
+0099:         default="",
+0100:         description="Assinatura criptográfica dos parâmetros de entrada da prévia gerada",
+0101:     )
+0102: 
+0103:     target_object: PointerProperty(
+0104:         name="Objeto Alvo",
+0105:         type=bpy.types.Object,
+0106:         description="Objeto malha original que será dividido em partes",
+0107:         update=_on_target_object_update,
+0108:     )
+0109: 
+0110: 
+0111:     split_mode: EnumProperty(
+0112:         name="Modo de Divisão",
+0113:         items=SPLIT_MODES,
+0114:         default='PLANE',
+0115:         description="Método de divisão do modelo",
+0116:         update=_on_param_change_mark_stale,
+0117:     )
+0118: 
+0119:     session_status: EnumProperty(
+0120:         name="Status da Sessão",
+0121:         items=[
+0122:             ('EMPTY', "Vazio", "Nenhum alvo selecionado"),
+0123:             ('CONFIGURED', "Alvo Configurado", "Alvo selecionado e analisado"),
+0124:             ('PREVIEW_VALID', "Preview Válido", "Preview gerado com sucesso"),
+0125:             ('PREVIEW_STALE', "Preview Desatualizado", "Os ajustes mudaram. Atualize a prévia antes de criar as peças"),
+0126:             ('PREVIEW_INVALID', "Preview Inválido", "Falha na geração do preview"),
+0127:             ('COMMITTED', "Confirmado", "Partes finais geradas"),
+0128:         ],
+0129:         default='EMPTY',
+0130:     )
+0131: 
+0132:     # Diagnósticos em cache do alvo
+0133:     diag_dims_mm: FloatVectorProperty(
+0134:         name="Dimensões (mm)",
+0135:         size=3,
+0136:         default=(0.0, 0.0, 0.0),
+0137:         precision=2,
+0138:     )
+0139: 
+0140:     diag_triangles: IntProperty(
+0141:         name="Triângulos",
+0142:         default=0,
+0143:     )
+0144: 
+0145:     diag_faces: IntProperty(
+0146:         name="Faces",
+0147:         default=0,
+0148:     )
+0149: 
+0150:     diag_volume_mm3: FloatProperty(
+0151:         name="Volume (mm³)",
+0152:         default=0.0,
+0153:         precision=2,
+0154:     )
+0155: 
+0156:     diag_is_manifold: BoolProperty(
+0157:         name="É Manifold",
+0158:         default=True,
+0159:     )
+0160: 
+0161:     diag_non_manifold_edges: IntProperty(
+0162:         name="Arestas Abertas",
+0163:         default=0,
+0164:     )
+0165: 
+0166:     diag_has_unapplied_scale: BoolProperty(
+0167:         name="Escala Não Aplicada",
+0168:         default=False,
+0169:     )
+0170: 
+0171:     diag_is_non_uniform_scale: BoolProperty(
+0172:         name="Escala Não Uniforme",
+0173:         default=False,
+0174:     )
+0175: 
+0176:     diag_degenerate_faces: IntProperty(
+0177:         name="Faces Degeneradas",
+0178:         default=0,
+0179:     )
+0180: 
+0181:     # --- Configurações do Plano de Corte (Fase 1) ---
+0182:     plane_origin: FloatVectorProperty(
+0183:         name="Origem do Plano",
+0184:         size=3,
+0185:         default=(0.0, 0.0, 0.0),
+0186:         precision=3,
+0187:         description="Ponto 3D por onde passa o plano de corte",
+0188:     )
+0189: 
+0190:     plane_normal: FloatVectorProperty(
+0191:         name="Normal do Plano",
+0192:         size=3,
+0193:         default=(0.0, 0.0, 1.0),
+0194:         precision=3,
+0195:         description="Vetor normal de orientação do corte",
+0196:     )
+0197: 
+0198:     invert_sides: BoolProperty(
+0199:         name="Inverter Lados A/B",
+0200:         default=False,
+0201:         description="Inverte os papéis de Parte A e Parte B",
+0202:         update=_on_param_change_mark_stale,
+0203:     )
+0204: 
+0205:     # --- Fase 3A (Modo D): Loop de Arestas ---
+0206:     show_loop_highlight: BoolProperty(
+0207:         name="Destacar Contorno no Viewport",
+0208:         description="Exibe uma linha destacada sobreposta ao contorno capturado na viewport 3D",
+0209:         default=True,
+0210:     )
+0211:     loop_is_captured: BoolProperty(
+0212:         name="Loop Capturado",
+0213:         default=False,
+0214:     )
+0215:     loop_vertex_count: IntProperty(
+0216:         name="Vértices no Loop",
+0217:         default=0,
+0218:     )
+0219:     loop_vertex_indices: StringProperty(
+0220:         name="Índices dos Vértices do Loop",
+0221:         default="",
+0222:     )
+0223:     loop_is_planar: BoolProperty(
+0224:         name="Loop é Plano",
+0225:         default=False,
+0226:     )
+0227:     loop_planarity_deviation_mm: FloatProperty(
+0228:         name="Desvio de Planicidade (mm)",
+0229:         default=0.0,
+0230:     )
+0231:     loop_seed_face_index: IntProperty(
+0232:         name="Índice da Face Semente (Região A)",
+0233:         default=-1,
+0234:     )
+0235:     loop_topology_signature: StringProperty(
+0236:         name="Assinatura Topológica",
+0237:         default="",
+0238:     )
+0239:     loop_interface_normal: FloatVectorProperty(
+0240:         name="Normal da Interface do Loop",
+0241:         size=3,
+0242:         default=(0.0, 0.0, 1.0),
+0243:         subtype='DIRECTION',
+0244:         description="Vetor normal de mundo apontando da Parte A para a Parte B",
+0245:     )
+0246:     loop_interface_origin: FloatVectorProperty(
+0247:         name="Origem da Interface do Loop",
+0248:         size=3,
+0249:         default=(0.0, 0.0, 0.0),
+0250:         subtype='TRANSLATION',
+0251:         description="Centro da interface do loop em coordenadas de mundo",
+0252:     )
+0253:     loop_behavior: EnumProperty(
+0254:         name="Comportamento do Loop",
+0255:         items=[
+0256:             ('AUTO', "Automático", "Detecta automaticamente entre destacar saliência ou extrair com profundidade"),
+0257:             ('DETACH', "Destacar Parte", "Destaca a região fechada pelo loop criando uma tampa na base"),
+0258:             ('EXTRUDE', "Extrair com Profundidade", "Projeta o contorno para dentro do sólido até a profundidade especificada"),
+0259:         ],
+0260:         default='AUTO',
+0261:         description="Comportamento do corte por contorno: automático, destacar parte ou extrair com profundidade",
+0262:         update=_on_param_change_mark_stale,
+0263:     )
+0264:     loop_extrude_depth_mm: FloatProperty(
+0265:         name="Profundidade de Extração (mm)",
+0266:         description="Profundidade física da extração para dentro do sólido",
+0267:         default=5.0,
+0268:         min=0.1,
+0269:         precision=2,
+0270:         update=_on_param_change_mark_stale,
+0271:     )
+0272:     loop_through_cut: BoolProperty(
+0273:         name="Corte Passante",
+0274:         description="Permite que a profundidade de extração atravesse completamente o modelo",
+0275:         default=False,
+0276:         update=_on_param_change_mark_stale,
+0277:     )
+0278:     loop_detected_mode: EnumProperty(
+0279:         name="Modo Detectado",
+0280:         items=[
+0281:             ('DETACH', "Destacar", "Saliência 3D detectada"),
+0282:             ('EXTRUDE', "Extrair", "Região plana detectada"),
+0283:             ('AMBIGUOUS', "Ambíguo", "Escolha manual necessária"),
+0284:         ],
+0285:         default='DETACH',
+0286:     )
+0287:     loop_auto_reason: StringProperty(
+0288:         name="Motivo da Decisão",
+0289:         default="",
+0290:     )
+0291: 
+0292:     # --- Fim Loop ---
+0293: 
+0294:     # --- Configurações do Corte por Material (Etapa 6) ---
+0295:     material_split_index: IntProperty(
+0296:         name="Material da Parte A",
+0297:         default=0,
+0298:         min=0,
+0299:         description="Índice do slot de material que será isolado como Parte A",
+0300:         update=_on_param_change_mark_stale,
+0301:     )
+0302:     material_region_index: IntProperty(
+0303:         name="Região do Material",
+0304:         default=0,
+0305:         min=0,
+0306:         description="Qual área separada (ilha) do material será extraída, quando a mesma cor aparece em vários lugares",
+0307:         update=_on_param_change_mark_stale,
+0308:     )
+0309:     material_extrude_depth_mm: FloatProperty(
+0310:         name="Profundidade da Peça (mm)",
+0311:         default=5.0,
+0312:         min=0.1,
+0313:         precision=2,
+0314:         description="Profundidade física da peça caso a região do material seja superficial",
+0315:         update=_on_param_change_mark_stale,
+0316:     )
+0317:     material_detected_type: StringProperty(
+0318:         name="Diagnóstico do Material",
+0319:         default="",
+0320:     )
+0321: 
+0322:     # --- Guias de Visualização ---
+0323:     view_mode: EnumProperty(
+0324:         name="Visualização",
+0325:         items=[
+0326:             ('ASSEMBLED', "Montado", "Peças unidas na posição original"),
+0327:             ('EXPLODED', "Explodido", "Peças afastadas para inspeção do corte"),
+0328:         ],
+0329:         default='ASSEMBLED',
+0330:         description="Modo de visualização das partes de preview",
+0331:         update=lambda self, context: _on_preview_transform_update(self, context),
+0332:     )
+0333: 
+0334:     explosion_distance_mm: FloatProperty(
+0335:         name="Distância de Explosão (mm)",
+0336:         default=30.0,
+0337:         min=0.0,
+0338:         max=500.0,
+0339:         precision=1,
+0340:         description="Distância de afastamento entre as partes na vista explodida",
+0341:         update=lambda self, context: _on_preview_transform_update(self, context),
+0342:     )
+0343: 
+0344:     # --- Configurações do Cortador Sólido (Fase 3) ---
+0345:     solid_source: EnumProperty(
+0346:         name="Origem do Cortador",
+0347:         items=SOLID_SOURCE_TYPES,
+0348:         default='PRIMITIVE',
+0349:         description="Origem geométrica do cortador sólido",
+0350:     )
+0351: 
+0352:     solid_primitive_type: EnumProperty(
+0353:         name="Primitiva",
+0354:         items=SOLID_PRIMITIVE_TYPES,
+0355:         default='BOX',
+0356:         description="Formato geométrico da primitiva de corte",
+0357:     )
+0358: 
+0359:     solid_cutter_object: PointerProperty(
+0360:         name="Objeto Cortador",
+0361:         type=bpy.types.Object,
+0362:         poll=_poll_mesh_cutter,
+0363:         update=_on_cutter_object_update,
+0364:         description="Objeto fechado e manifold que atua como cortador sólido",
+0365:     )
+0366: 
+0367:     solid_cutter_is_manifold: BoolProperty(
+0368:         name="Cortador Manifold",
+0369:         default=True,
+0370:     )
+0371: 
+0372:     solid_cutter_non_manifold_edges: IntProperty(
+0373:         name="Arestas Abertas Cortador",
+0374:         default=0,
+0375:     )
+0376: 
+0377:     solid_cutter_triangles: IntProperty(
+0378:         name="Triângulos Cortador",
+0379:         default=0,
+0380:     )
+0381: 
+0382:     solid_cutter_volume_mm3: FloatProperty(
+0383:         name="Volume Cortador (mm³)",
+0384:         default=0.0,
+0385:         precision=2,
+0386:     )
+0387: 
+0388:     solid_cutter_dims_mm: FloatVectorProperty(
+0389:         name="Dimensões Cortador (mm)",
+0390:         size=3,
+0391:         default=(0.0, 0.0, 0.0),
+0392:         precision=2,
+0393:     )
+0394: 
+0395: 
+0396:     # --- Diagnósticos das Partes Divididas ---
+0397:     part_a_volume_mm3: FloatProperty(
+0398:         name="Volume Parte A (mm³)",
+0399:         default=0.0,
+0400:         precision=2,
+0401:     )
+0402: 
+0403:     part_a_dims_mm: FloatVectorProperty(
+0404:         name="Dimensões Parte A (mm)",
+0405:         size=3,
+0406:         default=(0.0, 0.0, 0.0),
+0407:         precision=2,
+0408:     )
+0409: 
+0410:     part_a_triangles: IntProperty(
+0411:         name="Triângulos Parte A",
+0412:         default=0,
+0413:     )
+0414: 
+0415:     part_a_is_manifold: BoolProperty(
+0416:         name="Parte A Manifold",
+0417:         default=True,
+0418:     )
+0419: 
+0420:     part_a_non_manifold_edges: IntProperty(
+0421:         name="Arestas Abertas A",
+0422:         default=0,
+0423:     )
+0424: 
+0425:     part_a_components: IntProperty(
+0426:         name="Componentes Parte A",
+0427:         default=0,
+0428:     )
+0429: 
+0430:     part_b_volume_mm3: FloatProperty(
+0431:         name="Volume Parte B (mm³)",
+0432:         default=0.0,
+0433:         precision=2,
+0434:     )
+0435: 
+0436:     part_b_dims_mm: FloatVectorProperty(
+0437:         name="Dimensões Parte B (mm)",
+0438:         size=3,
+0439:         default=(0.0, 0.0, 0.0),
+0440:         precision=2,
+0441:     )
+0442: 
+0443:     part_b_triangles: IntProperty(
+0444:         name="Triângulos Parte B",
+0445:         default=0,
+0446:     )
+0447: 
+0448:     part_b_is_manifold: BoolProperty(
+0449:         name="Parte B Manifold",
+0450:         default=True,
+0451:     )
+0452: 
+0453:     part_b_non_manifold_edges: IntProperty(
+0454:         name="Arestas Abertas B",
+0455:         default=0,
+0456:     )
+0457: 
+0458:     part_b_components: IntProperty(
+0459:         name="Componentes Parte B",
+0460:         default=0,
+0461:     )
+0462: 
+0463:     part_sum_volume_mm3: FloatProperty(
+0464:         name="Soma dos Volumes (mm³)",
+0465:         default=0.0,
+0466:         precision=2,
+0467:     )
+0468: 
+0469:     volume_diff_pct: FloatProperty(
+0470:         name="Diferença de Volume (%)",
+0471:         default=0.0,
+0472:         precision=3,
+0473:     )
+0474: 
+0475:     # --- Configurações de Encaixes e Folgas (Fase 2) ---
+0476:     connector_enabled: BoolProperty(
+0477:         name="Ativar Encaixes",
+0478:         default=False,
+0479:         description="Gera pinos macho e cavidades fêmea na interface do corte",
+0480:         update=_on_param_change_mark_stale,
+0481:     )
+0482: 
+0483:     connector_type: EnumProperty(
+0484:         name="Tipo de Encaixe",
+0485:         items=[
+0486:             ('CYLINDER', "Pino Cilíndrico", "Pino cilíndrico com chanfro de entrada"),
+0487:             ('CAPSULE', "Chave Cápsula", "Pino oblongo/cápsula que impede rotação"),
+0488:         ],
+0489:         default='CYLINDER',
+0490:         description="Formato geométrico do encaixe",
+0491:         update=_on_param_change_mark_stale,
+0492:     )
+0493: 
+0494:     connector_male_part: EnumProperty(
+0495:         name="Parte com Macho",
+0496:         items=[
+0497:             ('A', "Parte A", "O pino macho fica na Parte A e a cavidade na Parte B"),
+0498:             ('B', "Parte B", "O pino macho fica na Parte B e a cavidade na Parte A"),
+0499:         ],
+0500:         default='A',
+0501:         description="Define qual parte recebe o pino saliente",
+0502:         update=_on_param_change_mark_stale,
+0503:     )
+0504: 
+0505:     part_a_is_superior: BoolProperty(
+0506:         name="Parte A é Superior",
+0507:         default=True,
+0508:         description="Indica se a Parte A está geometricamente no topo em relação ao eixo Z de corte",
+0509:     )
+0510: 
+0511:     connector_diameter_mm: FloatProperty(
+0512:         name="Diâmetro Nominal (mm)",
+0513:         default=6.0,
+0514:         min=2.0,
+0515:         max=40.0,
+0516:         precision=2,
+0517:         description="Diâmetro ou largura nominal do pino",
+0518:         update=_on_param_change_mark_stale,
+0519:     )
+0520: 
+0521:     connector_capsule_length_mm: FloatProperty(
+0522:         name="Comprimento Lateral (mm)",
+0523:         default=14.0,
+0524:         min=2.0,
+0525:         max=150.0,
+0526:         precision=1,
+0527:         description="Comprimento/largura lateral total do encaixe cápsula no plano de corte (mínimo = diâmetro)",
+0528:         update=_on_param_change_mark_stale,
+0529:     )
+0530: 
+0531:     connector_max_safe_lateral_mm: FloatProperty(
+0532:         name="Limite Máx Seguro (mm)",
+0533:         default=0.0,
+0534:         precision=1,
+0535:         description="Limite máximo de comprimento lateral calculado para evitar colisão entre encaixes ou com a borda",
+0536:     )
+0537: 
+0538:     connector_length_mm: FloatProperty(
+0539:         name="Comprimento de Inserção (mm)",
+0540:         default=8.0,
+0541:         min=2.0,
+0542:         max=50.0,
+0543:         precision=2,
+0544:         description="Profundidade útil nominal do encaixe",
+0545:         update=_on_param_change_mark_stale,
+0546:     )
+0547: 
+0548:     connector_chamfer_mm: FloatProperty(
+0549:         name="Chanfro de Entrada (mm)",
+0550:         default=0.8,
+0551:         min=0.0,
+0552:         max=5.0,
+0553:         precision=2,
+0554:         description="Chanfro na ponta do pino para facilitar a inserção",
+0555:         update=_on_param_change_mark_stale,
+0556:     )
+0557: 
+0558:     clearance_preset: EnumProperty(
+0559:         name="Preset de Folga",
+0560:         items=[
+0561:             ('TIGHT', "Justo (0,10 mm)", "Impressora muito bem calibrada"),
+0562:             ('NORMAL', "Normal (0,15 mm)", "Primeiro teste recomendado para PLA"),
+0563:             ('EASY', "Fácil (0,20 mm)", "Montagem manual suave sem força"),
+0564:             ('LOOSE', "Solto (0,25 mm)", "Peças volumosas ou folga maior"),
+0565:             ('CUSTOM', "Personalizado", "Valor livre de folga por lado"),
+0566:         ],
+0567:         default='NORMAL',
+0568:         description="Predefinições recomendadas para FDM (bico 0,4 mm e PLA)",
+0569:         update=lambda self, context: _on_clearance_preset_update(self, context),
+0570:     )
+0571: 
+0572:     clearance_per_side_mm: FloatProperty(
+0573:         name="Folga por Lado (mm)",
+0574:         default=0.15,
+0575:         min=0.05,
+0576:         max=1.0,
+0577:         precision=3,
+0578:         description="Folga radial por lado na cavidade fêmea (folga total no diâmetro = 2x este valor)",
+0579:         update=_on_param_change_mark_stale,
+0580:     )
+0581: 
+0582:     end_clearance_mm: FloatProperty(
+0583:         name="Folga de Fundo (mm)",
+0584:         default=0.5,
+0585:         min=0.1,
+0586:         max=3.0,
+0587:         precision=2,
+0588:         description="Espaço extra no fundo da cavidade fêmea para evitar colisão",
+0589:         update=_on_param_change_mark_stale,
+0590:     )
+0591: 
+0592:     connector_distribution: EnumProperty(
+0593:         name="Distribuição",
+0594:         items=[
+0595:             ('CENTER', "1 Pino (Centro)", "Um conector no centro geométrico do corte"),
+0596:             ('LINEAR_2', "2 Pinos (Linha)", "Dois conectores alinhados no maior vão"),
+0597:             ('LINEAR_3', "3 Pinos (Linha)", "Três conectores distribuídos em linha"),
+0598:             ('GRID_4', "4 Pinos (Grade)", "Quatro conectores distribuídos em grade 2x2"),
+0599:         ],
+0600:         default='CENTER',
+0601:         description="Padrão de distribuição dos encaixes no plano",
+0602:         update=_on_param_change_mark_stale,
+0603:     )
+0604: 
+0605:     connector_edge_margin_mm: FloatProperty(
+0606:         name="Margem da Borda (mm)",
+0607:         default=4.0,
+0608:         min=1.0,
+0609:         max=30.0,
+0610:         precision=1,
+0611:         description="Distância mínima de segurança até a casca externa do modelo",
+0612:         update=_on_param_change_mark_stale,
+0613:     )
+0614: 
+0615: 
+0616:     # Feedback de mensagens ao usuário
+0617:     last_status: StringProperty(
+0618:         name="Mensagem de Status",
+0619:         default="",
+0620:     )
+0621: 
+0622:     last_status_level: EnumProperty(
+0623:         name="Nível de Status",
+0624:         items=[
+0625:             ('INFO', "Info", ""),
+0626:             ('SUCCESS', "Sucesso", ""),
+0627:             ('WARNING', "Aviso", ""),
+0628:             ('ERROR', "Erro", ""),
+0629:         ],
+0630:         default='INFO',
+0631:     )
+0632: 
+0633:     # --- Visualização de Cores e Exportação Multicolor (Fase 5) ---
+0634:     preview_color_mode: EnumProperty(
+0635:         name="Modo de Cor do Preview",
+0636:         items=[
+0637:             ('MATERIALS', "Cores Originais (Materiais)", "Mantém a visualização dos materiais e texturas reais do modelo"),
+0638:             ('PARTS', "Cores A / B (Contraste)", "Destaca Parte A e Parte B com azul e laranja para conferir a divisão"),
+0639:         ],
+0640:         default='MATERIALS',
+0641:         description="Alterna entre as cores reais dos materiais do modelo e as cores de contraste das partes",
+0642:     )
+0643: 
+0644:     export_directory: StringProperty(
+0645:         name="Pasta de Exportação",
+0646:         subtype='DIR_PATH',
+0647:         default="//",
+0648:         description="Diretório onde os arquivos de impressão 3D serão salvos",
+0649:     )
+0650: 
+0651:     export_format: EnumProperty(
+0652:         name="Formato",
+0653:         items=[
+0654:             ('3MF', "3MF Multimaterial (.3mf)", "Formato nativo para Bambu Studio / OrcaSlicer com cores preservadas"),
+0655:             ('STL_PER_MATERIAL', "STL por Material / Cor (.stl)", "Arquivos STL separados por cor para importação multipartes"),
+0656:             ('STL_PARTS', "STL por Parte (.stl)", "Arquivos STL separados para cada parte"),
+0657:             ('OBJ', "Wavefront OBJ (.obj + .mtl)", "Geometria e materiais em formato OBJ"),
+0658:         ],
+0659:         default='3MF',
+0660:         description="Formato de exportação para fatiamento e impressão 3D",
+0661:     )
+0662: 
+0663:     export_layout: EnumProperty(
+0664:         name="Disposição",
+0665:         items=[
+0666:             ('ASSEMBLED', "Posição Montada", "Exporta no espaço global de montagem original"),
+0667:             ('PRINT_BED', "Mesa de Impressão", "Exporta as peças assentadas lado a lado"),
+0668:         ],
+0669:         default='ASSEMBLED',
+0670:         description="Orientação espacial dos modelos no arquivo de exportação",
+0671:     )
+0672: 
+0673: 
+0674: def register():
+0675:     try:
+0676:         bpy.utils.register_class(ChestSplitterSettings)
+0677:     except ValueError:
+0678:         pass
+0679:     bpy.types.Scene.chest_splitter = PointerProperty(type=ChestSplitterSettings)
+0680:     # Alias para compatibilidade e nova identidade (Seção 8 do Plano Antigravity)
+0681:     bpy.types.Scene.part_splitter = property(lambda self: self.chest_splitter)
+0682: 
+0683: 
+0684: def unregister():
+0685:     if hasattr(bpy.types.Scene, "part_splitter"):
+0686:         del bpy.types.Scene.part_splitter
+0687:     if hasattr(bpy.types.Scene, "chest_splitter"):
+0688:         del bpy.types.Scene.chest_splitter
+0689:     try:
+0690:         bpy.utils.unregister_class(ChestSplitterSettings)
+0691:     except RuntimeError:
+0692:         pass

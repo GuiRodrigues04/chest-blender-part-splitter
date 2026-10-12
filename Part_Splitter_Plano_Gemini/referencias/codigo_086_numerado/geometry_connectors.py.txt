@@ -1,0 +1,713 @@
+0001: """Módulo de modelagem geométrica e posicionamento de encaixes (Fase 2).
+0002: 
+0003: Gera corpos sólidos de pinos macho (com chanfro de entrada) e cavidades fêmea
+0004: (com folga radial por lado e folga de fundo), executando uniões e diferenças
+0005: booleanas transacionais e robustas.
+0006: """
+0007: 
+0008: import math
+0009: from typing import List, Tuple, Dict, Any, Optional
+0010: import bpy
+0011: import bmesh
+0012: from mathutils import Vector, Matrix, Quaternion, Euler
+0013: from mathutils.bvhtree import BVHTree
+0014: 
+0015: from .constants import (
+0016:     CLEARANCE_PRESETS,
+0017: )
+0018: 
+0019: 
+0020: class ConnectorValidationError(Exception):
+0021:     """Exceção para violações de limites geométricos de encaixes."""
+0022:     pass
+0023: 
+0024: 
+0025: def point_in_polygon_2d(x: float, y: float, poly: List[Tuple[float, float]]) -> bool:
+0026:     """Teste de inclusão de ponto 2D em polígono via Ray Casting (Teorema de Jordan)."""
+0027:     inside = False
+0028:     n = len(poly)
+0029:     if n < 3:
+0030:         return False
+0031:     j = n - 1
+0032:     for i in range(n):
+0033:         xi, yi = poly[i]
+0034:         xj, yj = poly[j]
+0035:         if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi + 1e-12) + xi):
+0036:             inside = not inside
+0037:         j = i
+0038:     return inside
+0039: 
+0040: 
+0041: def create_capsule_2d_profile(w: float, half_len: float, segments: int = 32, offset: float = 0.0) -> List[Tuple[float, float]]:
+0042:     """Gera pontos 2D fechados e ordenados para o perfil de estádio/cápsula com suporte a offset uniforme.
+0043:     
+0044:     Inclui os pontos finais de tangência para que os lados retos sejam estritamente paralelos,
+0045:     garantindo folga perimetral uniforme sem segmentos diagonais indevidos.
+0046:     """
+0047:     half_segs = max(8, segments // 2)
+0048:     r = max(1e-5, w - offset)
+0049:     if half_len < 1e-6:
+0050:         # Círculo perfeito
+0051:         return [(r * math.cos(2.0 * math.pi * i / segments), r * math.sin(2.0 * math.pi * i / segments)) for i in range(segments)]
+0052: 
+0053:     pts = []
+0054:     # Arco superior: centro (0, half_len), ângulo de 0 a pi (incluindo extremos tangentes)
+0055:     for i in range(half_segs + 1):
+0056:         ang = math.pi * (i / half_segs)
+0057:         pts.append((r * math.cos(ang), half_len + r * math.sin(ang)))
+0058:     # Arco inferior: centro (0, -half_len), ângulo de pi a 2*pi (incluindo extremos tangentes)
+0059:     for i in range(half_segs + 1):
+0060:         ang = math.pi + math.pi * (i / half_segs)
+0061:         pts.append((r * math.cos(ang), -half_len + r * math.sin(ang)))
+0062:     return pts
+0063: 
+0064: 
+0065: def create_pin_mesh_data(
+0066:     name: str,
+0067:     connector_type: str,
+0068:     diameter: float,
+0069:     length: float,
+0070:     chamfer: float = 0.8,
+0071:     is_cavity: bool = False,
+0072:     clearance_side: float = 0.0,
+0073:     clearance_end: float = 0.0,
+0074:     segments: int = 32,
+0075:     capsule_length: float = 0.0,
+0076: ) -> bpy.types.Mesh:
+0077:     """Cria uma malha sólida para o pino macho ou cavidade fêmea.
+0078:     
+0079:     Convenção Dimensional Estrita:
+0080:     - Macho (is_cavity=False): diâmetro D, comprimento lateral L, projeção útil length, chanfro na ponta.
+0081:     - Cavidade (is_cavity=True): diâmetro D + 2*clearance_side, comprimento L + 2*clearance_side,
+0082:       profundidade útil length + clearance_end, sem chanfro automático.
+0083:     - Separação entre centros dos semicírculos da cápsula: exatamente L - D em macho e cavidade.
+0084:     """
+0085:     bm = bmesh.new()
+0086: 
+0087:     eff_radius = (diameter / 2.0) + (clearance_side if is_cavity else 0.0)
+0088:     eff_length = length + (clearance_end if is_cavity else 0.0)
+0089:     eff_chamfer = 0.0 if is_cavity else min(chamfer, eff_length * 0.4, eff_radius * 0.7)
+0090: 
+0091:     # Tolerância proporcional de sobreposição na base para garantir operação booleana não coplanar
+0092:     base_offset = min(eff_length * 0.05, eff_radius * 0.1)
+0093:     z_min = -base_offset
+0094:     z_max = eff_length
+0095:     z_shoulder = z_max - eff_chamfer
+0096: 
+0097:     base_verts = []
+0098:     shoulder_verts = []
+0099:     tip_verts = []
+0100: 
+0101:     if connector_type == 'CAPSULE':
+0102:         # Chave tipo cápsula / estádio
+0103:         w = eff_radius
+0104:         eff_cap_len = max(diameter, capsule_length) if capsule_length > 0.0 else (diameter * 2.4)
+0105:         # Centros dos semicírculos ficam separados por L - D
+0106:         half_len = (eff_cap_len - diameter) / 2.0
+0107: 
+0108:         prof = create_capsule_2d_profile(w, half_len, segments=segments)
+0109:         prof_tip = create_capsule_2d_profile(w, half_len, segments=segments, offset=eff_chamfer) if eff_chamfer > 0.0 else []
+0110: 
+0111:         for idx, (x, y) in enumerate(prof):
+0112:             base_verts.append(bm.verts.new((x, y, z_min)))
+0113:             shoulder_verts.append(bm.verts.new((x, y, z_shoulder)))
+0114:             if eff_chamfer > 0.0:
+0115:                 tx, ty = prof_tip[idx]
+0116:                 tip_verts.append(bm.verts.new((tx, ty, z_max)))
+0117: 
+0118:     else:
+0119:         # Padrão: Pino Cilíndrico
+0120:         tip_r = max(eff_radius * 0.2, eff_radius - eff_chamfer)
+0121: 
+0122:         for i in range(segments):
+0123:             ang = 2.0 * math.pi * i / segments
+0124:             cos_a = math.cos(ang)
+0125:             sin_a = math.sin(ang)
+0126: 
+0127:             base_verts.append(bm.verts.new((eff_radius * cos_a, eff_radius * sin_a, z_min)))
+0128:             shoulder_verts.append(bm.verts.new((eff_radius * cos_a, eff_radius * sin_a, z_shoulder)))
+0129:             if eff_chamfer > 0.0:
+0130:                 tip_verts.append(bm.verts.new((tip_r * cos_a, tip_r * sin_a, z_max)))
+0131: 
+0132:     # Face inferior (aponta para -Z)
+0133:     bm.faces.new(reversed(base_verts))
+0134: 
+0135:     # Paredes laterais
+0136:     num_v = len(base_verts)
+0137:     for i in range(num_v):
+0138:         i_next = (i + 1) % num_v
+0139:         bm.faces.new((base_verts[i], base_verts[i_next], shoulder_verts[i_next], shoulder_verts[i]))
+0140:         if eff_chamfer > 0.0:
+0141:             bm.faces.new((shoulder_verts[i], shoulder_verts[i_next], tip_verts[i_next], tip_verts[i]))
+0142: 
+0143:     # Topo (fechamento superior)
+0144:     bm.faces.new(tip_verts if eff_chamfer > 0.0 else shoulder_verts)
+0145: 
+0146:     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+0147: 
+0148:     mesh_data = bpy.data.meshes.new(name)
+0149:     bm.to_mesh(mesh_data)
+0150:     bm.free()
+0151:     return mesh_data
+0152: 
+0153: 
+0154: def check_receiving_wall_thickness(
+0155:     obj_female: bpy.types.Object,
+0156:     positions: List[Vector],
+0157:     normal: Vector,
+0158:     required_depth_bu: float,
+0159:     min_wall_bu: float = 1e-4,
+0160:     cavity_radius_bu: float = 0.0,
+0161: ) -> Tuple[bool, float]:
+0162:     """Verifica se a cavidade de inserção atravessaria a parede da peça receptora (Defeito C5).
+0163:     
+0164:     Amostra o centro e pontos perimétricos para detectar paredes inclinadas ou perfurações
+0165:     indesejadas em quinas e superfícies curvas.
+0166:     """
+0167:     depsgraph = bpy.context.evaluated_depsgraph_get()
+0168:     eval_obj = obj_female.evaluated_get(depsgraph)
+0169:     eval_mesh = eval_obj.to_mesh()
+0170:     try:
+0171:         bm = bmesh.new()
+0172:         bm.from_mesh(eval_mesh)
+0173:         bm.transform(obj_female.matrix_world)
+0174:         bvh = BVHTree.FromBMesh(bm)
+0175:         norm = normal.normalized()
+0176: 
+0177:         # Vetores perpendiculares no plano de corte para amostragem perimétrica
+0178:         ref = Vector((1.0, 0.0, 0.0))
+0179:         if abs(norm.dot(ref)) > 0.9:
+0180:             ref = Vector((0.0, 1.0, 0.0))
+0181:         u_dir = norm.cross(ref).normalized()
+0182:         v_dir = norm.cross(u_dir).normalized()
+0183: 
+0184:         sample_offsets = [Vector((0.0, 0.0, 0.0))]
+0185:         if cavity_radius_bu > 1e-5:
+0186:             r = cavity_radius_bu * 0.95
+0187:             sample_offsets.extend([
+0188:                 u_dir * r,
+0189:                 -u_dir * r,
+0190:                 v_dir * r,
+0191:                 -v_dir * r,
+0192:             ])
+0193: 
+0194:         min_found_depth = 1e9
+0195: 
+0196:         for pos in positions:
+0197:             for offset in sample_offsets:
+0198:                 sample_p = pos + offset
+0199:                 ray_start = sample_p + norm * 1e-4
+0200:                 hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(ray_start, norm)
+0201:                 if hit_loc is None:
+0202:                     # Raio sem interseção: não há parede receptora na direção de inserção
+0203:                     bm.free()
+0204:                     return False, 0.0
+0205: 
+0206:                 avail_depth = (hit_loc - sample_p).length
+0207:                 if avail_depth < min_found_depth:
+0208:                     min_found_depth = avail_depth
+0209: 
+0210:                 if avail_depth < (required_depth_bu + min_wall_bu):
+0211:                     bm.free()
+0212:                     return False, avail_depth
+0213: 
+0214:         bm.free()
+0215:         return True, min_found_depth if min_found_depth < 1e8 else 0.0
+0216:     finally:
+0217:         eval_obj.to_mesh_clear()
+0218: 
+0219: 
+0220: 
+0221: def compute_connector_layout(
+0222:     target_mesh: bpy.types.Mesh,
+0223:     matrix_world: Matrix,
+0224:     plane_origin: Vector,
+0225:     plane_normal: Vector,
+0226:     distribution: str = 'CENTER',
+0227:     edge_margin_mm: float = 3.0,
+0228:     unit_scale: float = 1000.0,
+0229:     diameter_mm: float = 6.0,
+0230:     clearance_per_side_mm: float = 0.15,
+0231:     interface: Optional[Any] = None,
+0232:     connector_type: str = 'CYLINDER',
+0233:     capsule_length_mm: float = 0.0,
+0234: ) -> Dict[str, Any]:
+0235:     """Calcula posições, eixos de alinhamento e limites seguros para encaixes na interface de corte."""
+0236:     outer_polys = []
+0237:     hole_polys = []
+0238: 
+0239:     if interface is not None and getattr(interface, "outer_contours_uv", None) and interface.outer_contours_uv:
+0240:         plane_origin = interface.origin_world
+0241:         norm = interface.normal_a_to_b_world.normalized()
+0242:         u_axis = interface.axis_u_world
+0243:         v_axis = interface.axis_v_world
+0244:         outer_polys = interface.outer_contours_uv
+0245:         hole_polys = getattr(interface, "hole_contours_uv", []) or []
+0246:         u_coords = [pt[0] for poly in outer_polys for pt in poly]
+0247:         v_coords = [pt[1] for poly in outer_polys for pt in poly]
+0248:         cut_pts = [interface.uv_to_world(pt[0], pt[1]) for poly in outer_polys for pt in poly]
+0249:     else:
+0250:         bm = bmesh.new()
+0251:         bm.from_mesh(target_mesh)
+0252:         bm.transform(matrix_world)
+0253: 
+0254:         norm = plane_normal.normalized()
+0255: 
+0256:         res = bmesh.ops.bisect_plane(
+0257:             bm,
+0258:             geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
+0259:             plane_co=plane_origin,
+0260:             plane_no=norm,
+0261:             clear_outer=False,
+0262:             clear_inner=False,
+0263:         )
+0264: 
+0265:         cut_edges = [e for e in res.get("geom_cut", []) if isinstance(e, bmesh.types.BMEdge)]
+0266:         cut_pts = [v.co.copy() for e in cut_edges for v in e.verts]
+0267:         bm.free()
+0268: 
+0269:         ref_up = Vector((0, 0, 1)) if abs(norm.z) < 0.9 else Vector((0, 1, 0))
+0270:         u_axis = norm.cross(ref_up).normalized()
+0271:         v_axis = norm.cross(u_axis).normalized()
+0272: 
+0273:         if not cut_pts:
+0274:             raise ConnectorValidationError("Nenhuma interface de corte válida encontrada para posicionamento de encaixes.")
+0275: 
+0276:         u_coords = [(p - plane_origin).dot(u_axis) for p in cut_pts]
+0277:         v_coords = [(p - plane_origin).dot(v_axis) for p in cut_pts]
+0278: 
+0279:     min_u, max_u = min(u_coords), max(u_coords)
+0280:     min_v, max_v = min(v_coords), max(v_coords)
+0281: 
+0282:     center_u = (min_u + max_u) / 2.0
+0283:     center_v = (min_v + max_v) / 2.0
+0284:     span_u = max_u - min_u
+0285:     span_v = max_v - min_v
+0286: 
+0287:     if span_u >= span_v:
+0288:         major_axis = u_axis
+0289:         minor_axis = v_axis
+0290:         span_major = span_u
+0291:         span_minor = span_v
+0292:         center_major = center_u
+0293:         center_minor = center_v
+0294:     else:
+0295:         major_axis = v_axis
+0296:         minor_axis = u_axis
+0297:         span_major = span_v
+0298:         span_minor = span_u
+0299:         center_major = center_v
+0300:         center_minor = center_u
+0301: 
+0302:     span_major_mm = span_major * unit_scale
+0303:     span_minor_mm = span_minor * unit_scale
+0304: 
+0305:     # Validação de espaço mínimo admissível para o perfil base (Critério C1)
+0306:     cavity_diam_mm = diameter_mm + 2.0 * clearance_per_side_mm
+0307:     req_min_span_mm = cavity_diam_mm + 2.0 * edge_margin_mm
+0308: 
+0309:     if span_minor_mm < req_min_span_mm - 1e-3 or span_major_mm < req_min_span_mm - 1e-3:
+0310:         raise ConnectorValidationError(
+0311:             f"Falta de espaço: a interface ({span_major_mm:.1f}x{span_minor_mm:.1f} mm) não comporta o encaixe "
+0312:             f"com margem de {edge_margin_mm:.1f} mm (necessário ao menos {req_min_span_mm:.1f}x{req_min_span_mm:.1f} mm)."
+0313:         )
+0314: 
+0315:     margin_bu = edge_margin_mm / unit_scale
+0316:     avail_major = max(0.0, (span_major / 2.0) - margin_bu)
+0317:     avail_minor = max(0.0, (span_minor / 2.0) - margin_bu)
+0318: 
+0319:     positions = []
+0320: 
+0321:     # Validação de distribuições múltiplas (Critério C4: sem redução silenciosa)
+0322:     if distribution == 'CENTER':
+0323:         p = plane_origin + (u_axis * center_u) + (v_axis * center_v)
+0324:         positions.append(p)
+0325: 
+0326:     elif distribution == 'LINEAR_2':
+0327:         min_span_linear2 = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
+0328:         if span_major_mm < min_span_linear2:
+0329:             raise ConnectorValidationError(
+0330:                 f"Falta de espaço: a distribuição LINEAR_2 requer vão de ao menos {min_span_linear2:.1f} mm "
+0331:                 f"(disponível: {span_major_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes."
+0332:             )
+0333:         d_major = avail_major * 0.6
+0334:         p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
+0335:         p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
+0336:         positions.extend([p1, p2])
+0337: 
+0338:     elif distribution == 'LINEAR_3':
+0339:         min_span_linear3 = 3.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 4.0
+0340:         if span_major_mm < min_span_linear3:
+0341:             raise ConnectorValidationError(
+0342:                 f"Falta de espaço: a distribuição LINEAR_3 requer vão de ao menos {min_span_linear3:.1f} mm "
+0343:                 f"(disponível: {span_major_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes."
+0344:             )
+0345:         p_mid = plane_origin + (major_axis * center_major) + (minor_axis * center_minor)
+0346:         d_major = avail_major * 0.7
+0347:         p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
+0348:         p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
+0349:         positions.extend([p_mid, p1, p2])
+0350: 
+0351:     elif distribution == 'GRID_4':
+0352:         min_grid_major = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
+0353:         min_grid_minor = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
+0354:         if span_major_mm < min_grid_major or span_minor_mm < min_grid_minor:
+0355:             raise ConnectorValidationError(
+0356:                 f"Falta de espaço: a distribuição GRID_4 requer ao menos {min_grid_major:.1f}x{min_grid_minor:.1f} mm "
+0357:                 f"(disponível: {span_major_mm:.1f}x{span_minor_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes."
+0358:             )
+0359:         d_u = (span_u / 2.0 - margin_bu) * 0.55
+0360:         d_v = (span_v / 2.0 - margin_bu) * 0.55
+0361:         p1 = plane_origin + (u_axis * (center_u - d_u)) + (v_axis * (center_v - d_v))
+0362:         p2 = plane_origin + (u_axis * (center_u + d_u)) + (v_axis * (center_v - d_v))
+0363:         p3 = plane_origin + (u_axis * (center_u - d_u)) + (v_axis * (center_v + d_v))
+0364:         p4 = plane_origin + (u_axis * (center_u + d_u)) + (v_axis * (center_v + d_v))
+0365:         positions.extend([p1, p2, p3, p4])
+0366: 
+0367:     # Cálculo dos limites laterais seguros para cápsula
+0368:     min_pitch_mm = 1e9
+0369:     if len(positions) >= 2:
+0370:         for i in range(len(positions)):
+0371:             for j in range(i + 1, len(positions)):
+0372:                 dist = (positions[i] - positions[j]).length * unit_scale
+0373:                 if dist < min_pitch_mm:
+0374:                     min_pitch_mm = dist
+0375:         pitch_limit_mm = max(diameter_mm, min_pitch_mm - (2.0 * clearance_per_side_mm + 2.0))
+0376:     else:
+0377:         pitch_limit_mm = 1e9
+0378: 
+0379:     if len(positions) == 1:
+0380:         edge_limit_mm = max(diameter_mm, span_major_mm - (2.0 * edge_margin_mm + 2.0 * clearance_per_side_mm))
+0381:     else:
+0382:         center_pos = sum(positions, Vector()) / len(positions)
+0383:         max_dist_center_mm = max((p - center_pos).length * unit_scale for p in positions)
+0384:         avail_outer_mm = (span_major_mm / 2.0) - max_dist_center_mm
+0385:         edge_limit_mm = max(diameter_mm, 2.0 * max(diameter_mm / 2.0, avail_outer_mm - (edge_margin_mm + clearance_per_side_mm)))
+0386: 
+0387:     max_safe_lateral_mm = round(min(pitch_limit_mm, edge_limit_mm), 1)
+0388: 
+0389:     adjusted_cap_len_mm = capsule_length_mm
+0390:     capsule_was_adjusted = False
+0391:     if connector_type == 'CAPSULE':
+0392:         if capsule_length_mm <= 0.0 or capsule_length_mm > max_safe_lateral_mm:
+0393:             adjusted_cap_len_mm = max_safe_lateral_mm
+0394:             capsule_was_adjusted = (capsule_length_mm > 0.0 and adjusted_cap_len_mm != capsule_length_mm)
+0395: 
+0396:         cavity_cap_len_mm = adjusted_cap_len_mm + 2.0 * clearance_per_side_mm
+0397:         req_major_mm = cavity_cap_len_mm + 2.0 * edge_margin_mm
+0398:         if span_major_mm < req_major_mm - 1e-3:
+0399:             raise ConnectorValidationError(
+0400:                 f"Falta de espaço: a interface ({span_major_mm:.1f} mm) não comporta a cápsula "
+0401:                 f"com margem de {edge_margin_mm:.1f} mm (necessário ao menos {req_major_mm:.1f} mm)."
+0402:             )
+0403: 
+0404:     # Validação rigorosa de inclusão do perfil completo no domínio sólido da interface (B04/B05)
+0405:     if outer_polys:
+0406:         check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
+0407:         u_proj = major_axis.dot(u_axis)
+0408:         v_proj = major_axis.dot(v_axis)
+0409:         rot_ang = math.atan2(v_proj, u_proj)
+0410:         cos_rot = math.cos(rot_ang)
+0411:         sin_rot = math.sin(rot_ang)
+0412: 
+0413:         for idx, pos in enumerate(positions):
+0414:             u_p = (pos - plane_origin).dot(u_axis)
+0415:             v_p = (pos - plane_origin).dot(v_axis)
+0416: 
+0417:             test_pts = [(u_p, v_p)]
+0418:             if connector_type == 'CAPSULE':
+0419:                 eff_cap = max(diameter_mm, adjusted_cap_len_mm) if adjusted_cap_len_mm > 0.0 else (diameter_mm * 2.4)
+0420:                 half_len = max(0.0, (eff_cap - diameter_mm) / 2.0) / unit_scale
+0421:                 prof = create_capsule_2d_profile(w=check_r, half_len=half_len, segments=24)
+0422:                 # No perfil da cápsula: Y (ly) é o eixo de alongamento (major_axis) e X (lx) é a largura (minor_axis)
+0423:                 # major_axis no plano UV é (cos_rot, sin_rot), minor_axis é (-sin_rot, cos_rot)
+0424:                 for lx, ly in prof:
+0425:                     test_pts.append((
+0426:                         u_p + ly * cos_rot - lx * sin_rot,
+0427:                         v_p + ly * sin_rot + lx * cos_rot,
+0428:                     ))
+0429:             else:
+0430:                 for ang_idx in range(16):
+0431:                     ang = 2.0 * math.pi * ang_idx / 16.0
+0432:                     test_pts.append((u_p + check_r * math.cos(ang), v_p + check_r * math.sin(ang)))
+0433: 
+0434:             for tp in test_pts:
+0435:                 in_any_outer = any(point_in_polygon_2d(tp[0], tp[1], poly) for poly in outer_polys)
+0436:                 if not in_any_outer:
+0437:                     raise ConnectorValidationError(
+0438:                         f"O encaixe #{idx+1} ultrapassa a margem de segurança de {edge_margin_mm:.1f} mm "
+0439:                         f"ou cai fora do domínio sólido da peça."
+0440:                     )
+0441:                 for hole_poly in hole_polys:
+0442:                     if point_in_polygon_2d(tp[0], tp[1], hole_poly):
+0443:                         raise ConnectorValidationError(
+0444:                             f"O encaixe #{idx+1} invade um furo/vazio interno da interface."
+0445:                         )
+0446: 
+0447:     return {
+0448:         "positions": positions,
+0449:         "major_axis": major_axis,
+0450:         "minor_axis": minor_axis,
+0451:         "span_major_mm": span_major_mm,
+0452:         "span_minor_mm": span_minor_mm,
+0453:         "min_pitch_mm": min_pitch_mm,
+0454:         "pitch_limit_mm": pitch_limit_mm,
+0455:         "edge_limit_mm": edge_limit_mm,
+0456:         "max_safe_lateral_mm": max_safe_lateral_mm,
+0457:         "adjusted_capsule_length_mm": adjusted_cap_len_mm,
+0458:         "capsule_was_adjusted": capsule_was_adjusted,
+0459:     }
+0460: 
+0461: 
+0462: def compute_connector_positions(
+0463:     target_mesh: bpy.types.Mesh,
+0464:     matrix_world: Matrix,
+0465:     plane_origin: Vector,
+0466:     plane_normal: Vector,
+0467:     distribution: str = 'CENTER',
+0468:     edge_margin_mm: float = 3.0,
+0469:     unit_scale: float = 1000.0,
+0470: ) -> List[Vector]:
+0471:     """Calcula os pontos 3D na interface do corte para os encaixes (retrocompatibilidade)."""
+0472:     layout = compute_connector_layout(
+0473:         target_mesh=target_mesh,
+0474:         matrix_world=matrix_world,
+0475:         plane_origin=plane_origin,
+0476:         plane_normal=plane_normal,
+0477:         distribution=distribution,
+0478:         edge_margin_mm=edge_margin_mm,
+0479:         unit_scale=unit_scale,
+0480:     )
+0481:     return layout["positions"]
+0482: 
+0483: 
+0484: def validate_connectors(
+0485:     positions: List[Vector],
+0486:     diameter_mm: float,
+0487:     clearance_per_side_mm: float,
+0488:     unit_scale: float = 1000.0,
+0489:     connector_type: str = 'CYLINDER',
+0490:     capsule_length_mm: float = 0.0,
+0491:     obj_female: Optional[bpy.types.Object] = None,
+0492:     normal: Optional[Vector] = None,
+0493:     length_mm: float = 0.0,
+0494:     end_clearance_mm: float = 0.0,
+0495: ):
+0496:     """Valida distâncias entre encaixes e espessura de parede remanescente na peça receptora."""
+0497:     eff_length = capsule_length_mm if (connector_type == 'CAPSULE' and capsule_length_mm > diameter_mm) else diameter_mm
+0498:     min_dist_bu = (eff_length + 2.0 * clearance_per_side_mm) / unit_scale
+0499: 
+0500:     for i in range(len(positions)):
+0501:         for j in range(i + 1, len(positions)):
+0502:             dist = (positions[i] - positions[j]).length
+0503:             if dist < min_dist_bu:
+0504:                 dist_mm = dist * unit_scale
+0505:                 req_mm = eff_length + 2.0 * clearance_per_side_mm
+0506:                 raise ConnectorValidationError(
+0507:                     f"Sobreposição entre encaixes detectada: distância {dist_mm:.2f} mm < mínimo {req_mm:.2f} mm."
+0508:                 )
+0509: 
+0510:     # Validação de espessura de parede da peça receptora (Critério C5)
+0511:     if obj_female is not None and normal is not None and length_mm > 0.0:
+0512:         req_depth_bu = (length_mm + end_clearance_mm) / unit_scale
+0513:         cavity_r_bu = ((diameter_mm / 2.0) + clearance_per_side_mm) / unit_scale
+0514:         ok, avail = check_receiving_wall_thickness(
+0515:             obj_female,
+0516:             positions,
+0517:             normal,
+0518:             req_depth_bu,
+0519:             cavity_radius_bu=cavity_r_bu,
+0520:         )
+0521:         if not ok:
+0522:             avail_mm = avail * unit_scale
+0523:             tot_depth_mm = length_mm + end_clearance_mm
+0524:             if avail <= 1e-6:
+0525:                 raise ConnectorValidationError(
+0526:                     "Parede receptora inválida ou ausente: a cavidade não encontra corpo sólido suficiente "
+0527:                     "na direção de inserção. Verifique a orientação ou integridade da peça receptora."
+0528:                 )
+0529:             else:
+0530:                 raise ConnectorValidationError(
+0531:                     f"Parede fina: a cavidade de {tot_depth_mm:.1f} mm atravessaria a peça receptora "
+0532:                     f"(espessura disponível: {avail_mm:.1f} mm). Reduza o comprimento de inserção."
+0533:                 )
+0534: 
+0535: 
+0536: 
+0537: def apply_connectors_boolean(
+0538:     obj_male: bpy.types.Object,
+0539:     obj_female: bpy.types.Object,
+0540:     plane_normal: Vector,
+0541:     positions: List[Vector],
+0542:     connector_type: str,
+0543:     diameter_mm: float,
+0544:     length_mm: float,
+0545:     chamfer_mm: float,
+0546:     clearance_side_mm: float,
+0547:     end_clearance_mm: float,
+0548:     unit_scale: float = 1000.0,
+0549:     capsule_length_mm: float = 0.0,
+0550:     major_axis: Optional[Vector] = None,
+0551: ):
+0552:     """Executa as operações booleanas para unir os machos e subtrair as cavidades de forma transacional."""
+0553:     norm = plane_normal.normalized()
+0554: 
+0555:     # Validação prévia de espessura de parede da peça receptora
+0556:     validate_connectors(
+0557:         positions=positions,
+0558:         diameter_mm=diameter_mm,
+0559:         clearance_per_side_mm=clearance_side_mm,
+0560:         unit_scale=unit_scale,
+0561:         connector_type=connector_type,
+0562:         capsule_length_mm=capsule_length_mm,
+0563:         obj_female=obj_female,
+0564:         normal=norm,
+0565:         length_mm=length_mm,
+0566:         end_clearance_mm=end_clearance_mm,
+0567:     )
+0568: 
+0569:     # Determina o eixo maior (direção de alinhamento das cápsulas no plano de corte)
+0570:     if major_axis is None:
+0571:         if len(positions) >= 2:
+0572:             delta = positions[1] - positions[0]
+0573:             delta_proj = delta - norm * delta.dot(norm)
+0574:             if delta_proj.length > 1e-6:
+0575:                 major_axis = delta_proj.normalized()
+0576:         if major_axis is None:
+0577:             ref_up = Vector((0, 0, 1)) if abs(norm.z) < 0.9 else Vector((0, 1, 0))
+0578:             major_axis = norm.cross(ref_up).normalized()
+0579: 
+0580:     # Constrói sistema ortonormal estável: local_z = norm, local_y = major_axis, local_x = local_y x local_z
+0581:     local_z = norm.normalized()
+0582:     local_y = (major_axis - local_z * major_axis.dot(local_z)).normalized()
+0583:     local_x = local_y.cross(local_z).normalized()
+0584:     rot_mat = Matrix((local_x, local_y, local_z)).transposed()
+0585:     pin_rot = rot_mat.to_euler()
+0586: 
+0587:     cutters_to_clean = []
+0588:     modifiers_male_added = []
+0589:     modifiers_female_added = []
+0590: 
+0591:     temp_col = obj_male.users_collection[0] if obj_male.users_collection else bpy.context.scene.collection
+0592: 
+0593:     diam_bu = diameter_mm / unit_scale
+0594:     len_bu = length_mm / unit_scale
+0595:     chamf_bu = chamfer_mm / unit_scale
+0596:     clear_side_bu = clearance_side_mm / unit_scale
+0597:     clear_end_bu = end_clearance_mm / unit_scale
+0598:     cap_len_bu = (capsule_length_mm / unit_scale) if capsule_length_mm > 0 else 0.0
+0599: 
+0600:     try:
+0601:         # 1. Cria pinos para obj_male
+0602:         for idx, pos in enumerate(positions):
+0603:             pin_mesh = create_pin_mesh_data(
+0604:                 name=f"temp_pin_{idx}",
+0605:                 connector_type=connector_type,
+0606:                 diameter=diam_bu,
+0607:                 length=len_bu,
+0608:                 chamfer=chamf_bu,
+0609:                 is_cavity=False,
+0610:                 capsule_length=cap_len_bu,
+0611:             )
+0612:             pin_obj = bpy.data.objects.new(f"temp_pin_{idx}", pin_mesh)
+0613:             for mat in obj_male.data.materials:
+0614:                 pin_mesh.materials.append(mat)
+0615:             pin_obj.location = pos
+0616:             pin_obj.rotation_euler = pin_rot
+0617:             temp_col.objects.link(pin_obj)
+0618:             cutters_to_clean.append(pin_obj)
+0619: 
+0620:             mod_name = f"Pin_Union_{idx}"
+0621:             mod_union = obj_male.modifiers.new(name=mod_name, type='BOOLEAN')
+0622:             mod_union.operation = 'UNION'
+0623:             mod_union.solver = 'EXACT'
+0624:             mod_union.object = pin_obj
+0625:             modifiers_male_added.append(mod_name)
+0626: 
+0627:         # 2. Cria cavidades para obj_female
+0628:         for idx, pos in enumerate(positions):
+0629:             cavity_mesh = create_pin_mesh_data(
+0630:                 name=f"temp_cavity_{idx}",
+0631:                 connector_type=connector_type,
+0632:                 diameter=diam_bu,
+0633:                 length=len_bu,
+0634:                 chamfer=0.0,
+0635:                 is_cavity=True,
+0636:                 clearance_side=clear_side_bu,
+0637:                 clearance_end=clear_end_bu,
+0638:                 capsule_length=cap_len_bu,
+0639:             )
+0640:             cavity_obj = bpy.data.objects.new(f"temp_cavity_{idx}", cavity_mesh)
+0641:             for mat in obj_female.data.materials:
+0642:                 cavity_mesh.materials.append(mat)
+0643:             cavity_obj.location = pos
+0644:             cavity_obj.rotation_euler = pin_rot
+0645:             temp_col.objects.link(cavity_obj)
+0646:             cutters_to_clean.append(cavity_obj)
+0647: 
+0648:             mod_name = f"Cavity_Diff_{idx}"
+0649:             mod_diff = obj_female.modifiers.new(name=mod_name, type='BOOLEAN')
+0650:             mod_diff.operation = 'DIFFERENCE'
+0651:             mod_diff.solver = 'EXACT'
+0652:             mod_diff.object = cavity_obj
+0653:             modifiers_female_added.append(mod_name)
+0654: 
+0655:         # Atualiza a view layer para garantir avaliação correta
+0656:         bpy.context.view_layer.update()
+0657:         depsgraph = bpy.context.evaluated_depsgraph_get()
+0658: 
+0659:         eval_male = obj_male.evaluated_get(depsgraph)
+0660:         new_male_mesh = eval_male.to_mesh()
+0661: 
+0662:         eval_female = obj_female.evaluated_get(depsgraph)
+0663:         new_female_mesh = eval_female.to_mesh()
+0664: 
+0665:         try:
+0666:             # Validação de integridade das malhas avaliadas
+0667:             if len(new_male_mesh.polygons) == 0 or len(new_female_mesh.polygons) == 0:
+0668:                 raise RuntimeError("Operação booleana de encaixe gerou malha vazia ou corrompida.")
+0669: 
+0670:             # Transfere malhas avaliadas em definitivo
+0671:             old_mesh_male = obj_male.data
+0672:             final_male = new_male_mesh.copy()
+0673:             obj_male.data = final_male
+0674: 
+0675:             old_mesh_female = obj_female.data
+0676:             final_female = new_female_mesh.copy()
+0677:             obj_female.data = final_female
+0678:         finally:
+0679:             eval_male.to_mesh_clear()
+0680:             eval_female.to_mesh_clear()
+0681: 
+0682:         # Remove slots de material vazios
+0683:         for obj in (obj_male, obj_female):
+0684:             empty_slots = [i for i, m in enumerate(obj.data.materials) if m is None]
+0685:             for i in reversed(empty_slots):
+0686:                 obj.data.materials.pop(index=i)
+0687: 
+0688:         if old_mesh_male and old_mesh_male.users == 0:
+0689:             bpy.data.meshes.remove(old_mesh_male, do_unlink=True)
+0690:         if old_mesh_female and old_mesh_female.users == 0:
+0691:             bpy.data.meshes.remove(old_mesh_female, do_unlink=True)
+0692: 
+0693:     finally:
+0694:         # Garante remoção dos modificadores adicionados (sem tocar nos modificadores do usuário)
+0695:         for mod_name in modifiers_male_added:
+0696:             mod = obj_male.modifiers.get(mod_name)
+0697:             if mod:
+0698:                 obj_male.modifiers.remove(mod)
+0699: 
+0700:         for mod_name in modifiers_female_added:
+0701:             mod = obj_female.modifiers.get(mod_name)
+0702:             if mod:
+0703:                 obj_female.modifiers.remove(mod)
+0704: 
+0705:         # Limpa objetos e malhas auxiliares de corte
+0706:         for cutter in cutters_to_clean:
+0707:             c_mesh = cutter.data
+0708:             if cutter.name in temp_col.objects:
+0709:                 temp_col.objects.unlink(cutter)
+0710:             if cutter.name in bpy.data.objects:
+0711:                 bpy.data.objects.remove(cutter, do_unlink=True)
+0712:             if c_mesh and c_mesh.users == 0:
+0713:                 bpy.data.meshes.remove(c_mesh, do_unlink=True)

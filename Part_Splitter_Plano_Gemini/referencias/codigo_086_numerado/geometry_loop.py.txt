@@ -1,0 +1,801 @@
+0001: """Geometria para o corte por contorno fechado de arestas (Loop).
+0002: 
+0003: Executa cortes determinísticos em coordenadas de mundo (World Space), garantindo:
+0004: - Malhas manifold fechadas para ambas as partes (Parte A = região selecionada, Parte B = restante).
+0005: - Orientação consistente do vetor normal de interface (sempre de A para B).
+0006: - Independência da ordem dos vértices selecionados no loop.
+0007: - Dimensões físicas reais da interface (sem confundir a interface local com a malha inteira).
+0008: """
+0009: 
+0010: from typing import List, Tuple, Dict, Any, Optional
+0011: import math
+0012: import bpy
+0013: import bmesh
+0014: from mathutils import Vector
+0015: from mathutils.bvhtree import BVHTree
+0016: from .diagnostic import get_scene_scale_to_mm
+0017: from .geometry_contract import CutInterface, SplitResult, build_cut_interface
+0018: from .geometry_plane import evaluate_bmesh_metrics
+0019: 
+0020: 
+0021: class LoopSliceResult(tuple):
+0022:     """Tupla estendida (bm_a, bm_b) com acesso aos metadados formais do corte."""
+0023:     def __new__(cls, bm_a, bm_b, split_result=None):
+0024:         return super().__new__(cls, (bm_a, bm_b))
+0025: 
+0026:     def __init__(self, bm_a, bm_b, split_result=None):
+0027:         self.split_result = split_result
+0028:         self.interface = split_result.interface if split_result else None
+0029: 
+0030: 
+0031: import hashlib
+0032: 
+0033: 
+0034: def get_topology_signature(obj) -> str:
+0035:     """Retorna uma assinatura de integridade topológica do objeto."""
+0036:     if not obj or obj.type != 'MESH' or not obj.data:
+0037:         return ""
+0038:     import array
+0039:     
+0040:     mesh = obj.data
+0041:     v_count = len(mesh.vertices)
+0042:     e_count = len(mesh.edges)
+0043:     f_count = len(mesh.polygons)
+0044:     
+0045:     h = hashlib.sha256()
+0046:     h.update(f"V{v_count}E{e_count}F{f_count}".encode('utf-8'))
+0047:     
+0048:     if e_count > 0:
+0049:         edges = array.array('i', [0] * (e_count * 2))
+0050:         mesh.edges.foreach_get("vertices", edges)
+0051:         h.update(edges.tobytes())
+0052:         
+0053:     if len(mesh.loops) > 0:
+0054:         loops = array.array('i', [0] * len(mesh.loops))
+0055:         mesh.loops.foreach_get("vertex_index", loops)
+0056:         h.update(loops.tobytes())
+0057:         
+0058:     return f"V{v_count}E{e_count}F{f_count}H{h.hexdigest()[:8]}"
+0059: 
+0060: 
+0061: def capture_edge_loop(obj: bpy.types.Object, scene: Optional[bpy.types.Scene] = None) -> Tuple[bool, List[int], bool, float, str]:
+0062:     """Captura e valida um loop fechado de arestas no modo de edição.
+0063:     
+0064:     Calcula desvio de planicidade no espaço de mundo em milímetros (mm).
+0065:     Retorna (sucesso, indices_ordenados, is_planar, desvio_mm, erro_msg).
+0066:     """
+0067:     if not obj or obj.mode != 'EDIT':
+0068:         return False, [], False, 0.0, "O objeto precisa estar em Edit Mode."
+0069: 
+0070:     bm = bmesh.from_edit_mesh(obj.data)
+0071: 
+0072:     selected_edges = [e for e in bm.edges if e.select]
+0073:     if not selected_edges:
+0074:         return False, [], False, 0.0, "Nenhuma aresta selecionada."
+0075: 
+0076:     if len(selected_edges) < 3:
+0077:         return False, [], False, 0.0, "O loop deve ter no mínimo 3 arestas."
+0078: 
+0079:     # Mapear vértices para arestas selecionadas
+0080:     vert_to_edges = {}
+0081:     for e in selected_edges:
+0082:         for v in e.verts:
+0083:             if v not in vert_to_edges:
+0084:                 vert_to_edges[v] = []
+0085:             vert_to_edges[v].append(e)
+0086: 
+0087:     # Validar grau exato 2 para todos os vértices selecionados (ciclo simples 1-manifold)
+0088:     for v, edges in vert_to_edges.items():
+0089:         if len(edges) != 2:
+0090:             if len(edges) < 2:
+0091:                 return False, [], False, 0.0, "Loop aberto detectado. Selecione um ciclo fechado contínuo."
+0092:             else:
+0093:                 return False, [], False, 0.0, "Bifurcação/Ramificação detectada. O loop deve ser um ciclo simples."
+0094: 
+0095:     # Ordenar vértices no ciclo
+0096:     start_v = next(iter(vert_to_edges.keys()))
+0097:     ordered_verts = [start_v]
+0098:     current_v = start_v
+0099:     current_e = vert_to_edges[current_v][0]
+0100: 
+0101:     while True:
+0102:         next_v = current_e.verts[0] if current_e.verts[1] == current_v else current_e.verts[1]
+0103:         if next_v == start_v:
+0104:             break
+0105:         ordered_verts.append(next_v)
+0106:         edges_of_next = vert_to_edges[next_v]
+0107:         next_e = edges_of_next[0] if edges_of_next[0] != current_e else edges_of_next[1]
+0108:         current_v = next_v
+0109:         current_e = next_e
+0110: 
+0111:     if len(ordered_verts) != len(vert_to_edges):
+0112:         return False, [], False, 0.0, "Múltiplos componentes desconectados detectados. Selecione apenas um ciclo."
+0113: 
+0114:     # Coordenadas em World Space para cálculo métrico real
+0115:     coords_world = [obj.matrix_world @ v.co for v in ordered_verts]
+0116:     centroid = sum(coords_world, Vector()) / len(coords_world)
+0117: 
+0118:     # Normal do plano médio via método de Newell
+0119:     n = Vector((0.0, 0.0, 0.0))
+0120:     n_pts = len(coords_world)
+0121:     for i in range(n_pts):
+0122:         v1 = coords_world[i]
+0123:         v2 = coords_world[(i + 1) % n_pts]
+0124:         n.x += (v1.y - v2.y) * (v1.z + v2.z)
+0125:         n.y += (v1.z - v2.z) * (v1.x + v2.x)
+0126:         n.z += (v1.x - v2.x) * (v1.y + v2.y)
+0127: 
+0128:     if n.length > 1e-7:
+0129:         n.normalize()
+0130:     else:
+0131:         return False, [], False, 0.0, "Polígono degenerado (área nula)."
+0132: 
+0133:     # Desvio máximo do plano em World Units (BU)
+0134:     max_deviation_bu = max(abs((v - centroid).dot(n)) for v in coords_world)
+0135: 
+0136:     # Conversão de escala da cena para mm
+0137:     actual_scene = scene if scene else (bpy.context.scene if hasattr(bpy.context, "scene") else None)
+0138:     scale_to_mm = get_scene_scale_to_mm(actual_scene)
+0139:     max_deviation_mm = max_deviation_bu * scale_to_mm
+0140: 
+0141:     # Tolerância física: desvio até 0.1 mm é considerado planar
+0142:     is_planar = max_deviation_mm <= 0.1
+0143: 
+0144:     indices = [v.index for v in ordered_verts]
+0145:     return True, indices, is_planar, max_deviation_mm, ""
+0146: 
+0147: 
+0148: def capture_face_boundary_loop(obj: bpy.types.Object, scene: Optional[bpy.types.Scene] = None) -> Tuple[bool, List[int], bool, float, int, str]:
+0149:     """Captura o perímetro (contorno de arestas) de uma seleção contígua de faces em Edit Mode (F02).
+0150:     
+0151:     Identifica arestas de fronteira com exatamente 1 face incidente selecionada.
+0152:     Valida um único ciclo fechado contínuo e sem furos ou bifurcações.
+0153:     Retorna (sucesso, indices_ordenados, is_planar, desvio_mm, seed_face_idx, erro_msg).
+0154:     """
+0155:     if not obj or obj.mode != 'EDIT':
+0156:         return False, [], False, 0.0, -1, "O objeto precisa estar em Edit Mode."
+0157: 
+0158:     bm = bmesh.from_edit_mesh(obj.data)
+0159:     bm.faces.ensure_lookup_table()
+0160:     bm.edges.ensure_lookup_table()
+0161:     bm.verts.ensure_lookup_table()
+0162: 
+0163:     selected_faces = set(f for f in bm.faces if f.select)
+0164:     if not selected_faces:
+0165:         return False, [], False, 0.0, -1, "Nenhuma face selecionada. Selecione as faces da área desejada."
+0166: 
+0167:     # Determina a face semente da seleção
+0168:     if bm.faces.active and bm.faces.active in selected_faces:
+0169:         seed_face_idx = bm.faces.active.index
+0170:     else:
+0171:         seed_face_idx = next(iter(selected_faces)).index
+0172: 
+0173:     # Valida conectividade da região de faces selecionadas (ilha única)
+0174:     visited = set()
+0175:     start_f = next(f for f in selected_faces if f.index == seed_face_idx)
+0176:     queue = [start_f]
+0177:     visited.add(start_f)
+0178:     while queue:
+0179:         cur = queue.pop(0)
+0180:         for e in cur.edges:
+0181:             for nf in e.link_faces:
+0182:                 if nf in selected_faces and nf not in visited:
+0183:                     visited.add(nf)
+0184:                     queue.append(nf)
+0185: 
+0186:     if len(visited) != len(selected_faces):
+0187:         return False, [], False, 0.0, -1, "A seleção contém múltiplas ilhas desconectadas. Selecione uma única região contígua."
+0188: 
+0189:     # Identifica arestas de contorno (exatamente 1 face selecionada incidente)
+0190:     boundary_edges = []
+0191:     for e in bm.edges:
+0192:         inc = [lf for lf in e.link_faces if lf in selected_faces]
+0193:         if len(inc) == 1:
+0194:             boundary_edges.append(e)
+0195:         elif len(inc) > 2:
+0196:             return False, [], False, 0.0, -1, "Aresta não-manifold detectada na seleção de faces."
+0197: 
+0198:     if not boundary_edges:
+0199:         return False, [], False, 0.0, -1, "A seleção não possui bordas abertas (toda a superfície fechada está selecionada)."
+0200: 
+0201:     # Mapeia vértices do contorno
+0202:     vert_to_edges = {}
+0203:     for e in boundary_edges:
+0204:         for v in e.verts:
+0205:             vert_to_edges.setdefault(v, []).append(e)
+0206: 
+0207:     for v, edges in vert_to_edges.items():
+0208:         if len(edges) != 2:
+0209:             if len(edges) > 2:
+0210:                 return False, [], False, 0.0, -1, "Ramificação/bifurcação no perímetro (regiões tocando-se apenas por vértice ou auto-interseção)."
+0211:             else:
+0212:                 return False, [], False, 0.0, -1, "Perímetro aberto na borda da malha. O contorno precisa ser um ciclo fechado."
+0213: 
+0214:     # Ordena o ciclo de vértices
+0215:     start_v = next(iter(vert_to_edges.keys()))
+0216:     ordered_verts = [start_v]
+0217:     current_v = start_v
+0218:     current_e = vert_to_edges[current_v][0]
+0219: 
+0220:     while True:
+0221:         next_v = current_e.verts[0] if current_e.verts[1] == current_v else current_e.verts[1]
+0222:         if next_v == start_v:
+0223:             break
+0224:         ordered_verts.append(next_v)
+0225:         edges_of_next = vert_to_edges[next_v]
+0226:         next_e = edges_of_next[0] if edges_of_next[0] != current_e else edges_of_next[1]
+0227:         current_v = next_v
+0228:         current_e = next_e
+0229: 
+0230:     if len(ordered_verts) != len(vert_to_edges):
+0231:         return False, [], False, 0.0, -1, "A seleção possui múltiplos ciclos ou furos internos. Selecione uma região contígua simples."
+0232: 
+0233:     coords_world = [obj.matrix_world @ v.co for v in ordered_verts]
+0234:     centroid = sum(coords_world, Vector()) / len(coords_world)
+0235: 
+0236:     # Normal via Newell
+0237:     n = Vector((0.0, 0.0, 0.0))
+0238:     n_pts = len(coords_world)
+0239:     for i in range(n_pts):
+0240:         v1 = coords_world[i]
+0241:         v2 = coords_world[(i + 1) % n_pts]
+0242:         n.x += (v1.y - v2.y) * (v1.z + v2.z)
+0243:         n.y += (v1.z - v2.z) * (v1.x + v2.x)
+0244:         n.z += (v1.x - v2.x) * (v1.y + v2.y)
+0245: 
+0246:     if n.length > 1e-7:
+0247:         n.normalize()
+0248:     else:
+0249:         return False, [], False, 0.0, -1, "Contorno degenerado (área nula)."
+0250: 
+0251:     max_deviation_bu = max(abs((v - centroid).dot(n)) for v in coords_world)
+0252:     actual_scene = scene if scene else (bpy.context.scene if hasattr(bpy.context, "scene") else None)
+0253:     scale_to_mm = get_scene_scale_to_mm(actual_scene)
+0254:     max_deviation_mm = max_deviation_bu * scale_to_mm
+0255:     is_planar = max_deviation_mm <= 0.1
+0256: 
+0257:     indices = [v.index for v in ordered_verts]
+0258:     return True, indices, is_planar, max_deviation_mm, seed_face_idx, ""
+0259: 
+0260: 
+0261: def get_selected_seed_face(obj: bpy.types.Object) -> int:
+0262:     """Obtém a face ativa ou a primeira face selecionada no modo de edição."""
+0263:     if not obj or obj.mode != 'EDIT':
+0264:         return -1
+0265: 
+0266:     bm = bmesh.from_edit_mesh(obj.data)
+0267:     active_face = bm.faces.active
+0268:     if active_face and active_face.select:
+0269:         return active_face.index
+0270: 
+0271:     for f in bm.faces:
+0272:         if f.select:
+0273:             return f.index
+0274: 
+0275:     return -1
+0276: 
+0277: 
+0278: def slice_mesh_by_loop(
+0279:     obj: bpy.types.Object,
+0280:     target_name: str,
+0281:     indices: List[int],
+0282:     seed_face_idx: int,
+0283:     scene: Optional[bpy.types.Scene] = None,
+0284: ) -> LoopSliceResult:
+0285:     """Realiza a separação da malha usando o contorno (loop) capturado.
+0286:     
+0287:     Processa a geometria inteiramente no espaço de mundo (World Space).
+0288:     Garante malhas manifold em Parte A e Parte B com interface compartilhada idêntica.
+0289:     Retorna LoopSliceResult(bm_a, bm_b, split_result).
+0290:     """
+0291:     scale_to_mm = get_scene_scale_to_mm(scene) if scene else 1000.0
+0292: 
+0293:     matrix_world = obj.matrix_world.copy()
+0294:     det = matrix_world.determinant()
+0295:     if abs(det) < 1e-9:
+0296:         raise ValueError("A matriz de transformação do objeto é singular (escala nula).")
+0297: 
+0298:     bm = bmesh.new()
+0299:     bm.from_mesh(obj.data)
+0300:     bm.verts.ensure_lookup_table()
+0301:     bm.edges.ensure_lookup_table()
+0302:     bm.faces.ensure_lookup_table()
+0303: 
+0304:     if seed_face_idx < 0 or seed_face_idx >= len(bm.faces):
+0305:         bm.free()
+0306:         raise ValueError("Face-semente inválida ou não encontrada.")
+0307: 
+0308:     for idx in indices:
+0309:         if idx < 0 or idx >= len(bm.verts):
+0310:             bm.free()
+0311:             raise ValueError("Topologia alterada. Um vértice do loop não existe mais.")
+0312: 
+0313:     # Mapeia as arestas do contorno
+0314:     loop_verts_local = [bm.verts[idx] for idx in indices]
+0315:     loop_edges = set()
+0316:     n_loop = len(loop_verts_local)
+0317:     for i in range(n_loop):
+0318:         v1 = loop_verts_local[i]
+0319:         v2 = loop_verts_local[(i + 1) % n_loop]
+0320:         edge = bm.edges.get((v1, v2))
+0321:         if not edge:
+0322:             bm.free()
+0323:             raise ValueError("O ciclo de arestas não existe mais na malha (Topologia alterada).")
+0324:         loop_edges.add(edge)
+0325: 
+0326:     # Flood fill para coletar todas as faces pertencentes à Parte A (região da semente)
+0327:     seed_face = bm.faces[seed_face_idx]
+0328:     faces_a = set()
+0329:     queue = [seed_face]
+0330:     faces_a.add(seed_face)
+0331: 
+0332:     while queue:
+0333:         curr_face = queue.pop(0)
+0334:         for edge in curr_face.edges:
+0335:             if edge in loop_edges:
+0336:                 continue
+0337:             for adj_face in edge.link_faces:
+0338:                 if adj_face not in faces_a:
+0339:                     faces_a.add(adj_face)
+0340:                     queue.append(adj_face)
+0341: 
+0342:     if len(faces_a) == len(bm.faces):
+0343:         bm.free()
+0344:         raise ValueError("O loop não separa a malha em duas regiões (Exemplo: está numa alça).")
+0345: 
+0346:     if len(faces_a) == 0:
+0347:         bm.free()
+0348:         raise ValueError("A região da Parte A ficou vazia.")
+0349: 
+0350:     faces_b = set(bm.faces) - faces_a
+0351: 
+0352:     # Coleta coordenadas mundiais originais dos vértices do loop
+0353:     loop_coords_world = [matrix_world @ v.co for v in loop_verts_local]
+0354: 
+0355:     # Transforma o snapshot para World Space uma única vez
+0356:     bm.transform(matrix_world)
+0357:     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+0358:     bm.verts.ensure_lookup_table()
+0359:     bm.edges.ensure_lookup_table()
+0360:     bm.faces.ensure_lookup_table()
+0361: 
+0362:     # Cria BMesh da Parte A
+0363:     bm_a = bm.copy()
+0364:     bm_a.faces.ensure_lookup_table()
+0365:     faces_to_delete_in_a = [bm_a.faces[f.index] for f in faces_b]
+0366:     bmesh.ops.delete(bm_a, geom=faces_to_delete_in_a, context='FACES')
+0367: 
+0368:     # Cria BMesh da Parte B
+0369:     bm_b = bm.copy()
+0370:     bm_b.faces.ensure_lookup_table()
+0371:     faces_to_delete_in_b = [bm_b.faces[f.index] for f in faces_a]
+0372:     bmesh.ops.delete(bm_b, geom=faces_to_delete_in_b, context='FACES')
+0373: 
+0374:     bm.free()
+0375: 
+0376:     # Identifica e fecha a borda do loop na Parte A
+0377:     # Filtra arestas abertas correspondentes ao corte do loop
+0378:     bm_a.edges.ensure_lookup_table()
+0379:     bm_a.verts.ensure_lookup_table()
+0380:     edges_hole_a = [e for e in bm_a.edges if e.is_boundary]
+0381:     created_faces_a = []
+0382:     if edges_hole_a:
+0383:         res_a = bmesh.ops.holes_fill(bm_a, edges=edges_hole_a, sides=len(loop_verts_local))
+0384:         created_faces_a = res_a.get("faces", [])
+0385:         if not created_faces_a:
+0386:             res_a = bmesh.ops.edgenet_fill(bm_a, edges=edges_hole_a)
+0387:             created_faces_a = res_a.get("faces", [])
+0388: 
+0389:         # Herança de materiais das faces vizinhas
+0390:         if created_faces_a:
+0391:             created_set_a = set(created_faces_a)
+0392:             for f in created_faces_a:
+0393:                 adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set_a]
+0394:                 if adj:
+0395:                     f.material_index = max(set(adj), key=adj.count)
+0396:             # Triangula faces n-gons para garantir planicidade e solidez
+0397:             tri_res = bmesh.ops.triangulate(bm_a, faces=[f for f in bm_a.faces if len(f.verts) > 4 or f in created_set_a])
+0398:             created_faces_a = tri_res.get("faces", created_faces_a)
+0399: 
+0400:     # Recalcula normais da Parte A (garante orientação externa no sólido manifold)
+0401:     bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
+0402: 
+0403:     # Determina a normal da interface que aponta DE A PARA B
+0404:     # As faces da tampa recém-criadas na Parte A apontam para fora da Parte A (entrando em B)
+0405:     normal_a_to_b = Vector((0.0, 0.0, 1.0))
+0406:     if created_faces_a:
+0407:         valid_caps = [f for f in created_faces_a if f.is_valid]
+0408:         if valid_caps:
+0409:             avg_cap_norm = sum((f.normal for f in valid_caps), Vector()) / len(valid_caps)
+0410:             if avg_cap_norm.length > 1e-5:
+0411:                 normal_a_to_b = avg_cap_norm.normalized()
+0412: 
+0413:     # Identifica e fecha a borda do loop na Parte B
+0414:     bm_b.edges.ensure_lookup_table()
+0415:     bm_b.verts.ensure_lookup_table()
+0416:     edges_hole_b = [e for e in bm_b.edges if e.is_boundary]
+0417:     created_faces_b = []
+0418:     if edges_hole_b:
+0419:         res_b = bmesh.ops.holes_fill(bm_b, edges=edges_hole_b, sides=len(loop_verts_local))
+0420:         created_faces_b = res_b.get("faces", [])
+0421:         if not created_faces_b:
+0422:             res_b = bmesh.ops.edgenet_fill(bm_b, edges=edges_hole_b)
+0423:             created_faces_b = res_b.get("faces", [])
+0424: 
+0425:         if created_faces_b:
+0426:             created_set_b = set(created_faces_b)
+0427:             for f in created_faces_b:
+0428:                 adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set_b]
+0429:                 if adj:
+0430:                     f.material_index = max(set(adj), key=adj.count)
+0431:             tri_res_b = bmesh.ops.triangulate(bm_b, faces=[f for f in bm_b.faces if len(f.verts) > 4 or f in created_set_b])
+0432:             created_faces_b = tri_res_b.get("faces", created_faces_b)
+0433: 
+0434:     # Recalcula normais da Parte B
+0435:     bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
+0436: 
+0437:     # Constrói CutInterface formal em World Space
+0438:     origin_world = sum(loop_coords_world, Vector()) / len(loop_coords_world)
+0439:     cut_interface = build_cut_interface(
+0440:         origin_world=origin_world,
+0441:         normal_a_to_b=normal_a_to_b,
+0442:         boundary_points_world=loop_coords_world,
+0443:         unit_scale=scale_to_mm,
+0444:         source_mode="LOOP",
+0445:     )
+0446: 
+0447:     metrics_a = evaluate_bmesh_metrics(bm_a, unit_scale=scale_to_mm)
+0448:     metrics_b = evaluate_bmesh_metrics(bm_b, unit_scale=scale_to_mm)
+0449: 
+0450:     split_result = SplitResult(
+0451:         part_a_metrics=metrics_a,
+0452:         part_b_metrics=metrics_b,
+0453:         interface=cut_interface,
+0454:         diagnostics_before_connectors={
+0455:             "sum_volume_mm3": metrics_a["volume_mm3"] + metrics_b["volume_mm3"],
+0456:             "interface_width_mm": cut_interface.width_mm,
+0457:             "interface_height_mm": cut_interface.height_mm,
+0458:             "is_planar": cut_interface.is_planar,
+0459:             "deviation_mm": cut_interface.deviation_mm,
+0460:         },
+0461:         success=True,
+0462:     )
+0463: 
+0464:     return LoopSliceResult(bm_a, bm_b, split_result)
+0465: 
+0466: 
+0467: def analyze_loop_region(
+0468:     obj: bpy.types.Object,
+0469:     indices: List[int],
+0470:     seed_face_idx: int,
+0471:     scene: Optional[bpy.types.Scene] = None,
+0472: ) -> Dict[str, Any]:
+0473:     """Analisa a região delimitada pelo loop para decisão automática entre DETACH e EXTRUDE."""
+0474:     scale_to_mm = get_scene_scale_to_mm(scene) if scene else 1000.0
+0475:     matrix_world = obj.matrix_world.copy()
+0476: 
+0477:     bm = bmesh.new()
+0478:     bm.from_mesh(obj.data)
+0479:     bm.verts.ensure_lookup_table()
+0480:     bm.edges.ensure_lookup_table()
+0481:     bm.faces.ensure_lookup_table()
+0482: 
+0483:     if seed_face_idx < 0 or seed_face_idx >= len(bm.faces):
+0484:         bm.free()
+0485:         raise ValueError("Face-semente inválida ou não selecionada.")
+0486: 
+0487:     # Mapeia as arestas do contorno
+0488:     loop_verts_local = [bm.verts[idx] for idx in indices]
+0489:     loop_edges = set()
+0490:     n_loop = len(loop_verts_local)
+0491:     for i in range(n_loop):
+0492:         v1 = loop_verts_local[i]
+0493:         v2 = loop_verts_local[(i + 1) % n_loop]
+0494:         edge = bm.edges.get((v1, v2))
+0495:         if edge:
+0496:             loop_edges.add(edge)
+0497: 
+0498:     # Flood fill para coletar faces de A
+0499:     seed_face = bm.faces[seed_face_idx]
+0500:     faces_a = set()
+0501:     queue = [seed_face]
+0502:     faces_a.add(seed_face)
+0503: 
+0504:     while queue:
+0505:         curr_face = queue.pop(0)
+0506:         for edge in curr_face.edges:
+0507:             if edge in loop_edges:
+0508:                 continue
+0509:             for adj_face in edge.link_faces:
+0510:                 if adj_face not in faces_a:
+0511:                     faces_a.add(adj_face)
+0512:                     queue.append(adj_face)
+0513: 
+0514:     loop_coords_world = [matrix_world @ v.co for v in loop_verts_local]
+0515:     centroid = sum(loop_coords_world, Vector()) / len(loop_coords_world)
+0516: 
+0517:     # Normal média do loop via Newell
+0518:     n = Vector((0.0, 0.0, 0.0))
+0519:     n_pts = len(loop_coords_world)
+0520:     for i in range(n_pts):
+0521:         v1 = loop_coords_world[i]
+0522:         v2 = loop_coords_world[(i + 1) % n_pts]
+0523:         n.x += (v1.y - v2.y) * (v1.z + v2.z)
+0524:         n.y += (v1.z - v2.z) * (v1.x + v2.x)
+0525:         n.z += (v1.x - v2.x) * (v1.y + v2.y)
+0526:     if n.length > 1e-6:
+0527:         n.normalize()
+0528:     else:
+0529:         n = Vector((0.0, 0.0, 1.0))
+0530: 
+0531:     # Determina a direção para dentro do sólido
+0532:     normal_matrix = matrix_world.to_3x3().inverted().transposed()
+0533:     seed_norm_world = (normal_matrix @ seed_face.normal).normalized()
+0534: 
+0535:     # Prepara BVHTree no espaço de mundo para testar direção e espessura da parede
+0536:     bm_bvh = bm.copy()
+0537:     bm_bvh.transform(matrix_world)
+0538:     bvh = BVHTree.FromBMesh(bm_bvh)
+0539: 
+0540:     # Inward candidato primário: o oposto da normal externa da face semente
+0541:     cand_inward = -seed_norm_world
+0542:     hit_c1, _, _, _ = bvh.ray_cast(centroid + cand_inward * 1e-4, cand_inward)
+0543:     hit_c2, _, _, _ = bvh.ray_cast(centroid - cand_inward * 1e-4, -cand_inward)
+0544: 
+0545:     if hit_c1 is not None and hit_c2 is None:
+0546:         inward_dir = cand_inward
+0547:     elif hit_c2 is not None and hit_c1 is None:
+0548:         inward_dir = -cand_inward
+0549:     elif hit_c1 is not None and hit_c2 is not None:
+0550:         # Ambos intersectam: escolhe o que penetra no sólido a partir da face semente
+0551:         inward_dir = cand_inward
+0552:     else:
+0553:         inward_dir = cand_inward
+0554: 
+0555:     # Analisa relevo (altura) dos vértices da região A em relação ao plano do loop
+0556:     verts_a = set(v for f in faces_a for v in f.verts)
+0557:     coords_a_world = [matrix_world @ v.co for v in verts_a]
+0558:     outward_dir = -inward_dir
+0559:     heights = [(p - centroid).dot(outward_dir) for p in coords_a_world]
+0560:     max_h = max(heights) if heights else 0.0
+0561:     min_h = min(heights) if heights else 0.0
+0562:     span_h_bu = max_h - min_h
+0563:     span_h_mm = span_h_bu * scale_to_mm
+0564: 
+0565:     # Avalia espessura disponível na direção inward via BVHTree
+0566:     min_wall_depth_bu = 1e9
+0567:     test_points = [centroid] + loop_coords_world
+0568:     for pt in test_points:
+0569:         ray_start = pt + inward_dir * 1e-4
+0570:         hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(ray_start, inward_dir)
+0571:         if hit_loc is not None:
+0572:             dist = (hit_loc - pt).length
+0573:             if dist < min_wall_depth_bu:
+0574:                 min_wall_depth_bu = dist
+0575: 
+0576:     bm_bvh.free()
+0577:     bm.free()
+0578: 
+0579:     max_avail_depth_mm = (min_wall_depth_bu * scale_to_mm) if min_wall_depth_bu < 1e8 else 1000.0
+0580: 
+0581:     if span_h_mm < 0.2:
+0582:         detected_mode = 'EXTRUDE'
+0583:         reason = (
+0584:             f"Região plana detectada (desvio de relevo: {span_h_mm:.2f} mm). "
+0585:             f"Requer profundidade de extração para gerar peça sólida."
+0586:         )
+0587:         is_planar_region = True
+0588:     else:
+0589:         detected_mode = 'DETACH'
+0590:         reason = (
+0591:             f"Saliência 3D detectada (altura saliente: {span_h_mm:.2f} mm). "
+0592:             f"Destacando volume pela interface do contorno."
+0593:         )
+0594:         is_planar_region = False
+0595: 
+0596:     return {
+0597:         "detected_mode": detected_mode,
+0598:         "reason": reason,
+0599:         "protrusion_height_mm": max(0.0, max_h * scale_to_mm),
+0600:         "is_planar_region": is_planar_region,
+0601:         "inward_dir_world": inward_dir,
+0602:         "loop_normal_world": n,
+0603:         "centroid_world": centroid,
+0604:         "max_avail_depth_mm": max_avail_depth_mm,
+0605:         "coords_world": loop_coords_world,
+0606:     }
+0607: 
+0608: 
+0609: def create_loop_prism_cutter(
+0610:     coords_world: List[Vector],
+0611:     inward_dir: Vector,
+0612:     depth_bu: float,
+0613:     outward_ext_bu: float = 1e-3,
+0614:     name: str = "temp_loop_prism",
+0615: ) -> bpy.types.Object:
+0616:     """Constrói um prisma 3D fechado e manifold a partir de um contorno de coordenadas mundiais."""
+0617:     bm = bmesh.new()
+0618:     in_norm = inward_dir.normalized()
+0619: 
+0620:     # Remove pontos colineares (ex: vértice no meio de uma aresta reta do contorno).
+0621:     # Eles geram triângulos degenerados nas tampas e quebram o booleano EXACT.
+0622:     pts = list(coords_world)
+0623:     changed = True
+0624:     while changed and len(pts) > 3:
+0625:         changed = False
+0626:         for i in range(len(pts)):
+0627:             p_prev, p, p_next = pts[i - 1], pts[i], pts[(i + 1) % len(pts)]
+0628:             d1 = p - p_prev
+0629:             d2 = p_next - p
+0630:             if d1.length < 1e-9 or d2.length < 1e-9 or d1.normalized().cross(d2.normalized()).length < 1e-5:
+0631:                 pts.pop(i)
+0632:                 changed = True
+0633:                 break
+0634:     coords_world = pts
+0635:     n = len(coords_world)
+0636: 
+0637:     top_verts = [bm.verts.new(p - outward_ext_bu * in_norm) for p in coords_world]
+0638:     bot_verts = [bm.verts.new(p + depth_bu * in_norm) for p in coords_world]
+0639:     bm.verts.ensure_lookup_table()
+0640: 
+0641:     for i in range(n):
+0642:         i_next = (i + 1) % n
+0643:         bm.faces.new((top_verts[i], top_verts[i_next], bot_verts[i_next], bot_verts[i]))
+0644: 
+0645:     f_top = bm.faces.new(reversed(top_verts))
+0646:     f_bot = bm.faces.new(bot_verts)
+0647: 
+0648:     bmesh.ops.triangulate(bm, faces=[f_top, f_bot])
+0649:     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+0650: 
+0651:     mesh = bpy.data.meshes.new(f"{name}_Mesh")
+0652:     bm.to_mesh(mesh)
+0653:     bm.free()
+0654: 
+0655:     obj = bpy.data.objects.new(name, mesh)
+0656:     obj.hide_viewport = False
+0657:     obj.hide_render = False
+0658:     bpy.context.scene.collection.objects.link(obj)
+0659:     return obj
+0660: 
+0661: 
+0662: def slice_mesh_by_loop_extrude(
+0663:     obj: bpy.types.Object,
+0664:     target_name: str,
+0665:     indices: List[int],
+0666:     seed_face_idx: int,
+0667:     depth_mm: float,
+0668:     through_cut: bool = False,
+0669:     scene: Optional[bpy.types.Scene] = None,
+0670: ) -> LoopSliceResult:
+0671:     """Corta o modelo extraindo o volume delimitado pelo contorno até a profundidade especificada.
+0672:     
+0673:     Parte A = volume extraído (prisma ∩ target)
+0674:     Parte B = restante do modelo (target \\ prisma)
+0675:     """
+0676:     actual_scene = scene if scene else bpy.context.scene
+0677:     scale_to_mm = get_scene_scale_to_mm(actual_scene)
+0678: 
+0679:     analysis = analyze_loop_region(obj, indices, seed_face_idx, scene=actual_scene)
+0680:     max_avail_mm = analysis["max_avail_depth_mm"]
+0681: 
+0682:     # Validação de espessura (Critério L5)
+0683:     if depth_mm > (max_avail_mm + 1e-3) and not through_cut:
+0684:         raise ValueError(
+0685:             f"A profundidade de extração ({depth_mm:.1f} mm) ultrapassa a espessura da peça "
+0686:             f"({max_avail_mm:.1f} mm). Reduza a profundidade ou ative a opção 'Corte Passante'."
+0687:         )
+0688: 
+0689:     coords_world = analysis["coords_world"]
+0690:     inward_dir = analysis["inward_dir_world"]
+0691:     depth_bu = depth_mm / scale_to_mm
+0692: 
+0693:     protrusion_h_bu = analysis["protrusion_height_mm"] / scale_to_mm
+0694:     outward_ext_bu = max(0.5 / scale_to_mm, protrusion_h_bu + 0.5 / scale_to_mm)
+0695: 
+0696:     if through_cut and depth_mm >= max_avail_mm:
+0697:         depth_bu = max(depth_bu, (max_avail_mm / scale_to_mm) + (1.0 / scale_to_mm))
+0698: 
+0699:     prism_obj = create_loop_prism_cutter(
+0700:         coords_world=coords_world,
+0701:         inward_dir=inward_dir,
+0702:         depth_bu=depth_bu,
+0703:         outward_ext_bu=outward_ext_bu,
+0704:         name=f"{target_name}_loop_prism",
+0705:     )
+0706: 
+0707:     try:
+0708:         bpy.context.view_layer.update()
+0709: 
+0710:         temp_obj_a = obj.copy()
+0711:         temp_obj_a.data = obj.data.copy()
+0712:         temp_obj_a.hide_viewport = False
+0713:         temp_obj_a.hide_render = False
+0714:         actual_scene.collection.objects.link(temp_obj_a)
+0715:         mod_a = temp_obj_a.modifiers.new(name="Extrude_Intersect", type='BOOLEAN')
+0716:         mod_a.operation = 'INTERSECT'
+0717:         mod_a.solver = 'EXACT'
+0718:         mod_a.object = prism_obj
+0719: 
+0720:         temp_obj_b = obj.copy()
+0721:         temp_obj_b.data = obj.data.copy()
+0722:         temp_obj_b.hide_viewport = False
+0723:         temp_obj_b.hide_render = False
+0724:         actual_scene.collection.objects.link(temp_obj_b)
+0725:         mod_b = temp_obj_b.modifiers.new(name="Extrude_Difference", type='BOOLEAN')
+0726:         mod_b.operation = 'DIFFERENCE'
+0727:         mod_b.solver = 'EXACT'
+0728:         mod_b.object = prism_obj
+0729: 
+0730:         bpy.context.view_layer.update()
+0731:         dg = bpy.context.evaluated_depsgraph_get()
+0732: 
+0733:         eval_a = temp_obj_a.evaluated_get(dg).to_mesh()
+0734:         eval_b = temp_obj_b.evaluated_get(dg).to_mesh()
+0735: 
+0736:         bm_a = bmesh.new()
+0737:         bm_a.from_mesh(eval_a)
+0738:         bm_a.transform(temp_obj_a.matrix_world)
+0739: 
+0740:         bm_b = bmesh.new()
+0741:         bm_b.from_mesh(eval_b)
+0742:         bm_b.transform(temp_obj_b.matrix_world)
+0743: 
+0744:         temp_obj_a.to_mesh_clear()
+0745:         temp_obj_b.to_mesh_clear()
+0746: 
+0747:         m_a_data = temp_obj_a.data
+0748:         m_b_data = temp_obj_b.data
+0749:         actual_scene.collection.objects.unlink(temp_obj_a)
+0750:         actual_scene.collection.objects.unlink(temp_obj_b)
+0751:         bpy.data.objects.remove(temp_obj_a, do_unlink=True)
+0752:         bpy.data.objects.remove(temp_obj_b, do_unlink=True)
+0753:         if m_a_data and m_a_data.users == 0:
+0754:             bpy.data.meshes.remove(m_a_data, do_unlink=True)
+0755:         if m_b_data and m_b_data.users == 0:
+0756:             bpy.data.meshes.remove(m_b_data, do_unlink=True)
+0757: 
+0758:         if len(bm_a.verts) == 0 or len(bm_b.verts) == 0:
+0759:             bm_a.free()
+0760:             bm_b.free()
+0761:             raise RuntimeError("A extração com profundidade gerou malha vazia para uma das partes.")
+0762: 
+0763:         bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
+0764:         bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
+0765: 
+0766:         interface_origin = analysis["centroid_world"] + (depth_mm / scale_to_mm) * inward_dir
+0767:         cut_interface = build_cut_interface(
+0768:             origin_world=interface_origin,
+0769:             normal_a_to_b=inward_dir,
+0770:             boundary_points_world=coords_world,
+0771:             unit_scale=scale_to_mm,
+0772:             source_mode="LOOP",
+0773:         )
+0774: 
+0775:         metrics_a = evaluate_bmesh_metrics(bm_a, unit_scale=scale_to_mm)
+0776:         metrics_b = evaluate_bmesh_metrics(bm_b, unit_scale=scale_to_mm)
+0777: 
+0778:         split_result = SplitResult(
+0779:             part_a_metrics=metrics_a,
+0780:             part_b_metrics=metrics_b,
+0781:             interface=cut_interface,
+0782:             diagnostics_before_connectors={
+0783:                 "sum_volume_mm3": metrics_a["volume_mm3"] + metrics_b["volume_mm3"],
+0784:                 "interface_width_mm": cut_interface.width_mm,
+0785:                 "interface_height_mm": cut_interface.height_mm,
+0786:                 "is_planar": True,
+0787:                 "deviation_mm": 0.0,
+0788:             },
+0789:             success=True,
+0790:         )
+0791: 
+0792:         return LoopSliceResult(bm_a, bm_b, split_result)
+0793: 
+0794:     finally:
+0795:         p_mesh = prism_obj.data
+0796:         if prism_obj.name in actual_scene.collection.objects:
+0797:             actual_scene.collection.objects.unlink(prism_obj)
+0798:         if prism_obj.name in bpy.data.objects:
+0799:             bpy.data.objects.remove(prism_obj, do_unlink=True)
+0800:         if p_mesh and p_mesh.users == 0:
+0801:             bpy.data.meshes.remove(p_mesh, do_unlink=True)

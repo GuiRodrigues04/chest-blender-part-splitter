@@ -1,0 +1,134 @@
+0001: """Módulo de desenho GPU para sobreposição do contorno capturado no Viewport (F01).
+0002: 
+0003: Exibe uma linha destacada e persistente ao longo do contorno de arestas capturado,
+0004: permitindo ao usuário selecionar a face semente ou inspecionar o modelo sem perder
+0005: a referência visual do corte.
+0006: """
+0007: 
+0008: import bpy
+0009: from typing import Optional, List
+0010: from mathutils import Vector
+0011: 
+0012: _draw_handler = None
+0013: 
+0014: 
+0015: def _draw_loop_overlay_callback():
+0016:     """Callback de desenho executado no espaço 3D (SpaceView3D)."""
+0017:     context = bpy.context
+0018:     if not context or not hasattr(context, "scene") or not hasattr(context.scene, "chest_splitter"):
+0019:         return
+0020: 
+0021:     settings = context.scene.chest_splitter
+0022:     if not getattr(settings, "show_loop_highlight", True):
+0023:         return
+0024: 
+0025:     if not getattr(settings, "loop_is_captured", False):
+0026:         return
+0027: 
+0028:     target = getattr(settings, "target_object", None)
+0029:     if not target or target.name not in bpy.data.objects or target.type != 'MESH':
+0030:         return
+0031: 
+0032:     indices_str = getattr(settings, "loop_vertex_indices", "")
+0033:     if not indices_str:
+0034:         return
+0035: 
+0036:     try:
+0037:         indices = [int(i) for i in indices_str.split(',') if i.strip()]
+0038:     except ValueError:
+0039:         return
+0040: 
+0041:     if len(indices) < 2:
+0042:         return
+0043: 
+0044:     mesh = target.data
+0045:     if not mesh or not mesh.vertices:
+0046:         return
+0047: 
+0048:     max_idx = max(indices)
+0049:     if max_idx >= len(mesh.vertices):
+0050:         return
+0051: 
+0052:     mw = target.matrix_world
+0053:     # Coordenadas mundiais dos vértices
+0054:     try:
+0055:         pts = [mw @ mesh.vertices[i].co for i in indices]
+0056:     except Exception:
+0057:         return
+0058: 
+0059:     # Constrói segmentos de linha fechados (P0->P1, P1->P2, ..., Pn->P0)
+0060:     line_coords = []
+0061:     n = len(pts)
+0062:     for i in range(n):
+0063:         line_coords.append(pts[i])
+0064:         line_coords.append(pts[(i + 1) % n])
+0065: 
+0066:     if not line_coords:
+0067:         return
+0068: 
+0069:     try:
+0070:         import gpu
+0071:         from gpu_extras.batch import batch_for_shader
+0072: 
+0073:         shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+0074: 
+0075:         # Configura estado GPU com restauração
+0076:         prev_blend = gpu.state.blend_get() if hasattr(gpu.state, 'blend_get') else 'NONE'
+0077:         if hasattr(gpu.state, 'blend_set'):
+0078:             gpu.state.blend_set('ALPHA')
+0079:         if hasattr(gpu.state, 'line_width_set'):
+0080:             try:
+0081:                 gpu.state.line_width_set(3.0)
+0082:             except Exception:
+0083:                 pass
+0084:         if hasattr(gpu.state, 'depth_test_set'):
+0085:             try:
+0086:                 gpu.state.depth_test_set('LESS_EQUAL')
+0087:             except Exception:
+0088:                 pass
+0089: 
+0090:         shader.bind()
+0091:         # Cor ciano vibrante para destacar sobre superfícies cinzas ou coloridas
+0092:         color = (0.0, 0.85, 1.0, 1.0)
+0093:         shader.uniform_float("color", color)
+0094: 
+0095:         batch = batch_for_shader(shader, 'LINES', {"pos": line_coords})
+0096:         batch.draw(shader)
+0097: 
+0098:         # Restaura estado
+0099:         if hasattr(gpu.state, 'line_width_set'):
+0100:             try:
+0101:                 gpu.state.line_width_set(1.0)
+0102:             except Exception:
+0103:                 pass
+0104:         if hasattr(gpu.state, 'blend_set'):
+0105:             gpu.state.blend_set(prev_blend)
+0106:     except Exception:
+0107:         # Falhas de desenho GPU nunca devem interromper o Blender
+0108:         pass
+0109: 
+0110: 
+0111: def register_overlay():
+0112:     """Registra o draw handler na visualização 3D."""
+0113:     global _draw_handler
+0114:     if _draw_handler is None and hasattr(bpy.types, "SpaceView3D"):
+0115:         try:
+0116:             _draw_handler = bpy.types.SpaceView3D.draw_handler_add(
+0117:                 _draw_loop_overlay_callback,
+0118:                 (),
+0119:                 'WINDOW',
+0120:                 'POST_VIEW',
+0121:             )
+0122:         except Exception:
+0123:             _draw_handler = None
+0124: 
+0125: 
+0126: def unregister_overlay():
+0127:     """Remove o draw handler da visualização 3D."""
+0128:     global _draw_handler
+0129:     if _draw_handler is not None and hasattr(bpy.types, "SpaceView3D"):
+0130:         try:
+0131:             bpy.types.SpaceView3D.draw_handler_remove(_draw_handler, 'WINDOW')
+0132:         except Exception:
+0133:             pass
+0134:         _draw_handler = None

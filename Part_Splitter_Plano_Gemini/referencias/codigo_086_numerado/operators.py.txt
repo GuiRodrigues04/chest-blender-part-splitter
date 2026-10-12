@@ -1,0 +1,2419 @@
+0001: """Operadores do Blender para o Chest Part Splitter (Fase 1 - Corte por Plano)."""
+0002: 
+0003: import os
+0004: import uuid
+0005: import hashlib
+0006: import math
+0007: from typing import Optional, List, Dict, Any, Tuple
+0008: import bpy
+0009: from bpy.app.handlers import persistent
+0010: import bmesh
+0011: from mathutils import Vector, Matrix, Euler, Quaternion
+0012: 
+0013: from .constants import (
+0014:     COLLECTION_GUIDES_NAME,
+0015:     COLLECTION_PREVIEWS_NAME,
+0016:     COLLECTION_WORK_NAME,
+0017:     COLLECTION_PARTS_NAME,
+0018:     PART_A_SUFFIX,
+0019:     PART_B_SUFFIX,
+0020:     WORK_COPY_SUFFIX,
+0021:     PLANE_GUIDE_NAME,
+0022:     SOLID_CUTTER_NAME,
+0023:     PREVIEW_A_NAME,
+0024:     PREVIEW_B_NAME,
+0025:     COLOR_PART_A,
+0026:     COLOR_PART_B,
+0027:     VOLUME_REL_TOLERANCE,
+0028:     CLEARANCE_PRESETS,
+0029:     SOLID_PRIMITIVE_TYPES,
+0030:     ROLE_WORK_COPY,
+0031:     ROLE_PREVIEW_A,
+0032:     ROLE_PREVIEW_B,
+0033:     ROLE_PREVIEW_PART,
+0034:     ROLE_COMMITTED_PART,
+0035:     ROLE_SUBPART_MATERIAL,
+0036: )
+0037: from .diagnostic import analyze_target_mesh, get_scene_scale_to_mm
+0038: 
+0039: from .geometry_plane import (
+0040:     slice_mesh_by_plane,
+0041:     compute_explosion_offsets,
+0042:     evaluate_bmesh_metrics,
+0043:     NoIntersectionError,
+0044:     PlaneSliceError,
+0045: )
+0046: from .geometry_connectors import (
+0047:     compute_connector_positions,
+0048:     compute_connector_layout,
+0049:     validate_connectors,
+0050:     apply_connectors_boolean,
+0051:     ConnectorValidationError,
+0052: )
+0053: from .geometry_solid import (
+0054:     create_primitive_cutter_mesh,
+0055:     validate_solid_cutter,
+0056:     slice_mesh_by_solid,
+0057:     compute_solid_explosion_offsets,
+0058:     SolidCutterValidationError,
+0059:     SolidSliceError,
+0060: )
+0061: from .translations import _get_current_locale
+0062: 
+0063: 
+0064: 
+0065: def find_collection(scene: bpy.types.Scene, name: str) -> Optional[bpy.types.Collection]:
+0066:     """Localiza uma coleção na cena ativa pelo nome."""
+0067:     for col in scene.collection.children_recursive:
+0068:         if col.name == name:
+0069:             return col
+0070:     return None
+0071: 
+0072: 
+0073: def get_or_create_collection(scene: bpy.types.Scene, name: str) -> bpy.types.Collection:
+0074:     """Obtém ou cria uma coleção na cena ativa de forma segura."""
+0075:     found = find_collection(scene, name)
+0076:     if found:
+0077:         return found
+0078:     new_col = bpy.data.collections.new(name)
+0079:     scene.collection.children.link(new_col)
+0080:     return new_col
+0081: 
+0082: 
+0083: 
+0084: def cleanup_collection_objects(
+0085:     collection: bpy.types.Collection,
+0086:     exclude_objects: Optional[set] = None,
+0087:     session_id: Optional[str] = None,
+0088: ):
+0089:     """Remove de forma segura objetos temporários de prévia sem remover o alvo, cópias de trabalho ou objetos do usuário."""
+0090:     if not collection:
+0091:         return
+0092: 
+0093:     exclude_set = set(exclude_objects) if exclude_objects else set()
+0094:     exclude_names = {o.name if hasattr(o, "name") else str(o) for o in exclude_set}
+0095: 
+0096:     scene = bpy.context.scene if bpy.context else None
+0097:     target_obj = getattr(getattr(scene, "chest_splitter", None), "target_object", None) if scene else None
+0098:     if target_obj:
+0099:         exclude_names.add(target_obj.name)
+0100: 
+0101:     objs_to_process = list(collection.objects)
+0102:     for obj in objs_to_process:
+0103:         if obj.name in exclude_names:
+0104:             # Caso seja o alvo em uma coleção antiga (ex.: 0.8.4), migra com segurança para a coleção de trabalho
+0105:             if target_obj and obj.name == target_obj.name and collection.name == COLLECTION_PREVIEWS_NAME:
+0106:                 collection.objects.unlink(obj)
+0107:                 if scene:
+0108:                     work_col = get_or_create_collection(scene, COLLECTION_WORK_NAME)
+0109:                     if obj.name not in work_col.objects:
+0110:                         work_col.objects.link(obj)
+0111:                 obj["chest_role"] = ROLE_WORK_COPY
+0112:             continue
+0113: 
+0114:         # Nunca apaga cópias de trabalho ou objetos marcados com papel protegido
+0115:         role = obj.get("chest_role")
+0116:         if role == ROLE_WORK_COPY:
+0117:             if collection.name == COLLECTION_PREVIEWS_NAME:
+0118:                 collection.objects.unlink(obj)
+0119:                 if scene:
+0120:                     work_col = get_or_create_collection(scene, COLLECTION_WORK_NAME)
+0121:                     if obj.name not in work_col.objects:
+0122:                         work_col.objects.link(obj)
+0123:             continue
+0124: 
+0125:         # Se houver filtro de session_id, preserva objetos de outras sessões
+0126:         obj_sid = obj.get("chest_session_id")
+0127:         if session_id and obj_sid and obj_sid != session_id:
+0128:             continue
+0129: 
+0130:         # Identifica se é objeto de preview descartável
+0131:         # Antigas prévias (0.8.4) não tinham session_id, então excluímos por nome + coleção apenas se tiver certeza.
+0132:         # Mas para proteger objetos do usuário, exigimos que tenha o "chest_role" OU "chest_session_id" se o nome bater.
+0133:         is_preview_obj = False
+0134:         if role in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL):
+0135:             is_preview_obj = True
+0136:         elif obj_sid and obj_sid == session_id:
+0137:             is_preview_obj = True
+0138: 
+0139:         if is_preview_obj:
+0140:             mesh_data = obj.data if obj.type == 'MESH' else None
+0141:             collection.objects.unlink(obj)
+0142:             bpy.data.objects.remove(obj, do_unlink=True)
+0143:             if mesh_data and mesh_data.users == 0:
+0144:                 bpy.data.meshes.remove(mesh_data, do_unlink=True)
+0145:         else:
+0146:             # Não é prévia. Se está na coleção temporária, move para a coleção principal da cena para não sumir
+0147:             if collection.name == COLLECTION_PREVIEWS_NAME:
+0148:                 if scene and obj.name not in scene.collection.objects:
+0149:                     scene.collection.objects.link(obj)
+0150:                 collection.objects.unlink(obj)
+0151: 
+0152: 
+0153: def validate_printable_mesh(
+0154:     bm: bmesh.types.BMesh,
+0155:     part_name: str = "Peça",
+0156:     unit_scale: float = 1000.0,
+0157:     check_manifold: bool = True,
+0158:     min_volume_mm3: float = 1e-3,
+0159: ) -> Tuple[bool, str, Dict[str, Any]]:
+0160:     """Valida se uma malha atende aos critérios mínimos de solidez para impressão 3D."""
+0161:     bm.verts.ensure_lookup_table()
+0162:     bm.edges.ensure_lookup_table()
+0163:     bm.faces.ensure_lookup_table()
+0164: 
+0165:     verts_count = len(bm.verts)
+0166:     faces_count = len(bm.faces)
+0167: 
+0168:     if verts_count < 4 or faces_count < 4:
+0169:         return False, f"{part_name}: contagem insuficiente de elementos ({faces_count} faces, {verts_count} vértices).", {}
+0170: 
+0171:     for v in bm.verts:
+0172:         if not (math.isfinite(v.co.x) and math.isfinite(v.co.y) and math.isfinite(v.co.z)):
+0173:             return False, f"{part_name}: contém coordenadas infinitas ou NaN.", {}
+0174: 
+0175:     vol_bu = abs(bm.calc_volume(signed=True))
+0176:     vol_mm3 = vol_bu * (unit_scale ** 3)
+0177:     if vol_mm3 < min_volume_mm3:
+0178:         return False, f"{part_name}: volume nulo ou desprezível ({vol_mm3:.4f} mm³).", {}
+0179: 
+0180:     non_manifold_edges = [e for e in bm.edges if not e.is_manifold]
+0181:     if check_manifold and len(non_manifold_edges) > 0:
+0182:         return False, f"{part_name}: possui {len(non_manifold_edges)} aresta(s) não-manifold/abertas (não é um sólido fechado).", {}
+0183: 
+0184:     metrics = evaluate_bmesh_metrics(bm, unit_scale=unit_scale)
+0185:     return True, "OK", metrics
+0186: 
+0187: 
+0188: 
+0189: def get_target_bounds(obj: bpy.types.Object):
+0190:     """Calcula o centro e o raio aproximado do bounding box do objeto em coordenadas globais."""
+0191:     bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+0192:     xs = [c.x for c in bbox_corners]
+0193:     ys = [c.y for c in bbox_corners]
+0194:     zs = [c.z for c in bbox_corners]
+0195: 
+0196:     center = Vector(((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0, (min(zs) + max(zs)) / 2.0))
+0197:     size = max(max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs))
+0198:     if size < 1e-4:
+0199:         size = 1.0
+0200:     return center, size
+0201: 
+0202: 
+0203: def ensure_plane_guide(context: bpy.types.Context) -> bpy.types.Object:
+0204:     """Cria ou recupera o objeto guia de plano na coleção CHEST_SPLITTER_GUIDES."""
+0205:     col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+0206:     guide_obj = col.objects.get(PLANE_GUIDE_NAME)
+0207: 
+0208:     if not guide_obj or guide_obj.name not in bpy.data.objects:
+0209:         settings = context.scene.chest_splitter
+0210:         target = settings.target_object
+0211:         if target:
+0212:             center, size = get_target_bounds(target)
+0213:             guide_size = size * 1.4
+0214:         else:
+0215:             center = Vector((0.0, 0.0, 0.0))
+0216:             guide_size = 150.0
+0217: 
+0218:         # Cria malha do plano com subdivisão leve para visualização
+0219:         mesh = bpy.data.meshes.new(f"{PLANE_GUIDE_NAME}_Mesh")
+0220:         bm = bmesh.new()
+0221:         hs = guide_size / 2.0
+0222:         # Cria um quadrado no plano XY local (normal aponta para +Z)
+0223:         v1 = bm.verts.new((-hs, -hs, 0.0))
+0224:         v2 = bm.verts.new((hs, -hs, 0.0))
+0225:         v3 = bm.verts.new((hs, hs, 0.0))
+0226:         v4 = bm.verts.new((-hs, hs, 0.0))
+0227:         bm.faces.new((v1, v2, v3, v4))
+0228:         bm.to_mesh(mesh)
+0229:         bm.free()
+0230: 
+0231:         guide_obj = bpy.data.objects.new(PLANE_GUIDE_NAME, mesh)
+0232:         guide_obj.location = center
+0233:         guide_obj.display_type = 'WIRE'
+0234:         guide_obj.show_in_front = True
+0235:         col.objects.link(guide_obj)
+0236: 
+0237:     return guide_obj
+0238: 
+0239: 
+0240: def read_plane_geometry(context: bpy.types.Context) -> (Vector, Vector):
+0241:     """Lê a origem e a normal do plano a partir do objeto guia ou das propriedades."""
+0242:     col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+0243:     guide_obj = col.objects.get(PLANE_GUIDE_NAME)
+0244:     settings = context.scene.chest_splitter
+0245: 
+0246:     if guide_obj:
+0247:         origin = guide_obj.matrix_world.translation.copy()
+0248:         normal = (guide_obj.matrix_world.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()
+0249:         settings.plane_origin = origin
+0250:         settings.plane_normal = normal
+0251:         return origin, normal
+0252:     else:
+0253:         return Vector(settings.plane_origin), Vector(settings.plane_normal).normalized()
+0254: 
+0255: 
+0256: def compute_session_input_signature(context: bpy.types.Context) -> str:
+0257:     """Calcula uma assinatura hash determinística do estado do modelo alvo, cortador e parâmetros de corte."""
+0258:     if not context or not hasattr(context, "scene") or not hasattr(context.scene, "chest_splitter"):
+0259:         return ""
+0260:     settings = context.scene.chest_splitter
+0261:     target = settings.target_object
+0262:     if not target or target.type != 'MESH':
+0263:         return ""
+0264: 
+0265:     tokens = []
+0266:     # 1. Alvo e transformações
+0267:     tokens.append(f"target:{target.name}")
+0268:     tokens.append(f"target_loc:{target.location.x:.5f},{target.location.y:.5f},{target.location.z:.5f}")
+0269:     tokens.append(f"target_rot:{target.rotation_euler.x:.5f},{target.rotation_euler.y:.5f},{target.rotation_euler.z:.5f}")
+0270:     tokens.append(f"target_scale:{target.scale.x:.5f},{target.scale.y:.5f},{target.scale.z:.5f}")
+0271:     mw = [f"{v:.5f}" for row in target.matrix_world for v in row]
+0272:     tokens.append(f"target_mw:{','.join(mw)}")
+0273:     
+0274:     import array
+0275:     import hashlib
+0276:     h = hashlib.sha256()
+0277: 
+0278:     if target.data:
+0279:         # P06: Avaliar com modificadores para refletir dependências e topologia real
+0280:         depsgraph = context.evaluated_depsgraph_get()
+0281:         eval_obj = target.evaluated_get(depsgraph)
+0282:         try:
+0283:             m = eval_obj.to_mesh()
+0284:         except RuntimeError:
+0285:             m = target.data
+0286:             
+0287:         tokens.append(f"target_geom:{len(m.vertices)},{len(m.edges)},{len(m.polygons)}")
+0288:         h.update(str(tokens).encode('utf-8'))
+0289:         tokens.clear()
+0290:         
+0291:         if len(m.vertices) > 0:
+0292:             coords = array.array('f', [0.0] * (len(m.vertices) * 3))
+0293:             m.vertices.foreach_get("co", coords)
+0294:             h.update(coords.tobytes())
+0295:         if len(m.edges) > 0:
+0296:             edges = array.array('i', [0] * (len(m.edges) * 2))
+0297:             m.edges.foreach_get("vertices", edges)
+0298:             h.update(edges.tobytes())
+0299:         if len(m.polygons) > 0:
+0300:             # P06: Face topology (vértices das faces) é crítico!
+0301:             mats = array.array('i', [0] * len(m.polygons))
+0302:             m.polygons.foreach_get("material_index", mats)
+0303:             h.update(mats.tobytes())
+0304:             
+0305:             if len(m.loops) > 0:
+0306:                 loops = array.array('i', [0] * len(m.loops))
+0307:                 m.loops.foreach_get("vertex_index", loops)
+0308:                 h.update(loops.tobytes())
+0309:                 
+0310:         if m != target.data:
+0311:             eval_obj.to_mesh_clear()
+0312:             
+0313:         mats_list = [mat.name if mat else "None" for mat in target.data.materials]
+0314:         tokens.append(f"target_mats_list:{','.join(mats_list)}")
+0315: 
+0316:     # 2. Modo e parâmetros de corte
+0317:     tokens.append(f"mode:{settings.split_mode}")
+0318:     tokens.append(f"unit_scale:{get_scene_scale_to_mm(context.scene):.5f}")
+0319:     tokens.append(f"clearance:{settings.clearance_per_side_mm:.4f}")
+0320: 
+0321:     if settings.split_mode == 'PLANE':
+0322:         po, pn = read_plane_geometry(context)
+0323:         tokens.append(f"plane_po:{po.x:.4f},{po.y:.4f},{po.z:.4f}")
+0324:         tokens.append(f"plane_pn:{pn.x:.4f},{pn.y:.4f},{pn.z:.4f}")
+0325:         tokens.append(f"invert:{settings.invert_sides}")
+0326: 
+0327:     elif settings.split_mode == 'SOLID':
+0328:         cutter = settings.solid_cutter_object
+0329:         if cutter and cutter.name in bpy.data.objects:
+0330:             tokens.append(f"cutter:{cutter.name}")
+0331:             tokens.append(f"cutter_loc:{cutter.location.x:.5f},{cutter.location.y:.5f},{cutter.location.z:.5f}")
+0332:             tokens.append(f"cutter_rot:{cutter.rotation_euler.x:.5f},{cutter.rotation_euler.y:.5f},{cutter.rotation_euler.z:.5f}")
+0333:             tokens.append(f"cutter_scale:{cutter.scale.x:.5f},{cutter.scale.y:.5f},{cutter.scale.z:.5f}")
+0334:             cmw = [f"{v:.5f}" for row in cutter.matrix_world for v in row]
+0335:             tokens.append(f"cutter_mw:{','.join(cmw)}")
+0336:             if cutter.data:
+0337:                 cm = cutter.data
+0338:                 tokens.append(f"cutter_geom:{len(cm.vertices)},{len(cm.edges)},{len(cm.polygons)}")
+0339:                 h.update(str(tokens).encode('utf-8'))
+0340:                 tokens.clear()
+0341:                 if len(cm.vertices) > 0:
+0342:                     ccoords = array.array('f', [0.0] * (len(cm.vertices) * 3))
+0343:                     cm.vertices.foreach_get("co", ccoords)
+0344:                     h.update(ccoords.tobytes())
+0345:                 if len(cm.edges) > 0:
+0346:                     cedges = array.array('i', [0] * (len(cm.edges) * 2))
+0347:                     cm.edges.foreach_get("vertices", cedges)
+0348:                     h.update(cedges.tobytes())
+0349: 
+0350:     elif settings.split_mode == 'LOOP':
+0351:         tokens.append(f"loop_indices:{settings.loop_vertex_indices}")
+0352:         tokens.append(f"loop_depth:{settings.loop_extrude_depth_mm:.4f}")
+0353:         tokens.append(f"loop_mode:{settings.loop_behavior}")
+0354:         tokens.append(f"loop_seed:{settings.loop_seed_face_index}")
+0355: 
+0356:     elif settings.split_mode == 'MATERIAL':
+0357:         tokens.append(f"mat_idx:{settings.material_split_index}")
+0358:         tokens.append(f"mat_region:{settings.material_region_index}")
+0359:         tokens.append(f"mat_depth:{settings.material_extrude_depth_mm:.4f}")
+0360: 
+0361:     # 3. Encaixes (apenas se ativos e suportados no modo)
+0362:     tokens.append(f"conn_enabled:{settings.connector_enabled}")
+0363:     if settings.connector_enabled and settings.split_mode not in ('SOLID', 'MATERIAL'):
+0364:         tokens.append(f"conn_type:{settings.connector_type}")
+0365:         tokens.append(f"conn_diam:{settings.connector_diameter_mm:.4f}")
+0366:         tokens.append(f"conn_len:{settings.connector_length_mm:.4f}")
+0367:         tokens.append(f"conn_cap_len:{settings.connector_capsule_length_mm:.4f}")
+0368:         tokens.append(f"conn_dist:{settings.connector_distribution}")
+0369:         tokens.append(f"conn_margin:{settings.connector_edge_margin_mm:.4f}")
+0370:         tokens.append(f"conn_male:{settings.connector_male_part}")
+0371: 
+0372:     if tokens:
+0373:         h.update("|".join(tokens).encode("utf-8"))
+0374:     return h.hexdigest()[:16]
+0375: 
+0376: 
+0377: def verify_preview_current(context: bpy.types.Context) -> Tuple[bool, str]:
+0378:     """Verifica se a prévia existente ainda reflete fielmente o estado atual da cena."""
+0379:     settings = context.scene.chest_splitter
+0380:     if settings.session_status != 'PREVIEW_VALID':
+0381:         return False, "Nenhuma prévia válida ativa na sessão."
+0382: 
+0383:     preview_col = find_collection(context.scene, COLLECTION_PREVIEWS_NAME)
+0384:     if not preview_col:
+0385:         return False, "Coleção de prévias não encontrada."
+0386: 
+0387:     curr_sid = settings.session_id
+0388:     if not curr_sid:
+0389:         return False, "Sessão inválida."
+0390: 
+0391:     parts = [
+0392:         o for o in preview_col.objects
+0393:         if o.type == 'MESH' and o.get("chest_session_id") == curr_sid
+0394:         and o.get("chest_role") in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL)
+0395:     ]
+0396:     if not parts:
+0397:         return False, "Objetos de prévia da sessão atual não encontrados."
+0398:         
+0399:     part_a_list = [o for o in parts if o.get("chest_role") == ROLE_PREVIEW_A]
+0400:     part_b_list = [o for o in parts if o.get("chest_role") == ROLE_PREVIEW_B]
+0401:     
+0402:     if len(part_a_list) != 1 or len(part_b_list) != 1:
+0403:         return False, "Conjunto de prévia incompleto ou com multiplicidade inválida."
+0404: 
+0405:     curr_sig = compute_session_input_signature(context)
+0406:     if settings.session_input_signature and curr_sig != settings.session_input_signature:
+0407:         return False, "O modelo alvo, cortador ou parâmetros foram alterados após gerar a prévia."
+0408: 
+0409:     return True, ""
+0410: 
+0411: 
+0412: def get_current_session_parts(scene: bpy.types.Scene) -> List[bpy.types.Object]:
+0413:     """Retorna os objetos malha pertencentes estritamente à sessão ativa atual."""
+0414:     settings = scene.chest_splitter
+0415:     curr_sid = settings.session_id
+0416:     if not curr_sid:
+0417:         return []
+0418: 
+0419:     if settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE', 'PREVIEW_INVALID'):
+0420:         preview_col = find_collection(scene, COLLECTION_PREVIEWS_NAME)
+0421:         if preview_col:
+0422:             res = [
+0423:                 o for o in preview_col.objects
+0424:                 if o.type == 'MESH' and o.get("chest_session_id") == curr_sid
+0425:                 and o.get("chest_role") in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL)
+0426:             ]
+0427:             if res:
+0428:                 return res
+0429:         return []
+0430: 
+0431:     elif settings.session_status == 'COMMITTED':
+0432:         parts_col = find_collection(scene, COLLECTION_PARTS_NAME)
+0433:         if parts_col:
+0434:             res = [
+0435:                 o for o in parts_col.objects
+0436:                 if o.type == 'MESH' and (
+0437:                     o.get("chest_session_id") == curr_sid
+0438:                     or o.get("chest_splitter_session_id") == curr_sid
+0439:                 )
+0440:                 and o.get("chest_role") in (ROLE_COMMITTED_PART, ROLE_SUBPART_MATERIAL)
+0441:             ]
+0442:             if res:
+0443:                 return res
+0444:             # Fallback seguro para migração de partes com id mas sem role, ou vice-versa
+0445:             res = [
+0446:                 o for o in parts_col.objects
+0447:                 if o.type == 'MESH' and (o.get("chest_session_id") == curr_sid or o.get("chest_splitter_session_id") == curr_sid)
+0448:             ]
+0449:             if res:
+0450:                 return res
+0451:             
+0452:             # Fallback ultra conservador apenas se não houver NADA da sessão atual
+0453:             target = settings.target_object
+0454:             if target:
+0455:                 base_name = target.name.replace(WORK_COPY_SUFFIX, "")
+0456:                 res = [
+0457:                     o for o in parts_col.objects
+0458:                     if o.type == 'MESH' and o.name.startswith(base_name) and not o.get("chest_session_id")
+0459:                 ]
+0460:                 if res:
+0461:                     return res
+0462:         return []
+0463: 
+0464:     return []
+0465: 
+0466: 
+0467: def ensure_solid_cutter(context: bpy.types.Context) -> bpy.types.Object:
+0468:     """Cria ou recupera o objeto cortador sólido na coleção CHEST_SPLITTER_GUIDES."""
+0469: 
+0470:     col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+0471:     cutter_obj = col.objects.get(SOLID_CUTTER_NAME)
+0472:     settings = context.scene.chest_splitter
+0473:     target = settings.target_object
+0474: 
+0475:     if target:
+0476:         center, size = get_target_bounds(target)
+0477:         dims = Vector((size * 0.6, size * 0.6, size * 0.6))
+0478:     else:
+0479:         center = Vector((0.0, 0.0, 0.0))
+0480:         dims = Vector((50.0, 50.0, 50.0))
+0481: 
+0482:     prim_type = settings.solid_primitive_type
+0483: 
+0484:     if not cutter_obj or cutter_obj.name not in bpy.data.objects:
+0485:         mesh = create_primitive_cutter_mesh(
+0486:             name=f"{SOLID_CUTTER_NAME}_Mesh",
+0487:             primitive_type=prim_type,
+0488:             dims=dims,
+0489:         )
+0490:         cutter_obj = bpy.data.objects.new(SOLID_CUTTER_NAME, mesh)
+0491:         cutter_obj.location = center
+0492:         cutter_obj.display_type = 'WIRE'
+0493:         cutter_obj.show_in_front = True
+0494:         col.objects.link(cutter_obj)
+0495:     else:
+0496:         old_mesh = cutter_obj.data
+0497:         new_mesh = create_primitive_cutter_mesh(
+0498:             name=f"{SOLID_CUTTER_NAME}_Mesh",
+0499:             primitive_type=prim_type,
+0500:             dims=dims,
+0501:         )
+0502:         cutter_obj.data = new_mesh
+0503:         cutter_obj.location = center
+0504:         if old_mesh and old_mesh.users == 0:
+0505:             bpy.data.meshes.remove(old_mesh, do_unlink=True)
+0506: 
+0507:     settings.solid_cutter_object = cutter_obj
+0508:     return cutter_obj
+0509: 
+0510: 
+0511: def update_preview_positions(scene: bpy.types.Scene):
+0512:     """Atualiza a posição dos objetos de preview conforme modo montado ou explodido."""
+0513:     settings = scene.chest_splitter
+0514:     parts = get_current_session_parts(scene)
+0515:     
+0516:     obj_a = next((o for o in parts if o.get("chest_role") == ROLE_PREVIEW_A), None)
+0517:     obj_b = next((o for o in parts if o.get("chest_role") == ROLE_PREVIEW_B), None)
+0518: 
+0519:     if not obj_a or not obj_b:
+0520:         return
+0521: 
+0522:     unit_scale = get_scene_scale_to_mm(scene)
+0523: 
+0524:     if settings.view_mode == 'EXPLODED':
+0525:         if settings.split_mode == 'SOLID':
+0526:             offset_a, offset_b = compute_solid_explosion_offsets(
+0527:                 obj_a,
+0528:                 obj_b,
+0529:                 settings.explosion_distance_mm,
+0530:                 unit_scale=unit_scale,
+0531:             )
+0532:         elif settings.split_mode in ('LOOP', 'MATERIAL'):
+0533:             # Usa o vetor normal real da interface do loop para visão explodida fidedigna
+0534:             loop_norm = Vector(settings.loop_interface_normal)
+0535:             if loop_norm.length < 1e-6:
+0536:                 loop_norm = Vector((0.0, 0.0, 1.0))
+0537:             loop_norm.normalize()
+0538:             dist_bu = (settings.explosion_distance_mm / unit_scale) / 2.0
+0539:             offset_a = -loop_norm * dist_bu
+0540:             offset_b = loop_norm * dist_bu
+0541:         else:
+0542:             plane_normal = Vector(settings.plane_normal).normalized()
+0543:             offset_a, offset_b = compute_explosion_offsets(
+0544:                 plane_normal,
+0545:                 settings.explosion_distance_mm,
+0546:                 unit_scale=unit_scale,
+0547:             )
+0548:         obj_a.location = offset_a
+0549:         obj_b.location = offset_b
+0550:     else:
+0551:         obj_a.location = Vector((0.0, 0.0, 0.0))
+0552:         obj_b.location = Vector((0.0, 0.0, 0.0))
+0553: 
+0554: 
+0555: class CHEST_OT_splitter_set_target(bpy.types.Operator):
+0556:     """Define o objeto selecionado como alvo para divisão em partes"""
+0557:     bl_idname = "chest.splitter_set_target"
+0558:     bl_label = "Usar objeto selecionado como alvo"
+0559:     bl_options = {'REGISTER', 'UNDO'}
+0560: 
+0561:     @classmethod
+0562:     def poll(cls, context):
+0563:         return context.active_object and context.active_object.type == 'MESH'
+0564: 
+0565:     def execute(self, context):
+0566:         settings = context.scene.chest_splitter
+0567:         obj = context.active_object
+0568: 
+0569:         # Preserva seleção e modo
+0570:         orig_mode = context.mode
+0571:         if orig_mode != 'OBJECT' and bpy.ops.object.mode_set.poll():
+0572:             bpy.ops.object.mode_set(mode='OBJECT')
+0573: 
+0574:         settings.target_object = obj
+0575: 
+0576:         # Garante coleções
+0577:         get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+0578:         get_or_create_collection(context.scene, COLLECTION_PREVIEWS_NAME)
+0579:         get_or_create_collection(context.scene, COLLECTION_PARTS_NAME)
+0580: 
+0581:         # Executa análise diagnóstica
+0582:         report = analyze_target_mesh(obj, context.scene)
+0583: 
+0584:         settings.diag_dims_mm = report["dims_mm"]
+0585:         settings.diag_triangles = report["triangles"]
+0586:         settings.diag_faces = report["faces"]
+0587:         settings.diag_volume_mm3 = report["volume_mm3"]
+0588:         settings.diag_is_manifold = report["is_manifold"]
+0589:         settings.diag_non_manifold_edges = report["non_manifold_edges"]
+0590:         settings.diag_has_unapplied_scale = report["has_unapplied_scale"]
+0591:         settings.diag_is_non_uniform_scale = report["is_non_uniform_scale"]
+0592:         settings.diag_degenerate_faces = report["degenerate_faces"]
+0593: 
+0594:         settings.session_status = 'CONFIGURED'
+0595:         settings.session_id = ""
+0596: 
+0597:         # Garante criação e foco do guia de corte
+0598:         ensure_plane_guide(context)
+0599:         read_plane_geometry(context)
+0600: 
+0601:         dims = report["dims_mm"]
+0602:         msg = f"Alvo: '{obj.name}' ({dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm, {report['triangles']} tris)"
+0603:         settings.last_status = msg
+0604:         settings.last_status_level = 'SUCCESS' if report["valid"] else 'WARNING'
+0605:         self.report({'INFO'}, msg)
+0606: 
+0607:         if orig_mode != 'OBJECT' and bpy.ops.object.mode_set.poll():
+0608:             bpy.ops.object.mode_set(mode=orig_mode)
+0609: 
+0610:         return {'FINISHED'}
+0611: 
+0612: 
+0613: class CHEST_OT_splitter_clear_target(bpy.types.Operator):
+0614:     """Desassocia o alvo atual e limpa o diagnóstico da sessão"""
+0615:     bl_idname = "chest.splitter_clear_target"
+0616:     bl_label = "Limpar alvo"
+0617:     bl_options = {'REGISTER', 'UNDO'}
+0618: 
+0619:     def execute(self, context):
+0620:         settings = context.scene.chest_splitter
+0621:         orig_obj = settings.target_object
+0622:         if orig_obj and orig_obj.name in bpy.data.objects:
+0623:             orig_obj.hide_viewport = False
+0624: 
+0625:         # Limpa coleções auxiliares
+0626:         for col_name in (COLLECTION_PREVIEWS_NAME, COLLECTION_GUIDES_NAME):
+0627:             col = find_collection(context.scene, col_name)
+0628:             if col:
+0629:                 cleanup_collection_objects(col)
+0630: 
+0631: 
+0632:         settings.target_object = None
+0633:         settings.session_status = 'EMPTY'
+0634:         settings.session_id = ""
+0635:         settings.session_input_signature = ""
+0636:         settings.diag_dims_mm = (0.0, 0.0, 0.0)
+0637:         settings.diag_triangles = 0
+0638:         settings.diag_faces = 0
+0639:         settings.diag_volume_mm3 = 0.0
+0640:         settings.diag_is_manifold = True
+0641:         settings.diag_non_manifold_edges = 0
+0642:         settings.diag_has_unapplied_scale = False
+0643:         settings.diag_is_non_uniform_scale = False
+0644:         settings.diag_degenerate_faces = 0
+0645:         settings.last_status = "Alvo removido. Selecione um novo objeto."
+0646:         settings.last_status_level = 'INFO'
+0647: 
+0648:         return {'FINISHED'}
+0649: 
+0650: 
+0651: class CHEST_OT_splitter_create_work_copy(bpy.types.Operator):
+0652:     """Cria uma cópia de trabalho com escala e rotação aplicadas sem alterar o original"""
+0653:     bl_idname = "chest.splitter_create_work_copy"
+0654:     bl_label = "Criar cópia de trabalho com transformações aplicadas"
+0655:     bl_options = {'REGISTER', 'UNDO'}
+0656: 
+0657:     @classmethod
+0658:     def poll(cls, context):
+0659:         settings = context.scene.chest_splitter
+0660:         return settings.target_object and settings.target_object.type == 'MESH'
+0661: 
+0662:     def execute(self, context):
+0663:         settings = context.scene.chest_splitter
+0664:         orig_obj = settings.target_object
+0665: 
+0666:         new_mesh = orig_obj.data.copy()
+0667:         new_obj = orig_obj.copy()
+0668:         new_obj.data = new_mesh
+0669:         new_obj.name = f"{orig_obj.name}{WORK_COPY_SUFFIX}"
+0670: 
+0671:         work_col = get_or_create_collection(context.scene, COLLECTION_WORK_NAME)
+0672:         work_col.objects.link(new_obj)
+0673: 
+0674:         new_obj["chest_role"] = ROLE_WORK_COPY
+0675:         new_obj["chest_original_target"] = orig_obj.name
+0676:         new_obj["chest_session_id"] = settings.session_id
+0677: 
+0678:         orig_obj.hide_viewport = True
+0679: 
+0680:         for o in context.selected_objects:
+0681:             o.select_set(False)
+0682:         new_obj.select_set(True)
+0683:         context.view_layer.objects.active = new_obj
+0684: 
+0685:         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+0686: 
+0687: 
+0688:         settings.target_object = new_obj
+0689:         report = analyze_target_mesh(new_obj, context.scene)
+0690: 
+0691:         settings.diag_dims_mm = report["dims_mm"]
+0692:         settings.diag_triangles = report["triangles"]
+0693:         settings.diag_faces = report["faces"]
+0694:         settings.diag_volume_mm3 = report["volume_mm3"]
+0695:         settings.diag_is_manifold = report["is_manifold"]
+0696:         settings.diag_non_manifold_edges = report["non_manifold_edges"]
+0697:         settings.diag_has_unapplied_scale = report["has_unapplied_scale"]
+0698:         settings.diag_is_non_uniform_scale = report["is_non_uniform_scale"]
+0699:         settings.diag_degenerate_faces = report["degenerate_faces"]
+0700: 
+0701:         msg = f"Cópia de trabalho '{new_obj.name}' criada. Original preservado."
+0702:         settings.last_status = msg
+0703:         settings.last_status_level = 'SUCCESS'
+0704:         self.report({'INFO'}, msg)
+0705: 
+0706:         return {'FINISHED'}
+0707: 
+0708: 
+0709: class CHEST_OT_splitter_create_or_focus_guide(bpy.types.Operator):
+0710:     """Cria ou foca o plano guia na Viewport 3D para posicionamento do corte"""
+0711:     bl_idname = "chest.splitter_create_or_focus_guide"
+0712:     bl_label = "Posicionar / Focar Guia de Corte"
+0713:     bl_options = {'REGISTER', 'UNDO'}
+0714: 
+0715:     @classmethod
+0716:     def poll(cls, context):
+0717:         return context.scene.chest_splitter.target_object is not None
+0718: 
+0719:     def execute(self, context):
+0720:         guide_obj = ensure_plane_guide(context)
+0721:         for o in context.selected_objects:
+0722:             o.select_set(False)
+0723:         guide_obj.select_set(True)
+0724:         context.view_layer.objects.active = guide_obj
+0725:         read_plane_geometry(context)
+0726:         return {'FINISHED'}
+0727: 
+0728: 
+0729: class CHEST_OT_splitter_align_plane(bpy.types.Operator):
+0730:     """Alinha a orientação do plano de corte por vista, cursor, face ou eixos principais"""
+0731:     bl_idname = "chest.splitter_align_plane"
+0732:     bl_label = "Alinhar Plano de Corte"
+0733:     bl_options = {'REGISTER', 'UNDO'}
+0734: 
+0735:     align_mode: bpy.props.EnumProperty(
+0736:         name="Modo de Alinhamento",
+0737:         items=[
+0738:             ('VIEW', "Vista", "Alinha o plano com a orientação da câmera/viewport"),
+0739:             ('CURSOR', "Cursor 3D", "Move a origem do plano para o Cursor 3D"),
+0740:             ('FACE', "Face Selecionada", "Alinha o plano à face selecionada"),
+0741:             ('X', "Eixo X", "Corte perpendicular ao eixo X (Normal +X)"),
+0742:             ('Y', "Eixo Y", "Corte perpendicular ao eixo Y (Normal +Y)"),
+0743:             ('Z', "Eixo Z", "Corte perpendicular ao eixo Z (Normal +Z)"),
+0744:         ],
+0745:         default='Z',
+0746:     )
+0747: 
+0748:     def execute(self, context):
+0749:         settings = context.scene.chest_splitter
+0750:         target = settings.target_object
+0751:         guide_obj = ensure_plane_guide(context)
+0752: 
+0753:         center = Vector(settings.plane_origin)
+0754:         if target:
+0755:             t_center, _ = get_target_bounds(target)
+0756:             center = t_center
+0757: 
+0758:         mode = self.align_mode
+0759: 
+0760:         if mode == 'CURSOR':
+0761:             guide_obj.location = context.scene.cursor.location
+0762:             settings.plane_origin = guide_obj.location
+0763: 
+0764:         elif mode == 'X':
+0765:             # Normal aponta para +X
+0766:             guide_obj.location = center
+0767:             guide_obj.rotation_euler = Euler((0.0, math.radians(90.0), 0.0))
+0768: 
+0769:         elif mode == 'Y':
+0770:             # Normal aponta para +Y
+0771:             guide_obj.location = center
+0772:             guide_obj.rotation_euler = Euler((math.radians(-90.0), 0.0, 0.0))
+0773: 
+0774:         elif mode == 'Z':
+0775:             # Normal aponta para +Z
+0776:             guide_obj.location = center
+0777:             guide_obj.rotation_euler = Euler((0.0, 0.0, 0.0))
+0778: 
+0779:         elif mode == 'VIEW':
+0780:             # Alinha com a visualização da Viewport 3D ativa
+0781:             r3d = None
+0782:             for area in context.screen.areas:
+0783:                 if area.type == 'VIEW_3D':
+0784:                     for space in area.spaces:
+0785:                         if space.type == 'VIEW_3D':
+0786:                             r3d = space.region_3d
+0787:                             break
+0788:             if r3d:
+0789:                 guide_obj.location = center
+0790:                 guide_obj.rotation_euler = r3d.view_rotation.to_euler()
+0791: 
+0792:         elif mode == 'FACE':
+0793:             # Alinha com a face ativa do alvo se estiver em Edit Mode
+0794:             if target and target.mode == 'EDIT':
+0795:                 bm = bmesh.from_edit_mesh(target.data)
+0796:                 active_face = bm.faces.active
+0797:                 if active_face:
+0798:                     # Sob escala não uniforme, normais devem ser transformadas pela inversa transposta
+0799:                     norm_matrix = target.matrix_world.to_3x3().inverted_safe().transposed()
+0800:                     face_normal_world = (norm_matrix @ active_face.normal).normalized()
+0801:                     face_center_world = target.matrix_world @ active_face.calc_center_median()
+0802:                     guide_obj.location = face_center_world
+0803:                     # Rotação que leva Vector(0,0,1) até face_normal_world
+0804:                     rot_quat = Vector((0.0, 0.0, 1.0)).rotation_difference(face_normal_world)
+0805:                     guide_obj.rotation_euler = rot_quat.to_euler()
+0806: 
+0807:         read_plane_geometry(context)
+0808:         msg = f"Plano alinhado por '{self.align_mode}'."
+0809:         settings.last_status = msg
+0810:         settings.last_status_level = 'INFO'
+0811:         self.report({'INFO'}, msg)
+0812: 
+0813:         return {'FINISHED'}
+0814: 
+0815: 
+0816: class CHEST_OT_splitter_create_or_focus_solid_cutter(bpy.types.Operator):
+0817:     """Cria ou foca o cortador sólido na Viewport 3D para posicionamento do corte"""
+0818:     bl_idname = "chest.splitter_create_or_focus_solid_cutter"
+0819:     bl_label = "Criar / Focar Cortador Sólido"
+0820:     bl_options = {'REGISTER', 'UNDO'}
+0821: 
+0822:     @classmethod
+0823:     def poll(cls, context):
+0824:         return context.scene.chest_splitter.target_object is not None
+0825: 
+0826:     def execute(self, context):
+0827:         settings = context.scene.chest_splitter
+0828:         cutter_obj = ensure_solid_cutter(context)
+0829:         for o in context.selected_objects:
+0830:             o.select_set(False)
+0831:         cutter_obj.select_set(True)
+0832:         context.view_layer.objects.active = cutter_obj
+0833: 
+0834:         try:
+0835:             unit_scale = get_scene_scale_to_mm(context.scene)
+0836:             diag = validate_solid_cutter(cutter_obj, settings.target_object, unit_scale=unit_scale)
+0837:             settings.solid_cutter_is_manifold = diag["is_manifold"]
+0838:             settings.solid_cutter_triangles = diag["triangles"]
+0839:             settings.solid_cutter_volume_mm3 = diag["volume_mm3"]
+0840:         except Exception:
+0841:             pass
+0842: 
+0843:         self.report({'INFO'}, f"Cortador sólido '{settings.solid_primitive_type}' criado/focado. Use G/R/S para posicionar.")
+0844:         return {'FINISHED'}
+0845: 
+0846: 
+0847: class CHEST_OT_splitter_select_existing_cutter(bpy.types.Operator):
+0848:     """Define o objeto ativo na cena como cortador sólido"""
+0849:     bl_idname = "chest.splitter_select_existing_cutter"
+0850:     bl_label = "Usar Ativo como Cortador"
+0851:     bl_options = {'REGISTER', 'UNDO'}
+0852: 
+0853:     @classmethod
+0854:     def poll(cls, context):
+0855:         obj = context.active_object
+0856:         settings = context.scene.chest_splitter
+0857:         return obj is not None and obj.type == 'MESH' and obj != settings.target_object
+0858: 
+0859:     def execute(self, context):
+0860:         settings = context.scene.chest_splitter
+0861:         obj = context.active_object
+0862:         settings.solid_cutter_object = obj
+0863: 
+0864:         try:
+0865:             unit_scale = get_scene_scale_to_mm(context.scene)
+0866:             diag = validate_solid_cutter(obj, settings.target_object, unit_scale=unit_scale)
+0867:             settings.solid_cutter_is_manifold = diag["is_manifold"]
+0868:             settings.solid_cutter_triangles = diag["triangles"]
+0869:             settings.solid_cutter_volume_mm3 = diag["volume_mm3"]
+0870:         except Exception as e:
+0871:             self.report({'WARNING'}, f"Aviso de cortador: {str(e)}")
+0872: 
+0873:         self.report({'INFO'}, f"Objeto '{obj.name}' definido como cortador sólido.")
+0874:         return {'FINISHED'}
+0875: 
+0876: 
+0877: _is_generating_preview = False
+0878: 
+0879: 
+0880: class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
+0881:     """Executa o corte planar ou volumétrico em cópia e gera a visualização prévia das partes A e B de forma segura (B03)"""
+0882:     bl_idname = "chest.splitter_generate_preview"
+0883:     bl_label = "Gerar Preview do Corte"
+0884:     bl_options = {'REGISTER', 'UNDO'}
+0885: 
+0886:     @classmethod
+0887:     def poll(cls, context):
+0888:         settings = context.scene.chest_splitter
+0889:         return settings.target_object is not None and settings.target_object.type == 'MESH'
+0890: 
+0891:     def execute(self, context):
+0892:         global _is_generating_preview
+0893:         settings = context.scene.chest_splitter
+0894:         target = settings.target_object
+0895: 
+0896:         if not target or target.name not in bpy.data.objects or target.type != 'MESH':
+0897:             settings.session_status = 'PREVIEW_INVALID'
+0898:             self.report({'ERROR'}, "Objeto alvo inválido ou não encontrado.")
+0899:             return {'CANCELLED'}
+0900: 
+0901:         # Sincroniza malha de edição se o alvo estiver em Edit Mode
+0902:         if target.mode == 'EDIT':
+0903:             target.update_from_editmode()
+0904: 
+0905:         # Garante session_id exclusivo para cada novo corte/sessão
+0906:         if not settings.session_id or settings.session_id == "session_01" or settings.session_status == 'COMMITTED':
+0907:             settings.session_id = uuid.uuid4().hex[:12]
+0908: 
+0909:         preview_col = get_or_create_collection(context.scene, COLLECTION_PREVIEWS_NAME)
+0910: 
+0911:         # Migração segura para cenas legadas caso o alvo esteja na coleção de prévias
+0912:         if target.name in preview_col.objects:
+0913:             preview_col.objects.unlink(target)
+0914:             work_col = get_or_create_collection(context.scene, COLLECTION_WORK_NAME)
+0915:             if target.name not in work_col.objects:
+0916:                 work_col.objects.link(target)
+0917:             target["chest_role"] = ROLE_WORK_COPY
+0918: 
+0919:         # Detecta prévia anterior existente sem apagá-la prematuramente (B03)
+0920:         existing_previews = [
+0921:             o for o in preview_col.objects
+0922:             if o.name in (PREVIEW_A_NAME, PREVIEW_B_NAME) or o.get("chest_session_id") == settings.session_id
+0923:         ]
+0924:         had_previous_preview = len(existing_previews) >= 2
+0925: 
+0926:         # ID único de execução para isolamento completo de temporários candidatos
+0927:         exec_id = uuid.uuid4().hex[:8]
+0928:         cand_mesh_name_a = f"_cand_{exec_id}_a"
+0929:         cand_mesh_name_b = f"_cand_{exec_id}_b"
+0930:         cand_obj_name_a = f"_cand_obj_{exec_id}_a"
+0931:         cand_obj_name_b = f"_cand_obj_{exec_id}_b"
+0932: 
+0933:         candidate_mesh_a = bpy.data.meshes.new(cand_mesh_name_a)
+0934:         candidate_mesh_b = bpy.data.meshes.new(cand_mesh_name_b)
+0935:         candidate_obj_a = None
+0936:         candidate_obj_b = None
+0937:         eval_mesh = None
+0938: 
+0939:         _is_generating_preview = True
+0940:         try:
+0941:             # Snapshot de malha avaliada para corte consistente com modificadores
+0942:             depsgraph = context.evaluated_depsgraph_get()
+0943:             eval_obj = target.evaluated_get(depsgraph)
+0944:             has_active_modifiers = any(m.show_viewport for m in target.modifiers)
+0945:             if has_active_modifiers and settings.split_mode in ('PLANE', 'SOLID'):
+0946:                 try:
+0947:                     eval_mesh = eval_obj.to_mesh()
+0948:                 except Exception:
+0949:                     eval_mesh = None
+0950: 
+0951:             source_mesh_to_cut = eval_mesh if eval_mesh else target.data
+0952:             unit_scale = get_scene_scale_to_mm(context.scene)
+0953: 
+0954:             if settings.split_mode == 'SOLID':
+0955:                 cutter = settings.solid_cutter_object
+0956:                 if not cutter or cutter.name not in bpy.data.objects:
+0957:                     col = find_collection(context.scene, COLLECTION_GUIDES_NAME)
+0958:                     if col:
+0959:                         cutter = col.objects.get(SOLID_CUTTER_NAME)
+0960:                         if cutter:
+0961:                             settings.solid_cutter_object = cutter
+0962: 
+0963:                 if not cutter or cutter.name not in bpy.data.objects:
+0964:                     raise RuntimeError("Nenhum cortador sólido selecionado. Crie uma primitiva ou escolha um objeto existente.")
+0965: 
+0966:                 cutter_diag = validate_solid_cutter(cutter, target, unit_scale=unit_scale)
+0967:                 settings.solid_cutter_is_manifold = cutter_diag["is_manifold"]
+0968:                 settings.solid_cutter_triangles = cutter_diag["triangles"]
+0969:                 settings.solid_cutter_volume_mm3 = cutter_diag["volume_mm3"]
+0970: 
+0971:                 report = slice_mesh_by_solid(
+0972:                     source_mesh=source_mesh_to_cut,
+0973:                     matrix_world=target.matrix_world,
+0974:                     cutter_obj=cutter,
+0975:                     target_mesh_a=candidate_mesh_a,
+0976:                     target_mesh_b=candidate_mesh_b,
+0977:                     invert_sides=settings.invert_sides,
+0978:                     unit_scale=unit_scale,
+0979:                 )
+0980: 
+0981:             elif settings.split_mode == 'LOOP':
+0982:                 if not settings.loop_is_captured or not settings.loop_vertex_indices:
+0983:                     raise RuntimeError("Nenhum loop capturado.")
+0984:                 if settings.loop_seed_face_index < 0:
+0985:                     raise RuntimeError("Nenhuma região definida.")
+0986: 
+0987:                 indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i]
+0988:                 from .geometry_loop import slice_mesh_by_loop, slice_mesh_by_loop_extrude, analyze_loop_region
+0989: 
+0990:                 behavior = settings.loop_behavior
+0991:                 if behavior == 'AUTO':
+0992:                     analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, context.scene)
+0993:                     effective_mode = analysis["detected_mode"]
+0994:                     settings.loop_detected_mode = effective_mode
+0995:                     settings.loop_auto_reason = analysis["reason"]
+0996:                 else:
+0997:                     effective_mode = behavior
+0998: 
+0999:                 if effective_mode == 'EXTRUDE':
+1000:                     loop_res = slice_mesh_by_loop_extrude(
+1001:                         target,
+1002:                         target.name,
+1003:                         indices,
+1004:                         settings.loop_seed_face_index,
+1005:                         depth_mm=settings.loop_extrude_depth_mm,
+1006:                         through_cut=settings.loop_through_cut,
+1007:                         scene=context.scene,
+1008:                     )
+1009:                 else:
+1010:                     loop_res = slice_mesh_by_loop(target, target.name, indices, settings.loop_seed_face_index, context.scene)
+1011: 
+1012:                 bm_a, bm_b = loop_res[0], loop_res[1]
+1013:                 candidate_mesh_a.materials.clear()
+1014:                 candidate_mesh_b.materials.clear()
+1015:                 for mat in target.data.materials:
+1016:                     candidate_mesh_a.materials.append(mat)
+1017:                     candidate_mesh_b.materials.append(mat)
+1018:                 bm_a.to_mesh(candidate_mesh_a)
+1019:                 bm_b.to_mesh(candidate_mesh_b)
+1020:                 bm_a.free()
+1021:                 bm_b.free()
+1022: 
+1023:                 cut_iface = getattr(loop_res, 'interface', None)
+1024:                 if cut_iface:
+1025:                     plane_origin = cut_iface.origin_world
+1026:                     plane_normal = cut_iface.normal_a_to_b_world
+1027:                     settings.loop_interface_normal = tuple(plane_normal)
+1028:                     settings.loop_interface_origin = tuple(plane_origin)
+1029:                 else:
+1030:                     plane_origin = Vector((0, 0, 0))
+1031:                     plane_normal = Vector((0, 0, 1))
+1032: 
+1033:                 split_metrics = getattr(loop_res, 'split_result', None)
+1034:                 report = {
+1035:                     "A": split_metrics.part_a_metrics if split_metrics else {},
+1036:                     "B": split_metrics.part_b_metrics if split_metrics else {},
+1037:                     "sum_volume_mm3": split_metrics.diagnostics_before_connectors.get("sum_volume_mm3", 0.0) if split_metrics else 0.0,
+1038:                     "interface": cut_iface,
+1039:                 }
+1040: 
+1041:             elif settings.split_mode == 'MATERIAL':
+1042:                 from .geometry_material import slice_mesh_by_material
+1043:                 if not target.data.materials:
+1044:                     raise RuntimeError("O objeto alvo não possui nenhum material atribuído.")
+1045: 
+1046:                 mat_res = slice_mesh_by_material(
+1047:                     target,
+1048:                     material_index=settings.material_split_index,
+1049:                     depth_mm=settings.material_extrude_depth_mm,
+1050:                     scene=context.scene,
+1051:                     region_index=settings.material_region_index,
+1052:                 )
+1053:                 bm_a, bm_b = mat_res[0], mat_res[1]
+1054:                 candidate_mesh_a.materials.clear()
+1055:                 candidate_mesh_b.materials.clear()
+1056:                 for mat in target.data.materials:
+1057:                     candidate_mesh_a.materials.append(mat)
+1058:                     candidate_mesh_b.materials.append(mat)
+1059:                 bm_a.to_mesh(candidate_mesh_a)
+1060:                 bm_b.to_mesh(candidate_mesh_b)
+1061:                 bm_a.free()
+1062:                 bm_b.free()
+1063: 
+1064:                 cut_iface = getattr(mat_res, 'interface', None)
+1065:                 if cut_iface:
+1066:                     plane_origin = cut_iface.origin_world
+1067:                     plane_normal = cut_iface.normal_a_to_b_world
+1068:                     settings.loop_interface_normal = tuple(plane_normal)
+1069:                     settings.loop_interface_origin = tuple(plane_origin)
+1070:                 else:
+1071:                     plane_origin = Vector((0, 0, 0))
+1072:                     plane_normal = Vector((0, 0, 1))
+1073: 
+1074:                 split_metrics = getattr(mat_res, 'split_result', None)
+1075:                 report = {
+1076:                     "A": split_metrics.part_a_metrics if split_metrics else {},
+1077:                     "B": split_metrics.part_b_metrics if split_metrics else {},
+1078:                     "sum_volume_mm3": split_metrics.diagnostics_before_connectors.get("sum_volume_mm3", 0.0) if split_metrics else 0.0,
+1079:                     "interface": cut_iface,
+1080:                 }
+1081: 
+1082:             else:
+1083:                 # Modo PLANAR
+1084:                 plane_origin, plane_normal = read_plane_geometry(context)
+1085:                 report = slice_mesh_by_plane(
+1086:                     source_mesh=source_mesh_to_cut,
+1087:                     matrix_world=target.matrix_world,
+1088:                     plane_origin=plane_origin,
+1089:                     plane_normal=plane_normal,
+1090:                     target_mesh_a=candidate_mesh_a,
+1091:                     target_mesh_b=candidate_mesh_b,
+1092:                     invert_sides=settings.invert_sides,
+1093:                     unit_scale=unit_scale,
+1094:                 )
+1095: 
+1096:             # Limpa malha avaliada temporária
+1097:             if eval_mesh:
+1098:                 try:
+1099:                     eval_obj.to_mesh_clear()
+1100:                 except Exception:
+1101:                     pass
+1102:                 eval_mesh = None
+1103: 
+1104:             # Validação geométrica nos candidatos
+1105:             bm_a_chk = bmesh.new()
+1106:             bm_a_chk.from_mesh(candidate_mesh_a)
+1107:             ok_a, msg_a, _ = validate_printable_mesh(bm_a_chk, part_name="Parte A", unit_scale=unit_scale)
+1108:             bm_a_chk.free()
+1109: 
+1110:             bm_b_chk = bmesh.new()
+1111:             bm_b_chk.from_mesh(candidate_mesh_b)
+1112:             ok_b, msg_b, _ = validate_printable_mesh(bm_b_chk, part_name="Parte B", unit_scale=unit_scale)
+1113:             bm_b_chk.free()
+1114: 
+1115:             if not ok_a or not ok_b:
+1116:                 err_msg = msg_a if not ok_a else msg_b
+1117:                 raise RuntimeError(f"Validação da geometria cortada falhou: {err_msg}")
+1118: 
+1119:             # Cria objetos candidatos isolados na coleção de prévias para operações booleanas
+1120:             candidate_obj_a = bpy.data.objects.new(cand_obj_name_a, candidate_mesh_a)
+1121:             candidate_obj_b = bpy.data.objects.new(cand_obj_name_b, candidate_mesh_b)
+1122:             preview_col.objects.link(candidate_obj_a)
+1123:             preview_col.objects.link(candidate_obj_b)
+1124: 
+1125:             # Aplica encaixes (macho e cavidade) se ativados na sessão
+1126:             if settings.connector_enabled:
+1127:                 if settings.split_mode in ('SOLID', 'MATERIAL'):
+1128:                     self.report({'INFO'}, "Encaixes automáticos não são suportados no modo Cortador Sólido / Material.")
+1129:                 else:
+1130:                     if settings.split_mode == 'LOOP':
+1131:                         norm_a = plane_normal
+1132:                     else:
+1133:                         norm_a = -plane_normal if settings.invert_sides else plane_normal
+1134: 
+1135:                     if settings.connector_male_part == 'A':
+1136:                         male_obj = candidate_obj_a
+1137:                         female_obj = candidate_obj_b
+1138:                         norm = norm_a
+1139:                     else:
+1140:                         male_obj = candidate_obj_b
+1141:                         female_obj = candidate_obj_a
+1142:                         norm = -norm_a
+1143: 
+1144:                     layout = compute_connector_layout(
+1145:                         target_mesh=target.data,
+1146:                         matrix_world=target.matrix_world,
+1147:                         plane_origin=plane_origin,
+1148:                         plane_normal=plane_normal,
+1149:                         distribution=settings.connector_distribution,
+1150:                         edge_margin_mm=settings.connector_edge_margin_mm,
+1151:                         unit_scale=unit_scale,
+1152:                         diameter_mm=settings.connector_diameter_mm,
+1153:                         clearance_per_side_mm=settings.clearance_per_side_mm,
+1154:                         interface=report.get("interface"),
+1155:                         connector_type=settings.connector_type,
+1156:                         capsule_length_mm=settings.connector_capsule_length_mm,
+1157:                     )
+1158:                     positions = layout["positions"]
+1159:                     major_axis = layout["major_axis"]
+1160:                     max_safe_lateral_mm = layout["max_safe_lateral_mm"]
+1161:                     settings.connector_max_safe_lateral_mm = max_safe_lateral_mm
+1162: 
+1163:                     cap_len = layout.get("adjusted_capsule_length_mm", settings.connector_capsule_length_mm)
+1164:                     if layout.get("capsule_was_adjusted", False):
+1165:                         self.report({'WARNING'}, f"Comprimento lateral ({settings.connector_capsule_length_mm:.1f} mm) ajustado para limite seguro: {cap_len:.1f} mm.")
+1166:                         settings.connector_capsule_length_mm = cap_len
+1167: 
+1168:                     validate_connectors(
+1169:                         positions=positions,
+1170:                         diameter_mm=settings.connector_diameter_mm,
+1171:                         clearance_per_side_mm=settings.clearance_per_side_mm,
+1172:                         unit_scale=unit_scale,
+1173:                         connector_type=settings.connector_type,
+1174:                         capsule_length_mm=cap_len,
+1175:                     )
+1176:                     apply_connectors_boolean(
+1177:                         obj_male=male_obj,
+1178:                         obj_female=female_obj,
+1179:                         plane_normal=norm,
+1180:                         positions=positions,
+1181:                         connector_type=settings.connector_type,
+1182:                         diameter_mm=settings.connector_diameter_mm,
+1183:                         length_mm=settings.connector_length_mm,
+1184:                         chamfer_mm=settings.connector_chamfer_mm,
+1185:                         clearance_side_mm=settings.clearance_per_side_mm,
+1186:                         end_clearance_mm=settings.end_clearance_mm,
+1187:                         unit_scale=unit_scale,
+1188:                         capsule_length_mm=cap_len,
+1189:                         major_axis=major_axis,
+1190:                     )
+1191: 
+1192:             # Re-avalia diagnósticos atualizados e validação final nos candidatos
+1193:             metrics_final = {}
+1194:             for side, p_obj in (("A", candidate_obj_a), ("B", candidate_obj_b)):
+1195:                 bm_res = bmesh.new()
+1196:                 bm_res.from_mesh(p_obj.data)
+1197:                 ok_res, msg_res, metrics = validate_printable_mesh(bm_res, part_name=f"Parte {side}", unit_scale=unit_scale)
+1198:                 bm_res.free()
+1199:                 if not ok_res:
+1200:                     raise RuntimeError(f"Resultado inválido após encaixes ({msg_res}).")
+1201:                 metrics_final[side] = metrics
+1202: 
+1203:             # --- SUCESSO TOTAL: SWAP ATÔMICO ---
+1204:             # 1. Remove prévia anterior
+1205:             cleanup_collection_objects(preview_col, exclude_objects={target, candidate_obj_a, candidate_obj_b}, session_id=settings.session_id)
+1206: 
+1207:             # 2. Promove candidatos para objetos oficiais de prévia
+1208:             candidate_obj_a.name = PREVIEW_A_NAME
+1209:             if candidate_obj_a.data:
+1210:                 candidate_obj_a.data.name = f"{target.name}_part_a_preview"
+1211:             candidate_obj_a["chest_session_id"] = settings.session_id
+1212:             candidate_obj_a["chest_role"] = ROLE_PREVIEW_A
+1213: 
+1214:             candidate_obj_b.name = PREVIEW_B_NAME
+1215:             if candidate_obj_b.data:
+1216:                 candidate_obj_b.data.name = f"{target.name}_part_b_preview"
+1217:             candidate_obj_b["chest_session_id"] = settings.session_id
+1218:             candidate_obj_b["chest_role"] = ROLE_PREVIEW_B
+1219: 
+1220:             if settings.preview_color_mode == 'PARTS':
+1221:                 candidate_obj_a.color = COLOR_PART_A
+1222:                 candidate_obj_b.color = COLOR_PART_B
+1223:             else:
+1224:                 candidate_obj_a.color = (1.0, 1.0, 1.0, 1.0)
+1225:                 candidate_obj_b.color = (1.0, 1.0, 1.0, 1.0)
+1226: 
+1227:             try:
+1228:                 az = sum((candidate_obj_a.matrix_world @ Vector(c)).z for c in candidate_obj_a.bound_box) / 8.0
+1229:                 bz = sum((candidate_obj_b.matrix_world @ Vector(c)).z for c in candidate_obj_b.bound_box) / 8.0
+1230:                 settings.part_a_is_superior = (az >= bz)
+1231:             except Exception:
+1232:                 settings.part_a_is_superior = True
+1233: 
+1234:             # Registra métricas nas configurações
+1235:             settings.part_a_volume_mm3 = metrics_final["A"]["volume_mm3"]
+1236:             settings.part_a_dims_mm = metrics_final["A"]["dims_mm"]
+1237:             settings.part_a_triangles = metrics_final["A"]["triangles"]
+1238:             settings.part_a_is_manifold = metrics_final["A"]["is_manifold"]
+1239:             settings.part_a_non_manifold_edges = metrics_final["A"]["non_manifold_edges"]
+1240:             settings.part_a_components = metrics_final["A"]["components"]
+1241: 
+1242:             settings.part_b_volume_mm3 = metrics_final["B"]["volume_mm3"]
+1243:             settings.part_b_dims_mm = metrics_final["B"]["dims_mm"]
+1244:             settings.part_b_triangles = metrics_final["B"]["triangles"]
+1245:             settings.part_b_is_manifold = metrics_final["B"]["is_manifold"]
+1246:             settings.part_b_non_manifold_edges = metrics_final["B"]["non_manifold_edges"]
+1247:             settings.part_b_components = metrics_final["B"]["components"]
+1248: 
+1249:             sum_vol = settings.part_a_volume_mm3 + settings.part_b_volume_mm3
+1250:             settings.part_sum_volume_mm3 = sum_vol
+1251: 
+1252:             orig_vol = settings.diag_volume_mm3
+1253:             if orig_vol > 0:
+1254:                 settings.volume_diff_pct = abs(sum_vol - orig_vol) / orig_vol * 100.0
+1255:             else:
+1256:                 settings.volume_diff_pct = 0.0
+1257: 
+1258:             if settings.connector_enabled and settings.split_mode not in ('SOLID', 'MATERIAL'):
+1259:                 min_explosion_needed = settings.connector_length_mm + settings.end_clearance_mm + 15.0
+1260:                 if settings.explosion_distance_mm < min_explosion_needed:
+1261:                     settings.explosion_distance_mm = round(min_explosion_needed, 1)
+1262: 
+1263:             if settings.split_mode == 'MATERIAL':
+1264:                 min_explosion_needed = settings.material_extrude_depth_mm + 15.0
+1265:                 if settings.explosion_distance_mm < min_explosion_needed:
+1266:                     settings.explosion_distance_mm = round(min_explosion_needed, 1)
+1267: 
+1268:             settings.session_input_signature = compute_session_input_signature(context)
+1269:             settings.session_status = 'PREVIEW_VALID'
+1270: 
+1271:             update_preview_positions(context.scene)
+1272:             target.hide_viewport = True
+1273: 
+1274:             conn_info = f" (+{settings.connector_distribution} encaixes)" if (settings.connector_enabled and settings.split_mode not in ('SOLID', 'MATERIAL')) else ""
+1275:             msg = (
+1276:                 f"Preview gerado com sucesso{conn_info}! "
+1277:                 f"Parte A: {settings.part_a_volume_mm3:,.0f} mm³ | "
+1278:                 f"Parte B: {settings.part_b_volume_mm3:,.0f} mm³"
+1279:             )
+1280:             settings.last_status = msg
+1281:             settings.last_status_level = 'SUCCESS'
+1282:             self.report({'INFO'}, msg)
+1283: 
+1284:             # Limpa referências para o bloco finally não tentar remover os promovidos
+1285:             candidate_obj_a = None
+1286:             candidate_obj_b = None
+1287:             candidate_mesh_a = None
+1288:             candidate_mesh_b = None
+1289: 
+1290:             return {'FINISHED'}
+1291: 
+1292:         except Exception as e:
+1293:             # ROLLBACK SEGURO (B03)
+1294:             # Remove apenas os temporários candidatos criados nesta execução falha
+1295:             for cand_obj in (candidate_obj_a, candidate_obj_b):
+1296:                 if cand_obj is not None:
+1297:                     try:
+1298:                         m = cand_obj.data
+1299:                         if cand_obj.name in preview_col.objects:
+1300:                             preview_col.objects.unlink(cand_obj)
+1301:                         if cand_obj.name in bpy.data.objects:
+1302:                             bpy.data.objects.remove(cand_obj, do_unlink=True)
+1303:                         if m and m.name in bpy.data.meshes:
+1304:                             bpy.data.meshes.remove(m, do_unlink=True)
+1305:                     except Exception:
+1306:                         pass
+1307: 
+1308:             for m_name in (cand_mesh_name_a, cand_mesh_name_b):
+1309:                 try:
+1310:                     m = bpy.data.meshes.get(m_name)
+1311:                     if m:
+1312:                         bpy.data.meshes.remove(m, do_unlink=True)
+1313:                 except Exception:
+1314:                     pass
+1315: 
+1316:             loc = _get_current_locale()
+1317:             settings.session_status = 'PREVIEW_INVALID'
+1318:             if had_previous_preview:
+1319:                 # Preserva o conjunto anterior intacto, mantendo bloqueio de confirmação e exportação
+1320:                 msg = (
+1321:                     f"Falha na geração do preview ({str(e)}). A prévia anterior foi mantida."
+1322:                     if loc == "pt_BR"
+1323:                     else f"Preview generation failed ({str(e)}). Previous preview was preserved."
+1324:                 )
+1325:                 settings.last_status = msg
+1326:                 settings.last_status_level = 'WARNING'
+1327:                 self.report({'WARNING'}, msg)
+1328:             else:
+1329:                 # Se não havia prévia, garante que o alvo continue visível e acessível
+1330:                 target.hide_viewport = False
+1331:                 settings.session_status = 'PREVIEW_INVALID'
+1332:                 msg = (
+1333:                     f"Erro na geração da prévia: {str(e)}"
+1334:                     if loc == "pt_BR"
+1335:                     else f"Preview generation error: {str(e)}"
+1336:                 )
+1337:                 settings.last_status = msg
+1338:                 settings.last_status_level = 'ERROR'
+1339:                 self.report({'ERROR'}, msg)
+1340: 
+1341:             return {'CANCELLED'}
+1342: 
+1343:         finally:
+1344:             if eval_mesh:
+1345:                 try:
+1346:                     eval_obj.to_mesh_clear()
+1347:                 except Exception:
+1348:                     pass
+1349:             _is_generating_preview = False
+1350: 
+1351: 
+1352: 
+1353: 
+1354: class CHEST_OT_splitter_invert_sides(bpy.types.Operator):
+1355:     """Inverte os papéis da Parte A e Parte B do corte"""
+1356:     bl_idname = "chest.splitter_invert_sides"
+1357:     bl_label = "Inverter Lados A / B"
+1358:     bl_options = {'REGISTER', 'UNDO'}
+1359: 
+1360:     @classmethod
+1361:     def poll(cls, context):
+1362:         settings = getattr(context.scene, "chest_splitter", None)
+1363:         return settings is not None and settings.session_status != 'COMMITTED'
+1364: 
+1365:     def execute(self, context):
+1366:         settings = context.scene.chest_splitter
+1367:         had_preview = settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE')
+1368:         settings.invert_sides = not settings.invert_sides
+1369:         # Se preview já estiver ativo, regenera automaticamente
+1370:         if had_preview:
+1371:             bpy.ops.chest.splitter_generate_preview()
+1372:         return {'FINISHED'}
+1373: 
+1374: 
+1375: class CHEST_OT_splitter_invert_male_female(bpy.types.Operator):
+1376:     """Inverte qual parte recebe o macho e qual recebe a cavidade"""
+1377:     bl_idname = "chest.splitter_invert_male_female"
+1378:     bl_label = "Inverter Macho / Fêmea"
+1379:     bl_options = {'REGISTER', 'UNDO'}
+1380: 
+1381:     @classmethod
+1382:     def poll(cls, context):
+1383:         settings = getattr(context.scene, "chest_splitter", None)
+1384:         return settings is not None and settings.session_status != 'COMMITTED'
+1385: 
+1386:     def execute(self, context):
+1387:         settings = context.scene.chest_splitter
+1388:         had_preview = settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE')
+1389:         settings.connector_male_part = 'B' if settings.connector_male_part == 'A' else 'A'
+1390:         
+1391:         is_top = (settings.connector_male_part == 'A' and settings.part_a_is_superior) or (settings.connector_male_part == 'B' and not settings.part_a_is_superior)
+1392:         pos_desc = "Parte Superior" if is_top else "Parte Inferior"
+1393:         msg = f"Encaixes invertidos! Pinos (macho) agora na {pos_desc} ({'Parte A' if settings.connector_male_part == 'A' else 'Parte B'})."
+1394:         settings.last_status = msg
+1395:         settings.last_status_level = 'INFO'
+1396:         self.report({'INFO'}, msg)
+1397:         if had_preview:
+1398:             bpy.ops.chest.splitter_generate_preview()
+1399:         return {'FINISHED'}
+1400: 
+1401: 
+1402: class CHEST_OT_splitter_apply_connector_preset(bpy.types.Operator):
+1403:     """Aplica uma folga recomendada pré-definida para os encaixes"""
+1404:     bl_idname = "chest.splitter_apply_connector_preset"
+1405:     bl_label = "Aplicar Preset de Folga"
+1406:     bl_options = {'REGISTER', 'UNDO'}
+1407: 
+1408:     @classmethod
+1409:     def poll(cls, context):
+1410:         settings = getattr(context.scene, "chest_splitter", None)
+1411:         return settings is not None and settings.session_status != 'COMMITTED'
+1412: 
+1413:     preset: bpy.props.EnumProperty(
+1414:         name="Preset",
+1415:         items=[
+1416:             ('TIGHT', "Justo", "0,10 mm"),
+1417:             ('NORMAL', "Normal", "0,15 mm"),
+1418:             ('EASY', "Fácil", "0,20 mm"),
+1419:             ('LOOSE', "Solto", "0,25 mm"),
+1420:         ],
+1421:         default='NORMAL',
+1422:     )
+1423: 
+1424:     def execute(self, context):
+1425:         settings = context.scene.chest_splitter
+1426:         had_preview = settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE')
+1427:         settings.clearance_preset = self.preset
+1428:         settings.clearance_per_side_mm = CLEARANCE_PRESETS[self.preset]
+1429:         msg = f"Preset '{self.preset}' aplicado (folga por lado: {settings.clearance_per_side_mm:.2f} mm)."
+1430:         settings.last_status = msg
+1431:         settings.last_status_level = 'INFO'
+1432:         self.report({'INFO'}, msg)
+1433:         if had_preview:
+1434:             bpy.ops.chest.splitter_generate_preview()
+1435:         return {'FINISHED'}
+1436: 
+1437: 
+1438: 
+1439: class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
+1440:     """Confirma o corte e move as partes finais para a coleção definitiva"""
+1441:     bl_idname = "chest.splitter_commit_parts"
+1442:     bl_label = "Confirmar Divisão (Criar Partes Finais)"
+1443:     bl_options = {'REGISTER', 'UNDO'}
+1444: 
+1445:     @classmethod
+1446:     def poll(cls, context):
+1447:         settings = context.scene.chest_splitter
+1448:         return settings.session_status == 'PREVIEW_VALID'
+1449: 
+1450:     def execute(self, context):
+1451:         settings = context.scene.chest_splitter
+1452:         target = settings.target_object
+1453: 
+1454:         # Validação de atualidade antes de confirmar (Seção 5)
+1455:         valid, reason = verify_preview_current(context)
+1456:         if not valid:
+1457:             settings.session_status = 'PREVIEW_STALE'
+1458:             settings.last_status = f"{reason} Atualize a prévia antes de criar as peças finais."
+1459:             settings.last_status_level = 'WARNING'
+1460:             self.report({'WARNING'}, settings.last_status)
+1461:             return {'CANCELLED'}
+1462: 
+1463:         preview_col = get_or_create_collection(context.scene, COLLECTION_PREVIEWS_NAME)
+1464:         parts_col = get_or_create_collection(context.scene, COLLECTION_PARTS_NAME)
+1465:         
+1466:         parts = get_current_session_parts(context.scene)
+1467:         
+1468:         # O conjunto só deve ser confirmado se estiver completo. Se o usuário apagou ou renomeou de forma que o resolver perde a relação, aborta (P04).
+1469:         obj_a_list = [o for o in parts if o.get("chest_role") == ROLE_PREVIEW_A]
+1470:         obj_b_list = [o for o in parts if o.get("chest_role") == ROLE_PREVIEW_B]
+1471: 
+1472:         if len(obj_a_list) != 1 or len(obj_b_list) != 1:
+1473:             settings.session_status = 'PREVIEW_STALE'
+1474:             settings.last_status = "O conjunto de prévia não está íntegro (A ou B faltando ou múltiplo). Gere novamente."
+1475:             settings.last_status_level = 'ERROR'
+1476:             self.report({'ERROR'}, settings.last_status)
+1477:             return {'CANCELLED'}
+1478:         
+1479:         obj_a = obj_a_list[0]
+1480:         obj_b = obj_b_list[0]
+1481: 
+1482:         # Revalida geometria das partes (podem ter sido editadas no Edit Mode)
+1483:         unit_scale = get_scene_scale_to_mm(context.scene)
+1484:         
+1485:         preview_parts = get_current_session_parts(context.scene)
+1486:         for part_obj in preview_parts:
+1487:             # P05: Revalidar com a malha avaliada (com modificadores) se necessário.
+1488:             depsgraph = context.evaluated_depsgraph_get()
+1489:             eval_obj = part_obj.evaluated_get(depsgraph)
+1490:             
+1491:             try:
+1492:                 eval_mesh = eval_obj.to_mesh()
+1493:             except RuntimeError:
+1494:                 eval_mesh = part_obj.data
+1495:                 
+1496:             bm_part = bmesh.new()
+1497:             bm_part.from_mesh(eval_mesh)
+1498:             
+1499:             # check_manifold = True sempre! Sólidos físicos são exigidos.
+1500:             is_valid, msg, _ = validate_printable_mesh(bm_part, part_name=part_obj.name, unit_scale=unit_scale, check_manifold=True)
+1501:             bm_part.free()
+1502:             if eval_mesh != part_obj.data:
+1503:                 eval_obj.to_mesh_clear()
+1504:                 
+1505:             if not is_valid:
+1506:                 settings.session_status = 'PREVIEW_STALE'
+1507:                 settings.last_status = f"Erro de integridade na peça gerada: {msg}"
+1508:                 settings.last_status_level = 'ERROR'
+1509:                 self.report({'ERROR'}, settings.last_status)
+1510:                 return {'CANCELLED'}
+1511: 
+1512:         base_name = target.name.replace(WORK_COPY_SUFFIX, "")
+1513:         final_name_a = f"{base_name}{PART_A_SUFFIX}"
+1514:         final_name_b = f"{base_name}{PART_B_SUFFIX}"
+1515: 
+1516:         # Reseta localizações para posição montada original
+1517:         obj_a.location = Vector((0.0, 0.0, 0.0))
+1518:         obj_b.location = Vector((0.0, 0.0, 0.0))
+1519: 
+1520:         # Renomeia objetos e malhas
+1521:         obj_a.name = final_name_a
+1522:         obj_a.data.name = f"{final_name_a}_Mesh"
+1523:         obj_b.name = final_name_b
+1524:         obj_b.data.name = f"{final_name_b}_Mesh"
+1525: 
+1526:         # Adiciona metadados rastreáveis e isolamento por sessão (Seção 4)
+1527:         obj_a["chest_session_id"] = settings.session_id
+1528:         obj_a["chest_role"] = ROLE_COMMITTED_PART
+1529:         obj_a["chest_splitter_session_id"] = settings.session_id
+1530:         obj_a["chest_splitter_part"] = "A"
+1531: 
+1532:         obj_b["chest_session_id"] = settings.session_id
+1533:         obj_b["chest_role"] = ROLE_COMMITTED_PART
+1534:         obj_b["chest_splitter_session_id"] = settings.session_id
+1535:         obj_b["chest_splitter_part"] = "B"
+1536: 
+1537:         # Transfere para a coleção de partes finais
+1538:         preview_col.objects.unlink(obj_a)
+1539:         preview_col.objects.unlink(obj_b)
+1540:         parts_col.objects.link(obj_a)
+1541:         parts_col.objects.link(obj_b)
+1542: 
+1543:         # Oculta guias de corte
+1544:         guides_col = find_collection(context.scene, COLLECTION_GUIDES_NAME)
+1545:         if guides_col:
+1546:             for g_name in (PLANE_GUIDE_NAME, SOLID_CUTTER_NAME):
+1547:                 guide_obj = guides_col.objects.get(g_name)
+1548:                 if guide_obj:
+1549:                     guide_obj.hide_viewport = True
+1550: 
+1551:         settings.session_status = 'COMMITTED'
+1552:         msg = f"Corte confirmado! Peças finais criadas: '{final_name_a}' e '{final_name_b}'."
+1553:         settings.last_status = msg
+1554:         settings.last_status_level = 'SUCCESS'
+1555:         self.report({'INFO'}, msg)
+1556: 
+1557:         return {'FINISHED'}
+1558: 
+1559: 
+1560: class CHEST_OT_splitter_restore_original(bpy.types.Operator):
+1561:     """Descarta o preview e restaura a visualização do modelo original"""
+1562:     bl_idname = "chest.splitter_restore_original"
+1563:     bl_label = "Restaurar Original"
+1564:     bl_options = {'REGISTER', 'UNDO'}
+1565: 
+1566:     @classmethod
+1567:     def poll(cls, context):
+1568:         settings = context.scene.chest_splitter
+1569:         return settings.target_object is not None
+1570: 
+1571:     def execute(self, context):
+1572:         settings = context.scene.chest_splitter
+1573:         target = settings.target_object
+1574: 
+1575:         # Limpa previews temporários da sessão atual sem apagar o alvo
+1576:         preview_col = find_collection(context.scene, COLLECTION_PREVIEWS_NAME)
+1577:         if preview_col:
+1578:             cleanup_collection_objects(preview_col, exclude_objects={target} if target else None, session_id=settings.session_id)
+1579: 
+1580:         # Restaura visibilidade do alvo e do original se for cópia de trabalho
+1581:         if target and target.name in bpy.data.objects:
+1582:             orig_name = target.get("chest_original_target")
+1583:             if orig_name and orig_name in bpy.data.objects:
+1584:                 orig_obj = bpy.data.objects[orig_name]
+1585:                 orig_obj.hide_viewport = False
+1586:                 orig_obj.hide_set(False)
+1587:                 settings.target_object = orig_obj
+1588:                 # Limpa a cópia de trabalho da coleção de trabalho
+1589:                 m = target.data
+1590:                 bpy.data.objects.remove(target, do_unlink=True)
+1591:                 if m and m.users == 0:
+1592:                     bpy.data.meshes.remove(m, do_unlink=True)
+1593:             else:
+1594:                 target.hide_viewport = False
+1595:                 target.hide_set(False)
+1596: 
+1597: 
+1598:         settings.session_status = 'CONFIGURED'
+1599:         msg = "Visualização do modelo original restaurada."
+1600:         settings.last_status = msg
+1601:         settings.last_status_level = 'INFO'
+1602:         self.report({'INFO'}, msg)
+1603: 
+1604:         return {'FINISHED'}
+1605: 
+1606: 
+1607: class CHEST_OT_splitter_redo_session(bpy.types.Operator):
+1608:     """Reabre uma sessão confirmada para ajustar novos cortes ou refazer"""
+1609:     bl_idname = "chest.splitter_redo_session"
+1610:     bl_label = "Refazer / Ajustar Sessão"
+1611:     bl_options = {'REGISTER', 'UNDO'}
+1612: 
+1613:     def execute(self, context):
+1614:         settings = context.scene.chest_splitter
+1615:         guides_col = find_collection(context.scene, COLLECTION_GUIDES_NAME)
+1616:         if guides_col:
+1617:             for g_name in (PLANE_GUIDE_NAME, SOLID_CUTTER_NAME):
+1618:                 guide_obj = guides_col.objects.get(g_name)
+1619:                 if guide_obj:
+1620:                     guide_obj.hide_viewport = False
+1621: 
+1622:         target = settings.target_object
+1623:         if target and target.name in bpy.data.objects:
+1624:             target.hide_viewport = False
+1625: 
+1626:         settings.session_status = 'CONFIGURED'
+1627:         settings.session_id = ""  # Força geração de novo ID no próximo preview
+1628:         settings.session_input_signature = ""
+1629:         msg = "Sessão pronta para novo ajuste de corte."
+1630:         settings.last_status = msg
+1631:         settings.last_status_level = 'INFO'
+1632:         return {'FINISHED'}
+1633: 
+1634: 
+1635: class CHEST_OT_splitter_capture_loop(bpy.types.Operator):
+1636:     """Captura e valida um loop fechado de arestas no Modo D"""
+1637:     bl_idname = "chest.splitter_capture_loop"
+1638:     bl_label = "Capturar Loop Fechado"
+1639:     bl_options = {'REGISTER', 'UNDO'}
+1640: 
+1641:     @classmethod
+1642:     def poll(cls, context):
+1643:         settings = context.scene.chest_splitter
+1644:         return settings.target_object is not None and settings.target_object.type == 'MESH' and context.active_object == settings.target_object
+1645: 
+1646:     def execute(self, context):
+1647:         settings = context.scene.chest_splitter
+1648:         obj = settings.target_object
+1649:         
+1650:         from .geometry_loop import capture_edge_loop, get_topology_signature
+1651:         
+1652:         success, indices, is_planar, dev_mm, err_msg = capture_edge_loop(obj)
+1653:         
+1654:         if not success:
+1655:             settings.loop_is_captured = False
+1656:             settings.last_status = f"Erro na captura: {err_msg}"
+1657:             settings.last_status_level = 'ERROR'
+1658:             self.report({'ERROR'}, err_msg)
+1659:             return {'CANCELLED'}
+1660:             
+1661:         settings.loop_is_captured = True
+1662:         settings.loop_vertex_count = len(indices)
+1663:         settings.loop_vertex_indices = ",".join(str(i) for i in indices)
+1664:         settings.loop_is_planar = is_planar
+1665:         settings.loop_planarity_deviation_mm = dev_mm
+1666:         settings.loop_topology_signature = get_topology_signature(obj)
+1667:         settings.show_loop_highlight = True
+1668:         
+1669:         if not is_planar:
+1670:             msg = f"Aviso: Loop capturado com {len(indices)} vértices, mas NÃO é perfeitamente plano (desvio {dev_mm:.2f}mm). O corte planar direto pode ter gaps na tampa interna."
+1671:             settings.last_status = msg
+1672:             settings.last_status_level = 'WARNING'
+1673:             self.report({'WARNING'}, msg)
+1674:         else:
+1675:             msg = f"Sucesso: Loop planar capturado com {len(indices)} vértices."
+1676:             settings.last_status = msg
+1677:             settings.last_status_level = 'SUCCESS'
+1678:             self.report({'INFO'}, msg)
+1679: 
+1680:         for area in context.screen.areas if context.screen else []:
+1681:             area.tag_redraw()
+1682:             
+1683:         return {'FINISHED'}
+1684: 
+1685: 
+1686: class CHEST_OT_splitter_capture_face_boundary(bpy.types.Operator):
+1687:     """Captura o contorno perimetral das faces selecionadas no Modo de Edição (F02)"""
+1688:     bl_idname = "chest.splitter_capture_face_boundary"
+1689:     bl_label = "Capturar Contorno das Faces"
+1690:     bl_options = {'REGISTER', 'UNDO'}
+1691: 
+1692:     @classmethod
+1693:     def poll(cls, context):
+1694:         settings = context.scene.chest_splitter
+1695:         return settings.target_object is not None and settings.target_object.type == 'MESH' and context.active_object == settings.target_object
+1696: 
+1697:     def execute(self, context):
+1698:         settings = context.scene.chest_splitter
+1699:         obj = settings.target_object
+1700: 
+1701:         from .geometry_loop import capture_face_boundary_loop, get_topology_signature
+1702: 
+1703:         success, indices, is_planar, dev_mm, seed_face_idx, err_msg = capture_face_boundary_loop(obj, context.scene)
+1704: 
+1705:         if not success:
+1706:             settings.last_status = f"Erro na captura do contorno: {err_msg}"
+1707:             settings.last_status_level = 'ERROR'
+1708:             self.report({'ERROR'}, err_msg)
+1709:             return {'CANCELLED'}
+1710: 
+1711:         # Só após sucesso, troca a seleção para as arestas do contorno no Edit Mode
+1712:         bm = bmesh.from_edit_mesh(obj.data)
+1713:         bm.faces.ensure_lookup_table()
+1714:         bm.edges.ensure_lookup_table()
+1715:         bm.verts.ensure_lookup_table()
+1716: 
+1717:         for f in bm.faces:
+1718:             f.select = False
+1719: 
+1720:         index_set = set(indices)
+1721:         for e in bm.edges:
+1722:             if e.verts[0].index in index_set and e.verts[1].index in index_set:
+1723:                 idx0 = indices.index(e.verts[0].index)
+1724:                 idx1 = indices.index(e.verts[1].index)
+1725:                 n = len(indices)
+1726:                 if (idx0 + 1) % n == idx1 or (idx1 + 1) % n == idx0:
+1727:                     e.select = True
+1728:             else:
+1729:                 e.select = False
+1730: 
+1731:         bmesh.update_edit_mesh(obj.data)
+1732: 
+1733:         settings.loop_is_captured = True
+1734:         settings.loop_vertex_count = len(indices)
+1735:         settings.loop_vertex_indices = ",".join(str(i) for i in indices)
+1736:         settings.loop_is_planar = is_planar
+1737:         settings.loop_planarity_deviation_mm = dev_mm
+1738:         settings.loop_topology_signature = get_topology_signature(obj)
+1739:         if seed_face_idx >= 0:
+1740:             settings.loop_seed_face_index = seed_face_idx
+1741: 
+1742:         settings.show_loop_highlight = True
+1743:         if settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE'):
+1744:             settings.session_status = 'PREVIEW_STALE'
+1745: 
+1746:         msg = f"Sucesso: Perímetro de {len(indices)} arestas capturado a partir das faces."
+1747:         settings.last_status = msg
+1748:         settings.last_status_level = 'SUCCESS'
+1749:         self.report({'INFO'}, msg)
+1750: 
+1751:         for area in context.screen.areas if context.screen else []:
+1752:             area.tag_redraw()
+1753: 
+1754:         return {'FINISHED'}
+1755: 
+1756: 
+1757: class CHEST_OT_splitter_define_seed_face(bpy.types.Operator):
+1758:     """Define a face semente (selecionada) que indica qual região será a Parte A"""
+1759:     bl_idname = "chest.splitter_define_seed_face"
+1760:     bl_label = "Definir Região a Separar"
+1761:     bl_options = {'REGISTER', 'UNDO'}
+1762: 
+1763:     @classmethod
+1764:     def poll(cls, context):
+1765:         settings = context.scene.chest_splitter
+1766:         return settings.target_object is not None and settings.target_object.type == 'MESH' and context.active_object == settings.target_object
+1767: 
+1768:     def execute(self, context):
+1769:         settings = context.scene.chest_splitter
+1770:         obj = settings.target_object
+1771:         
+1772:         from .geometry_loop import get_selected_seed_face
+1773:         
+1774:         seed_idx = get_selected_seed_face(obj)
+1775:         if seed_idx < 0:
+1776:             settings.last_status = "Selecione pelo menos uma face em Edit Mode."
+1777:             settings.last_status_level = 'ERROR'
+1778:             self.report({'ERROR'}, settings.last_status)
+1779:             return {'CANCELLED'}
+1780:             
+1781:         settings.loop_seed_face_index = seed_idx
+1782:         
+1783:         msg = f"Sucesso: Face {seed_idx} definida como semente para a Parte A."
+1784:         settings.last_status = msg
+1785:         settings.last_status_level = 'SUCCESS'
+1786:         self.report({'INFO'}, msg)
+1787:             
+1788:         return {'FINISHED'}
+1789: 
+1790: 
+1791: class CHEST_OT_splitter_separate_by_material(bpy.types.Operator):
+1792:     """Separa as peças divididas em sub-objetos individuais por material/cor para impressão 3D multicolor"""
+1793:     bl_idname = "chest.splitter_separate_by_material"
+1794:     bl_label = "Separar Peças por Cores / Materiais"
+1795:     bl_options = {'REGISTER', 'UNDO'}
+1796: 
+1797:     @classmethod
+1798:     def poll(cls, context):
+1799:         settings = context.scene.chest_splitter
+1800:         return settings.session_status == 'COMMITTED'
+1801: 
+1802:     def execute(self, context):
+1803:         settings = context.scene.chest_splitter
+1804: 
+1805:         objs_to_process = get_current_session_parts(context.scene)
+1806:         if not objs_to_process:
+1807:             self.report({'WARNING'}, "Nenhuma peça da sessão ativa encontrada para separação.")
+1808:             return {'CANCELLED'}
+1809: 
+1810:         parts_col = get_or_create_collection(context.scene, COLLECTION_PARTS_NAME)
+1811:         target_col = parts_col
+1812: 
+1813:         from .io_export import separate_object_by_material
+1814: 
+1815:         created_count = 0
+1816:         open_edge_count = 0
+1817:         for src_obj in objs_to_process:
+1818:             if len(src_obj.data.materials) > 1:
+1819:                 sub_objs = separate_object_by_material(src_obj, target_col)
+1820:                 if len(sub_objs) > 1:
+1821:                     created_count += len(sub_objs)
+1822:                     for sub in sub_objs:
+1823:                         sub["chest_session_id"] = settings.session_id
+1824:                         sub["chest_role"] = ROLE_SUBPART_MATERIAL
+1825:                         if sub.get("open_edges", 0) > 0:
+1826:                             open_edge_count += 1
+1827:                     if src_obj.name in target_col.objects:
+1828:                         target_col.objects.unlink(src_obj)
+1829: 
+1830:         if created_count > 0:
+1831:             if open_edge_count > 0:
+1832:                 msg = (
+1833:                     f"{created_count} sub-peças por cor/material criadas na coleção '{target_col.name}'. "
+1834:                     f"Nota: {open_edge_count} gerada(s) como casca superficial aberta. "
+1835:                     "Para peças sólidas individuais, use o modo de corte 'Material' com Profundidade."
+1836:                 )
+1837:                 settings.last_status_level = 'WARNING'
+1838:                 self.report({'WARNING'}, msg)
+1839:             else:
+1840:                 msg = f"{created_count} sub-peças por cor/material criadas na coleção '{target_col.name}'."
+1841:                 settings.last_status_level = 'SUCCESS'
+1842:                 self.report({'INFO'}, msg)
+1843:             settings.last_status = msg
+1844:             return {'FINISHED'}
+1845:         else:
+1846:             msg = "As peças já possuem apenas 1 material ou não possuem múltiplos materiais."
+1847:             settings.last_status = msg
+1848:             settings.last_status_level = 'INFO'
+1849:             self.report({'INFO'}, msg)
+1850:             return {'FINISHED'}
+1851: 
+1852: 
+1853: class CHEST_OT_splitter_export_parts(bpy.types.Operator):
+1854:     """Exporta as partes cortadas nos formatos 3MF Multimaterial, STL por Material ou OBJ"""
+1855:     bl_idname = "chest.splitter_export_parts"
+1856:     bl_label = "Exportar Peças para Impressão 3D"
+1857:     bl_options = {'REGISTER'}
+1858: 
+1859:     @classmethod
+1860:     def poll(cls, context):
+1861:         settings = context.scene.chest_splitter
+1862:         return settings.session_status in ('PREVIEW_VALID', 'COMMITTED')
+1863: 
+1864:     def execute(self, context):
+1865:         settings = context.scene.chest_splitter
+1866: 
+1867:         if settings.session_status == 'PREVIEW_VALID':
+1868:             is_current, reason = verify_preview_current(context)
+1869:             if not is_current:
+1870:                 settings.session_status = 'PREVIEW_STALE'
+1871:                 settings.last_status = f"Prévia desatualizada ({reason}). Gere a prévia novamente antes de exportar."
+1872:                 settings.last_status_level = 'WARNING'
+1873:                 self.report({'WARNING'}, settings.last_status)
+1874:                 return {'CANCELLED'}
+1875: 
+1876:         objects = get_current_session_parts(context.scene)
+1877:         
+1878:         has_a = any(o.get("chest_splitter_part") == "A" or o.get("chest_role") == ROLE_PREVIEW_A for o in objects)
+1879:         has_b = any(o.get("chest_splitter_part") == "B" or o.get("chest_role") == ROLE_PREVIEW_B for o in objects)
+1880:         
+1881:         if not objects or not has_a or not has_b:
+1882:             settings.last_status = "Conjunto de peças incompleto (faltando Parte A ou B). Cancelando exportação."
+1883:             settings.last_status_level = 'ERROR'
+1884:             self.report({'ERROR'}, settings.last_status)
+1885:             return {'CANCELLED'}
+1886: 
+1887:         # Validação estrita de integridade e existência das peças antes da exportação (Seção 6)
+1888:         unit_scale = get_scene_scale_to_mm(context.scene)
+1889:         check_solid = settings.export_format == 'STL_PARTS'
+1890:         
+1891:         for obj in objects:
+1892:             if not obj or obj.type != 'MESH' or not obj.data:
+1893:                 self.report({'ERROR'}, "Um ou mais objetos da sessão foram removidos ou corrompidos.")
+1894:                 return {'CANCELLED'}
+1895:                 
+1896:             bm_part = bmesh.new()
+1897:             eval_mesh = None
+1898:             eval_obj = None
+1899:             if len(obj.modifiers) > 0:
+1900:                 try:
+1901:                     depsgraph = context.evaluated_depsgraph_get()
+1902:                     eval_obj = obj.evaluated_get(depsgraph)
+1903:                     eval_mesh = eval_obj.to_mesh()
+1904:                     bm_part.from_mesh(eval_mesh)
+1905:                 except Exception:
+1906:                     bm_part.from_mesh(obj.data)
+1907:             else:
+1908:                 bm_part.from_mesh(obj.data)
+1909: 
+1910:             is_valid, msg, _ = validate_printable_mesh(bm_part, part_name=obj.name, unit_scale=unit_scale, check_manifold=check_solid)
+1911:             bm_part.free()
+1912:             if eval_obj and eval_mesh:
+1913:                 eval_obj.to_mesh_clear()
+1914:             
+1915:             if not is_valid:
+1916:                 self.report({'ERROR'}, f"Geometria inválida ({msg}). Exporte falhou.")
+1917:                 return {'CANCELLED'}
+1918: 
+1919:         raw_dir = settings.export_directory
+1920:         export_dir = bpy.path.abspath(raw_dir) if raw_dir else ""
+1921:         if not export_dir or export_dir in ("//", ""):
+1922:             if bpy.data.is_saved and bpy.data.filepath:
+1923:                 export_dir = os.path.dirname(bpy.data.filepath)
+1924:             else:
+1925:                 desktop_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+1926:                 if os.path.exists(desktop_dir):
+1927:                     export_dir = desktop_dir
+1928:                 else:
+1929:                     import tempfile
+1930:                     export_dir = tempfile.gettempdir()
+1931: 
+1932:         os.makedirs(export_dir, exist_ok=True)
+1933:         unit_scale = get_scene_scale_to_mm(context.scene)
+1934:         target = settings.target_object
+1935:         base_name = target.name if target else "Chest_Model"
+1936:         base_name = "".join(c for c in base_name if c.isalnum() or c in ('_', '-', '.')).rstrip('.')
+1937: 
+1938:         from .io_export import export_objects_to_3mf, export_objects_to_stl_by_material, sanitize_unique_filename
+1939: 
+1940:         prev_selected = list(context.selected_objects) if context else []
+1941:         prev_active = context.view_layer.objects.active if context and context.view_layer else None
+1942:         prev_mode = context.active_object.mode if context and context.active_object else 'OBJECT'
+1943: 
+1944:         if context.active_object and context.active_object.mode != 'OBJECT':
+1945:             try:
+1946:                 bpy.ops.object.mode_set(mode='OBJECT')
+1947:             except Exception:
+1948:                 pass
+1949: 
+1950:         loc_backup = {}
+1951:         # Na visualização explodida, restaura a posição montada canônica temporariamente para exportação (Seção 4)
+1952:         if settings.session_status == 'PREVIEW_VALID' and settings.view_mode == 'EXPLODED':
+1953:             for o in objects:
+1954:                 loc_backup[o] = o.location.copy()
+1955:                 o.location = Vector((0.0, 0.0, 0.0))
+1956:             context.view_layer.update()
+1957: 
+1958:         try:
+1959:             if settings.export_format == '3MF':
+1960:                 out_path = os.path.join(export_dir, f"{base_name}__parts.3mf")
+1961:                 export_objects_to_3mf(objects, out_path, unit_scale=unit_scale)
+1962:                 msg = f"Arquivo 3MF Multimaterial exportado: '{out_path}'"
+1963:                 settings.last_status = msg
+1964:                 settings.last_status_level = 'SUCCESS'
+1965:                 self.report({'INFO'}, msg)
+1966:                 return {'FINISHED'}
+1967: 
+1968:             elif settings.export_format == 'STL_PER_MATERIAL':
+1969:                 try:
+1970:                     exported = export_objects_to_stl_by_material(objects, export_dir, unit_scale=unit_scale)
+1971:                     msg = f"{len(exported)} arquivos STL por cor exportados em '{export_dir}'"
+1972:                     settings.last_status = msg
+1973:                 except ValueError as ve:
+1974:                     self.report({'ERROR'}, str(ve))
+1975:                     return {'CANCELLED'}
+1976:                 settings.last_status_level = 'SUCCESS'
+1977:                 self.report({'INFO'}, msg)
+1978:                 return {'FINISHED'}
+1979: 
+1980:             elif settings.export_format == 'STL_PARTS':
+1981:                 import tempfile
+1982:                 import shutil
+1983: 
+1984:                 temp_stage_dir = tempfile.mkdtemp(prefix="chest_export_parts_")
+1985:                 staged_files = []
+1986:                 used_names = set()
+1987:                 try:
+1988:                     for obj in objects:
+1989:                         filename = sanitize_unique_filename(obj.name, used_names, ext=".stl")
+1990:                         stage_path = os.path.join(temp_stage_dir, filename)
+1991:                         bpy.ops.object.select_all(action='DESELECT')
+1992:                         obj.select_set(True)
+1993:                         context.view_layer.objects.active = obj
+1994:                         if hasattr(bpy.ops.wm, "stl_export"):
+1995:                             res = bpy.ops.wm.stl_export(
+1996:                                 filepath=stage_path,
+1997:                                 export_selected_objects=True,
+1998:                                 global_scale=unit_scale,
+1999:                                 use_scene_unit=False,
+2000:                                 apply_modifiers=True,
+2001:                             )
+2002:                             if 'FINISHED' not in res:
+2003:                                 raise RuntimeError(f"Falha ao exportar STL '{filename}': {res}")
+2004:                         else:
+2005:                             res = bpy.ops.export_mesh.stl(
+2006:                                 filepath=stage_path,
+2007:                                 use_selection=True,
+2008:                                 global_scale=unit_scale,
+2009:                                 use_scene_unit=False,
+2010:                             )
+2011:                             if 'FINISHED' not in res:
+2012:                                 raise RuntimeError(f"Falha ao exportar STL '{filename}'")
+2013: 
+2014:                         if not os.path.exists(stage_path) or os.path.getsize(stage_path) == 0:
+2015:                             raise RuntimeError(f"Arquivo exportado vazio ou ausente para '{obj.name}' ({filename})")
+2016: 
+2017:                         staged_files.append((stage_path, filename))
+2018: 
+2019:                     # Sucesso completo: publicação atômica para o diretório de destino
+2020:                     exported = []
+2021:                     for stage_path, filename in staged_files:
+2022:                         final_path = os.path.join(export_dir, filename)
+2023:                         shutil.copy2(stage_path, final_path)
+2024:                         exported.append(final_path)
+2025: 
+2026:                 finally:
+2027:                     if os.path.exists(temp_stage_dir):
+2028:                         try:
+2029:                             shutil.rmtree(temp_stage_dir)
+2030:                         except OSError:
+2031:                             pass
+2032: 
+2033:                 msg = f"{len(exported)} peças STL exportadas em '{export_dir}'"
+2034:                 settings.last_status = msg
+2035:                 settings.last_status_level = 'SUCCESS'
+2036:                 self.report({'INFO'}, msg)
+2037:                 return {'FINISHED'}
+2038: 
+2039:             elif settings.export_format == 'OBJ':
+2040:                 out_path = os.path.join(export_dir, f"{base_name}__parts.obj")
+2041:                 bpy.ops.object.select_all(action='DESELECT')
+2042:                 for o in objects:
+2043:                     o.select_set(True)
+2044:                 if objects:
+2045:                     context.view_layer.objects.active = objects[0]
+2046:                 if hasattr(bpy.ops.wm, "obj_export"):
+2047:                     res = bpy.ops.wm.obj_export(
+2048:                         filepath=out_path,
+2049:                         export_selected_objects=True,
+2050:                         export_materials=True,
+2051:                         global_scale=unit_scale,
+2052:                         apply_modifiers=True,
+2053:                     )
+2054:                     if 'FINISHED' not in res:
+2055:                         raise RuntimeError(f"Falha ao exportar OBJ '{out_path}': {res}")
+2056:                 else:
+2057:                     bpy.ops.export_scene.obj(
+2058:                         filepath=out_path,
+2059:                         use_selection=True,
+2060:                         global_scale=unit_scale,
+2061:                     )
+2062:                 msg = f"Arquivo OBJ com materiais exportado (escala mm): '{out_path}'"
+2063:                 settings.last_status = msg
+2064:                 settings.last_status_level = 'SUCCESS'
+2065:                 self.report({'INFO'}, msg)
+2066:                 return {'FINISHED'}
+2067: 
+2068:             else:
+2069:                 self.report({'ERROR'}, f"Formato de exportação desconhecido: {settings.export_format}")
+2070:                 return {'CANCELLED'}
+2071: 
+2072:         except Exception as e:
+2073:             msg = f"Falha na exportação: {str(e)}"
+2074:             settings.last_status = msg
+2075:             settings.last_status_level = 'ERROR'
+2076:             self.report({'ERROR'}, msg)
+2077:             return {'CANCELLED'}
+2078: 
+2079:         finally:
+2080:             if loc_backup:
+2081:                 for o, loc in loc_backup.items():
+2082:                     if o.name in bpy.data.objects:
+2083:                         o.location = loc
+2084:                 context.view_layer.update()
+2085: 
+2086:             if context and hasattr(context, "view_layer"):
+2087:                 for o in context.selected_objects:
+2088:                     o.select_set(False)
+2089:                 for o in prev_selected:
+2090:                     if o.name in bpy.data.objects:
+2091:                         o.select_set(True)
+2092:                 if prev_active and prev_active.name in bpy.data.objects:
+2093:                     context.view_layer.objects.active = prev_active
+2094:                 if prev_mode != 'OBJECT' and prev_active and prev_active.name in bpy.data.objects:
+2095:                     try:
+2096:                         bpy.ops.object.mode_set(mode=prev_mode)
+2097:                     except Exception:
+2098:                         pass
+2099: 
+2100: 
+2101: class CHEST_OT_splitter_help(bpy.types.Operator):
+2102:     """Exibe ajuda contextual e dicas de uso detalhadas para iniciantes"""
+2103:     bl_idname = "chest.splitter_help"
+2104:     bl_label = "Ajuda"
+2105:     bl_options = {'INTERNAL'}
+2106: 
+2107:     topic: bpy.props.StringProperty(
+2108:         name="Tópico",
+2109:         default="target_model",
+2110:         options={'SKIP_SAVE'},
+2111:     )
+2112: 
+2113:     @classmethod
+2114:     def description(cls, context, properties):
+2115:         from .translations import get_help_tooltip
+2116:         return get_help_tooltip(properties.topic)
+2117: 
+2118:     def execute(self, context):
+2119:         from .translations import get_help_popup_content
+2120:         title, lines = get_help_popup_content(self.topic)
+2121: 
+2122:         if not bpy.app.background and hasattr(context, "window_manager") and context.window_manager:
+2123:             def draw_popup(self_menu, ctx):
+2124:                 layout = self_menu.layout
+2125:                 layout.label(text=title, icon='INFO')
+2126:                 layout.separator()
+2127:                 for line in lines:
+2128:                     layout.label(text=line)
+2129: 
+2130:             try:
+2131:                 context.window_manager.popup_menu(draw_popup, title=title, icon='QUESTION')
+2132:             except Exception:
+2133:                 pass
+2134:                 
+2135:         return {'FINISHED'}
+2136: class CHEST_OT_splitter_select_split_material(bpy.types.Operator):
+2137:     """Seleciona o material (e a região) a ser isolado como Parte A"""
+2138:     bl_idname = "chest.splitter_select_split_material"
+2139:     bl_label = "Selecionar Material"
+2140:     bl_options = {'INTERNAL', 'UNDO'}
+2141: 
+2142:     material_index: bpy.props.IntProperty(name="Índice", default=0)
+2143:     region_index: bpy.props.IntProperty(name="Região", default=0)
+2144: 
+2145:     def execute(self, context):
+2146:         settings = context.scene.chest_splitter
+2147:         settings.material_split_index = self.material_index
+2148:         settings.material_region_index = self.region_index
+2149:         for area in context.screen.areas if context.screen else []:
+2150:             area.tag_redraw()
+2151:         return {'FINISHED'}
+2152: 
+2153: 
+2154: class CHEST_OT_splitter_pick_material_region(bpy.types.Operator):
+2155:     """Usa a face selecionada no Modo de Edição do objeto alvo para escolher o material e a área a extrair (B01)"""
+2156:     bl_idname = "chest.splitter_pick_material_region"
+2157:     bl_label = "Usar Face Selecionada"
+2158:     bl_options = {'REGISTER', 'UNDO'}
+2159: 
+2160:     def execute(self, context):
+2161:         from .translations import _get_current_locale
+2162:         loc = _get_current_locale()
+2163:         settings = context.scene.chest_splitter
+2164:         target = settings.target_object
+2165: 
+2166:         if not target or target.type != 'MESH':
+2167:             msg = "Defina um objeto alvo primeiro." if loc == "pt_BR" else "Set a target object first."
+2168:             self.report({'ERROR'}, msg)
+2169:             return {'CANCELLED'}
+2170: 
+2171:         # Exige alvo original em Edit Mode com contexto inequívoco (B01)
+2172:         objects_in_mode = getattr(context, "objects_in_mode", [])
+2173:         if context.mode != 'EDIT_MESH' or context.edit_object != target or (objects_in_mode and len(objects_in_mode) > 1):
+2174:             msg = (
+2175:                 "Edite o objeto alvo para escolher uma área. A peça da prévia não pode definir a seleção."
+2176:                 if loc == "pt_BR"
+2177:                 else "Edit the target object to choose a region. Preview parts cannot define the selection."
+2178:             )
+2179:             self.report({'ERROR'}, msg)
+2180:             return {'CANCELLED'}
+2181: 
+2182:         bm = bmesh.from_edit_mesh(target.data)
+2183:         bm.faces.ensure_lookup_table()
+2184: 
+2185:         ref_face = None
+2186:         if bm.faces.active and bm.faces.active.select:
+2187:             ref_face = bm.faces.active
+2188:         else:
+2189:             selected_faces = [f for f in bm.faces if f.select]
+2190:             if len(selected_faces) == 1:
+2191:                 ref_face = selected_faces[0]
+2192:             elif len(selected_faces) > 1:
+2193:                 msg = (
+2194:                     "Várias faces selecionadas sem uma face ativa válida. Selecione a face de referência."
+2195:                     if loc == "pt_BR"
+2196:                     else "Multiple faces selected without a valid active face. Select the reference face."
+2197:                 )
+2198:                 self.report({'ERROR'}, msg)
+2199:                 return {'CANCELLED'}
+2200:             else:
+2201:                 msg = (
+2202:                     "Selecione uma face da área colorida no Modo de Edição."
+2203:                     if loc == "pt_BR"
+2204:                     else "Select a face of the colored region in Edit Mode."
+2205:                 )
+2206:                 self.report({'ERROR'}, msg)
+2207:                 return {'CANCELLED'}
+2208: 
+2209:         mat_idx = ref_face.material_index
+2210:         from .geometry_material import get_material_regions
+2211:         regions = get_material_regions(bm, mat_idx)
+2212:         reg_idx = -1
+2213:         region_face_count = 0
+2214:         for i, r in enumerate(regions):
+2215:             if ref_face.index in r:
+2216:                 reg_idx = i
+2217:                 region_face_count = len(r)
+2218:                 break
+2219: 
+2220:         if reg_idx < 0:
+2221:             msg = (
+2222:                 "Não foi possível identificar a área da face selecionada."
+2223:                 if loc == "pt_BR"
+2224:                 else "Could not identify the region of the selected face."
+2225:             )
+2226:             self.report({'ERROR'}, msg)
+2227:             return {'CANCELLED'}
+2228: 
+2229:         # Publica escolha de material e região como alteração lógica única
+2230:         settings.material_split_index = mat_idx
+2231:         settings.material_region_index = reg_idx
+2232: 
+2233:         # Invalida prévia anterior
+2234:         if settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE'):
+2235:             settings.session_status = 'PREVIEW_STALE'
+2236: 
+2237:         mat_name = (
+2238:             target.data.materials[mat_idx].name
+2239:             if mat_idx < len(target.data.materials) and target.data.materials[mat_idx]
+2240:             else f"Material.{mat_idx:03d}"
+2241:         )
+2242:         info_msg = (
+2243:             f"Área selecionada: {mat_name} — {region_face_count} faces. Atualize a prévia."
+2244:             if loc == "pt_BR"
+2245:             else f"Selected region: {mat_name} — {region_face_count} faces. Update the preview."
+2246:         )
+2247:         settings.last_status = info_msg
+2248:         settings.last_status_level = 'INFO'
+2249:         self.report({'INFO'}, info_msg)
+2250: 
+2251:         for area in context.screen.areas if context.screen else []:
+2252:             area.tag_redraw()
+2253: 
+2254:         return {'FINISHED'}
+2255: 
+2256: 
+2257: classes = (
+2258:     CHEST_OT_splitter_set_target,
+2259:     CHEST_OT_splitter_clear_target,
+2260:     CHEST_OT_splitter_create_work_copy,
+2261:     CHEST_OT_splitter_create_or_focus_guide,
+2262:     CHEST_OT_splitter_align_plane,
+2263:     CHEST_OT_splitter_create_or_focus_solid_cutter,
+2264:     CHEST_OT_splitter_select_existing_cutter,
+2265:     CHEST_OT_splitter_generate_preview,
+2266:     CHEST_OT_splitter_invert_sides,
+2267:     CHEST_OT_splitter_invert_male_female,
+2268:     CHEST_OT_splitter_apply_connector_preset,
+2269:     CHEST_OT_splitter_commit_parts,
+2270:     CHEST_OT_splitter_restore_original,
+2271:     CHEST_OT_splitter_redo_session,
+2272:     CHEST_OT_splitter_capture_loop,
+2273:     CHEST_OT_splitter_capture_face_boundary,
+2274:     CHEST_OT_splitter_define_seed_face,
+2275:     CHEST_OT_splitter_separate_by_material,
+2276:     CHEST_OT_splitter_export_parts,
+2277:     CHEST_OT_splitter_help,
+2278:     CHEST_OT_splitter_select_split_material,
+2279:     CHEST_OT_splitter_pick_material_region,
+2280: )
+2281: 
+2282: 
+2283: 
+2284: _in_depsgraph_handler = False
+2285: 
+2286: 
+2287: @persistent
+2288: def on_depsgraph_update_post(scene, depsgraph):
+2289:     """Monitora alterações no alvo ou cortador sem avaliar malhas com to_mesh (B02)."""
+2290:     global _in_depsgraph_handler, _is_generating_preview
+2291:     if _in_depsgraph_handler or _is_generating_preview:
+2292:         return
+2293:     if not scene or not hasattr(scene, "chest_splitter"):
+2294:         return
+2295:     settings = scene.chest_splitter
+2296:     if settings.session_status != 'PREVIEW_VALID':
+2297:         return
+2298: 
+2299:     target = getattr(settings, "target_object", None)
+2300:     cutter = None
+2301:     if settings.split_mode == 'SOLID':
+2302:         cutter = getattr(settings, "solid_cutter_object", None)
+2303:     elif settings.split_mode == 'PLANE':
+2304:         col = find_collection(scene, COLLECTION_GUIDES_NAME)
+2305:         cutter = col.objects.get(PLANE_GUIDE_NAME) if col else None
+2306: 
+2307:     relevant_objects = {o for o in (target, cutter) if o is not None}
+2308:     if not relevant_objects:
+2309:         return
+2310: 
+2311:     updated = False
+2312:     for update in depsgraph.updates:
+2313:         if update.id in relevant_objects or update.id == scene:
+2314:             updated = True
+2315:             break
+2316: 
+2317:     if not updated:
+2318:         return
+2319: 
+2320:     _in_depsgraph_handler = True
+2321:     try:
+2322:         if not target or target.name not in bpy.data.objects:
+2323:             settings.session_status = 'PREVIEW_STALE'
+2324:             return
+2325: 
+2326:         # Verificação rápida de transformação e dados básicos sem to_mesh (B02)
+2327:         loc_str = f"{target.location.x:.4f},{target.location.y:.4f},{target.location.z:.4f}"
+2328:         rot_str = f"{target.rotation_euler.x:.4f},{target.rotation_euler.y:.4f},{target.rotation_euler.z:.4f}"
+2329:         scale_str = f"{target.scale.x:.4f},{target.scale.y:.4f},{target.scale.z:.4f}"
+2330:         base_vert_count = len(target.data.vertices) if target.data else 0
+2331:         mod_count = len(target.modifiers)
+2332: 
+2333:         state_key = f"{loc_str}|{rot_str}|{scale_str}|{base_vert_count}|{mod_count}"
+2334:         prev_key = target.get("_chest_last_known_state")
+2335:         if prev_key and prev_key != state_key:
+2336:             settings.session_status = 'PREVIEW_STALE'
+2337:             settings.last_status = "O modelo alvo ou cortador foi modificado. Atualize a prévia antes de continuar."
+2338:             settings.last_status_level = 'WARNING'
+2339:         target["_chest_last_known_state"] = state_key
+2340:     except ReferenceError:
+2341:         pass
+2342:     except Exception:
+2343:         pass
+2344:     finally:
+2345:         _in_depsgraph_handler = False
+2346: 
+2347: 
+2348: @persistent
+2349: def on_undo_post(scene):
+2350:     """Reconcilia com segurança o estado da sessão após desfazer (Undo) sem crash (B02)."""
+2351:     if not scene or not hasattr(scene, "chest_splitter"):
+2352:         return
+2353:     settings = scene.chest_splitter
+2354:     try:
+2355:         target = getattr(settings, "target_object", None)
+2356:         if target and target.name not in bpy.data.objects:
+2357:             settings.target_object = None
+2358:             settings.session_status = 'EMPTY'
+2359:         elif settings.session_status == 'PREVIEW_VALID':
+2360:             # Estado conservador: marca desatualizado após desfazer para evitar incoerência
+2361:             settings.session_status = 'PREVIEW_STALE'
+2362:     except ReferenceError:
+2363:         pass
+2364: 
+2365: 
+2366: @persistent
+2367: def on_redo_post(scene):
+2368:     """Reconcilia com segurança o estado da sessão após refazer (Redo) sem crash (B02)."""
+2369:     if not scene or not hasattr(scene, "chest_splitter"):
+2370:         return
+2371:     settings = scene.chest_splitter
+2372:     try:
+2373:         target = getattr(settings, "target_object", None)
+2374:         if target and target.name not in bpy.data.objects:
+2375:             settings.target_object = None
+2376:             settings.session_status = 'EMPTY'
+2377:         elif settings.session_status == 'PREVIEW_VALID':
+2378:             settings.session_status = 'PREVIEW_STALE'
+2379:     except ReferenceError:
+2380:         pass
+2381: 
+2382: 
+2383: def register_handlers():
+2384:     """Registra handlers de depsgraph e undo/redo no Blender."""
+2385:     if on_depsgraph_update_post not in bpy.app.handlers.depsgraph_update_post:
+2386:         bpy.app.handlers.depsgraph_update_post.append(on_depsgraph_update_post)
+2387:     if on_undo_post not in bpy.app.handlers.undo_post:
+2388:         bpy.app.handlers.undo_post.append(on_undo_post)
+2389:     if on_redo_post not in bpy.app.handlers.redo_post:
+2390:         bpy.app.handlers.redo_post.append(on_redo_post)
+2391: 
+2392: 
+2393: def unregister_handlers():
+2394:     """Remove handlers de depsgraph e undo/redo do Blender."""
+2395:     if on_depsgraph_update_post in bpy.app.handlers.depsgraph_update_post:
+2396:         bpy.app.handlers.depsgraph_update_post.remove(on_depsgraph_update_post)
+2397:     if on_undo_post in bpy.app.handlers.undo_post:
+2398:         bpy.app.handlers.undo_post.remove(on_undo_post)
+2399:     if on_redo_post in bpy.app.handlers.redo_post:
+2400:         bpy.app.handlers.redo_post.remove(on_redo_post)
+2401: 
+2402: 
+2403: def register():
+2404:     for cls in classes:
+2405:         try:
+2406:             bpy.utils.register_class(cls)
+2407:         except ValueError:
+2408:             pass
+2409:     register_handlers()
+2410: 
+2411: 
+2412: def unregister():
+2413:     unregister_handlers()
+2414:     for cls in reversed(classes):
+2415:         try:
+2416:             bpy.utils.unregister_class(cls)
+2417:         except RuntimeError:
+2418:             pass
+2419: 

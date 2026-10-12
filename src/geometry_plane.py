@@ -410,16 +410,19 @@ def compute_explosion_offsets(
     plane_normal: Vector,
     explosion_distance_mm: float,
     unit_scale: float = 1000.0,
+    invert_direction: bool = False,
 ) -> Tuple[Vector, Vector]:
-    """Calcula os vetores de deslocamento da visão explodida para as partes A e B (C04 / V06).
+    """Calcula os vetores de deslocamento da visão explodida para as partes A e B (C04 / V06 / INV-004).
     
     A distância é expressa em mm e convertida para unidades do Blender (BU).
     Como bisect com clear_outer=True retém Parte A no lado negativo da normal e Parte B no positivo,
     Parte A move-se na direção oposta à normal (-), e Parte B na direção da normal (+),
     afastando ambas para fora uma da outra.
+    O parâmetro invert_direction permite inversão visual independente sem afetar a geometria nominal.
     """
     norm = plane_normal.normalized()
     dist_bu = (explosion_distance_mm / unit_scale) / 2.0
-    offset_a = -norm * dist_bu
-    offset_b = norm * dist_bu
+    factor = -1.0 if invert_direction else 1.0
+    offset_a = -norm * dist_bu * factor
+    offset_b = norm * dist_bu * factor
     return offset_a, offset_b

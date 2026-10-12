@@ -1,8 +1,8 @@
 schema_version = "1.0.0"
 
 id = "chest_part_splitter"
-version = "0.8.8"
-name = "Part Splitter 0.8.8"
+version = "0.8.9"
+name = "Part Splitter 0.8.9"
 tagline = "Divisão de modelos em peças e encaixes para 3D"
 maintainer = "Chest Team"
 type = "add-on"

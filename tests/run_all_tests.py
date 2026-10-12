@@ -31,20 +31,29 @@ TESTS = [
     "tests/test_reversion_086.py",
     "tests/test_plan_087.py",
     "tests/test_pos_testes_087.py",
+    "tests/test_plan_088.py",
 ]
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    is_in_blender = 'bpy' in sys.modules
     default_bin = os.environ.get('BLENDER_BIN') or shutil.which('blender')
     if not default_bin:
-        win_blender = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
-        if os.path.exists(win_blender):
-            default_bin = win_blender
-        elif 'blender' in sys.executable.lower():
-            default_bin = sys.executable
+        if is_in_blender:
+            import bpy
+            default_bin = bpy.app.binary_path
+        else:
+            win_blender = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
+            if os.path.exists(win_blender):
+                default_bin = win_blender
 
     parser.add_argument('--blender', default=default_bin)
-    argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+    if '--' in sys.argv:
+        argv = sys.argv[sys.argv.index('--') + 1:]
+    elif is_in_blender:
+        argv = []
+    else:
+        argv = sys.argv[1:]
     args = parser.parse_args(argv)
     if not args.blender:
         parser.error('Set --blender, BLENDER_BIN or add blender to PATH')

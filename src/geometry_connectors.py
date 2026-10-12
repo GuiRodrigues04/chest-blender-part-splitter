@@ -858,22 +858,14 @@ def apply_connectors_boolean(
     cap_len_bu = (capsule_length_mm / unit_scale) if capsule_length_mm > 0 else 0.0
 
     try:
-        # C06: Determina o material dos pinos e das cavidades (local ou predominante por área em World Space)
-        chosen_mat_male = determine_connector_material(
-            obj_male,
-            positions=positions,
-            connector_radius_bu=diam_bu / 2.0,
-            plane_normal=norm,
-        )
-        chosen_mat_female = determine_connector_material(
-            obj_female,
-            positions=positions,
-            connector_radius_bu=(diam_bu / 2.0) + clear_side_bu,
-            plane_normal=-norm,
-        )
-
-        # 1. Cria pinos para obj_male
+        # 1. Cria pinos para obj_male com material determinado individualmente por pino (C16 / C17 / V18)
         for idx, pos in enumerate(positions):
+            chosen_mat_pin = determine_connector_material(
+                obj_male,
+                positions=[pos],
+                connector_radius_bu=diam_bu / 2.0,
+                plane_normal=norm,
+            )
             pin_mesh = create_pin_mesh_data(
                 name=f"temp_pin_{idx}",
                 connector_type=connector_type,
@@ -884,10 +876,14 @@ def apply_connectors_boolean(
                 capsule_length=cap_len_bu,
             )
             pin_mesh.materials.clear()
-            if chosen_mat_male:
-                pin_mesh.materials.append(chosen_mat_male)
+            if chosen_mat_pin:
+                for mat in obj_male.data.materials:
+                    pin_mesh.materials.append(mat)
+                if chosen_mat_pin not in list(pin_mesh.materials):
+                    pin_mesh.materials.append(chosen_mat_pin)
+                slot_idx = list(pin_mesh.materials).index(chosen_mat_pin)
                 for p in pin_mesh.polygons:
-                    p.material_index = 0
+                    p.material_index = slot_idx
             else:
                 for mat in obj_male.data.materials:
                     pin_mesh.materials.append(mat)
@@ -902,11 +898,22 @@ def apply_connectors_boolean(
             mod_union = obj_male.modifiers.new(name=mod_name, type='BOOLEAN')
             mod_union.operation = 'UNION'
             mod_union.solver = 'EXACT'
+            if hasattr(mod_union, "material_mode"):
+                try:
+                    mod_union.material_mode = 'TRANSFER'
+                except Exception:
+                    pass
             mod_union.object = pin_obj
             modifiers_male_added.append(mod_name)
 
-        # 2. Cria cavidades para obj_female
+        # 2. Cria cavidades para obj_female com material correspondente por cavidade
         for idx, pos in enumerate(positions):
+            chosen_mat_cav = determine_connector_material(
+                obj_female,
+                positions=[pos],
+                connector_radius_bu=(diam_bu / 2.0) + clear_side_bu,
+                plane_normal=-norm,
+            )
             cavity_mesh = create_pin_mesh_data(
                 name=f"temp_cavity_{idx}",
                 connector_type=connector_type,
@@ -919,10 +926,14 @@ def apply_connectors_boolean(
                 capsule_length=cap_len_bu,
             )
             cavity_mesh.materials.clear()
-            if chosen_mat_female:
-                cavity_mesh.materials.append(chosen_mat_female)
+            if chosen_mat_cav:
+                for mat in obj_female.data.materials:
+                    cavity_mesh.materials.append(mat)
+                if chosen_mat_cav not in list(cavity_mesh.materials):
+                    cavity_mesh.materials.append(chosen_mat_cav)
+                slot_idx = list(cavity_mesh.materials).index(chosen_mat_cav)
                 for p in cavity_mesh.polygons:
-                    p.material_index = 0
+                    p.material_index = slot_idx
             else:
                 for mat in obj_female.data.materials:
                     cavity_mesh.materials.append(mat)
@@ -937,6 +948,11 @@ def apply_connectors_boolean(
             mod_diff = obj_female.modifiers.new(name=mod_name, type='BOOLEAN')
             mod_diff.operation = 'DIFFERENCE'
             mod_diff.solver = 'EXACT'
+            if hasattr(mod_diff, "material_mode"):
+                try:
+                    mod_diff.material_mode = 'TRANSFER'
+                except Exception:
+                    pass
             mod_diff.object = cavity_obj
             modifiers_female_added.append(mod_name)
 

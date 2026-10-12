@@ -293,40 +293,49 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
     h = hashlib.sha256()
 
     if target.data:
-        # P06: Avaliar com modificadores para refletir dependências e topologia real
-        depsgraph = context.evaluated_depsgraph_get()
-        eval_obj = target.evaluated_get(depsgraph)
+        # P06 / C23: Avaliar com modificadores para refletir dependências e topologia real
+        # Preserva estado de visibilidade para garantir avaliação fiel de modificadores
+        # mesmo quando o alvo foi ocultado na viewport durante a prévia ativa
+        orig_hide_viewport = target.hide_viewport
+        if orig_hide_viewport:
+            target.hide_viewport = False
         try:
-            m = eval_obj.to_mesh()
-        except RuntimeError:
-            m = target.data
-            
-        tokens.append(f"target_geom:{len(m.vertices)},{len(m.edges)},{len(m.polygons)}")
-        h.update(str(tokens).encode('utf-8'))
-        tokens.clear()
-        
-        if len(m.vertices) > 0:
-            coords = array.array('f', [0.0] * (len(m.vertices) * 3))
-            m.vertices.foreach_get("co", coords)
-            h.update(coords.tobytes())
-        if len(m.edges) > 0:
-            edges = array.array('i', [0] * (len(m.edges) * 2))
-            m.edges.foreach_get("vertices", edges)
-            h.update(edges.tobytes())
-        if len(m.polygons) > 0:
-            # P06: Face topology (vértices das faces) é crítico!
-            mats = array.array('i', [0] * len(m.polygons))
-            m.polygons.foreach_get("material_index", mats)
-            h.update(mats.tobytes())
-            
-            if len(m.loops) > 0:
-                loops = array.array('i', [0] * len(m.loops))
-                m.loops.foreach_get("vertex_index", loops)
-                h.update(loops.tobytes())
+            depsgraph = context.evaluated_depsgraph_get()
+            eval_obj = target.evaluated_get(depsgraph)
+            try:
+                m = eval_obj.to_mesh()
+            except RuntimeError:
+                m = target.data
                 
-        if m != target.data:
-            eval_obj.to_mesh_clear()
+            tokens.append(f"target_geom:{len(m.vertices)},{len(m.edges)},{len(m.polygons)}")
+            h.update(str(tokens).encode('utf-8'))
+            tokens.clear()
             
+            if len(m.vertices) > 0:
+                coords = array.array('f', [0.0] * (len(m.vertices) * 3))
+                m.vertices.foreach_get("co", coords)
+                h.update(coords.tobytes())
+            if len(m.edges) > 0:
+                edges = array.array('i', [0] * (len(m.edges) * 2))
+                m.edges.foreach_get("vertices", edges)
+                h.update(edges.tobytes())
+            if len(m.polygons) > 0:
+                # P06: Face topology (vértices das faces) é crítico!
+                mats = array.array('i', [0] * len(m.polygons))
+                m.polygons.foreach_get("material_index", mats)
+                h.update(mats.tobytes())
+                
+                if len(m.loops) > 0:
+                    loops = array.array('i', [0] * len(m.loops))
+                    m.loops.foreach_get("vertex_index", loops)
+                    h.update(loops.tobytes())
+                    
+            if m != target.data:
+                eval_obj.to_mesh_clear()
+        finally:
+            if orig_hide_viewport:
+                target.hide_viewport = True
+                
         mats_list = [mat.name if mat else "None" for mat in target.data.materials]
         tokens.append(f"target_mats_list:{','.join(mats_list)}")
 
@@ -389,6 +398,9 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
         tokens.append(f"conn_diam:{settings.connector_diameter_mm:.4f}")
         tokens.append(f"conn_len:{settings.connector_length_mm:.4f}")
         tokens.append(f"conn_cap_len:{settings.connector_capsule_length_mm:.4f}")
+        tokens.append(f"conn_chamf:{getattr(settings, 'connector_chamfer_mm', 0.5):.4f}")
+        tokens.append(f"conn_end_clear:{getattr(settings, 'end_clearance_mm', 0.5):.4f}")
+        tokens.append(f"conn_adj_valid:{getattr(settings, 'adjust_to_valid_area', False)}")
         tokens.append(f"conn_dist:{settings.connector_distribution}")
         tokens.append(f"conn_margin:{settings.connector_edge_margin_mm:.4f}")
         tokens.append(f"conn_male:{settings.connector_male_part}")
@@ -952,6 +964,19 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
         if target.mode == 'EDIT':
             target.update_from_editmode()
 
+        # Garante diagnóstico atualizado do alvo caso tenha sido atribuído diretamente via API/script
+        if settings.diag_volume_mm3 <= 0.0:
+            report = analyze_target_mesh(target, context.scene)
+            settings.diag_dims_mm = report["dims_mm"]
+            settings.diag_triangles = report["triangles"]
+            settings.diag_faces = report["faces"]
+            settings.diag_volume_mm3 = report["volume_mm3"]
+            settings.diag_is_manifold = report["is_manifold"]
+            settings.diag_non_manifold_edges = report["non_manifold_edges"]
+            settings.diag_has_unapplied_scale = report["has_unapplied_scale"]
+            settings.diag_is_non_uniform_scale = report["is_non_uniform_scale"]
+            settings.diag_degenerate_faces = report["degenerate_faces"]
+
         # Garante session_id exclusivo para cada novo corte/sessão
         if not settings.session_id or settings.session_id == "session_01" or settings.session_status == 'COMMITTED':
             settings.session_id = uuid.uuid4().hex[:12]
@@ -986,7 +1011,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
         settings.active_operation_id = op_id
         parent_op_id = target.get("chest_operation_id", "")
         op_rec = get_or_create_operation_record(context.scene, op_id, target=target, status='PREVIEW', parent_op_id=parent_op_id)
-        if op_rec:
+        if op_rec and not getattr(op_rec, "snapshot_object", None):
             capture_target_snapshot(context.scene, op_rec, target)
 
         candidate_mesh_a = bpy.data.meshes.new(cand_mesh_name_a)
@@ -1178,14 +1203,15 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 eval_mesh = None
 
             # Validação geométrica nos candidatos
+            check_cand_manifold = getattr(settings, "diag_is_manifold", True)
             bm_a_chk = bmesh.new()
             bm_a_chk.from_mesh(candidate_mesh_a)
-            ok_a, msg_a, _ = validate_printable_mesh(bm_a_chk, part_name="Parte A", unit_scale=unit_scale)
+            ok_a, msg_a, _ = validate_printable_mesh(bm_a_chk, part_name="Parte A", unit_scale=unit_scale, check_manifold=check_cand_manifold)
             bm_a_chk.free()
 
             bm_b_chk = bmesh.new()
             bm_b_chk.from_mesh(candidate_mesh_b)
-            ok_b, msg_b, _ = validate_printable_mesh(bm_b_chk, part_name="Parte B", unit_scale=unit_scale)
+            ok_b, msg_b, _ = validate_printable_mesh(bm_b_chk, part_name="Parte B", unit_scale=unit_scale, check_manifold=check_cand_manifold)
             bm_b_chk.free()
 
             if not ok_a or not ok_b:
@@ -1271,14 +1297,31 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             for side, p_obj in (("A", candidate_obj_a), ("B", candidate_obj_b)):
                 bm_res = bmesh.new()
                 bm_res.from_mesh(p_obj.data)
-                ok_res, msg_res, metrics = validate_printable_mesh(bm_res, part_name=f"Parte {side}", unit_scale=unit_scale)
+                ok_res, msg_res, metrics = validate_printable_mesh(bm_res, part_name=f"Parte {side}", unit_scale=unit_scale, check_manifold=check_cand_manifold)
                 bm_res.free()
                 if not ok_res:
                     raise RuntimeError(f"Resultado inválido após encaixes ({msg_res}).")
                 metrics_final[side] = metrics
 
+            # Pré-calcula métricas, limites e nova assinatura antes de alterar a cena (C22 / V23)
+            sum_vol = metrics_final["A"]["volume_mm3"] + metrics_final["B"]["volume_mm3"]
+            orig_vol = settings.diag_volume_mm3
+            vol_diff = (abs(sum_vol - orig_vol) / orig_vol * 100.0) if orig_vol > 0 else 0.0
+
+            if settings.connector_enabled and settings.split_mode not in ('SOLID', 'MATERIAL'):
+                min_explosion_needed = settings.connector_length_mm + settings.end_clearance_mm + 15.0
+                if settings.explosion_distance_mm < min_explosion_needed:
+                    settings.explosion_distance_mm = round(min_explosion_needed, 1)
+
+            if settings.split_mode == 'MATERIAL':
+                min_explosion_needed = settings.material_extrude_depth_mm + 15.0
+                if settings.explosion_distance_mm < min_explosion_needed:
+                    settings.explosion_distance_mm = round(min_explosion_needed, 1)
+
+            new_sig = compute_session_input_signature(context)
+
             # --- SUCESSO TOTAL: SWAP ATÔMICO ---
-            # 1. Remove prévia anterior
+            # 1. Remove prévia anterior somente após 100% de sucesso nos cálculos
             cleanup_collection_objects(preview_col, exclude_objects={target, candidate_obj_a, candidate_obj_b}, session_id=settings.session_id)
 
             # 2. Promove candidatos para objetos oficiais de prévia
@@ -1329,26 +1372,9 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             settings.part_b_non_manifold_edges = metrics_final["B"]["non_manifold_edges"]
             settings.part_b_components = metrics_final["B"]["components"]
 
-            sum_vol = settings.part_a_volume_mm3 + settings.part_b_volume_mm3
             settings.part_sum_volume_mm3 = sum_vol
-
-            orig_vol = settings.diag_volume_mm3
-            if orig_vol > 0:
-                settings.volume_diff_pct = abs(sum_vol - orig_vol) / orig_vol * 100.0
-            else:
-                settings.volume_diff_pct = 0.0
-
-            if settings.connector_enabled and settings.split_mode not in ('SOLID', 'MATERIAL'):
-                min_explosion_needed = settings.connector_length_mm + settings.end_clearance_mm + 15.0
-                if settings.explosion_distance_mm < min_explosion_needed:
-                    settings.explosion_distance_mm = round(min_explosion_needed, 1)
-
-            if settings.split_mode == 'MATERIAL':
-                min_explosion_needed = settings.material_extrude_depth_mm + 15.0
-                if settings.explosion_distance_mm < min_explosion_needed:
-                    settings.explosion_distance_mm = round(min_explosion_needed, 1)
-
-            settings.session_input_signature = compute_session_input_signature(context)
+            settings.volume_diff_pct = vol_diff
+            settings.session_input_signature = new_sig
             settings.session_status = 'PREVIEW_VALID'
 
             update_preview_positions(context.scene)
@@ -1581,8 +1607,9 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
             bm_part = bmesh.new()
             bm_part.from_mesh(eval_mesh)
             
-            # check_manifold = True sempre! Sólidos físicos são exigidos.
-            is_valid, msg, _ = validate_printable_mesh(bm_part, part_name=part_obj.name, unit_scale=unit_scale, check_manifold=True)
+            # check_manifold exigido se o alvo original era manifold
+            check_solid = getattr(settings, "diag_is_manifold", True)
+            is_valid, msg, _ = validate_printable_mesh(bm_part, part_name=part_obj.name, unit_scale=unit_scale, check_manifold=check_solid)
             bm_part.free()
             if eval_mesh != part_obj.data:
                 eval_obj.to_mesh_clear()
@@ -2103,8 +2130,10 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
                     eval_obj = obj.evaluated_get(depsgraph)
                     eval_mesh = eval_obj.to_mesh()
                     bm_part.from_mesh(eval_mesh)
-                except Exception:
-                    bm_part.from_mesh(obj.data)
+                except Exception as e:
+                    bm_part.free()
+                    self.report({'ERROR'}, f"Falha ao avaliar modificadores de '{obj.name}': {e}. Cancelando exportação para evitar divergência.")
+                    return {'CANCELLED'}
             else:
                 bm_part.from_mesh(obj.data)
 
@@ -2136,7 +2165,12 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
         base_name = target.name if target else "Chest_Model"
         base_name = "".join(c for c in base_name if c.isalnum() or c in ('_', '-', '.')).rstrip('.')
 
-        from .io_export import export_objects_to_3mf, export_objects_to_stl_by_material, sanitize_unique_filename
+        from .io_export import (
+            export_objects_to_3mf,
+            export_objects_to_stl_by_material,
+            sanitize_unique_filename,
+            publish_staged_files_atomic,
+        )
 
         prev_selected = list(context.selected_objects) if context else []
         prev_active = context.view_layer.objects.active if context and context.view_layer else None
@@ -2218,11 +2252,7 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
                         staged_files.append((stage_path, filename))
 
                     # Sucesso completo: publicação atômica para o diretório de destino
-                    exported = []
-                    for stage_path, filename in staged_files:
-                        final_path = os.path.join(export_dir, filename)
-                        shutil.copy2(stage_path, final_path)
-                        exported.append(final_path)
+                    exported = publish_staged_files_atomic(staged_files, export_dir)
 
                 finally:
                     if os.path.exists(temp_stage_dir):

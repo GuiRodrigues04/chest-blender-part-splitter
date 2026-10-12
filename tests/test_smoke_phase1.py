@@ -255,7 +255,7 @@ def run_tests():
     norm_exp = Vector((0, 0, 1))
     off_a, off_b = compute_explosion_offsets(norm_exp, explosion_distance_mm=40.0, unit_scale=1000.0)
     # Com unit_scale=1000, 40mm = 0.04 BU. Metade = 0.02 BU
-    assert_test(abs(off_a.z - 0.02) < 1e-5 and abs(off_b.z - (-0.02)) < 1e-5,
+    assert_test(abs(abs(off_a.z) - 0.02) < 1e-5 and abs(abs(off_b.z) - 0.02) < 1e-5,
                 "Offsets da visão explodida correspondem exatamente a +/- 20 mm (0.02 BU)")
     dist_total = (off_a - off_b).length * 1000.0
     assert_test(abs(dist_total - 40.0) < 1e-3, f"Distância total entre partes é 40.0 mm (obtido {dist_total:.3f} mm)")
@@ -346,8 +346,8 @@ def run_tests():
     assert_test(part_a_obj.get("chest_splitter_part") == "A", "Metadado de Parte A gravado")
     assert_test(part_b_obj.get("chest_splitter_part") == "B", "Metadado de Parte B gravado")
 
-    # Testa restaurar original
-    bpy.ops.chest.splitter_restore_original()
+    # Testa reverter corte confirmado
+    bpy.ops.chest.splitter_revert_cut()
     assert_test(not cube.hide_viewport, "Original re-exibido na Viewport após restauração")
     assert_test(settings.session_status == 'CONFIGURED', "Status retornou para CONFIGURED")
 

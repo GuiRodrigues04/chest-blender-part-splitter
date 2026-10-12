@@ -88,7 +88,7 @@ def cap_open_cut_boundaries(
     except Exception:
         pass
 
-    # 2. Fallback: fecha arestas abertas remanescentes
+    # 2. Fallback: fecha arestas abertas remanescentes exclusivamente no plano de corte (C09 / V13)
     if plane_origin is not None and plane_normal is not None:
         norm = plane_normal.normalized()
         remaining_boundary = [
@@ -97,8 +97,10 @@ def cap_open_cut_boundaries(
             abs((e.verts[0].co - plane_origin).dot(norm)) <= coplanar_tol_bu and
             abs((e.verts[1].co - plane_origin).dot(norm)) <= coplanar_tol_bu
         ]
+    elif cut_edges:
+        remaining_boundary = [e for e in cut_edges if e.is_valid and e.is_boundary]
     else:
-        remaining_boundary = [e for e in bm.edges if e.is_valid and e.is_boundary]
+        remaining_boundary = []
 
     if remaining_boundary:
         try:
@@ -355,8 +357,14 @@ def slice_mesh_by_plane(
                 f"O plano de corte não intersecta o modelo (lado {side_key} ficou vazio)."
             )
 
-        # 4. Fecha bordas abertas no plano de corte
-        cap_open_cut_boundaries(bm, cut_edges=cut_edges)
+        # 4. Fecha bordas abertas no plano de corte estritamente (C09 / V13)
+        cap_open_cut_boundaries(
+            bm,
+            cut_edges=cut_edges,
+            plane_origin=side_origin,
+            plane_normal=cut_normal,
+            coplanar_tol_bu=coplanar_tol_bu,
+        )
 
         # Avalia métricas
         metrics = evaluate_bmesh_metrics(bm, unit_scale=unit_scale)
@@ -403,13 +411,15 @@ def compute_explosion_offsets(
     explosion_distance_mm: float,
     unit_scale: float = 1000.0,
 ) -> Tuple[Vector, Vector]:
-    """Calcula os vetores de deslocamento da visão explodida para as partes A e B.
+    """Calcula os vetores de deslocamento da visão explodida para as partes A e B (C04 / V06).
     
     A distância é expressa em mm e convertida para unidades do Blender (BU).
-    Parte A move-se na direção da normal (+), Parte B na direção oposta (-).
+    Como bisect com clear_outer=True retém Parte A no lado negativo da normal e Parte B no positivo,
+    Parte A move-se na direção oposta à normal (-), e Parte B na direção da normal (+),
+    afastando ambas para fora uma da outra.
     """
     norm = plane_normal.normalized()
     dist_bu = (explosion_distance_mm / unit_scale) / 2.0
-    offset_a = norm * dist_bu
-    offset_b = -norm * dist_bu
+    offset_a = -norm * dist_bu
+    offset_b = norm * dist_bu
     return offset_a, offset_b

@@ -278,8 +278,8 @@ def run_tests():
     # Cortador na coleção de guias deve ter sido ocultado
     assert_test(cutter_obj.hide_viewport is True, "Cortador sólido na coleção de guias foi ocultado")
 
-    # Restaura original
-    bpy.ops.chest.splitter_restore_original()
+    # Reverte corte confirmado
+    bpy.ops.chest.splitter_revert_cut()
     assert_test(not cube.hide_viewport, "Objeto alvo original restaurado na Viewport")
 
     # -------------------------------------------------------------

@@ -1,0 +1,60 @@
+{
+  "scope": "isolated arithmetic and source analysis; not Blender runtime",
+  "results": [
+    {
+      "case": "original triangulator",
+      "boundary_vertices": 4,
+      "triangles": 2,
+      "zero_area_triangles": []
+    },
+    {
+      "case": "original triangulator",
+      "boundary_vertices": 12,
+      "triangles": 10,
+      "zero_area_triangles": [
+        [
+          9,
+          10,
+          11
+        ]
+      ]
+    },
+    {
+      "case": "original triangulator",
+      "boundary_vertices": 20,
+      "triangles": 18,
+      "zero_area_triangles": [
+        [
+          15,
+          16,
+          17
+        ],
+        [
+          15,
+          17,
+          18
+        ],
+        [
+          15,
+          18,
+          19
+        ]
+      ]
+    },
+    {
+      "case": "plane coincident with triangle edge",
+      "segment_points_returned": 0,
+      "note": "two endpoints lie on plane; original function excludes case without opposite signs"
+    },
+    {
+      "case": "external CLI arguments",
+      "argv_without_separator": [
+        "script.py",
+        "--blender",
+        "custom_blender"
+      ],
+      "effective_argv_original": [],
+      "note": "original code passes [] whenever literal -- is absent"
+    }
+  ]
+}

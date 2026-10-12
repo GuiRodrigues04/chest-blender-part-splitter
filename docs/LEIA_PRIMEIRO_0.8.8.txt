@@ -1,0 +1,12 @@
+Auditoria da 0.8.7 e plano da 0.8.8
+
+1. Abra Auditoria_0.8.7_e_Plano_0.8.8.md.
+2. Envie este pacote ao Gemini Pro junto ao checkout atual e a cena .blend de reproducao.
+3. Use fontes_referencia apenas como base original; nao sao arquivos corrigidos.
+4. Consulte imagens e evidencias para cada caso.
+
+Foram conferidos os 16 modulos de producao e a sintaxe de 46 arquivos Python.
+As reproducoes isoladas confirmam problemas aritmeticos, sem executar a API do Blender.
+A implementacao e homologacao no Blender continuam necessarias.
+
+Primeiro corrigir tampas, direcao, preservacao de sessoes e backups; depois folgas, overlays, materiais, exportacao e testes.

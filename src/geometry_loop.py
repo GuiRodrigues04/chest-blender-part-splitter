@@ -620,26 +620,81 @@ def _get_orthonormal_basis(normal: Vector) -> Tuple[Vector, Vector]:
 
 
 def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
-    """Triangulação estrita por Ear Clipping para polígono simples 2D (B05 / L01-L06).
+    """Triangulação estrita por Ear Clipping para polígono simples 2D (B05 / L01-L06 / C01 / V01).
     
     Garante que 100% dos triângulos fiquem dentro do domínio do polígono,
-    inclusive em formas côncavas (L, U, etc.), sem criar pontes sobre aberturas.
+    inclusive em formas côncavas (L, U, etc.), eliminando triângulos degenerados (área zero)
+    mesmo em contornos com vértices colineares intermediários (12, 20, 40+ vértices).
     """
     n = len(pts_2d)
     if n < 3:
         return []
-    if n == 3:
-        return [(0, 1, 2)]
+    
+    pts_vec = [Vector((p[0], p[1])) if not hasattr(p, 'x') else Vector((p.x, p.y)) for p in pts_2d]
 
-    # Calcula área orientada para verificar orientação (CCW vs CW)
+    # 1. Área orientada via Shoelace
     area = 0.0
     for i in range(n):
         j = (i + 1) % n
-        area += pts_2d[i].x * pts_2d[j].y - pts_2d[j].x * pts_2d[i].y
+        area += pts_vec[i].x * pts_vec[j].y - pts_vec[j].x * pts_vec[i].y
+    area *= 0.5
 
-    indices = list(range(n))
-    if area < 0:
-        indices = list(reversed(indices))
+    if abs(area) < 1e-12:
+        return []
+
+    if n == 3:
+        return [(0, 1, 2)] if area > 0 else [(0, 2, 1)]
+
+    is_ccw = (area > 0.0)
+    indices = list(range(n)) if is_ccw else list(reversed(range(n)))
+    poly = [pts_vec[i] for i in indices]
+
+    # 2. Identifica cantos essenciais (elimina colineares na mesma reta para o Ear Clipping)
+    corners = []
+    m_len = len(poly)
+    for i in range(m_len):
+        p_prev = poly[(i - 1) % m_len]
+        p_curr = poly[i]
+        p_next = poly[(i + 1) % m_len]
+
+        v1 = p_curr - p_prev
+        v2 = p_next - p_curr
+        l1 = v1.length
+        l2 = v2.length
+
+        is_collinear = False
+        if l1 > 1e-9 and l2 > 1e-9:
+            cp = v1.x * v2.y - v1.y * v2.x
+            dp = v1.x * v2.x + v1.y * v2.y
+            if abs(cp) / (l1 * l2) < 1e-5 and dp > 0:
+                is_collinear = True
+
+        if not is_collinear:
+            corners.append(i)
+
+    if len(corners) < 3:
+        raise ValueError("Polígono degenerado: todos os pontos são colineares.")
+
+    # 3. Mapeia intermediários colineares pertencentes a cada aresta de canto
+    edge_intermediates = {}
+    num_corners = len(corners)
+    for c_i in range(num_corners):
+        c_curr = corners[c_i]
+        c_next = corners[(c_i + 1) % num_corners]
+
+        inter = []
+        if c_next > c_curr:
+            for k in range(c_curr + 1, c_next):
+                inter.append(indices[k])
+        else:
+            for k in range(c_curr + 1, m_len):
+                inter.append(indices[k])
+            for k in range(0, c_next):
+                inter.append(indices[k])
+        edge_intermediates[(indices[c_curr], indices[c_next])] = inter
+
+    # 4. Ear clipping no polígono simplificado de cantos essenciais
+    corner_indices = [indices[c] for c in corners]
 
     def is_point_in_tri(pt: Vector, a: Vector, b: Vector, c: Vector) -> bool:
         v0 = c - a
@@ -662,54 +717,79 @@ def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
         cp = (p_curr.x - p_prev.x) * (p_next.y - p_curr.y) - (p_curr.y - p_prev.y) * (p_next.x - p_curr.x)
         return cp > 1e-8
 
-    triangles = []
+    cur_c_indices = list(corner_indices)
+    corner_triangles = []
     it = 0
-    max_it = len(indices) * len(indices) * 2
+    max_it = len(cur_c_indices) * len(cur_c_indices) * 2
 
-    while len(indices) > 3 and it < max_it:
+    while len(cur_c_indices) > 3 and it < max_it:
         it += 1
         ear_found = False
-        m = len(indices)
-        for i in range(m):
-            i_prev = (i - 1) % m
-            i_next = (i + 1) % m
-            idx_prev = indices[i_prev]
-            idx_curr = indices[i]
-            idx_next = indices[i_next]
+        cm = len(cur_c_indices)
+        for i in range(cm):
+            idx_prev = cur_c_indices[(i - 1) % cm]
+            idx_curr = cur_c_indices[i]
+            idx_next = cur_c_indices[(i + 1) % cm]
 
-            p_prev = pts_2d[idx_prev]
-            p_curr = pts_2d[idx_curr]
-            p_next = pts_2d[idx_next]
+            p_prev = pts_vec[idx_prev]
+            p_curr = pts_vec[idx_curr]
+            p_next = pts_vec[idx_next]
 
             if not is_convex(p_prev, p_curr, p_next):
                 continue
 
-            has_interior_pt = False
-            for k in range(m):
-                if k in (i_prev, i, i_next):
+            has_pt = False
+            for k in range(cm):
+                if k in ((i - 1) % cm, i, (i + 1) % cm):
                     continue
-                pt = pts_2d[indices[k]]
+                pt = pts_vec[cur_c_indices[k]]
                 if is_point_in_tri(pt, p_prev, p_curr, p_next):
-                    has_interior_pt = True
+                    has_pt = True
                     break
 
-            if not has_interior_pt:
-                triangles.append((idx_prev, idx_curr, idx_next))
-                indices.pop(i)
+            if not has_pt:
+                corner_triangles.append((idx_prev, idx_curr, idx_next))
+                cur_c_indices.pop(i)
                 ear_found = True
                 break
 
         if not ear_found:
-            idx_prev = indices[0]
-            idx_curr = indices[1]
-            idx_next = indices[2]
-            triangles.append((idx_prev, idx_curr, idx_next))
-            indices.pop(1)
+            corner_triangles.append((cur_c_indices[0], cur_c_indices[1], cur_c_indices[2]))
+            cur_c_indices.pop(1)
 
-    if len(indices) == 3:
-        triangles.append((indices[0], indices[1], indices[2]))
+    if len(cur_c_indices) == 3:
+        corner_triangles.append((cur_c_indices[0], cur_c_indices[1], cur_c_indices[2]))
 
-    return triangles
+    # 5. Subdivide as arestas de cantos que possuem intermediários colineares
+    final_triangles = []
+    for tri in corner_triangles:
+        sub_tris = [tri]
+        for e_pair, inter_pts in edge_intermediates.items():
+            if not inter_pts:
+                continue
+            v_start, v_end = e_pair
+
+            new_sub_tris = []
+            for st in sub_tris:
+                a, b, c = st
+                found_edge = False
+                for p1, p2, p_opp in ((a, b, c), (b, c, a), (c, a, b)):
+                    if (p1 == v_start and p2 == v_end) or (p1 == v_end and p2 == v_start):
+                        found_edge = True
+                        chain = [p1] + (inter_pts if p1 == v_start else list(reversed(inter_pts))) + [p2]
+                        for ch_i in range(len(chain) - 1):
+                            new_sub_tris.append((chain[ch_i], chain[ch_i + 1], p_opp))
+                        break
+                if not found_edge:
+                    new_sub_tris.append(st)
+            sub_tris = new_sub_tris
+
+        final_triangles.extend(sub_tris)
+
+    if not is_ccw:
+        final_triangles = [(t[0], t[2], t[1]) for t in final_triangles]
+
+    return final_triangles
 
 
 def create_loop_prism_cutter(

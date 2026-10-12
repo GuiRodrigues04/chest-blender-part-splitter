@@ -298,9 +298,18 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
         # Folga Física entre Peças (E01)
         box_part_clearance = box_conn.box()
         box_part_clearance.label(text="Folga da Interface entre Peças:", icon='DRIVER_DISTANCE')
-        box_part_clearance.prop(settings, "part_clearance_mm", text="Folga (mm)", slider=True)
-        if settings.part_clearance_mm > 0.0:
-            box_part_clearance.prop(settings, "part_clearance_apply_to", text="Aplicar em")
+        if settings.split_mode in ('PLANE', 'MATERIAL'):
+            box_part_clearance.prop(settings, "part_clearance_mm", text="Folga (mm)", slider=True)
+            if settings.part_clearance_mm > 0.0:
+                box_part_clearance.prop(settings, "part_clearance_apply_to", text="Aplicar em")
+        else:
+            col_disabled = box_part_clearance.column()
+            col_disabled.enabled = False
+            col_disabled.prop(settings, "part_clearance_mm", text="Folga (mm)", slider=True)
+            box_part_clearance.label(
+                text="Folga de interface disponível apenas nos modos Plano e Material.", 
+                icon='INFO'
+            )
 
         if settings.split_mode in ('SOLID', 'MATERIAL'):
             box_conn.label(text="Encaixes de pinos automáticos disponíveis apenas para Plano e Loop.", icon='INFO')

@@ -11,6 +11,7 @@ import bpy
 from typing import Optional, List, Tuple
 from mathutils import Vector, Matrix
 import math
+from .constants import ROLE_PREVIEW_A, ROLE_PREVIEW_B
 
 _draw_handler = None
 
@@ -132,9 +133,10 @@ def _draw_loop_overlay(context, settings):
 
 
 def _compute_cut_line_segments(mesh_or_bm, matrix_world: Matrix, plane_co: Vector, plane_no: Vector, is_bmesh: bool = False) -> List[Vector]:
-    """Calcula segmentos de linha estritos da interseção entre o plano e cada triângulo/face da malha (C04).
+    """Calcula segmentos de linha estritos da interseção entre o plano e cada triângulo/face da malha (C04 / C12 / V14).
     
-    Garante que cada segmento pertença a uma única face, eliminando traços espúrios que cortam o vazio.
+    Garante que cada segmento pertença a uma única face, eliminando traços espúrios que cortam o vazio
+    e detectando com precisão arestas coincidentes ou tangentes ao plano de corte.
     """
     segments = []
     norm = plane_no.normalized()
@@ -149,21 +151,32 @@ def _compute_cut_line_segments(mesh_or_bm, matrix_world: Matrix, plane_co: Vecto
             for i in range(1, n_v - 1):
                 tri = (v_coords[0], v_coords[i], v_coords[i + 1])
                 dists = [(p - plane_co).dot(norm) for p in tri]
+                on_plane = [abs(d) <= 1e-6 for d in dists]
+                num_on_plane = sum(on_plane)
                 has_pos = any(d > 1e-6 for d in dists)
                 has_neg = any(d < -1e-6 for d in dists)
-                if not (has_pos and has_neg):
+
+                if not (has_pos and has_neg) and num_on_plane < 2:
                     continue
+
                 inter_pts = []
-                for e_idx in range(3):
-                    p_a = tri[e_idx]
-                    p_b = tri[(e_idx + 1) % 3]
-                    d_a = dists[e_idx]
-                    d_b = dists[(e_idx + 1) % 3]
-                    if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
-                        t = d_a / (d_a - d_b)
-                        inter_pts.append(p_a + t * (p_b - p_a))
-                    elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
-                        inter_pts.append(p_a)
+                if num_on_plane == 2:
+                    for v_idx in range(3):
+                        if on_plane[v_idx]:
+                            inter_pts.append(tri[v_idx])
+                elif num_on_plane == 3:
+                    continue
+                else:
+                    for e_idx in range(3):
+                        p_a = tri[e_idx]
+                        p_b = tri[(e_idx + 1) % 3]
+                        d_a = dists[e_idx]
+                        d_b = dists[(e_idx + 1) % 3]
+                        if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
+                            t = d_a / (d_a - d_b)
+                            inter_pts.append(p_a + t * (p_b - p_a))
+                        elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
+                            inter_pts.append(p_a)
 
                 if len(inter_pts) == 2:
                     segments.append(inter_pts[0])
@@ -188,23 +201,33 @@ def _compute_cut_line_segments(mesh_or_bm, matrix_world: Matrix, plane_co: Vecto
                 d2 = (v2_co - plane_co).dot(norm)
 
                 dists = (d0, d1, d2)
+                on_plane = (abs(d0) <= 1e-6, abs(d1) <= 1e-6, abs(d2) <= 1e-6)
+                num_on_plane = sum(on_plane)
                 has_pos = any(d > 1e-6 for d in dists)
                 has_neg = any(d < -1e-6 for d in dists)
-                if not (has_pos and has_neg):
+
+                if not (has_pos and has_neg) and num_on_plane < 2:
                     continue
 
                 tri = (v0_co, v1_co, v2_co)
                 inter_pts = []
-                for e_idx in range(3):
-                    p_a = tri[e_idx]
-                    p_b = tri[(e_idx + 1) % 3]
-                    d_a = dists[e_idx]
-                    d_b = dists[(e_idx + 1) % 3]
-                    if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
-                        t = d_a / (d_a - d_b)
-                        inter_pts.append(p_a + t * (p_b - p_a))
-                    elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
-                        inter_pts.append(p_a)
+                if num_on_plane == 2:
+                    for v_idx in range(3):
+                        if on_plane[v_idx]:
+                            inter_pts.append(tri[v_idx])
+                elif num_on_plane == 3:
+                    continue
+                else:
+                    for e_idx in range(3):
+                        p_a = tri[e_idx]
+                        p_b = tri[(e_idx + 1) % 3]
+                        d_a = dists[e_idx]
+                        d_b = dists[(e_idx + 1) % 3]
+                        if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
+                            t = d_a / (d_a - d_b)
+                            inter_pts.append(p_a + t * (p_b - p_a))
+                        elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
+                            inter_pts.append(p_a)
 
                 if len(inter_pts) == 2:
                     segments.append(inter_pts[0])
@@ -326,8 +349,8 @@ def _draw_plane_overlay(context, settings):
                     # Na vista explodida, desenha o contorno projetado nas superfícies afastadas de A e B (C04 / P01)
                     from .operators import get_current_session_parts
                     parts = get_current_session_parts(context.scene)
-                    obj_a = next((o for o in parts if o.get("chest_role") == 'A'), None)
-                    obj_b = next((o for o in parts if o.get("chest_role") == 'B'), None)
+                    obj_a = next((o for o in parts if o.get("chest_role") in (ROLE_PREVIEW_A, 'A', 'PART_A')), None)
+                    obj_b = next((o for o in parts if o.get("chest_role") in (ROLE_PREVIEW_B, 'B', 'PART_B')), None)
                     offset_a = obj_a.location if obj_a else Vector((0, 0, 0))
                     offset_b = obj_b.location if obj_b else Vector((0, 0, 0))
 

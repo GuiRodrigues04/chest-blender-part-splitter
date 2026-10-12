@@ -66,6 +66,57 @@ def rgba_to_hex(rgba: Tuple[float, float, float, float]) -> str:
     return f"#{r:02X}{g:02X}{b:02X}{a:02X}"
 
 
+def publish_staged_files_atomic(staged_files: List[Tuple[str, str]], target_dir: str) -> List[str]:
+    """Publica arquivos estagiados para o diretório de destino de forma atômica com rollback.
+    
+    Se ocorrer qualquer falha durante a publicação de qualquer arquivo:
+    - Todos os arquivos recém-criados no destino durante esta operação são removidos.
+    - Todos os arquivos preexistentes que foram substituídos são restaurados de seus backups.
+    - Nenhuma saída parcial ou corrompida permanece.
+    """
+    os.makedirs(target_dir, exist_ok=True)
+    backup_dir = tempfile.mkdtemp(prefix="chest_publish_backup_")
+    copied_new: List[str] = []
+    replaced_backups: List[Tuple[str, str]] = []  # (target_path, backup_path)
+    published_files: List[str] = []
+
+    try:
+        for stage_path, filename in staged_files:
+            target_path = os.path.join(target_dir, filename)
+            if os.path.exists(target_path):
+                backup_path = os.path.join(backup_dir, f"bak_{len(replaced_backups)}_{filename}")
+                shutil.copy2(target_path, backup_path)
+                replaced_backups.append((target_path, backup_path))
+            else:
+                copied_new.append(target_path)
+            
+            shutil.copy2(stage_path, target_path)
+            published_files.append(target_path)
+            
+    except Exception as e:
+        for p in copied_new:
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
+        for target_path, backup_path in replaced_backups:
+            if os.path.exists(backup_path):
+                try:
+                    shutil.copy2(backup_path, target_path)
+                except OSError:
+                    pass
+        raise RuntimeError(f"Falha durante a publicação dos arquivos no destino: {e}. Rollback executado com sucesso.") from e
+    finally:
+        if os.path.exists(backup_dir):
+            try:
+                shutil.rmtree(backup_dir)
+            except OSError:
+                pass
+
+    return published_files
+
+
 def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -> str:
     """Gera o documento XML '3D/3dmodel.model' conforme especificação 3MF Core + Material Extension."""
     xml_lines = []
@@ -76,16 +127,33 @@ def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -
     xml_lines.append(' <metadata name="Application">Chest Part Splitter - Blender Extension</metadata>')
     xml_lines.append(' <resources>')
 
-    # 1. Coleta e consolida paleta de materiais/cores globais
+    # 1. Coleta e consolida paleta de materiais/cores globais (C27/V29: incluindo malha avaliada)
     color_map: Dict[str, Tuple[int, int]] = {} # mat_key -> (colorgroup_id, color_index)
     colorgroup_id = 1
-    colors_xml = []
-    
     unique_materials = []
+    
     for obj in objects:
         if obj.type != 'MESH' or not obj.data:
             continue
-        for mat in obj.data.materials:
+        mats = []
+        eval_obj = None
+        eval_mesh = None
+        if len(obj.modifiers) > 0 and bpy.context:
+            try:
+                depsgraph = bpy.context.evaluated_depsgraph_get()
+                eval_obj = obj.evaluated_get(depsgraph)
+                eval_mesh = eval_obj.to_mesh()
+                if eval_mesh and eval_mesh.materials:
+                    mats = list(eval_mesh.materials)
+            except Exception as e:
+                raise RuntimeError(f"Falha ao avaliar modificadores de '{obj.name}': {e}")
+            finally:
+                if eval_obj and eval_mesh:
+                    eval_obj.to_mesh_clear()
+        if not mats:
+            mats = list(obj.data.materials)
+
+        for mat in mats:
             if mat and mat.name not in color_map:
                 col_rgba = get_material_rgba(mat)
                 hex_col = rgba_to_hex(col_rgba)
@@ -122,8 +190,9 @@ def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -
                 eval_obj = obj.evaluated_get(depsgraph)
                 eval_mesh = eval_obj.to_mesh()
                 bm.from_mesh(eval_mesh)
-            except Exception:
-                bm.from_mesh(obj.data)
+            except Exception as e:
+                bm.free()
+                raise RuntimeError(f"Falha ao avaliar modificadores do objeto '{obj.name}': {e}")
         else:
             bm.from_mesh(obj.data)
 
@@ -145,7 +214,7 @@ def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -
         xml_lines.append('    </vertices>')
 
         xml_lines.append('    <triangles>')
-        mat_slots = obj.data.materials
+        mat_slots = eval_mesh.materials if (eval_mesh and len(eval_mesh.materials) > 0) else obj.data.materials
         for f in bm.faces:
             v0 = f.verts[0].index
             v1 = f.verts[1].index
@@ -195,8 +264,11 @@ def export_objects_to_3mf(objects: List[bpy.types.Object], filepath: str, unit_s
     )
     model_xml = build_3mf_xml(objects, unit_scale=unit_scale)
 
-    os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
-    temp_path = filepath + ".tmp"
+    dir_name = os.path.dirname(os.path.abspath(filepath))
+    os.makedirs(dir_name, exist_ok=True)
+    base_name = os.path.basename(filepath)
+    temp_fd, temp_path = tempfile.mkstemp(prefix=f"{base_name}_", suffix=".tmp", dir=dir_name)
+    os.close(temp_fd)
     try:
         with zipfile.ZipFile(temp_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
             zf.writestr('[Content_Types].xml', content_types_xml)
@@ -332,8 +404,9 @@ def export_objects_to_stl_by_material(
                     eval_obj = part.evaluated_get(depsgraph)
                     eval_mesh = eval_obj.to_mesh()
                     bm_part.from_mesh(eval_mesh)
-                except Exception:
-                    bm_part.from_mesh(part.data)
+                except Exception as e:
+                    bm_part.free()
+                    raise RuntimeError(f"Falha ao avaliar modificadores de '{part.name}': {e}")
             else:
                 bm_part.from_mesh(part.data)
             
@@ -384,10 +457,7 @@ def export_objects_to_stl_by_material(
             staged_files.append((stage_path, filename))
 
         # Sucesso completo de todos os arquivos: publicação atômica para o diretório de destino
-        for stage_path, filename in staged_files:
-            final_path = os.path.join(output_dir, filename)
-            shutil.copy2(stage_path, final_path)
-            exported_files.append(final_path)
+        exported_files = publish_staged_files_atomic(staged_files, output_dir)
 
     finally:
         # Limpa staging temporário

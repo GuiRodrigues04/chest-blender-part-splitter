@@ -1,0 +1,5 @@
+scripts/build.py
+argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+
+tests/run_all_tests.py
+argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []

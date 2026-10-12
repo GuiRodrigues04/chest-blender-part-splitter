@@ -196,14 +196,20 @@ def discard_target_snapshot(scene: bpy.types.Scene, op_record: Any):
 # Resolução de Operação e Checagem de Dependências
 # -----------------------------------------------------------------------------
 
-def resolve_operation(context: bpy.types.Context) -> Optional[Any]:
-    """Identifica de forma determinística e inequívoca a operação em foco (B14 / T41)."""
+def resolve_operation_status(context: bpy.types.Context) -> Tuple[Optional[Any], str]:
+    """Identifica de forma determinística e estruturada a operação em foco e seu status (C19 / V21).
+    
+    Retorna (op_record, status_code) onde status_code pode ser:
+    - 'FOUND': Operação unívoca encontrada
+    - 'NOT_FOUND': Nenhuma operação encontrada
+    - 'AMBIGUOUS': Conflito de seleção entre múltiplas operações
+    """
     scene = context.scene
     settings = getattr(scene, "chest_splitter", None)
     if not settings:
-        return None
+        return None, "NOT_FOUND"
 
-    # 1. Pelos objetos selecionados (detecta ambiguidade de múltiplas operações - T41)
+    # 1. Pelos objetos selecionados (detecta ambiguidade de múltiplas operações - T41 / V21)
     selected_ops = set()
     for o in context.selected_objects:
         op_id = o.get("chest_operation_id")
@@ -212,13 +218,13 @@ def resolve_operation(context: bpy.types.Context) -> Optional[Any]:
 
     # Se há mais de uma operação selecionada simultaneamente, é ambíguo!
     if len(selected_ops) > 1:
-        return None
+        return None, "AMBIGUOUS"
 
     if len(selected_ops) == 1:
         single_op_id = next(iter(selected_ops))
         rec = find_operation_record(scene, single_op_id)
         if rec:
-            return rec
+            return rec, "FOUND"
 
     # 2. Pelo objeto ativo
     act_obj = context.active_object
@@ -227,16 +233,22 @@ def resolve_operation(context: bpy.types.Context) -> Optional[Any]:
         if op_id:
             rec = find_operation_record(scene, op_id)
             if rec:
-                return rec
+                return rec, "FOUND"
 
     # 3. Pelo ID ativo na sessão
     active_op_id = getattr(settings, "active_operation_id", "") or getattr(settings, "session_id", "")
     if active_op_id:
         rec = find_operation_record(scene, active_op_id)
         if rec:
-            return rec
+            return rec, "FOUND"
 
-    return None
+    return None, "NOT_FOUND"
+
+
+def resolve_operation(context: bpy.types.Context) -> Optional[Any]:
+    """Identifica de forma determinística e inequívoca a operação em foco (B14 / T41)."""
+    rec, status = resolve_operation_status(context)
+    return rec if status == "FOUND" else None
 
 
 def check_child_operations(scene: bpy.types.Scene, op_record: Any) -> Tuple[bool, str]:
@@ -286,9 +298,35 @@ def remove_preview(context: bpy.types.Context, op_id: Optional[str] = None) -> T
         except Exception:
             pass
 
-    op_record = find_operation_record(scene, op_id) if op_id else resolve_operation(context)
+    if op_id:
+        op_record = find_operation_record(scene, op_id)
+        res_status = 'FOUND' if op_record else 'NOT_FOUND'
+    else:
+        op_record, res_status = resolve_operation_status(context)
+
+    if res_status == 'AMBIGUOUS':
+        msg = (
+            "Seleção ambígua: objetos de múltiplas operações selecionados. Selecione objetos de apenas um corte."
+            if loc == "pt_BR"
+            else "Ambiguous selection: objects from multiple operations selected. Select objects from a single cut."
+        )
+        settings.last_status = msg
+        settings.last_status_level = 'WARNING'
+        return False, msg
+
     if not op_record and settings.session_id:
         op_record = find_operation_record(scene, settings.session_id)
+
+    # C20 / V22: Remover Prévia só atua em prévia! Nunca descarta backup nem altera status de operação confirmada.
+    if op_record and op_record.status == 'COMMITTED':
+        msg = (
+            "Não é possível remover a prévia de uma operação já confirmada. Utilize Reverter Corte para desfazer o corte."
+            if loc == "pt_BR"
+            else "Cannot remove preview of a committed operation. Use Revert Cut to undo the cut."
+        )
+        settings.last_status = msg
+        settings.last_status_level = 'WARNING'
+        return False, msg
 
     curr_op_id = op_record.operation_id if op_record else settings.session_id
 
@@ -345,8 +383,8 @@ def remove_preview(context: bpy.types.Context, op_id: Optional[str] = None) -> T
 
         settings.target_object = target
 
-    # Descarta snapshot de prévia
-    if op_record:
+    # Descarta snapshot de prévia apenas se a operação estiver em status PREVIEW
+    if op_record and op_record.status == 'PREVIEW':
         discard_target_snapshot(scene, op_record)
         op_record.status = 'REVERTED'
 
@@ -389,7 +427,20 @@ def revert_committed_operation(context: bpy.types.Context, op_id: Optional[str] 
         except Exception:
             pass
 
-    op_record = find_operation_record(scene, op_id) if op_id else resolve_operation(context)
+    if op_id:
+        op_record = find_operation_record(scene, op_id)
+        res_status = 'FOUND' if op_record else 'NOT_FOUND'
+    else:
+        op_record, res_status = resolve_operation_status(context)
+
+    if res_status == 'AMBIGUOUS':
+        msg = (
+            "Seleção ambígua: objetos de múltiplas operações selecionados. Selecione objetos de apenas uma operação para reverter."
+            if loc == "pt_BR"
+            else "Ambiguous selection: objects from multiple cuts selected. Select objects from a single cut to revert."
+        )
+        return False, msg
+
     if not op_record and settings.session_id:
         op_record = find_operation_record(scene, settings.session_id)
 
@@ -398,6 +449,14 @@ def revert_committed_operation(context: bpy.types.Context, op_id: Optional[str] 
             "Nenhuma operação confirmada identificada para reversão."
             if loc == "pt_BR"
             else "No committed operation found to revert."
+        )
+        return False, msg
+
+    if op_record.status != 'COMMITTED':
+        msg = (
+            "Esta operação não é um corte confirmado. Utilize Remover Prévia para descartar prévias ativas."
+            if loc == "pt_BR"
+            else "This operation is not committed. Use Remove Preview to discard active previews."
         )
         return False, msg
 

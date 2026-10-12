@@ -5,6 +5,44 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.8.8] - 2026-10-12
+
+### Corrigido (Auditoria 0.8.7 e Plano 0.8.8)
+- **C01, C02, C03 & V01-V04: Triangulação Ear Clipping 2D Robusta e Saliência por Base (BASE)**:
+  - Eliminação de pontes e membranas em contornos côncavos (L/U) e polígonos colineares (4, 12, 20, 40 vértices) com preservação de todas as arestas de borda na triangulação.
+  - No modo BASE ("Destacar saliência pela base"), remoção de lâminas coplanares e faces degeneradas: tanto a saliência destacada quanto o corpo receptor são gerados como sólidos 100% estanques (manifold) com tampas planas fechadas e conservação estrita de volume (\(\Sigma V_{\text{partes}} = V_{\text{original}}\)).
+  - Rejeição e cancelamento controlado de polígonos de borda degenerados sem travamento do operador.
+- **C04, C09, C10 & V06-V07: Vetores de Explosão Orientados e Invariância sem Deriva (Drift)**:
+  - Sentido de explosão calculado estritamente para fora da interface em todos os modos (PLANE, LOOP, MATERIAL), garantindo afastamento mútuo das peças A e B em qualquer orientação espacial e rotação.
+  - Cálculo de explosão baseado na matriz mundial montada original, eliminando realimentação cumulativa e deriva posicional (drift) mesmo após dezenas de ciclos alternados entre montado e explodido.
+- **C05, C06, C07, C08 & V08-V12: Contrato e Calibração Fiel de Folga entre Peças**:
+  - Folga axial na interface suportada exclusivamente nos modos PLANE e MATERIAL com validação contra espessura útil e volume remanescente (rejeição segura de folgas excessivas).
+  - Em modos não suportados (LOOP, SOLID), os controles de folga são desabilitados com aviso informativo claro na interface de usuário.
+  - Distinção exata entre aplicação unilateral (deslocamento $g$ na peça selecionada) e bilateral ($g/2$ em cada peça).
+- **C11, C12, C13, C14, C15 & V13-V16: Fechamento de Corte e Linhas de Contorno**:
+  - `cap_open_cut_boundaries` restrito às arestas geradas no plano de corte da operação atual, evitando fechamento indevido de orifícios pré-existentes do modelo original de entrada.
+  - Deduplicação de segmentos coplanares e tangentes sem traçado de diagonais internas ou arestas nulas em faces côncavas.
+  - Na visualização explodida, os contornos de corte são projetados sobre as coordenadas transformadas das peças associadas aos papéis `ROLE_PREVIEW_A` e `ROLE_PREVIEW_B`.
+- **C16, C17, C18 & V17-V20: Encaixes, Grade OMBB e Herança Fiel de Materiais**:
+  - Grade de pinos GRID_4 alinhada aos eixos principais da interface via Oriented Minimum Bounding Box (OMBB) com fator de escala seguro para retenção dos 4 conectores em domínios sólidos.
+  - Pinos de encaixe herdam fielmente os materiais dos polígonos de contato por análise de área em World Space; em interfaces multimateriais, cada conector é avaliado individualmente.
+  - Verificação de limites e footprint para conectores do tipo Cápsula evitando perfuração de cantos e paredes adjacentes.
+- **C19, C20, C21, C22, C23, C24 & V21-V27: Atomicidade de Sessão, Ciclo de Vida e Assinatura**:
+  - Resolução de ambiguidade com cancelamento estrito e sem fallback se objetos de sessões ou operações distintas forem selecionados simultaneamente.
+  - Operador `splitter_restore_original` bloqueado em operações confirmadas (COMMITTED), exigindo o uso explícito de `splitter_revert_cut`.
+  - Swap atômico de prévia: substituição e descarte da prévia anterior apenas após sucesso pleno de todos os cálculos geométricos e validações, restaurando estado íntegro em caso de exceção.
+  - Assinatura de sessão completa cobrindo transformações, matrizes mundiais, materiais, modificadores e parâmetros de conectores (chanfro, folga axial e ajuste à área válida).
+  - Avaliação fiel de modificadores em `compute_session_input_signature` preservando a visibilidade temporária do alvo oculto.
+- **C25, C26, C27 & V28-V32: Exportação Atômica e Tratamento de Modificadores**:
+  - Cancelamento explícito da exportação caso a avaliação de modificadores de qualquer peça falhe, prevenindo divergência entre a prévia e os arquivos finais em disco.
+  - Publicação atômica em disco com diretório de staging, backup de arquivos existentes e rollback automático integral em caso de falha de I/O.
+  - Exportação 3MF coleta recursos de cores e materiais da geometria avaliada com modificadores.
+  - Exportação a partir de vista explodida restaura internamente as matrizes montadas de cada componente.
+- **C28, C29, C30 & V33-V36: CLI, Testes de Estresse e Suíte 0.8.8**:
+  - Tratamento unificado de argumentos CLI nos scripts `scripts/build.py` e `tests/run_all_tests.py` com e sem separador `--`.
+  - Nova suíte oficial `tests/test_plan_088.py` com 36 testes cobrindo 100% da matriz de aceitação V01–V36.
+  - Aprovação de 100% (23/23 suítes de testes) no Blender 5.2.0 LTS.
+
 ## [0.8.7] - 2026-10-11
 
 ### Corrigido (Pós-Testes 0.8.7)

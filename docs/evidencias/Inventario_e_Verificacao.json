@@ -1,0 +1,780 @@
+{
+  "base": "0.8.7",
+  "planned": "0.8.8",
+  "base_sha256": "8e89fe1782639cd13a69c896059f06cff36f6902d26bb3d1691ac404c0f7b7af",
+  "runtime_modules": 16,
+  "runtime_lines": 9676,
+  "syntax_checked_files": 46,
+  "test_files": 28,
+  "blender_available": false,
+  "runtime_tests_executed": false,
+  "modules": [
+    {
+      "module": "__init__.py",
+      "lines": 23,
+      "sha256": "c22b312f1d4776163f1d54f8ee19f6cd58b4b94dcaf6b1591503b996d118a426",
+      "functions": [
+        {
+          "name": "register",
+          "line": 10
+        },
+        {
+          "name": "unregister",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "module": "constants.py",
+      "lines": 70,
+      "sha256": "4d3c3b3527b79b575ed9bd55341ad83dbb8307bd896df39768dd358d5488a4d6",
+      "functions": []
+    },
+    {
+      "module": "diagnostic.py",
+      "lines": 136,
+      "sha256": "5fcd3043659040e6206a47e53c839c74915172e452bff613b4fb5d2bfaf882d2",
+      "functions": [
+        {
+          "name": "get_scene_scale_to_mm",
+          "line": 9
+        },
+        {
+          "name": "analyze_target_mesh",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "module": "geometry_connectors.py",
+      "lines": 1001,
+      "sha256": "3fd82335d369469f5722e29cf6b68724acc5c1dd3ee5edc1697bd3a6a89a890b",
+      "functions": [
+        {
+          "name": "point_in_polygon_2d",
+          "line": 25
+        },
+        {
+          "name": "point_to_segment_dist_sq",
+          "line": 41
+        },
+        {
+          "name": "min_distance_to_polygon_boundaries",
+          "line": 54
+        },
+        {
+          "name": "find_optimal_grid_axes",
+          "line": 81
+        },
+        {
+          "name": "create_capsule_2d_profile",
+          "line": 139
+        },
+        {
+          "name": "create_pin_mesh_data",
+          "line": 163
+        },
+        {
+          "name": "check_receiving_wall_thickness",
+          "line": 252
+        },
+        {
+          "name": "compute_connector_layout",
+          "line": 319
+        },
+        {
+          "name": "compute_connector_positions",
+          "line": 654
+        },
+        {
+          "name": "validate_connectors",
+          "line": 676
+        },
+        {
+          "name": "determine_connector_material",
+          "line": 729
+        },
+        {
+          "name": "apply_connectors_boolean",
+          "line": 797
+        },
+        {
+          "name": "_generate_4_cand",
+          "line": 518
+        },
+        {
+          "name": "_is_4_cand_valid",
+          "line": 527
+        }
+      ]
+    },
+    {
+      "module": "geometry_contract.py",
+      "lines": 214,
+      "sha256": "1105cad9f42d01a4caa8831b134e3d0cbcf1827113f6deaf342b6b33348baa83",
+      "functions": [
+        {
+          "name": "build_cut_interface",
+          "line": 48
+        },
+        {
+          "name": "world_to_uv",
+          "line": 31
+        },
+        {
+          "name": "uv_to_world",
+          "line": 38
+        },
+        {
+          "name": "to_legacy_report",
+          "line": 204
+        }
+      ]
+    },
+    {
+      "module": "geometry_loop.py",
+      "lines": 941,
+      "sha256": "509ea500bdaedd76a05127264836785420d180136301483bf20b81ab3a1d1192",
+      "functions": [
+        {
+          "name": "get_topology_signature",
+          "line": 34
+        },
+        {
+          "name": "capture_edge_loop",
+          "line": 61
+        },
+        {
+          "name": "capture_face_boundary_loop",
+          "line": 148
+        },
+        {
+          "name": "get_selected_seed_face",
+          "line": 261
+        },
+        {
+          "name": "slice_mesh_by_loop",
+          "line": 278
+        },
+        {
+          "name": "analyze_loop_region",
+          "line": 467
+        },
+        {
+          "name": "_get_orthonormal_basis",
+          "line": 611
+        },
+        {
+          "name": "triangulate_polygon_2d",
+          "line": 622
+        },
+        {
+          "name": "create_loop_prism_cutter",
+          "line": 715
+        },
+        {
+          "name": "slice_mesh_by_loop_extrude",
+          "line": 776
+        },
+        {
+          "name": "__new__",
+          "line": 23
+        },
+        {
+          "name": "__init__",
+          "line": 26
+        },
+        {
+          "name": "is_point_in_tri",
+          "line": 644
+        },
+        {
+          "name": "is_convex",
+          "line": 661
+        }
+      ]
+    },
+    {
+      "module": "geometry_material.py",
+      "lines": 743,
+      "sha256": "404d2efef44d6d38535108a3df0932f14ef3d39a0a9c8a9666ea5e411dfefe95",
+      "functions": [
+        {
+          "name": "_get_orthonormal_basis",
+          "line": 22
+        },
+        {
+          "name": "get_material_regions",
+          "line": 33
+        },
+        {
+          "name": "_order_boundary_loops",
+          "line": 60
+        },
+        {
+          "name": "list_material_regions",
+          "line": 93
+        },
+        {
+          "name": "find_region_of_face",
+          "line": 104
+        },
+        {
+          "name": "analyze_material_structure",
+          "line": 119
+        },
+        {
+          "name": "create_material_patch_prism_cutter",
+          "line": 254
+        },
+        {
+          "name": "slice_mesh_by_material",
+          "line": 325
+        }
+      ]
+    },
+    {
+      "module": "geometry_plane.py",
+      "lines": 415,
+      "sha256": "5adf40cb758999ef57b0a7bb4bcd00aede0cf774820bd959b43269541f00de35",
+      "functions": [
+        {
+          "name": "count_mesh_islands",
+          "line": 23
+        },
+        {
+          "name": "cap_open_cut_boundaries",
+          "line": 46
+        },
+        {
+          "name": "evaluate_bmesh_metrics",
+          "line": 129
+        },
+        {
+          "name": "reconstruct_boundary_loops",
+          "line": 181
+        },
+        {
+          "name": "slice_mesh_by_plane",
+          "line": 239
+        },
+        {
+          "name": "compute_explosion_offsets",
+          "line": 401
+        }
+      ]
+    },
+    {
+      "module": "geometry_solid.py",
+      "lines": 414,
+      "sha256": "5e0055d5cd938557ef68f3d41d02ad6c0a5fd297874cf5474aced6046d2dc021",
+      "functions": [
+        {
+          "name": "create_bmesh_capsule",
+          "line": 32
+        },
+        {
+          "name": "create_primitive_cutter_mesh",
+          "line": 119
+        },
+        {
+          "name": "validate_solid_cutter",
+          "line": 185
+        },
+        {
+          "name": "slice_mesh_by_solid",
+          "line": 270
+        },
+        {
+          "name": "compute_solid_explosion_offsets",
+          "line": 384
+        }
+      ]
+    },
+    {
+      "module": "gpu_drawing.py",
+      "lines": 418,
+      "sha256": "70e813b690408ff221468a0e956c79ac4b8760c1e63ec18113ab814daebef895",
+      "functions": [
+        {
+          "name": "_get_orthonormal_basis",
+          "line": 18
+        },
+        {
+          "name": "_draw_loop_overlay",
+          "line": 29
+        },
+        {
+          "name": "_compute_cut_line_segments",
+          "line": 134
+        },
+        {
+          "name": "_draw_plane_overlay",
+          "line": 216
+        },
+        {
+          "name": "_draw_overlay_callback",
+          "line": 379
+        },
+        {
+          "name": "register_overlay",
+          "line": 395
+        },
+        {
+          "name": "unregister_overlay",
+          "line": 410
+        }
+      ]
+    },
+    {
+      "module": "io_export.py",
+      "lines": 422,
+      "sha256": "4ea6e5e49aad67054cd0b85ed81792df35c96bf5c8fa20ec28b34f2ccbcef589",
+      "functions": [
+        {
+          "name": "sanitize_unique_filename",
+          "line": 23
+        },
+        {
+          "name": "get_material_rgba",
+          "line": 41
+        },
+        {
+          "name": "rgba_to_hex",
+          "line": 60
+        },
+        {
+          "name": "build_3mf_xml",
+          "line": 69
+        },
+        {
+          "name": "export_objects_to_3mf",
+          "line": 181
+        },
+        {
+          "name": "separate_object_by_material",
+          "line": 218
+        },
+        {
+          "name": "export_objects_to_stl_by_material",
+          "line": 285
+        }
+      ]
+    },
+    {
+      "module": "lifecycle.py",
+      "lines": 544,
+      "sha256": "aef285f3f92c4278695890c281f48ff00a0fefd4912ddfeffcb2b4efa67d0d5f",
+      "functions": [
+        {
+          "name": "get_or_create_collection",
+          "line": 27
+        },
+        {
+          "name": "find_collection",
+          "line": 37
+        },
+        {
+          "name": "ensure_backups_collection",
+          "line": 45
+        },
+        {
+          "name": "find_operation_record",
+          "line": 57
+        },
+        {
+          "name": "get_or_create_operation_record",
+          "line": 67
+        },
+        {
+          "name": "record_created_object",
+          "line": 98
+        },
+        {
+          "name": "record_unlinked_parent",
+          "line": 118
+        },
+        {
+          "name": "capture_target_snapshot",
+          "line": 135
+        },
+        {
+          "name": "discard_target_snapshot",
+          "line": 169
+        },
+        {
+          "name": "resolve_operation",
+          "line": 199
+        },
+        {
+          "name": "check_child_operations",
+          "line": 242
+        },
+        {
+          "name": "remove_preview",
+          "line": 276
+        },
+        {
+          "name": "revert_committed_operation",
+          "line": 379
+        }
+      ]
+    },
+    {
+      "module": "operators.py",
+      "lines": 2633,
+      "sha256": "d02ba8bd8e7d6d6e820ff3be3c9f37523bb0b0371cefe274adb13e2a213f026a",
+      "functions": [
+        {
+          "name": "find_collection",
+          "line": 80
+        },
+        {
+          "name": "get_or_create_collection",
+          "line": 88
+        },
+        {
+          "name": "cleanup_collection_objects",
+          "line": 99
+        },
+        {
+          "name": "validate_printable_mesh",
+          "line": 168
+        },
+        {
+          "name": "get_target_bounds",
+          "line": 204
+        },
+        {
+          "name": "ensure_plane_guide",
+          "line": 218
+        },
+        {
+          "name": "read_plane_geometry",
+          "line": 257
+        },
+        {
+          "name": "compute_session_input_signature",
+          "line": 273
+        },
+        {
+          "name": "verify_preview_current",
+          "line": 401
+        },
+        {
+          "name": "get_current_session_parts",
+          "line": 436
+        },
+        {
+          "name": "ensure_solid_cutter",
+          "line": 491
+        },
+        {
+          "name": "update_preview_positions",
+          "line": 535
+        },
+        {
+          "name": "on_depsgraph_update_post",
+          "line": 2491
+        },
+        {
+          "name": "on_undo_post",
+          "line": 2563
+        },
+        {
+          "name": "on_redo_post",
+          "line": 2581
+        },
+        {
+          "name": "register_handlers",
+          "line": 2597
+        },
+        {
+          "name": "unregister_handlers",
+          "line": 2607
+        },
+        {
+          "name": "register",
+          "line": 2617
+        },
+        {
+          "name": "unregister",
+          "line": 2626
+        },
+        {
+          "name": "poll",
+          "line": 586
+        },
+        {
+          "name": "execute",
+          "line": 589
+        },
+        {
+          "name": "execute",
+          "line": 647
+        },
+        {
+          "name": "poll",
+          "line": 686
+        },
+        {
+          "name": "execute",
+          "line": 690
+        },
+        {
+          "name": "poll",
+          "line": 744
+        },
+        {
+          "name": "execute",
+          "line": 747
+        },
+        {
+          "name": "execute",
+          "line": 776
+        },
+        {
+          "name": "poll",
+          "line": 873
+        },
+        {
+          "name": "execute",
+          "line": 876
+        },
+        {
+          "name": "poll",
+          "line": 904
+        },
+        {
+          "name": "execute",
+          "line": 909
+        },
+        {
+          "name": "poll",
+          "line": 937
+        },
+        {
+          "name": "execute",
+          "line": 941
+        },
+        {
+          "name": "poll",
+          "line": 1446
+        },
+        {
+          "name": "execute",
+          "line": 1450
+        },
+        {
+          "name": "poll",
+          "line": 1467
+        },
+        {
+          "name": "execute",
+          "line": 1471
+        },
+        {
+          "name": "poll",
+          "line": 1494
+        },
+        {
+          "name": "execute",
+          "line": 1509
+        },
+        {
+          "name": "poll",
+          "line": 1531
+        },
+        {
+          "name": "execute",
+          "line": 1535
+        },
+        {
+          "name": "poll",
+          "line": 1672
+        },
+        {
+          "name": "execute",
+          "line": 1680
+        },
+        {
+          "name": "poll",
+          "line": 1703
+        },
+        {
+          "name": "invoke",
+          "line": 1712
+        },
+        {
+          "name": "draw",
+          "line": 1722
+        },
+        {
+          "name": "execute",
+          "line": 1748
+        },
+        {
+          "name": "poll",
+          "line": 1765
+        },
+        {
+          "name": "execute",
+          "line": 1769
+        },
+        {
+          "name": "execute",
+          "line": 1808
+        },
+        {
+          "name": "poll",
+          "line": 1837
+        },
+        {
+          "name": "execute",
+          "line": 1841
+        },
+        {
+          "name": "poll",
+          "line": 1888
+        },
+        {
+          "name": "execute",
+          "line": 1892
+        },
+        {
+          "name": "poll",
+          "line": 1959
+        },
+        {
+          "name": "execute",
+          "line": 1963
+        },
+        {
+          "name": "poll",
+          "line": 1993
+        },
+        {
+          "name": "execute",
+          "line": 1997
+        },
+        {
+          "name": "poll",
+          "line": 2061
+        },
+        {
+          "name": "execute",
+          "line": 2065
+        },
+        {
+          "name": "description",
+          "line": 2315
+        },
+        {
+          "name": "execute",
+          "line": 2319
+        },
+        {
+          "name": "execute",
+          "line": 2346
+        },
+        {
+          "name": "execute",
+          "line": 2361
+        },
+        {
+          "name": "draw_popup",
+          "line": 2324
+        }
+      ]
+    },
+    {
+      "module": "properties.py",
+      "lines": 816,
+      "sha256": "cb5bd4e50a95a02c308edabc5d81f292f1f1152c76a436731e2821f0d7dbe09e",
+      "functions": [
+        {
+          "name": "_on_preview_transform_update",
+          "line": 24
+        },
+        {
+          "name": "_on_param_change_mark_stale",
+          "line": 34
+        },
+        {
+          "name": "_on_clearance_preset_update",
+          "line": 42
+        },
+        {
+          "name": "_poll_mesh_cutter",
+          "line": 49
+        },
+        {
+          "name": "_on_cutter_object_update",
+          "line": 54
+        },
+        {
+          "name": "_on_target_object_update",
+          "line": 84
+        },
+        {
+          "name": "register",
+          "line": 793
+        },
+        {
+          "name": "unregister",
+          "line": 805
+        }
+      ]
+    },
+    {
+      "module": "translations.py",
+      "lines": 349,
+      "sha256": "efe988579de5a2219eefb5b27afb2f1e8a497f7736c4cabdce334c94375a4a14",
+      "functions": [
+        {
+          "name": "_get_current_locale",
+          "line": 294
+        },
+        {
+          "name": "get_help_tooltip",
+          "line": 305
+        },
+        {
+          "name": "get_help_popup_content",
+          "line": 315
+        },
+        {
+          "name": "register_translations",
+          "line": 330
+        },
+        {
+          "name": "unregister_translations",
+          "line": 341
+        }
+      ]
+    },
+    {
+      "module": "ui.py",
+      "lines": 537,
+      "sha256": "5a6b0b56b6d1823620b29aa14c164bc737ef470bebfbe6e0f0425b83c2fa5114",
+      "functions": [
+        {
+          "name": "draw_help_button",
+          "line": 6
+        },
+        {
+          "name": "register",
+          "line": 526
+        },
+        {
+          "name": "unregister",
+          "line": 533
+        },
+        {
+          "name": "draw",
+          "line": 21
+        }
+      ]
+    }
+  ]
+}

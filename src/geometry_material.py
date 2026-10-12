@@ -463,15 +463,18 @@ def slice_mesh_by_material(
 
         cap_faces_a = []
         for i, j, k in tris_a:
+            v_tri = (ordered_verts_a[i], ordered_verts_a[j], ordered_verts_a[k])
             try:
-                f = bm_a.faces.new((ordered_verts_a[i], ordered_verts_a[j], ordered_verts_a[k]))
+                f = bm_a.faces.new(v_tri)
                 cap_faces_a.append(f)
             except ValueError:
                 try:
-                    f = bm_a.faces.new((ordered_verts_a[i], ordered_verts_a[k], ordered_verts_a[j]))
+                    f = bm_a.faces.new((v_tri[0], v_tri[2], v_tri[1]))
                     cap_faces_a.append(f)
-                except Exception:
-                    pass
+                except Exception as ex:
+                    bm.free()
+                    bm_a.free()
+                    raise RuntimeError(f"Falha na criação de tampa da base para a Parte A: {ex}")
 
         # Aplica folga na base de Parte A (encurtamento axial da saliência)
         clearance_bu = part_clearance_mm / scale_to_mm
@@ -507,15 +510,18 @@ def slice_mesh_by_material(
 
         cap_faces_b = []
         for i, j, k in tris_b:
+            v_tri = (ordered_verts_b[i], ordered_verts_b[j], ordered_verts_b[k])
             try:
-                f = bm_b.faces.new((ordered_verts_b[i], ordered_verts_b[j], ordered_verts_b[k]))
+                f = bm_b.faces.new(v_tri)
                 cap_faces_b.append(f)
             except ValueError:
                 try:
-                    f = bm_b.faces.new((ordered_verts_b[i], ordered_verts_b[k], ordered_verts_b[j]))
+                    f = bm_b.faces.new((v_tri[0], v_tri[2], v_tri[1]))
                     cap_faces_b.append(f)
-                except Exception:
-                    pass
+                except Exception as ex:
+                    bm_a.free()
+                    bm_b.free()
+                    raise RuntimeError(f"Falha na criação de tampa da base para a Parte B: {ex}")
 
         # Aplica folga na base de Parte B (recesso axial no corpo)
         if clearance_bu > 1e-7 and part_clearance_apply_to in ('CAVITY', 'BOTH'):
@@ -535,10 +541,10 @@ def slice_mesh_by_material(
         for f in cap_faces_b:
             f.material_index = body_mat
 
-        # Interface de corte formal
+        # Interface de corte formal: normal aponta para fora de A (saliência) e para dentro de B (corpo): -n_base (C03)
         cut_iface = build_cut_interface(
             origin_world=centroid_base,
-            normal_a_to_b=n_base,
+            normal_a_to_b=-n_base,
             boundary_points_world=analysis["coords_world"],
             unit_scale=scale_to_mm,
             source_mode='MATERIAL',
@@ -668,11 +674,11 @@ def slice_mesh_by_material(
                     if f.material_index != material_index:
                         f.material_index = material_index
 
-            # Extrai contorno da fronteira para a CutInterface formal (B08)
+            # Extrai contorno da fronteira para a CutInterface formal (B08 / C08)
             mw = obj.matrix_world
             boundary_pts_world = [mw @ p for p in analysis.get("boundary_coords", [])]
             if not boundary_pts_world:
-                boundary_pts_world = [mw @ Vector(v) for v in analysis.get("coords_world", [])]
+                boundary_pts_world = [Vector(v) for v in analysis.get("coords_world", [])]
 
             cut_iface = build_cut_interface(
                 origin_world=analysis["centroid_world"],

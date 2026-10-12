@@ -238,6 +238,7 @@ HELP_TOPICS = {
 TRANSLATIONS_DICT = {
     "pt_BR": {
         ("*", "Part Splitter"): "Part Splitter",
+        ("*", "Part Splitter 0.8.8"): "Part Splitter 0.8.8",
         ("*", "Usar selecionado como alvo"): "Usar selecionado como alvo",
         ("*", "Posicionamento do Plano"): "Posicionamento do Plano",
         ("*", "Focar Guia 3D"): "Focar Guia 3D",
@@ -264,6 +265,7 @@ TRANSLATIONS_DICT = {
     },
     "en_US": {
         ("*", "Part Splitter"): "Part Splitter",
+        ("*", "Part Splitter 0.8.8"): "Part Splitter 0.8.8",
         ("*", "Usar selecionado como alvo"): "Use selected as target",
         ("*", "Posicionamento do Plano"): "Plane Positioning",
         ("*", "Focar Guia 3D"): "Focus 3D Guide",

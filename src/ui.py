@@ -1,6 +1,7 @@
 """Interface de usuário para o Chest Part Splitter (Sidebar N > Chest > Part Splitter)."""
 
 import bpy
+from .constants import PANEL_TITLE
 
 
 def draw_help_button(layout, topic: str):
@@ -12,7 +13,7 @@ def draw_help_button(layout, topic: str):
 
 class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
     """Painel principal do Chest Part Splitter na barra lateral da Viewport 3D"""
-    bl_label = "Part Splitter"
+    bl_label = PANEL_TITLE
     bl_idname = "VIEW3D_PT_chest_part_splitter"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'

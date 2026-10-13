@@ -461,6 +461,27 @@ def compute_connector_layout(
                 f"(disponível: {span_major_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes."
             )
         d_major = avail_major * 0.6
+        if outer_polys and adjust_to_valid_area:
+            best_d = d_major
+            best_min_dist = -1.0
+            for factor in [0.6, 0.5, 0.45, 0.4, 0.35, 0.3, 0.7, 0.25]:
+                dt = avail_major * factor
+                test_p1 = plane_origin + (major_axis * (center_major - dt)) + (minor_axis * center_minor)
+                test_p2 = plane_origin + (major_axis * (center_major + dt)) + (minor_axis * center_minor)
+                rel1 = test_p1 - plane_origin
+                rel2 = test_p2 - plane_origin
+                u1, v1 = rel1.dot(u_axis), rel1.dot(v_axis)
+                u2, v2 = rel2.dot(u_axis), rel2.dot(v_axis)
+                if any(point_in_polygon_2d(u1, v1, poly) for poly in outer_polys) and not any(point_in_polygon_2d(u1, v1, h) for h in hole_polys):
+                    if any(point_in_polygon_2d(u2, v2, poly) for poly in outer_polys) and not any(point_in_polygon_2d(u2, v2, h) for h in hole_polys):
+                        dist1 = min_distance_to_polygon_boundaries(u1, v1, outer_polys, hole_polys)
+                        dist2 = min_distance_to_polygon_boundaries(u2, v2, outer_polys, hole_polys)
+                        min_d = min(dist1, dist2)
+                        if min_d > best_min_dist:
+                            best_min_dist = min_d
+                            best_d = dt
+            d_major = best_d
+
         p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
         p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
         positions.extend([p1, p2])
@@ -477,6 +498,51 @@ def compute_connector_layout(
         p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
         p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
         positions.extend([p_mid, p1, p2])
+
+    elif distribution == 'AUTO_SHAPE':
+        min_span_auto2 = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
+        if span_major_mm >= min_span_auto2 and (span_major / max(span_minor, 1e-4)) >= 1.6:
+            d_major = avail_major * 0.55
+            if outer_polys:
+                best_d = d_major
+                best_min_dist = -1.0
+                for factor in [0.55, 0.45, 0.35, 0.65, 0.25]:
+                    dt = avail_major * factor
+                    test_p1 = plane_origin + (major_axis * (center_major - dt)) + (minor_axis * center_minor)
+                    test_p2 = plane_origin + (major_axis * (center_major + dt)) + (minor_axis * center_minor)
+                    rel1 = test_p1 - plane_origin
+                    rel2 = test_p2 - plane_origin
+                    u1, v1 = rel1.dot(u_axis), rel1.dot(v_axis)
+                    u2, v2 = rel2.dot(u_axis), rel2.dot(v_axis)
+                    if any(point_in_polygon_2d(u1, v1, poly) for poly in outer_polys) and not any(point_in_polygon_2d(u1, v1, h) for h in hole_polys):
+                        if any(point_in_polygon_2d(u2, v2, poly) for poly in outer_polys) and not any(point_in_polygon_2d(u2, v2, h) for h in hole_polys):
+                            dist1 = min_distance_to_polygon_boundaries(u1, v1, outer_polys, hole_polys)
+                            dist2 = min_distance_to_polygon_boundaries(u2, v2, outer_polys, hole_polys)
+                            min_d = min(dist1, dist2)
+                            if min_d > best_min_dist:
+                                best_min_dist = min_d
+                                best_d = dt
+                d_major = best_d
+            p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
+            p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
+            positions.extend([p1, p2])
+        else:
+            best_pt = (center_u, center_v)
+            best_dist = -1.0
+            if outer_polys:
+                steps = 25
+                for si in range(1, steps):
+                    gu = min_u + (span_u * si / steps)
+                    for sj in range(1, steps):
+                        gv = min_v + (span_v * sj / steps)
+                        if any(point_in_polygon_2d(gu, gv, poly) for poly in outer_polys):
+                            if not any(point_in_polygon_2d(gu, gv, h_poly) for h_poly in hole_polys):
+                                d = min_distance_to_polygon_boundaries(gu, gv, outer_polys, hole_polys)
+                                if d > best_dist:
+                                    best_dist = d
+                                    best_pt = (gu, gv)
+            p = plane_origin + (u_axis * best_pt[0]) + (v_axis * best_pt[1])
+            positions.append(p)
 
     elif distribution == 'GRID_4':
         min_grid_major = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0

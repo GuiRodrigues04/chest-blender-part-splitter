@@ -1,0 +1,441 @@
+0001: """Módulo de desenho GPU para sobreposição do contorno capturado (Loop) e guia do plano no Viewport.
+0002: 
+0003: Implementa F01 e F02 com integridade estrita de estado GPU:
+0004: - Salva e restaura blend, depth test e largura de linha dentro de bloco finally (B09).
+0005: - Visibilidade restrita ao modo ativo (B01): Loop só desenha em LOOP; Plano só desenha em PLANE.
+0006: - Coordenadas vivas em Edit Mode (T05).
+0007: - Prévia de corte translúcida e contorno de interseção para o modo Plano (F02).
+0008: """
+0009: 
+0010: import bpy
+0011: from typing import Optional, List, Tuple
+0012: from mathutils import Vector, Matrix
+0013: import math
+0014: from .constants import ROLE_PREVIEW_A, ROLE_PREVIEW_B
+0015: 
+0016: _draw_handler = None
+0017: 
+0018: 
+0019: def _get_orthonormal_basis(normal: Vector) -> Tuple[Vector, Vector]:
+0020:     """Retorna dois vetores unitários ortogonais à normal fornecida."""
+0021:     n = normal.normalized()
+0022:     if abs(n.z) < 0.9:
+0023:         u = n.cross(Vector((0.0, 0.0, 1.0))).normalized()
+0024:     else:
+0025:         u = n.cross(Vector((0.0, 1.0, 0.0))).normalized()
+0026:     v = n.cross(u).normalized()
+0027:     return u, v
+0028: 
+0029: 
+0030: def _draw_loop_overlay(context, settings):
+0031:     """Desenha a sobreposição ciano destacada do loop capturado na Viewport 3D."""
+0032:     if not getattr(settings, "show_loop_highlight", True):
+0033:         return
+0034: 
+0035:     if not getattr(settings, "loop_is_captured", False):
+0036:         return
+0037: 
+0038:     target = getattr(settings, "target_object", None)
+0039:     if not target or target.name not in bpy.data.objects or target.type != 'MESH':
+0040:         return
+0041: 
+0042:     indices_str = getattr(settings, "loop_vertex_indices", "")
+0043:     if not indices_str:
+0044:         return
+0045: 
+0046:     try:
+0047:         indices = [int(i) for i in indices_str.split(',') if i.strip()]
+0048:     except ValueError:
+0049:         return
+0050: 
+0051:     if len(indices) < 2:
+0052:         return
+0053: 
+0054:     mw = target.matrix_world
+0055: 
+0056:     # Coordenadas mundiais com suporte a BMesh vivo em Edit Mode (T05)
+0057:     pts = []
+0058:     try:
+0059:         if target.mode == 'EDIT':
+0060:             import bmesh
+0061:             bm = bmesh.from_edit_mesh(target.data)
+0062:             bm.verts.ensure_lookup_table()
+0063:             v_len = len(bm.verts)
+0064:             pts = [mw @ bm.verts[i].co for i in indices if 0 <= i < v_len]
+0065:         else:
+0066:             mesh = target.data
+0067:             if not mesh or not mesh.vertices:
+0068:                 return
+0069:             v_len = len(mesh.vertices)
+0070:             pts = [mw @ mesh.vertices[i].co for i in indices if 0 <= i < v_len]
+0071:     except Exception:
+0072:         return
+0073: 
+0074:     if len(pts) < 2:
+0075:         return
+0076: 
+0077:     line_coords = []
+0078:     n = len(pts)
+0079:     for i in range(n):
+0080:         line_coords.append(pts[i])
+0081:         line_coords.append(pts[(i + 1) % n])
+0082: 
+0083:     if not line_coords:
+0084:         return
+0085: 
+0086:     try:
+0087:         import gpu
+0088:         from gpu_extras.batch import batch_for_shader
+0089: 
+0090:         shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+0091: 
+0092:         prev_blend = gpu.state.blend_get() if hasattr(gpu.state, 'blend_get') else 'NONE'
+0093:         prev_depth_test = gpu.state.depth_test_get() if hasattr(gpu.state, 'depth_test_get') else None
+0094:         prev_line_width = gpu.state.line_width_get() if hasattr(gpu.state, 'line_width_get') else None
+0095: 
+0096:         try:
+0097:             if hasattr(gpu.state, 'blend_set'):
+0098:                 gpu.state.blend_set('ALPHA')
+0099:             if hasattr(gpu.state, 'line_width_set'):
+0100:                 try:
+0101:                     gpu.state.line_width_set(3.0)
+0102:                 except Exception:
+0103:                     pass
+0104:             if hasattr(gpu.state, 'depth_test_set'):
+0105:                 try:
+0106:                     gpu.state.depth_test_set('LESS_EQUAL')
+0107:                 except Exception:
+0108:                     pass
+0109: 
+0110:             shader.bind()
+0111:             # Ciano vibrante
+0112:             shader.uniform_float("color", (0.0, 0.85, 1.0, 1.0))
+0113:             batch = batch_for_shader(shader, 'LINES', {"pos": line_coords})
+0114:             batch.draw(shader)
+0115:         finally:
+0116:             if hasattr(gpu.state, 'line_width_set') and prev_line_width is not None:
+0117:                 try:
+0118:                     gpu.state.line_width_set(prev_line_width)
+0119:                 except Exception:
+0120:                     pass
+0121:             if hasattr(gpu.state, 'depth_test_set') and prev_depth_test is not None:
+0122:                 try:
+0123:                     gpu.state.depth_test_set(prev_depth_test)
+0124:                 except Exception:
+0125:                     pass
+0126:             if hasattr(gpu.state, 'blend_set'):
+0127:                 try:
+0128:                     gpu.state.blend_set(prev_blend)
+0129:                 except Exception:
+0130:                     pass
+0131:     except Exception:
+0132:         pass
+0133: 
+0134: 
+0135: def _compute_cut_line_segments(mesh_or_bm, matrix_world: Matrix, plane_co: Vector, plane_no: Vector, is_bmesh: bool = False) -> List[Vector]:
+0136:     """Calcula segmentos de linha estritos da interseção entre o plano e cada triângulo/face da malha (C04 / C12 / V14).
+0137:     
+0138:     Garante que cada segmento pertença a uma única face, eliminando traços espúrios que cortam o vazio
+0139:     e detectando com precisão arestas coincidentes ou tangentes ao plano de corte.
+0140:     """
+0141:     segments = []
+0142:     norm = plane_no.normalized()
+0143: 
+0144:     if is_bmesh:
+0145:         bm = mesh_or_bm
+0146:         for f in bm.faces:
+0147:             if not f.is_valid or len(f.verts) < 3:
+0148:                 continue
+0149:             v_coords = [matrix_world @ v.co for v in f.verts]
+0150:             n_v = len(v_coords)
+0151:             for i in range(1, n_v - 1):
+0152:                 tri = (v_coords[0], v_coords[i], v_coords[i + 1])
+0153:                 dists = [(p - plane_co).dot(norm) for p in tri]
+0154:                 on_plane = [abs(d) <= 1e-6 for d in dists]
+0155:                 num_on_plane = sum(on_plane)
+0156:                 has_pos = any(d > 1e-6 for d in dists)
+0157:                 has_neg = any(d < -1e-6 for d in dists)
+0158: 
+0159:                 if not (has_pos and has_neg) and num_on_plane < 2:
+0160:                     continue
+0161: 
+0162:                 inter_pts = []
+0163:                 if num_on_plane == 2:
+0164:                     for v_idx in range(3):
+0165:                         if on_plane[v_idx]:
+0166:                             inter_pts.append(tri[v_idx])
+0167:                 elif num_on_plane == 3:
+0168:                     continue
+0169:                 else:
+0170:                     for e_idx in range(3):
+0171:                         p_a = tri[e_idx]
+0172:                         p_b = tri[(e_idx + 1) % 3]
+0173:                         d_a = dists[e_idx]
+0174:                         d_b = dists[(e_idx + 1) % 3]
+0175:                         if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
+0176:                             t = d_a / (d_a - d_b)
+0177:                             inter_pts.append(p_a + t * (p_b - p_a))
+0178:                         elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
+0179:                             inter_pts.append(p_a)
+0180: 
+0181:                 if len(inter_pts) == 2:
+0182:                     segments.append(inter_pts[0])
+0183:                     segments.append(inter_pts[1])
+0184:     else:
+0185:         mesh = mesh_or_bm
+0186:         if not mesh or not mesh.polygons or not mesh.vertices:
+0187:             return []
+0188:         mw = matrix_world
+0189:         verts_co = [mw @ v.co for v in mesh.vertices]
+0190:         for poly in mesh.polygons:
+0191:             p_verts = poly.vertices
+0192:             n_v = len(p_verts)
+0193:             if n_v < 3:
+0194:                 continue
+0195:             v0_co = verts_co[p_verts[0]]
+0196:             d0 = (v0_co - plane_co).dot(norm)
+0197:             for i in range(1, n_v - 1):
+0198:                 v1_co = verts_co[p_verts[i]]
+0199:                 v2_co = verts_co[p_verts[i + 1]]
+0200:                 d1 = (v1_co - plane_co).dot(norm)
+0201:                 d2 = (v2_co - plane_co).dot(norm)
+0202: 
+0203:                 dists = (d0, d1, d2)
+0204:                 on_plane = (abs(d0) <= 1e-6, abs(d1) <= 1e-6, abs(d2) <= 1e-6)
+0205:                 num_on_plane = sum(on_plane)
+0206:                 has_pos = any(d > 1e-6 for d in dists)
+0207:                 has_neg = any(d < -1e-6 for d in dists)
+0208: 
+0209:                 if not (has_pos and has_neg) and num_on_plane < 2:
+0210:                     continue
+0211: 
+0212:                 tri = (v0_co, v1_co, v2_co)
+0213:                 inter_pts = []
+0214:                 if num_on_plane == 2:
+0215:                     for v_idx in range(3):
+0216:                         if on_plane[v_idx]:
+0217:                             inter_pts.append(tri[v_idx])
+0218:                 elif num_on_plane == 3:
+0219:                     continue
+0220:                 else:
+0221:                     for e_idx in range(3):
+0222:                         p_a = tri[e_idx]
+0223:                         p_b = tri[(e_idx + 1) % 3]
+0224:                         d_a = dists[e_idx]
+0225:                         d_b = dists[(e_idx + 1) % 3]
+0226:                         if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
+0227:                             t = d_a / (d_a - d_b)
+0228:                             inter_pts.append(p_a + t * (p_b - p_a))
+0229:                         elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
+0230:                             inter_pts.append(p_a)
+0231: 
+0232:                 if len(inter_pts) == 2:
+0233:                     segments.append(inter_pts[0])
+0234:                     segments.append(inter_pts[1])
+0235: 
+0236:     return segments
+0237: 
+0238: 
+0239: def _draw_plane_overlay(context, settings):
+0240:     """Desenha o retângulo translúcido e a linha de corte do plano na Viewport 3D (F02)."""
+0241:     show_plane = getattr(settings, "show_plane_preview", True)
+0242:     show_cut_line = getattr(settings, "show_plane_cut_line", True)
+0243: 
+0244:     if not show_plane and not show_cut_line:
+0245:         return
+0246: 
+0247:     target = getattr(settings, "target_object", None)
+0248:     if not target or target.name not in bpy.data.objects or target.type != 'MESH':
+0249:         return
+0250: 
+0251:     # Normal e Origem em World Space
+0252:     norm = Vector(getattr(settings, "plane_normal", (0.0, 0.0, 1.0))).normalized()
+0253:     if norm.length < 1e-5:
+0254:         return
+0255: 
+0256:     # Lê origem atual do corte considerando deslocamento se houver
+0257:     origin = Vector(getattr(settings, "plane_origin", (0.0, 0.0, 0.0)))
+0258:     offset_mm = getattr(settings, "plane_offset_mm", 0.0)
+0259:     if abs(offset_mm) > 1e-6:
+0260:         from .diagnostic import get_scene_scale_to_mm
+0261:         scale_to_mm = get_scene_scale_to_mm(context.scene)
+0262:         origin = origin + (offset_mm / scale_to_mm) * norm
+0263: 
+0264:     mw = target.matrix_world
+0265:     # Centro e raio envolvente do alvo em World Space
+0266:     try:
+0267:         corners = [mw @ Vector(corner) for corner in target.bound_box]
+0268:         bbox_center = sum(corners, Vector()) / len(corners)
+0269:         max_dist = max((c - bbox_center).length for c in corners)
+0270:         plane_size = max(0.05, max_dist * 1.3)
+0271:     except Exception:
+0272:         plane_size = 1.0
+0273:         bbox_center = origin
+0274: 
+0275:     # Projeta o centro da bounding box no plano para ancorar o retângulo visual
+0276:     proj_center = bbox_center - ((bbox_center - origin).dot(norm)) * norm
+0277:     u_vec, v_vec = _get_orthonormal_basis(norm)
+0278: 
+0279:     # 4 vértices do retângulo do plano
+0280:     p0 = proj_center - u_vec * plane_size - v_vec * plane_size
+0281:     p1 = proj_center + u_vec * plane_size - v_vec * plane_size
+0282:     p2 = proj_center + u_vec * plane_size + v_vec * plane_size
+0283:     p3 = proj_center - u_vec * plane_size + v_vec * plane_size
+0284: 
+0285:     quad_tris = [p0, p1, p2, p0, p2, p3]
+0286:     quad_border = [p0, p1, p1, p2, p2, p3, p3, p0]
+0287: 
+0288:     # Calcula linha de interseção (corte) se ativada
+0289:     cut_line_segments = []
+0290:     if show_cut_line:
+0291:         try:
+0292:             if target.mode == 'EDIT':
+0293:                 import bmesh
+0294:                 bm = bmesh.from_edit_mesh(target.data)
+0295:                 cut_line_segments = _compute_cut_line_segments(bm, mw, origin, norm, is_bmesh=True)
+0296:             else:
+0297:                 mesh = target.data
+0298:                 cut_line_segments = _compute_cut_line_segments(mesh, mw, origin, norm, is_bmesh=False)
+0299:         except Exception:
+0300:             cut_line_segments = []
+0301: 
+0302:     is_exploded = (getattr(settings, "view_mode", "ASSEMBLED") == 'EXPLODED' and
+0303:                    getattr(settings, "session_status", "") in ('PREVIEW_VALID', 'PREVIEW_STALE'))
+0304: 
+0305:     try:
+0306:         import gpu
+0307:         from gpu_extras.batch import batch_for_shader
+0308: 
+0309:         shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+0310: 
+0311:         prev_blend = gpu.state.blend_get() if hasattr(gpu.state, 'blend_get') else 'NONE'
+0312:         prev_depth_test = gpu.state.depth_test_get() if hasattr(gpu.state, 'depth_test_get') else None
+0313:         prev_line_width = gpu.state.line_width_get() if hasattr(gpu.state, 'line_width_get') else None
+0314: 
+0315:         try:
+0316:             if hasattr(gpu.state, 'blend_set'):
+0317:                 gpu.state.blend_set('ALPHA')
+0318: 
+0319:             # 1. Preenchimento translúcido do plano (apenas na vista montada para não flutuar no vazio - C04)
+0320:             if show_plane and not is_exploded:
+0321:                 opacity = max(0.0, min(1.0, getattr(settings, "plane_preview_opacity", 15.0) / 100.0))
+0322:                 if opacity > 0.01:
+0323:                     if hasattr(gpu.state, 'depth_test_set'):
+0324:                         try:
+0325:                             gpu.state.depth_test_set('LESS_EQUAL')
+0326:                         except Exception:
+0327:                             pass
+0328: 
+0329:                     shader.bind()
+0330:                     shader.uniform_float("color", (1.0, 0.55, 0.1, opacity))
+0331:                     batch_plane = batch_for_shader(shader, 'TRIS', {"pos": quad_tris})
+0332:                     batch_plane.draw(shader)
+0333: 
+0334:                 # Borda do retângulo
+0335:                 if hasattr(gpu.state, 'line_width_set'):
+0336:                     try:
+0337:                         gpu.state.line_width_set(1.5)
+0338:                     except Exception:
+0339:                         pass
+0340:                 shader.bind()
+0341:                 shader.uniform_float("color", (1.0, 0.6, 0.15, min(1.0, opacity * 2.5 + 0.3)))
+0342:                 batch_border = batch_for_shader(shader, 'LINES', {"pos": quad_border})
+0343:                 batch_border.draw(shader)
+0344: 
+0345:             # 2. Linha de corte na geometria (Laranja contrastante / Amarelo ouro de alta visibilidade)
+0346:             if show_cut_line and cut_line_segments:
+0347:                 pairs = []
+0348:                 if is_exploded:
+0349:                     # Na vista explodida, desenha o contorno projetado nas superfícies afastadas de A e B (C04 / P01)
+0350:                     from .operators import get_current_session_parts
+0351:                     parts = get_current_session_parts(context.scene)
+0352:                     obj_a = next((o for o in parts if o.get("chest_role") in (ROLE_PREVIEW_A, 'A', 'PART_A')), None)
+0353:                     obj_b = next((o for o in parts if o.get("chest_role") in (ROLE_PREVIEW_B, 'B', 'PART_B')), None)
+0354:                     offset_a = obj_a.location if obj_a else Vector((0, 0, 0))
+0355:                     offset_b = obj_b.location if obj_b else Vector((0, 0, 0))
+0356: 
+0357:                     if offset_a.length_squared > 1e-8 or offset_b.length_squared > 1e-8:
+0358:                         pairs.extend([p + offset_a for p in cut_line_segments])
+0359:                         pairs.extend([p + offset_b for p in cut_line_segments])
+0360:                     else:
+0361:                         pairs = cut_line_segments
+0362:                 else:
+0363:                     pairs = cut_line_segments
+0364: 
+0365:                 if pairs:
+0366:                     if hasattr(gpu.state, 'line_width_set'):
+0367:                         try:
+0368:                             gpu.state.line_width_set(3.0)
+0369:                         except Exception:
+0370:                             pass
+0371:                     if hasattr(gpu.state, 'depth_test_set'):
+0372:                         try:
+0373:                             gpu.state.depth_test_set('LESS_EQUAL')
+0374:                         except Exception:
+0375:                             pass
+0376: 
+0377:                     shader.bind()
+0378:                     shader.uniform_float("color", (1.0, 0.45, 0.0, 1.0))
+0379:                     batch_cut = batch_for_shader(shader, 'LINES', {"pos": pairs})
+0380:                     batch_cut.draw(shader)
+0381: 
+0382:         finally:
+0383:             if hasattr(gpu.state, 'line_width_set') and prev_line_width is not None:
+0384:                 try:
+0385:                     gpu.state.line_width_set(prev_line_width)
+0386:                 except Exception:
+0387:                     pass
+0388:             if hasattr(gpu.state, 'depth_test_set') and prev_depth_test is not None:
+0389:                 try:
+0390:                     gpu.state.depth_test_set(prev_depth_test)
+0391:                 except Exception:
+0392:                     pass
+0393:             if hasattr(gpu.state, 'blend_set'):
+0394:                 try:
+0395:                     gpu.state.blend_set(prev_blend)
+0396:                 except Exception:
+0397:                     pass
+0398:     except Exception:
+0399:         pass
+0400: 
+0401: 
+0402: def _draw_overlay_callback():
+0403:     """Callback mestre executado no espaço 3D (SpaceView3D)."""
+0404:     context = bpy.context
+0405:     if not context or not hasattr(context, "scene") or not hasattr(context.scene, "chest_splitter"):
+0406:         return
+0407: 
+0408:     settings = context.scene.chest_splitter
+0409:     mode = getattr(settings, "split_mode", "PLANE")
+0410: 
+0411:     # B01 / F01 / F02: Isolamento estrito por modo
+0412:     if mode == 'LOOP':
+0413:         _draw_loop_overlay(context, settings)
+0414:     elif mode == 'PLANE':
+0415:         _draw_plane_overlay(context, settings)
+0416: 
+0417: 
+0418: def register_overlay():
+0419:     """Registra o draw handler na visualização 3D."""
+0420:     global _draw_handler
+0421:     if _draw_handler is None and hasattr(bpy.types, "SpaceView3D"):
+0422:         try:
+0423:             _draw_handler = bpy.types.SpaceView3D.draw_handler_add(
+0424:                 _draw_overlay_callback,
+0425:                 (),
+0426:                 'WINDOW',
+0427:                 'POST_VIEW',
+0428:             )
+0429:         except Exception:
+0430:             _draw_handler = None
+0431: 
+0432: 
+0433: def unregister_overlay():
+0434:     """Remove o draw handler da visualização 3D."""
+0435:     global _draw_handler
+0436:     if _draw_handler is not None and hasattr(bpy.types, "SpaceView3D"):
+0437:         try:
+0438:             bpy.types.SpaceView3D.draw_handler_remove(_draw_handler, 'WINDOW')
+0439:         except Exception:
+0440:             pass
+0441:         _draw_handler = None

@@ -30,6 +30,77 @@ def _get_orthonormal_basis(normal: Vector) -> Tuple[Vector, Vector]:
     return u, v
 
 
+def offset_polygon_2d(pts_2d: List[Vector], offset: float) -> Tuple[List[Vector], bool]:
+    """Desloca um polígono 2D fechado para dentro (offset > 0) ou para fora (offset < 0).
+
+    Usa algoritmo de miter offset determinístico com limitação de espículas.
+    Retorna (novos_pontos, sucesso).
+    """
+    n = len(pts_2d)
+    if n < 3 or abs(offset) < 1e-9:
+        return [p.copy() for p in pts_2d], True
+
+    # 1. Área com sinal para determinar orientação (CCW vs CW)
+    signed_area = 0.0
+    for i in range(n):
+        p1 = pts_2d[i]
+        p2 = pts_2d[(i + 1) % n]
+        signed_area += (p1.x * p2.y - p2.x * p1.y)
+    signed_area *= 0.5
+
+    if abs(signed_area) < 1e-12:
+        return [p.copy() for p in pts_2d], False
+
+    is_ccw = signed_area > 0.0
+
+    # 2. Normais das arestas apontando para dentro
+    edge_in_normals = []
+    for i in range(n):
+        p1 = pts_2d[i]
+        p2 = pts_2d[(i + 1) % n]
+        e = p2 - p1
+        length = e.length
+        if length < 1e-9:
+            edge_in_normals.append(Vector((0.0, 0.0)))
+            continue
+        if is_ccw:
+            in_norm = Vector((-e.y / length, e.x / length))
+        else:
+            in_norm = Vector((e.y / length, -e.x / length))
+        edge_in_normals.append(in_norm)
+
+    # 3. Miter offset por vértice
+    new_pts = []
+    for i in range(n):
+        n_prev = edge_in_normals[(i - 1 + n) % n]
+        n_curr = edge_in_normals[i]
+        dot = n_prev.dot(n_curr)
+        denom = 1.0 + dot
+        if denom < 1e-4:
+            v_dir = n_curr
+        else:
+            v_dir = (n_prev + n_curr) / denom
+
+        if v_dir.length > 2.5:
+            v_dir.normalize()
+            v_dir *= 2.5
+
+        new_pts.append(pts_2d[i] + v_dir * offset)
+
+    # 4. Verificação de integridade e não-colapso
+    new_area = 0.0
+    for i in range(n):
+        p1 = new_pts[i]
+        p2 = new_pts[(i + 1) % n]
+        new_area += (p1.x * p2.y - p2.x * p1.y)
+    new_area *= 0.5
+
+    if (new_area * signed_area) <= 0.0 or abs(new_area) < (0.05 * abs(signed_area)):
+        return new_pts, False
+
+    return new_pts, True
+
+
 def get_material_regions(bm, material_index: int) -> List[List[int]]:
     """Agrupa as faces de um material em regiões conectadas (ilhas) por arestas compartilhadas.
 
@@ -234,7 +305,7 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
         for f in e.link_faces:
             if f.index not in region_faces:
                 adj_outside_mats.append(f.material_index)
-    body_mat_index = max(set(adj_outside_mats), key=adj_outside_mats.count) if adj_outside_mats else 0
+    body_mat_index = max(sorted(set(adj_outside_mats)), key=lambda m: (adj_outside_mats.count(m), -m)) if adj_outside_mats else 0
 
     scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
     dists = [abs((p - centroid).dot(n)) for p in coords_world]
@@ -283,12 +354,14 @@ def create_material_patch_prism_cutter(
     material_index: int = 0,
     interface_mat_mode: str = 'SOURCE',
     body_mat_index: int = 0,
+    lateral_offset_bu: float = 0.0,
 ) -> bpy.types.Object:
     """Constrói um prisma 3D estanque a partir das faces exatas da região de material (B06).
     
     Preserva a tesselação e concavidades reais da região (ex: silhuetas em U ou reentrâncias),
     evitando tampas em n-gons planos que cruzam aberturas e geram películas/membranas espúrias.
     Valida a estanqueidade e ausência de degeneração antes da publicação (D01).
+    Aplica offset lateral determinístico por lado no domínio de contato (INV-008).
     """
     bm_src = bmesh.new()
     bm_src.from_mesh(obj.data)
@@ -307,9 +380,30 @@ def create_material_patch_prism_cutter(
     bot_map = {}
     used_verts = {v for f in region_faces for v in f.verts}
 
+    vert_offsets = {}
+    if abs(lateral_offset_bu) > 1e-9:
+        boundary_edges = [e for e in bm_src.edges if sum(1 for f in e.link_faces if f.index in region_set) == 1]
+        loops = _order_boundary_loops(boundary_edges)
+        if loops and len(loops) == 1:
+            ordered_bverts = loops[0]
+            u_vec, v_vec = _get_orthonormal_basis(in_norm)
+            pts_2d = [Vector((v.co.dot(u_vec), v.co.dot(v_vec))) for v in ordered_bverts]
+            new_pts_2d, ok = offset_polygon_2d(pts_2d, lateral_offset_bu)
+            if not ok:
+                scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+                bm_src.free()
+                bm_prism.free()
+                raise ValueError(
+                    f"A folga lateral configurada ({lateral_offset_bu * scale_to_mm:.2f} mm) provoca colapso da geometria útil da peça."
+                )
+            for i, bv in enumerate(ordered_bverts):
+                delta_2d = new_pts_2d[i] - pts_2d[i]
+                vert_offsets[bv] = delta_2d.x * u_vec + delta_2d.y * v_vec
+
     for v in used_verts:
-        top_map[v] = bm_prism.verts.new(v.co - outward_ext_bu * in_norm)
-        bot_map[v] = bm_prism.verts.new(v.co + depth_bu * in_norm)
+        shift = vert_offsets.get(v, Vector((0.0, 0.0, 0.0)))
+        top_map[v] = bm_prism.verts.new(v.co + shift - outward_ext_bu * in_norm)
+        bot_map[v] = bm_prism.verts.new(v.co + shift + depth_bu * in_norm)
 
     bm_prism.verts.ensure_lookup_table()
 
@@ -344,11 +438,22 @@ def create_material_patch_prism_cutter(
 
     # Validação do cortador antes de qualquer operação booleana (D01)
     scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
-    metrics = evaluate_bmesh_metrics(bm_prism, scale_to_mm)
-    if not metrics["is_manifold"] or metrics["volume_mm3"] <= 1e-4:
+    from .diagnostic import validate_bmesh_mesh_geometry
+    geom_check = validate_bmesh_mesh_geometry(bm_prism, scale_to_mm)
+    if not geom_check["is_manifold"] or abs(geom_check["volume_mm3"]) <= 1e-4 or geom_check["degenerate_faces"] or geom_check["null_edges"]:
+        reasons = []
+        if not geom_check["is_manifold"]:
+            reasons.append(f"{len(geom_check['non_manifold_edges'])} arestas não-manifold")
+        if abs(geom_check["volume_mm3"]) <= 1e-4:
+            reasons.append("volume nulo")
+        if geom_check["degenerate_faces"]:
+            reasons.append(f"{len(geom_check['degenerate_faces'])} faces degeneradas/área zero")
+        if geom_check["null_edges"]:
+            reasons.append(f"{len(geom_check['null_edges'])} arestas nulas")
+        reason_str = ", ".join(reasons)
         bm_prism.free()
         raise ValueError(
-            "O cortador prismático gerou geometria degenerada ou não-estanque (auto-interseção por faces dobradas no patch de material). "
+            f"O cortador prismático gerou geometria inválida ({reason_str}). "
             "A extração prismática requer uma superfície com projeção desimpedida na direção de extração."
         )
 
@@ -674,15 +779,23 @@ def slice_mesh_by_material(
         if part_clearance_apply_to == 'PART':
             depth_a_bu = max(0.05 / scale_to_mm, depth_bu - clearance_bu)
             depth_b_bu = depth_bu
+            lat_off_a = clearance_bu
+            lat_off_b = 0.0
         elif part_clearance_apply_to == 'CAVITY':
             depth_a_bu = depth_bu
             depth_b_bu = depth_bu + clearance_bu
+            lat_off_a = 0.0
+            lat_off_b = -clearance_bu
         elif part_clearance_apply_to == 'BOTH':
             depth_a_bu = max(0.05 / scale_to_mm, depth_bu - 0.5 * clearance_bu)
             depth_b_bu = depth_bu + 0.5 * clearance_bu
+            lat_off_a = 0.5 * clearance_bu
+            lat_off_b = -0.5 * clearance_bu
         else:
             depth_a_bu = depth_bu
             depth_b_bu = depth_bu
+            lat_off_a = 0.0
+            lat_off_b = 0.0
 
         temp_obj_a = None
         temp_obj_b = None
@@ -705,6 +818,7 @@ def slice_mesh_by_material(
                 material_index=material_index,
                 interface_mat_mode=interface_mat_mode,
                 body_mat_index=body_mat_idx,
+                lateral_offset_bu=lat_off_a,
             )
             prism_obj_b = create_material_patch_prism_cutter(
                 obj=obj,
@@ -713,9 +827,10 @@ def slice_mesh_by_material(
                 depth_bu=depth_b_bu,
                 outward_ext_bu=outward_ext_bu,
                 name=f"{obj.name}_mat_prism_b",
-                material_index=material_index,
-                interface_mat_mode=interface_mat_mode,
+                material_index=body_mat_idx,
+                interface_mat_mode='SOURCE',
                 body_mat_index=body_mat_idx,
+                lateral_offset_bu=lat_off_b,
             )
 
             bpy.context.view_layer.update()
@@ -757,10 +872,8 @@ def slice_mesh_by_material(
             bm_a.transform(obj.matrix_world)
             bm_b.transform(obj.matrix_world)
 
-            if interface_mat_mode == 'EXTRACTED':
-                for f in bm_a.faces:
-                    if f.material_index != material_index:
-                        f.material_index = material_index
+            # Preserva materiais exteriores originais em A e B (INV-012)
+            # A interface gerada pelo prism_obj_a já herdou material_index, enquanto prism_obj_b gerou a cavidade com body_mat_idx
 
             # Extrai contorno da fronteira para a CutInterface formal (B08 / C08)
             mw = obj.matrix_world

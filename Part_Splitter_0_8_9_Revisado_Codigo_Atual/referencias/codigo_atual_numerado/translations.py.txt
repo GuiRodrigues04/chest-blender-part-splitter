@@ -1,0 +1,352 @@
+0001: """Catálogo de traduções e sistema de ajuda contextual para o Chest Part Splitter."""
+0002: 
+0003: import bpy
+0004: from typing import Tuple, List, Optional
+0005: 
+0006: HELP_TOPICS = {
+0007:     "target_model": {
+0008:         "title": {
+0009:             "pt_BR": "Objeto Alvo",
+0010:             "en_US": "Target Model",
+0011:         },
+0012:         "tooltip": {
+0013:             "pt_BR": "Selecione a malha que deseja dividir e clique em Usar selecionado.",
+0014:             "en_US": "Select the mesh you want to split, then click Use selected.",
+0015:         },
+0016:         "popup_lines": {
+0017:             "pt_BR": [
+0018:                 "Selecione uma malha na cena e clique em 'Usar selecionado como alvo'.",
+0019:                 "O add-on valida automaticamente se a malha é fechada (manifold),",
+0020:                 "calcula suas dimensões físicas em milímetros e avisa caso haja",
+0021:                 "escala não aplicada que possa distorcer os cortes ou as folgas.",
+0022:             ],
+0023:             "en_US": [
+0024:                 "Select a mesh in the scene and click 'Use selected as target'.",
+0025:                 "The add-on checks if the mesh is manifold (water-tight),",
+0026:                 "computes its physical dimensions in millimeters, and warns if",
+0027:                 "unapplied transforms might distort cuts or clearances.",
+0028:             ],
+0029:         },
+0030:     },
+0031:     "split_plane": {
+0032:         "title": {
+0033:             "pt_BR": "Corte por Plano",
+0034:             "en_US": "Planar Cut",
+0035:         },
+0036:         "tooltip": {
+0037:             "pt_BR": "Posicione o plano. Ele divide todo o modelo nos dois lados do plano.",
+0038:             "en_US": "Position the plane. It splits the entire model on either side of the plane.",
+0039:         },
+0040:         "popup_lines": {
+0041:             "pt_BR": [
+0042:                 "O modo Plano divide o modelo inteiro em duas partes usando um plano 3D infinito.",
+0043:                 "Clique em 'Focar Guia 3D' para visualizar o plano na viewport.",
+0044:                 "Use os botões de alinhamento rápido para orientar o corte em relação à Vista,",
+0045:                 "ao Cursor 3D, a uma Face selecionada ou aos eixos X, Y e Z.",
+0046:             ],
+0047:             "en_US": [
+0048:                 "Planar mode splits the entire model into two parts across a 3D plane.",
+0049:                 "Click 'Focus 3D Guide' to view the cutting plane in the viewport.",
+0050:                 "Use the quick alignment buttons to align the cut to View, 3D Cursor,",
+0051:                 "Active Face, or the global X, Y, and Z axes.",
+0052:             ],
+0053:         },
+0054:     },
+0055:     "split_material": {
+0056:         "title": {
+0057:             "pt_BR": "Divisão por Material",
+0058:             "en_US": "Split by Material",
+0059:         },
+0060:         "tooltip": {
+0061:             "pt_BR": "Divide o modelo isolando componentes ou regiões definidas por slots de materiais.",
+0062:             "en_US": "Splits the model by isolating components or regions defined by material slots.",
+0063:         },
+0064:         "popup_lines": {
+0065:             "pt_BR": [
+0066:                 "O modo Material separa a malha de acordo com os materiais aplicados às faces.",
+0067:                 "1. Se o material formar componentes 3D fechados (como olhos, botões ou acessórios),",
+0068:                 "   ele os separa diretamente como sólidos 100% estanques para impressão 3D.",
+0069:                 "2. Se o material for uma pintura na superfície, a extensão detecta a fronteira e",
+0070:                 "   aplica a profundidade escolhida, criando um inserto sólido e a cavidade correspondente.",
+0071:             ],
+0072:             "en_US": [
+0073:                 "Material mode separates the mesh based on materials assigned to its faces.",
+0074:                 "1. If the material forms closed 3D shells (such as eyes, buttons, or accessories),",
+0075:                 "   it separates them directly as 100% manifold solids ready for 3D printing.",
+0076:                 "2. If the material is a painted surface patch, the boundary is extracted with",
+0077:                 "   the chosen depth, producing a solid insert and matching socket cavity.",
+0078:             ],
+0079:         },
+0080:     },
+0081:     "split_loop": {
+0082:         "title": {
+0083:             "pt_BR": "Corte por Contorno (Loop)",
+0084:             "en_US": "Boundary Loop Cut",
+0085:         },
+0086:         "tooltip": {
+0087:             "pt_BR": "No Modo de Edição, selecione um contorno fechado de arestas e clique em Capturar contorno.",
+0088:             "en_US": "In Edit Mode, select a closed edge boundary and click Capture boundary.",
+0089:         },
+0090:         "popup_lines": {
+0091:             "pt_BR": [
+0092:                 "O modo Contorno permite recortar detalhes específicos da superfície.",
+0093:                 "Passo 1: No Modo de Edição, selecione um anel fechado de arestas contínuas",
+0094:                 "e clique em 'Capturar Contorno'.",
+0095:                 "Passo 2: Selecione apenas 1 face de referência da região e clique em 'Escolher Região'.",
+0096:                 "O add-on inunda a malha e seleciona todo o resto da área delimitada automaticamente!",
+0097:             ],
+0098:             "en_US": [
+0099:                 "Boundary mode allows cutting localized surface features or protrusions.",
+0100:                 "Step 1: In Edit Mode, select a closed edge loop and click 'Capture Boundary'.",
+0101:                 "Step 2: Select just 1 reference face in the desired area and click 'Choose Region'.",
+0102:                 "The add-on automatically flood-fills and selects the entire bounded area!",
+0103:             ],
+0104:         },
+0105:     },
+0106:     "loop_region": {
+0107:         "title": {
+0108:             "pt_BR": "Escolher Região",
+0109:             "en_US": "Choose Region",
+0110:         },
+0111:         "tooltip": {
+0112:             "pt_BR": "Selecione uma face da região desejada e clique em Escolher região. O contorno limita essa seleção.",
+0113:             "en_US": "Select a face in the desired region and click Choose region. The boundary limits this selection.",
+0114:         },
+0115:         "popup_lines": {
+0116:             "pt_BR": [
+0117:                 "Você NÃO precisa selecionar todas as faces de uma peça complexa!",
+0118:                 "Basta selecionar apenas 1 face dentro da região desejada.",
+0119:                 "O contorno capturado atua como uma barreira física; o add-on percorre",
+0120:                 "todas as faces adjacentes e isola a região inteira automaticamente.",
+0121:             ],
+0122:             "en_US": [
+0123:                 "You do NOT need to select all faces of a complex mesh!",
+0124:                 "Simply select a single face inside the desired region.",
+0125:                 "The captured loop acts as a barrier; the add-on traverses adjacent faces",
+0126:                 "and captures the entire bounded region automatically.",
+0127:             ],
+0128:         },
+0129:     },
+0130:     "loop_extrude": {
+0131:         "title": {
+0132:             "pt_BR": "Extração com Profundidade",
+0133:             "en_US": "Depth Extrusion",
+0134:         },
+0135:         "tooltip": {
+0136:             "pt_BR": "Distância para dentro do modelo. A região extraída vira uma peça e deixa uma cavidade no restante.",
+0137:             "en_US": "Distance into the model. The extracted region becomes a part and leaves a recess in the remainder.",
+0138:         },
+0139:         "popup_lines": {
+0140:             "pt_BR": [
+0141:                 "Extrai o perfil do contorno para dentro do sólido até a profundidade em milímetros.",
+0142:                 "A porção extraída torna-se a Parte A e deixa uma cavidade perfeita na Parte B.",
+0143:                 "Se a profundidade exceder a espessura da parede, ative 'Corte Passante'",
+0144:                 "para furar o modelo de lado a lado.",
+0145:             ],
+0146:             "en_US": [
+0147:                 "Extrudes the boundary profile into the solid down to the chosen depth in mm.",
+0148:                 "The extracted volume becomes Part A and leaves a matching recess in Part B.",
+0149:                 "If depth exceeds wall thickness, enable 'Through-cut' to pierce completely.",
+0150:             ],
+0151:         },
+0152:     },
+0153:     "connectors": {
+0154:         "title": {
+0155:             "pt_BR": "Encaixes e Pinos",
+0156:             "en_US": "Connectors & Pins",
+0157:         },
+0158:         "tooltip": {
+0159:             "pt_BR": "Escolhe qual peça recebe o pino saliente. A outra recebe a cavidade correspondente.",
+0160:             "en_US": "Chooses which part receives the protruding pin. The other receives the matching socket.",
+0161:         },
+0162:         "popup_lines": {
+0163:             "pt_BR": [
+0164:                 "Gera automaticamente pinos macho em uma peça e cavidades fêmea na outra.",
+0165:                 "Formatos disponíveis:",
+0166:                 "  • Cilindro: Pino cilíndrico tradicional com chanfro na ponta.",
+0167:                 "  • Cápsula: Pino oblongo ideal para travar rotação e dar maior área de contato.",
+0168:                 "Os pinos respeitam margens mínimas das bordas e paredes de segurança contra perfuração.",
+0169:             ],
+0170:             "en_US": [
+0171:                 "Automatically generates male pins on one part and matching female sockets on the other.",
+0172:                 "Available shapes:",
+0173:                 "  • Cylinder: Traditional round pin with chamfered tip.",
+0174:                 "  • Capsule: Oblong stadium pin that prevents rotation and maximizes contact area.",
+0175:                 "Pins respect safety edge margins and wall thickness limits.",
+0176:             ],
+0177:         },
+0178:     },
+0179:     "clearance": {
+0180:         "title": {
+0181:             "pt_BR": "Folgas Físicas de Montagem",
+0182:             "en_US": "Assembly Clearances",
+0183:         },
+0184:         "tooltip": {
+0185:             "pt_BR": "Espaço em cada lado do pino. Com pino de 6 mm e folga de 0,15 mm, a cavidade tem 6,30 mm.",
+0186:             "en_US": "Clearance on each side of the pin. A 6 mm pin with 0.15 mm clearance needs a 6.30 mm socket.",
+0187:         },
+0188:         "popup_lines": {
+0189:             "pt_BR": [
+0190:                 "Folga por lado: folga radial aplicada uniformemente à cavidade receptora.",
+0191:                 "Exemplo: Pino de 6,0 mm com folga 0,15 mm gera cavidade de 6,30 mm.",
+0192:                 "Valores sugeridos para FDM (PLA / bico 0,4 mm):",
+0193:                 "  • Justo (0,10 mm) - encaixe por pressão (press-fit).",
+0194:                 "  • Normal (0,15 mm) - recomendado para montagem suave sem ferramentas.",
+0195:                 "  • Fácil (0,20 mm) - recomendado para impressoras com calibração intermediária.",
+0196:                 "  • Solto (0,25 mm) - folga ampla com espaço para cola.",
+0197:                 "Folga de fundo: espaço livre no fundo da cavidade para evitar colisão na inserção.",
+0198:             ],
+0199:             "en_US": [
+0200:                 "Clearance per side: radial offset applied uniformly to the receiving socket.",
+0201:                 "Example: A 6.0 mm pin with 0.15 mm clearance creates a 6.30 mm socket.",
+0202:                 "Suggested values for FDM (PLA / 0.4 mm nozzle):",
+0203:                 "  • Tight (0.10 mm) - press-fit requiring light force.",
+0204:                 "  • Normal (0.15 mm) - recommended for smooth, tool-free assembly.",
+0205:                 "  • Easy (0.20 mm) - for machines with slight over-extrusion.",
+0206:                 "  • Loose (0.25 mm) - extra loose fit with space for glue.",
+0207:                 "End clearance: extra depth at socket bottom to prevent bottoming out.",
+0208:             ],
+0209:         },
+0210:     },
+0211:     "explosion": {
+0212:         "title": {
+0213:             "pt_BR": "Visualização Explodida",
+0214:             "en_US": "Exploded View",
+0215:         },
+0216:         "tooltip": {
+0217:             "pt_BR": "Afasta as peças no eixo de corte para inspecionar pinos, cavidades e interface.",
+0218:             "en_US": "Separates parts along the cut axis to inspect pins, cavities, and the cut interface.",
+0219:         },
+0220:         "popup_lines": {
+0221:             "pt_BR": [
+0222:                 "Afasta as partes na direção normal da interface de corte.",
+0223:                 "Quando encaixes estão ativados, a extensão ajusta automaticamente a distância",
+0224:                 "para ser maior que a inserção do pino, garantindo que o pino e a cavidade",
+0225:                 "fiquem totalmente visíveis e desencaixados logo ao clicar em 'Explodido'.",
+0226:                 "Você pode ajustar livremente a distância pelo controle deslizante.",
+0227:             ],
+0228:             "en_US": [
+0229:                 "Separates parts along the interface normal direction.",
+0230:                 "When connectors are enabled, the extension automatically sets the distance",
+0231:                 "larger than pin insertion length so both pin and socket are fully exposed.",
+0232:                 "You can still freely adjust the slider to view further separation.",
+0233:             ],
+0234:         },
+0235:     },
+0236: }
+0237: 
+0238: TRANSLATIONS_DICT = {
+0239:     "pt_BR": {
+0240:         ("*", "Part Splitter"): "Part Splitter",
+0241:         ("*", "Part Splitter 0.8.8"): "Part Splitter 0.8.8",
+0242:         ("*", "Usar selecionado como alvo"): "Usar selecionado como alvo",
+0243:         ("*", "Posicionamento do Plano"): "Posicionamento do Plano",
+0244:         ("*", "Focar Guia 3D"): "Focar Guia 3D",
+0245:         ("*", "Alinhamentos Rápidos:"): "Alinhamentos Rápidos:",
+0246:         ("*", "Capturar Contorno"): "Capturar Contorno",
+0247:         ("*", "Escolher Região"): "Escolher Região",
+0248:         ("*", "Ativar Encaixes"): "Ativar Encaixes",
+0249:         ("*", "Gerar / Atualizar Preview"): "Gerar / Atualizar Preview",
+0250:         ("*", "Confirmar Divisão"): "Confirmar Divisão",
+0251:         ("*", "Restaurar Original"): "Restaurar Original",
+0252:         ("*", "Remover Prévia"): "Remover Prévia",
+0253:         ("*", "Reverter este corte"): "Reverter este corte",
+0254:         ("*", "Confirmar Reversão do Corte?"): "Confirmar Reversão do Corte?",
+0255:         ("*", "Distância de Explosão (mm)"): "Distância de Explosão (mm)",
+0256:         ("*", "Corte por Contorno (Loop)"): "Corte por Contorno (Loop)",
+0257:         ("*", "Capturar das Faces"): "Capturar das Faces",
+0258:         ("*", "Destacar Contorno no Viewport"): "Destacar Contorno no Viewport",
+0259:         ("*", "Destacar Contorno"): "Destacar Contorno",
+0260:         ("*", "Resultados do Corte"): "Resultados do Corte",
+0261:         ("*", "Separar por Cores / Materiais"): "Separar por Cores / Materiais",
+0262:         ("*", "Folgas Físicas de Montagem (FDM):"): "Folgas Físicas de Montagem (FDM):",
+0263:         ("*", "Dimensões Nominais:"): "Dimensões Nominais:",
+0264:         ("*", "Distribuição no Corte:"): "Distribuição no Corte:",
+0265:     },
+0266:     "en_US": {
+0267:         ("*", "Part Splitter"): "Part Splitter",
+0268:         ("*", "Part Splitter 0.8.8"): "Part Splitter 0.8.8",
+0269:         ("*", "Usar selecionado como alvo"): "Use selected as target",
+0270:         ("*", "Posicionamento do Plano"): "Plane Positioning",
+0271:         ("*", "Focar Guia 3D"): "Focus 3D Guide",
+0272:         ("*", "Alinhamentos Rápidos:"): "Quick Alignments:",
+0273:         ("*", "Capturar Contorno"): "Capture Boundary",
+0274:         ("*", "Capturar das Faces"): "Capture from Faces",
+0275:         ("*", "Destacar Contorno no Viewport"): "Highlight Loop in Viewport",
+0276:         ("*", "Destacar Contorno"): "Highlight Loop",
+0277:         ("*", "Escolher Região"): "Choose Region",
+0278:         ("*", "Ativar Encaixes"): "Enable Connectors",
+0279:         ("*", "Gerar / Atualizar Preview"): "Generate / Update Preview",
+0280:         ("*", "Confirmar Divisão"): "Confirm Split",
+0281:         ("*", "Restaurar Original"): "Restore Original",
+0282:         ("*", "Remover Prévia"): "Discard Preview",
+0283:         ("*", "Reverter este corte"): "Revert this cut",
+0284:         ("*", "Confirmar Reversão do Corte?"): "Confirm Reversion of Cut?",
+0285:         ("*", "Distância de Explosão (mm)"): "Explosion Distance (mm)",
+0286:         ("*", "Inverter Sentido da Explosão"): "Invert Explosion Direction",
+0287:         ("*", "Corte por Contorno (Loop)"): "Boundary Loop Cut",
+0288:         ("*", "Resultados do Corte"): "Cut Results",
+0289:         ("*", "Separar por Cores / Materiais"): "Separate by Colors / Materials",
+0290:         ("*", "Folgas Físicas de Montagem (FDM):"): "Assembly Clearances (FDM):",
+0291:         ("*", "Dimensões Nominais:"): "Nominal Dimensions:",
+0292:         ("*", "Distribuição no Corte:"): "Cut Distribution:",
+0293:     },
+0294: }
+0295: 
+0296: 
+0297: def _get_current_locale(forced_locale: Optional[str] = None) -> str:
+0298:     """Retorna o código de idioma atual do Blender (pt_BR ou fallback en_US)."""
+0299:     try:
+0300:         loc = forced_locale if forced_locale is not None else getattr(bpy.app.translations, "locale", None)
+0301:         if loc and loc.startswith("pt"):
+0302:             return "pt_BR"
+0303:     except Exception:
+0304:         pass
+0305:     return "en_US"  # Padrão internacional em inglês
+0306: 
+0307: 
+0308: def get_help_tooltip(topic: str) -> str:
+0309:     """Retorna o texto de tooltip resumido para o tópico indicado."""
+0310:     loc = _get_current_locale()
+0311:     topic_data = HELP_TOPICS.get(topic)
+0312:     if not topic_data:
+0313:         return "Clique para ajuda sobre este recurso."
+0314:     tooltips = topic_data.get("tooltip", {})
+0315:     return tooltips.get(loc, tooltips.get("pt_BR", ""))
+0316: 
+0317: 
+0318: def get_help_popup_content(topic: str) -> Tuple[str, List[str]]:
+0319:     """Retorna título e linhas para exibição em popup dialog."""
+0320:     loc = _get_current_locale()
+0321:     topic_data = HELP_TOPICS.get(topic)
+0322:     if not topic_data:
+0323:         return ("Ajuda", ["Nenhum tópico explicativo disponível."])
+0324:     
+0325:     title = topic_data.get("title", {}).get(loc, topic_data.get("title", {}).get("pt_BR", "Ajuda"))
+0326:     lines = topic_data.get("popup_lines", {}).get(loc, topic_data.get("popup_lines", {}).get("pt_BR", []))
+0327:     return title, lines
+0328: 
+0329: 
+0330: _translations_registered = False
+0331: 
+0332: 
+0333: def register_translations():
+0334:     """Registra catálogo de traduções nativas do Blender."""
+0335:     global _translations_registered
+0336:     if not _translations_registered:
+0337:         try:
+0338:             bpy.app.translations.register(__name__, TRANSLATIONS_DICT)
+0339:             _translations_registered = True
+0340:         except ValueError:
+0341:             pass
+0342: 
+0343: 
+0344: def unregister_translations():
+0345:     """Remove catálogo de traduções nativas do Blender."""
+0346:     global _translations_registered
+0347:     if _translations_registered:
+0348:         try:
+0349:             bpy.app.translations.unregister(__name__)
+0350:             _translations_registered = False
+0351:         except ValueError:
+0352:             pass

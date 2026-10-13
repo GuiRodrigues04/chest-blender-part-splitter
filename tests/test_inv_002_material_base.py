@@ -38,46 +38,62 @@ class TestINV002MaterialBase(unittest.TestCase):
             bpy.data.materials.remove(mat, do_unlink=True)
 
     def _create_boss_on_cube(self):
-        """Cria um cubo base com uma saliência piramidal beveled e materiais atribuídos."""
+        """Cria um cubo base com uma saliência 40x40x20 mm unida e manifold."""
         mesh = bpy.data.meshes.new("TestCubeMesh")
         bm = bmesh.new()
-        # Cubo base 2x2x2
-        bmesh.ops.create_cube(bm, size=2.0)
-        bm.faces.ensure_lookup_table()
-        # Encontra a face -X (normal (-1, 0, 0))
-        fx = [f for f in bm.faces if f.normal.x < -0.9][0]
-        # Subdivide ou cria saliência nessa face
-        res = bmesh.ops.subdivide_edges(bm, edges=fx.edges[:], cuts=2, use_grid_fill=True)
-        bm.faces.ensure_lookup_table()
+
+        # Vértices base (Z: 0 a 0.10, X: 0 a 0.10, Y: 0 a 0.10 em metros)
+        cube_verts = []
+        for z in (0.0, 0.10):
+            for y in (0.0, 0.10):
+                for x in (0.0, 0.10):
+                    cube_verts.append(bm.verts.new((x, y, z)))
         bm.verts.ensure_lookup_table()
 
-        # Adiciona materiais
-        mat_base = bpy.data.materials.new(name="MatBase")
-        mat_erro = bpy.data.materials.new(name="MatErro")
-        mesh.materials.append(mat_base)
-        mesh.materials.append(mat_erro)
+        # Fundo e laterais do cubo
+        bm.faces.new((cube_verts[0], cube_verts[2], cube_verts[3], cube_verts[1]))
+        bm.faces.new((cube_verts[0], cube_verts[1], cube_verts[5], cube_verts[4]))
+        bm.faces.new((cube_verts[2], cube_verts[6], cube_verts[7], cube_verts[3]))
+        bm.faces.new((cube_verts[0], cube_verts[4], cube_verts[6], cube_verts[2]))
+        bm.faces.new((cube_verts[1], cube_verts[3], cube_verts[7], cube_verts[5]))
 
-        for f in bm.faces:
-            f.material_index = 0
+        # Saliência (boss) de 40x40x20 mm
+        b0 = bm.verts.new((0.03, 0.03, 0.10))
+        b1 = bm.verts.new((0.07, 0.03, 0.10))
+        b2 = bm.verts.new((0.07, 0.07, 0.10))
+        b3 = bm.verts.new((0.03, 0.07, 0.10))
 
-        # Pega a face central do grid e a eleva ao longo de -X (saliência)
-        center_faces = [f for f in bm.faces if f.normal.x < -0.9 and abs(f.calc_center_median().y) < 0.2 and abs(f.calc_center_median().z) < 0.2]
-        if center_faces:
-            cf = center_faces[0]
-            # Extrude face para fora (-X)
-            ext = bmesh.ops.extrude_face_region(bm, geom=[cf])
-            extruded_verts = [v for v in ext['geom'] if isinstance(v, bmesh.types.BMVert)]
-            for v in extruded_verts:
-                v.co.x -= 0.5  # Saliência de 0.5 unidades
-            # Pinta as faces da saliência com mat_erro (index 1)
-            extruded_faces = [f for f in ext['geom'] if isinstance(f, bmesh.types.BMFace)]
-            for f in extruded_faces:
-                f.material_index = 1
+        # Topo do cubo ao redor do boss
+        c4, c5, c6, c7 = cube_verts[4], cube_verts[5], cube_verts[6], cube_verts[7]
+        bm.faces.new((c4, c5, b1, b0))
+        bm.faces.new((c5, c7, b2, b1))
+        bm.faces.new((c7, c6, b3, b2))
+        bm.faces.new((c6, c4, b0, b3))
+
+        # Paredes e topo da saliência
+        t0 = bm.verts.new((0.03, 0.03, 0.12))
+        t1 = bm.verts.new((0.07, 0.03, 0.12))
+        t2 = bm.verts.new((0.07, 0.07, 0.12))
+        t3 = bm.verts.new((0.03, 0.07, 0.12))
+
+        f_b_front = bm.faces.new((b0, b1, t1, t0))
+        f_b_right = bm.faces.new((b1, b2, t2, t1))
+        f_b_back  = bm.faces.new((b2, b3, t3, t2))
+        f_b_left  = bm.faces.new((b3, b0, t0, t3))
+        f_b_top   = bm.faces.new((t0, t1, t2, t3))
+
+        # Materiais: slot 0 (Base), slot 1 (Boss/Erro)
+        for f in (f_b_front, f_b_right, f_b_back, f_b_left, f_b_top):
+            f.material_index = 1
 
         bm.to_mesh(mesh)
         bm.free()
 
         obj = bpy.data.objects.new("BossCube", mesh)
+        mat_base = bpy.data.materials.new(name="MatBase")
+        mat_erro = bpy.data.materials.new(name="MatErro")
+        obj.data.materials.append(mat_base)
+        obj.data.materials.append(mat_erro)
         bpy.context.scene.collection.objects.link(obj)
         return obj
 

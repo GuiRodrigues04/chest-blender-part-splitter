@@ -1,0 +1,537 @@
+﻿arquivo,linha,origem,texto_candidato,chave_destino,revisao
+constants.py,57,enum.description,Divisão rápida por plano infinito orientável,,PENDENTE
+constants.py,57,enum.label,Plano,,PENDENTE
+constants.py,58,enum.description,Divisão volumétrica por sólido fechado (Interseção / Diferença),,PENDENTE
+constants.py,58,enum.label,Cortador Sólido,,PENDENTE
+constants.py,59,enum.description,Divisão direta por anel de arestas fechado (Modo D),,PENDENTE
+constants.py,59,enum.label,Loop de Arestas,,PENDENTE
+constants.py,60,enum.description,Divisão assistida por fronteiras de materiais (Fase 4),,PENDENTE
+constants.py,60,enum.label,Material,,PENDENTE
+constants.py,64,enum.description,Gera uma primitiva volumétrica fechada na coleção de guias,,PENDENTE
+constants.py,64,enum.label,Primitiva Paramétrica,,PENDENTE
+constants.py,65,enum.description,Utiliza um objeto fechado selecionado na cena,,PENDENTE
+constants.py,65,enum.label,Objeto Existente,,PENDENTE
+constants.py,69,enum.description,Primitiva em bloco cúbico ou prismático,,PENDENTE
+constants.py,69,enum.label,Caixa / Cubo,,PENDENTE
+constants.py,70,enum.description,Primitiva cilíndrica com tampas fechadas,,PENDENTE
+constants.py,70,enum.label,Cilindro,,PENDENTE
+constants.py,71,enum.description,Primitiva esférica UV,,PENDENTE
+constants.py,71,enum.label,Esfera,,PENDENTE
+constants.py,72,enum.description,Primitiva tipo cápsula / estádio tridimensional,,PENDENTE
+constants.py,72,enum.label,Cápsula,,PENDENTE
+geometry_connectors.py,373,ConnectorValidationError,Nenhuma interface de corte válida encontrada para posicionamento de encaixes.,,PENDENTE
+geometry_connectors.py,409,ConnectorValidationError,Falta de espaço: a interface ({param}x{param} mm) não comporta o encaixe com margem de {param} mm (necessário ao menos {param}x{param} mm).,,PENDENTE
+geometry_connectors.py,459,ConnectorValidationError,Falta de espaço: a distribuição LINEAR_2 requer vão de ao menos {param} mm (disponível: {param} mm). Reduza a quantidade ou medidas dos encaixes.,,PENDENTE
+geometry_connectors.py,471,ConnectorValidationError,Falta de espaço: a distribuição LINEAR_3 requer vão de ao menos {param} mm (disponível: {param} mm). Reduza a quantidade ou medidas dos encaixes.,,PENDENTE
+geometry_connectors.py,507,ConnectorValidationError,Falta de espaço: a distribuição GRID_4 requer ao menos {param}x{param} mm (disponível: {param}x{param} mm). Reduza a quantidade ou medidas dos encaixes.,,PENDENTE
+geometry_connectors.py,591,ConnectorValidationError,Falta de espaço: a interface ({param} mm) não comporta a cápsula com margem de {param} mm (necessário ao menos {param} mm).,,PENDENTE
+geometry_connectors.py,629,ConnectorValidationError,O encaixe #{param} ultrapassa a margem de segurança de {param} mm ou cai fora do domínio sólido da peça.,,PENDENTE
+geometry_connectors.py,635,ConnectorValidationError,O encaixe #{param} invade um furo/vazio interno da interface.,,PENDENTE
+geometry_connectors.py,698,ConnectorValidationError,Sobreposição entre encaixes detectada: distância {param} mm < mínimo {param} mm.,,PENDENTE
+geometry_connectors.py,717,ConnectorValidationError,Parede receptora inválida ou ausente: a cavidade não encontra corpo sólido suficiente na direção de inserção. Verifique a orientação ou integridade da peça receptora.,,PENDENTE
+geometry_connectors.py,722,ConnectorValidationError,Parede fina: a cavidade de {param} mm atravessaria a peça receptora (espessura disponível: {param} mm). Reduza o comprimento de inserção.,,PENDENTE
+geometry_connectors.py,869,create_pin_mesh_data.name,temp_pin_{param},,PENDENTE
+geometry_connectors.py,917,create_pin_mesh_data.name,temp_cavity_{param},,PENDENTE
+geometry_connectors.py,972,RuntimeError,Operação booleana de encaixe gerou malha vazia ou corrompida.,,PENDENTE
+geometry_loop.py,304,ValueError,A matriz de transformação do objeto é singular (escala nula).,,PENDENTE
+geometry_loop.py,314,ValueError,Face-semente inválida ou não encontrada.,,PENDENTE
+geometry_loop.py,319,ValueError,Topologia alterada. Um vértice do loop não existe mais.,,PENDENTE
+geometry_loop.py,331,ValueError,O ciclo de arestas não existe mais na malha (Topologia alterada).,,PENDENTE
+geometry_loop.py,338,ValueError,O modelo de entrada possui aberturas/arestas não-manifold fora do contorno selecionado. Corrija a malha de entrada antes de realizar o corte por contorno.,,PENDENTE
+geometry_loop.py,361,ValueError,O loop não separa a malha em duas regiões (Exemplo: está numa alça).,,PENDENTE
+geometry_loop.py,365,ValueError,A região da Parte A ficou vazia.,,PENDENTE
+geometry_loop.py,483,ValueError,Não foi possível fechar o contorno do loop (restaram {param} arestas abertas). O contorno possui desvio não-planar de {param} mm e não é compatível com fechamento direto. Selecione um contorno planar ou na ligação da base.,,PENDENTE
+geometry_loop.py,572,ValueError,Face-semente inválida ou não selecionada.,,PENDENTE
+geometry_loop.py,790,ValueError,Polígono degenerado: todos os pontos são colineares.,,PENDENTE
+geometry_loop.py,992,ValueError,Espessura da peça não pôde ser determinada no ponto selecionado. Defina a profundidade manualmente ou ative a opção 'Corte Passante'.,,PENDENTE
+geometry_loop.py,998,ValueError,A profundidade de extração ({param} mm) ultrapassa a espessura da peça ({param} mm). Reduza a profundidade ou ative a opção 'Corte Passante'.,,PENDENTE
+geometry_loop.py,1022,create_loop_prism_cutter.name,{param}_loop_prism,,PENDENTE
+geometry_loop.py,1037,new.name,Extrude_Intersect,,PENDENTE
+geometry_loop.py,1047,new.name,Extrude_Difference,,PENDENTE
+geometry_loop.py,1072,RuntimeError,A extração com profundidade gerou malha vazia para uma das partes.,,PENDENTE
+geometry_material.py,350,ValueError,O cortador prismático gerou geometria degenerada ou não-estanque (auto-interseção por faces dobradas no patch de material). A extração prismática requer uma superfície com projeção desimpedida na direção de extração.,,PENDENTE
+geometry_material.py,453,ValueError,A base da saliência não é estritamente planar (desvio de planicidade: {param} mm > 0.15 mm). Pinte todas as faces da saliência até sua ligação com o corpo ou utilize o modo Loop de Arestas.,,PENDENTE
+geometry_material.py,466,ValueError,"A região de material selecionada é completamente coplanar com a base (não possui saliência volumétrica). Para recortar superfícies planas, utilize o modo 'Extrair com Profundidade'.",,PENDENTE
+geometry_material.py,498,ValueError,A folga de material ({param} mm) excede ou elimina a altura útil da saliência ({param} mm). Reduza a folga.,,PENDENTE
+geometry_material.py,517,ValueError,Não foi possível encontrar um ciclo fechado simples na base da saliência.,,PENDENTE
+geometry_material.py,534,RuntimeError,Face duplicada conflitante na interface da base da Parte A: face {param}. A seleção contém faces sobrepostas no plano de corte.,,PENDENTE
+geometry_material.py,548,RuntimeError,Falha na criação de tampa da base para a Parte A: {param},,PENDENTE
+geometry_material.py,576,ValueError,Não foi possível encontrar o contorno fechado correspondente no corpo receptor.,,PENDENTE
+geometry_material.py,593,RuntimeError,Face duplicada conflitante na interface da base da Parte B: face {param}. A seleção contém faces sobrepostas no plano de corte.,,PENDENTE
+geometry_material.py,607,RuntimeError,Falha na criação de tampa da base para a Parte B: {param},,PENDENTE
+geometry_material.py,638,RuntimeError,O destaque por material gerou peça vazia.,,PENDENTE
+geometry_material.py,640,RuntimeError,O destaque por material gerou peça com volume nulo ou desprezível.,,PENDENTE
+geometry_material.py,642,RuntimeError,"O destaque por base gerou peça não-manifold (arestas abertas: Parte A={param}, Parte B={param}).",,PENDENTE
+geometry_material.py,664,ValueError,A folga de material ({param} mm) excede ou elimina a profundidade útil da peça ({param} mm). Reduza a folga ou aumente a profundidade.,,PENDENTE
+geometry_material.py,698,create_material_patch_prism_cutter.name,{param}_mat_prism_a,,PENDENTE
+geometry_material.py,709,create_material_patch_prism_cutter.name,{param}_mat_prism_b,,PENDENTE
+geometry_material.py,728,new.name,Mat_Intersect,,PENDENTE
+geometry_material.py,738,new.name,Mat_Difference,,PENDENTE
+geometry_material.py,784,RuntimeError,O corte por material resultou em uma peça vazia. Verifique a área ou profundidade selecionada.,,PENDENTE
+geometry_material.py,786,RuntimeError,O corte por material gerou uma peça com volume nulo ou desprezível.,,PENDENTE
+geometry_material.py,788,RuntimeError,"O corte por material gerou peça não-manifold (arestas abertas: Parte A={param}, Parte B={param}).",,PENDENTE
+geometry_plane.py,262,PlaneSliceError,Vetor normal do plano inválido (comprimento nulo).,,PENDENTE
+geometry_solid.py,306,new.name,Mod_Intersect,,PENDENTE
+geometry_solid.py,319,new.name,Mod_Difference,,PENDENTE
+io_export.py,109,RuntimeError,Falha durante a publicação dos arquivos no destino: {param}. Rollback executado com sucesso.,,PENDENTE
+io_export.py,149,RuntimeError,Falha ao avaliar modificadores de '{param}': {param},,PENDENTE
+io_export.py,195,RuntimeError,Falha ao avaliar modificadores do objeto '{param}': {param},,PENDENTE
+io_export.py,409,RuntimeError,Falha ao avaliar modificadores de '{param}': {param},,PENDENTE
+io_export.py,420,ValueError,"Material superficial detectado na peça '{param}' ({param}). Para imprimir separadamente, utilize o modo de corte 'Material' com profundidade, gerando um sólido real.",,PENDENTE
+io_export.py,443,RuntimeError,Exportador STL nativo falhou para '{param}',,PENDENTE
+io_export.py,452,RuntimeError,Exportador STL clássico falhou para '{param}',,PENDENTE
+io_export.py,455,RuntimeError,Exportação falhou: arquivo vazio ou ausente para '{param}' ({param}),,PENDENTE
+operators.py,455,enum.description,PREVIEW_INVALID,,PENDENTE
+operators.py,455,enum.label,PREVIEW_STALE,,PENDENTE
+operators.py,521,create_primitive_cutter_mesh.name,{param}_Mesh,,PENDENTE
+operators.py,533,create_primitive_cutter_mesh.name,{param}_Mesh,,PENDENTE
+operators.py,622,bl_label,Usar objeto selecionado como alvo,,PENDENTE
+operators.py,684,bl_label,Limpar alvo,,PENDENTE
+operators.py,722,bl_label,Criar cópia de trabalho com transformações aplicadas,,PENDENTE
+operators.py,780,bl_label,Posicionar / Focar Guia de Corte,,PENDENTE
+operators.py,800,bl_label,Alinhar Plano de Corte,,PENDENTE
+operators.py,803,EnumProperty.name,Modo de Alinhamento,,PENDENTE
+operators.py,806,enum.description,Alinha o plano com a orientação da câmera/viewport,,PENDENTE
+operators.py,806,enum.label,Vista,,PENDENTE
+operators.py,807,enum.description,Move a origem do plano para o Cursor 3D,,PENDENTE
+operators.py,807,enum.label,Cursor 3D,,PENDENTE
+operators.py,808,enum.description,Alinha o plano à face selecionada,,PENDENTE
+operators.py,808,enum.label,Face Selecionada,,PENDENTE
+operators.py,809,enum.description,Corte perpendicular ao eixo X (Normal +X),,PENDENTE
+operators.py,809,enum.label,Eixo X,,PENDENTE
+operators.py,810,enum.description,Corte perpendicular ao eixo Y (Normal +Y),,PENDENTE
+operators.py,810,enum.label,Eixo Y,,PENDENTE
+operators.py,811,enum.description,Corte perpendicular ao eixo Z (Normal +Z),,PENDENTE
+operators.py,811,enum.label,Eixo Z,,PENDENTE
+operators.py,909,bl_label,Criar / Focar Cortador Sólido,,PENDENTE
+operators.py,933,report,Cortador sólido '{param}' criado/focado. Use G/R/S para posicionar.,,PENDENTE
+operators.py,940,bl_label,Usar Ativo como Cortador,,PENDENTE
+operators.py,961,report,Aviso de cortador: {param},,PENDENTE
+operators.py,963,report,Objeto '{param}' definido como cortador sólido.,,PENDENTE
+operators.py,973,bl_label,Gerar Preview do Corte,,PENDENTE
+operators.py,988,report,Objeto alvo inválido ou não encontrado.,,PENDENTE
+operators.py,1076,RuntimeError,Nenhum cortador sólido selecionado. Crie uma primitiva ou escolha um objeto existente.,,PENDENTE
+operators.py,1095,RuntimeError,Nenhum loop capturado.,,PENDENTE
+operators.py,1097,RuntimeError,Nenhuma região definida.,,PENDENTE
+operators.py,1102,RuntimeError,A malha mudou. Capture o contorno novamente.,,PENDENTE
+operators.py,1108,RuntimeError,A malha mudou. Capture o contorno novamente.,,PENDENTE
+operators.py,1110,RuntimeError,A face semente não é mais válida para a topologia atual.,,PENDENTE
+operators.py,1166,RuntimeError,O objeto alvo não possui nenhum material atribuído.,,PENDENTE
+operators.py,1247,RuntimeError,Validação da geometria cortada falhou: {param},,PENDENTE
+operators.py,1258,report,Encaixes automáticos não são suportados no modo Cortador Sólido / Material.,,PENDENTE
+operators.py,1296,report,Comprimento lateral ({param} mm) ajustado para limite seguro: {param} mm.,,PENDENTE
+operators.py,1331,RuntimeError,Resultado inválido após encaixes ({param}).,,PENDENTE
+operators.py,1513,bl_label,Inverter Lados A / B,,PENDENTE
+operators.py,1534,bl_label,Inverter Macho / Fêmea,,PENDENTE
+operators.py,1561,bl_label,Aplicar Preset de Folga,,PENDENTE
+operators.py,1569,EnumProperty.name,Preset,,PENDENTE
+operators.py,1572,enum.description,"0,10 mm",,PENDENTE
+operators.py,1572,enum.label,Justo,,PENDENTE
+operators.py,1573,enum.description,"0,15 mm",,PENDENTE
+operators.py,1573,enum.label,Normal,,PENDENTE
+operators.py,1574,enum.description,"0,20 mm",,PENDENTE
+operators.py,1574,enum.label,Fácil,,PENDENTE
+operators.py,1575,enum.description,"0,25 mm",,PENDENTE
+operators.py,1575,enum.label,Solto,,PENDENTE
+operators.py,1598,bl_label,Confirmar Divisão (Criar Partes Finais),,PENDENTE
+operators.py,1739,bl_label,Remover Prévia,,PENDENTE
+operators.py,1740,bl_description,Descarta esta prévia e retorna ao objeto alvo. Alterações feitas na prévia serão descartadas.,,PENDENTE
+operators.py,1750,enum.description,PREVIEW_INVALID,,PENDENTE
+operators.py,1750,enum.label,PREVIEW_STALE,,PENDENTE
+operators.py,1765,bl_label,Reverter este corte,,PENDENTE
+operators.py,1766,bl_description,Remove os resultados deste corte e restaura seu estado anterior. Alterações nas peças geradas serão descartadas.,,PENDENTE
+operators.py,1769,StringProperty.name,ID da Operação,,PENDENTE
+operators.py,1804,label.text,Confirmar Reversão do Corte?,,PENDENTE
+operators.py,1806,label.text,Alvo a restaurar: {param},,PENDENTE
+operators.py,1807,label.text,Objetos de corte a excluir: ~{param} peça(s),,PENDENTE
+operators.py,1809,label.text,As peças geradas neste corte serão descartadas.,,PENDENTE
+operators.py,1810,label.text,O modelo alvo voltará ao estado pré-corte.,,PENDENTE
+operators.py,1812,label.text,Confirm Reversion of Cut?,,PENDENTE
+operators.py,1814,label.text,Target to restore: {param},,PENDENTE
+operators.py,1815,label.text,Cut objects to remove: ~{param} part(s),,PENDENTE
+operators.py,1817,label.text,Generated cut parts will be deleted.,,PENDENTE
+operators.py,1818,label.text,The target model will return to its pre-cut state.,,PENDENTE
+operators.py,1833,bl_label,Restaurar Original,,PENDENTE
+operators.py,1877,bl_label,Refazer / Ajustar Sessão,,PENDENTE
+operators.py,1905,bl_label,Capturar Loop Fechado,,PENDENTE
+operators.py,1956,bl_label,Capturar Contorno das Faces,,PENDENTE
+operators.py,2027,bl_label,Definir Região a Separar,,PENDENTE
+operators.py,2061,bl_label,Separar Peças por Cores / Materiais,,PENDENTE
+operators.py,2074,report,Nenhuma peça da sessão ativa encontrada para separação.,,PENDENTE
+operators.py,2129,bl_label,Exportar Peças para Impressão 3D,,PENDENTE
+operators.py,2166,report,Um ou mais objetos da sessão foram removidos ou corrompidos.,,PENDENTE
+operators.py,2180,report,Falha ao avaliar modificadores de '{param}': {param}. Cancelando exportação para evitar divergência.,,PENDENTE
+operators.py,2191,report,Geometria inválida ({param}). Exporte falhou.,,PENDENTE
+operators.py,2211,enum.description,.,,PENDENTE
+operators.py,2211,enum.label,-,,PENDENTE
+operators.py,2283,RuntimeError,Falha ao exportar STL '{param}': {param},,PENDENTE
+operators.py,2292,RuntimeError,Falha ao exportar STL '{param}',,PENDENTE
+operators.py,2295,RuntimeError,Arquivo exportado vazio ou ausente para '{param}' ({param}),,PENDENTE
+operators.py,2331,RuntimeError,Falha ao exportar OBJ '{param}': {param},,PENDENTE
+operators.py,2345,report,Formato de exportação desconhecido: {param},,PENDENTE
+operators.py,2380,bl_label,Ajuda,,PENDENTE
+operators.py,2383,StringProperty.name,Tópico,,PENDENTE
+operators.py,2415,bl_label,Selecionar Material,,PENDENTE
+operators.py,2418,IntProperty.name,Índice,,PENDENTE
+operators.py,2419,IntProperty.name,Região,,PENDENTE
+operators.py,2433,bl_label,Usar Face Selecionada,,PENDENTE
+properties.py,98,StringProperty.name,ID da Operação,,PENDENTE
+properties.py,99,EnumProperty.name,Status da Operação,,PENDENTE
+properties.py,102,enum.description,Prévia gerada e ativa,,PENDENTE
+properties.py,102,enum.label,Prévia,,PENDENTE
+properties.py,103,enum.description,Corte confirmado em peças finais,,PENDENTE
+properties.py,103,enum.label,Confirmado,,PENDENTE
+properties.py,104,enum.description,Operação revertida,,PENDENTE
+properties.py,104,enum.label,Revertido,,PENDENTE
+properties.py,105,enum.description,Registro incompleto ou danificado,,PENDENTE
+properties.py,105,enum.label,Incompleto/Quebrado,,PENDENTE
+properties.py,124,StringProperty.description,Identificador único da sessão de corte,,PENDENTE
+properties.py,124,StringProperty.name,ID da Sessão,,PENDENTE
+properties.py,129,StringProperty.description,UUID da operação atualmente em foco na sessão,,PENDENTE
+properties.py,129,StringProperty.name,ID da Operação Ativa,,PENDENTE
+properties.py,135,StringProperty.description,Assinatura criptográfica dos parâmetros de entrada da prévia gerada,,PENDENTE
+properties.py,135,StringProperty.name,Assinatura de Entrada da Prévia,,PENDENTE
+properties.py,141,PointerProperty.description,Objeto malha original que será dividido em partes,,PENDENTE
+properties.py,141,PointerProperty.name,Objeto Alvo,,PENDENTE
+properties.py,149,EnumProperty.description,Método de divisão do modelo,,PENDENTE
+properties.py,149,EnumProperty.name,Modo de Divisão,,PENDENTE
+properties.py,157,EnumProperty.name,Status da Sessão,,PENDENTE
+properties.py,160,enum.description,Nenhum alvo selecionado,,PENDENTE
+properties.py,160,enum.label,Vazio,,PENDENTE
+properties.py,161,enum.description,Alvo selecionado e analisado,,PENDENTE
+properties.py,161,enum.label,Alvo Configurado,,PENDENTE
+properties.py,162,enum.description,Preview gerado com sucesso,,PENDENTE
+properties.py,162,enum.label,Preview Válido,,PENDENTE
+properties.py,163,enum.description,Os ajustes mudaram. Atualize a prévia antes de criar as peças,,PENDENTE
+properties.py,163,enum.label,Preview Desatualizado,,PENDENTE
+properties.py,164,enum.description,Falha na geração do preview,,PENDENTE
+properties.py,164,enum.label,Preview Inválido,,PENDENTE
+properties.py,165,enum.description,Partes finais geradas,,PENDENTE
+properties.py,165,enum.label,Confirmado,,PENDENTE
+properties.py,171,FloatVectorProperty.name,Dimensões (mm),,PENDENTE
+properties.py,178,IntProperty.name,Triângulos,,PENDENTE
+properties.py,183,IntProperty.name,Faces,,PENDENTE
+properties.py,188,FloatProperty.name,Volume (mm³),,PENDENTE
+properties.py,194,BoolProperty.name,É Manifold,,PENDENTE
+properties.py,199,IntProperty.name,Arestas Abertas,,PENDENTE
+properties.py,204,BoolProperty.name,Escala Não Aplicada,,PENDENTE
+properties.py,209,BoolProperty.name,Escala Não Uniforme,,PENDENTE
+properties.py,214,IntProperty.name,Faces Degeneradas,,PENDENTE
+properties.py,220,FloatVectorProperty.description,Ponto 3D por onde passa o plano de corte,,PENDENTE
+properties.py,220,FloatVectorProperty.name,Origem do Plano,,PENDENTE
+properties.py,228,FloatVectorProperty.description,Vetor normal de orientação do corte,,PENDENTE
+properties.py,228,FloatVectorProperty.name,Normal do Plano,,PENDENTE
+properties.py,236,BoolProperty.description,Inverte os papéis de Parte A e Parte B,,PENDENTE
+properties.py,236,BoolProperty.name,Inverter Lados A/B,,PENDENTE
+properties.py,242,BoolProperty.description,Exibe preenchimento translúcido indicando a orientação do corte planar infinito (F02),,PENDENTE
+properties.py,242,BoolProperty.name,Mostrar Plano,,PENDENTE
+properties.py,247,BoolProperty.description,Exibe a linha exata de interseção entre o plano de corte e o modelo alvo (F02),,PENDENTE
+properties.py,247,BoolProperty.name,Mostrar Linha de Corte,,PENDENTE
+properties.py,252,FloatProperty.description,Opacidade do preenchimento da prévia do plano no viewport,,PENDENTE
+properties.py,252,FloatProperty.name,Opacidade do Plano (%),,PENDENTE
+properties.py,260,FloatProperty.description,Deslocamento explícito e medido do plano ao longo de sua normal,,PENDENTE
+properties.py,260,FloatProperty.name,Deslocamento do Plano (mm),,PENDENTE
+properties.py,269,BoolProperty.description,Exibe uma linha destacada sobreposta ao contorno capturado na viewport 3D,,PENDENTE
+properties.py,269,BoolProperty.name,Destacar Contorno no Viewport,,PENDENTE
+properties.py,274,BoolProperty.name,Loop Capturado,,PENDENTE
+properties.py,278,IntProperty.name,Vértices no Loop,,PENDENTE
+properties.py,282,StringProperty.name,Índices dos Vértices do Loop,,PENDENTE
+properties.py,286,BoolProperty.name,Loop é Plano,,PENDENTE
+properties.py,290,FloatProperty.name,Desvio de Planicidade (mm),,PENDENTE
+properties.py,294,IntProperty.name,Índice da Face Semente (Região A),,PENDENTE
+properties.py,298,StringProperty.name,Assinatura Topológica,,PENDENTE
+properties.py,302,FloatVectorProperty.description,Vetor normal de mundo apontando da Parte A para a Parte B,,PENDENTE
+properties.py,302,FloatVectorProperty.name,Normal da Interface do Loop,,PENDENTE
+properties.py,309,FloatVectorProperty.description,Centro da interface do loop em coordenadas de mundo,,PENDENTE
+properties.py,309,FloatVectorProperty.name,Origem da Interface do Loop,,PENDENTE
+properties.py,316,EnumProperty.description,"Comportamento do corte por contorno: automático, destacar parte ou extrair com profundidade",,PENDENTE
+properties.py,316,EnumProperty.name,Comportamento do Loop,,PENDENTE
+properties.py,319,enum.description,Detecta automaticamente entre destacar saliência ou extrair com profundidade,,PENDENTE
+properties.py,319,enum.label,Automático,,PENDENTE
+properties.py,320,enum.description,Destaca a região fechada pelo loop criando uma tampa na base,,PENDENTE
+properties.py,320,enum.label,Destacar Parte,,PENDENTE
+properties.py,321,enum.description,Projeta o contorno para dentro do sólido até a profundidade especificada,,PENDENTE
+properties.py,321,enum.label,Extrair com Profundidade,,PENDENTE
+properties.py,327,FloatProperty.description,Profundidade física da extração para dentro do sólido,,PENDENTE
+properties.py,327,FloatProperty.name,Profundidade de Extração (mm),,PENDENTE
+properties.py,335,BoolProperty.description,Permite que a profundidade de extração atravesse completamente o modelo,,PENDENTE
+properties.py,335,BoolProperty.name,Corte Passante,,PENDENTE
+properties.py,341,EnumProperty.name,Modo Detectado,,PENDENTE
+properties.py,344,enum.description,Saliência 3D detectada,,PENDENTE
+properties.py,344,enum.label,Destacar,,PENDENTE
+properties.py,345,enum.description,Região plana detectada,,PENDENTE
+properties.py,345,enum.label,Extrair,,PENDENTE
+properties.py,346,enum.description,Escolha manual necessária,,PENDENTE
+properties.py,346,enum.label,Ambíguo,,PENDENTE
+properties.py,350,StringProperty.name,Motivo da Decisão,,PENDENTE
+properties.py,358,IntProperty.description,Índice do slot de material que será isolado como Parte A,,PENDENTE
+properties.py,358,IntProperty.name,Material da Parte A,,PENDENTE
+properties.py,365,IntProperty.description,"Qual área separada (ilha) do material será extraída, quando a mesma cor aparece em vários lugares",,PENDENTE
+properties.py,365,IntProperty.name,Região do Material,,PENDENTE
+properties.py,372,FloatProperty.description,Profundidade física da peça caso a região do material seja superficial,,PENDENTE
+properties.py,372,FloatProperty.name,Profundidade da Peça (mm),,PENDENTE
+properties.py,380,StringProperty.name,Diagnóstico do Material,,PENDENTE
+properties.py,384,EnumProperty.description,Comportamento da extração da região por material (C02),,PENDENTE
+properties.py,384,EnumProperty.name,Modo de Extração,,PENDENTE
+properties.py,387,enum.description,Extrai a região superficial projetando um prisma com a profundidade indicada,,PENDENTE
+properties.py,387,enum.label,Extrair com Profundidade,,PENDENTE
+properties.py,388,enum.description,Localiza a base planar da saliência e separa o volume inteiro acima dela,,PENDENTE
+properties.py,388,enum.label,Destacar Saliência pela Base,,PENDENTE
+properties.py,394,EnumProperty.description,Material atribuído às novas faces criadas na interface de corte (C03),,PENDENTE
+properties.py,394,EnumProperty.name,Material da Interface,,PENDENTE
+properties.py,397,enum.description,Mantém o material herdado do corpo original na tampa,,PENDENTE
+properties.py,397,enum.label,Manter Origem,,PENDENTE
+properties.py,398,enum.description,Aplica o material da peça extraída na tampa da interface,,PENDENTE
+properties.py,398,enum.label,Material da Peça Extraída,,PENDENTE
+properties.py,406,EnumProperty.description,Modo de visualização das partes de preview,,PENDENTE
+properties.py,406,EnumProperty.name,Visualização,,PENDENTE
+properties.py,409,enum.description,Peças unidas na posição original,,PENDENTE
+properties.py,409,enum.label,Montado,,PENDENTE
+properties.py,410,enum.description,Peças afastadas para inspeção do corte,,PENDENTE
+properties.py,410,enum.label,Explodido,,PENDENTE
+properties.py,417,FloatProperty.description,Distância de afastamento entre as partes na vista explodida,,PENDENTE
+properties.py,417,FloatProperty.name,Distância de Explosão (mm),,PENDENTE
+properties.py,427,BoolProperty.description,Inverte o sentido visual do afastamento entre as partes na vista explodida,,PENDENTE
+properties.py,427,BoolProperty.name,Inverter Sentido da Explosão,,PENDENTE
+properties.py,434,FloatVectorProperty.description,Vetor normal efetivo apontando de A para B gravado no snapshot da prévia,,PENDENTE
+properties.py,434,FloatVectorProperty.name,Normal da Explosão da Prévia,,PENDENTE
+properties.py,442,EnumProperty.description,Origem geométrica do cortador sólido,,PENDENTE
+properties.py,442,EnumProperty.name,Origem do Cortador,,PENDENTE
+properties.py,449,EnumProperty.description,Formato geométrico da primitiva de corte,,PENDENTE
+properties.py,449,EnumProperty.name,Primitiva,,PENDENTE
+properties.py,456,PointerProperty.description,Objeto fechado e manifold que atua como cortador sólido,,PENDENTE
+properties.py,456,PointerProperty.name,Objeto Cortador,,PENDENTE
+properties.py,464,BoolProperty.name,Cortador Manifold,,PENDENTE
+properties.py,469,IntProperty.name,Arestas Abertas Cortador,,PENDENTE
+properties.py,474,IntProperty.name,Triângulos Cortador,,PENDENTE
+properties.py,479,FloatProperty.name,Volume Cortador (mm³),,PENDENTE
+properties.py,485,FloatVectorProperty.name,Dimensões Cortador (mm),,PENDENTE
+properties.py,494,FloatProperty.name,Volume Parte A (mm³),,PENDENTE
+properties.py,500,FloatVectorProperty.name,Dimensões Parte A (mm),,PENDENTE
+properties.py,507,IntProperty.name,Triângulos Parte A,,PENDENTE
+properties.py,512,BoolProperty.name,Parte A Manifold,,PENDENTE
+properties.py,517,IntProperty.name,Arestas Abertas A,,PENDENTE
+properties.py,522,IntProperty.name,Componentes Parte A,,PENDENTE
+properties.py,527,FloatProperty.name,Volume Parte B (mm³),,PENDENTE
+properties.py,533,FloatVectorProperty.name,Dimensões Parte B (mm),,PENDENTE
+properties.py,540,IntProperty.name,Triângulos Parte B,,PENDENTE
+properties.py,545,BoolProperty.name,Parte B Manifold,,PENDENTE
+properties.py,550,IntProperty.name,Arestas Abertas B,,PENDENTE
+properties.py,555,IntProperty.name,Componentes Parte B,,PENDENTE
+properties.py,560,FloatProperty.name,Soma dos Volumes (mm³),,PENDENTE
+properties.py,566,FloatProperty.name,Diferença de Volume (%),,PENDENTE
+properties.py,573,BoolProperty.description,Gera pinos macho e cavidades fêmea na interface do corte,,PENDENTE
+properties.py,573,BoolProperty.name,Ativar Encaixes,,PENDENTE
+properties.py,580,EnumProperty.description,Formato geométrico do encaixe,,PENDENTE
+properties.py,580,EnumProperty.name,Tipo de Encaixe,,PENDENTE
+properties.py,583,enum.description,Pino cilíndrico com chanfro de entrada,,PENDENTE
+properties.py,583,enum.label,Pino Cilíndrico,,PENDENTE
+properties.py,584,enum.description,Pino oblongo/cápsula que impede rotação,,PENDENTE
+properties.py,584,enum.label,Chave Cápsula,,PENDENTE
+properties.py,591,EnumProperty.description,Define qual parte recebe o pino saliente,,PENDENTE
+properties.py,591,EnumProperty.name,Parte com Macho,,PENDENTE
+properties.py,594,enum.description,O pino macho fica na Parte A e a cavidade na Parte B,,PENDENTE
+properties.py,594,enum.label,Parte A,,PENDENTE
+properties.py,595,enum.description,O pino macho fica na Parte B e a cavidade na Parte A,,PENDENTE
+properties.py,595,enum.label,Parte B,,PENDENTE
+properties.py,602,BoolProperty.description,Indica se a Parte A está geometricamente no topo em relação ao eixo Z de corte,,PENDENTE
+properties.py,602,BoolProperty.name,Parte A é Superior,,PENDENTE
+properties.py,608,FloatProperty.description,Diâmetro ou largura nominal do pino,,PENDENTE
+properties.py,608,FloatProperty.name,Diâmetro Nominal (mm),,PENDENTE
+properties.py,618,FloatProperty.description,Comprimento/largura lateral total do encaixe cápsula no plano de corte (mínimo = diâmetro),,PENDENTE
+properties.py,618,FloatProperty.name,Comprimento Lateral (mm),,PENDENTE
+properties.py,628,BoolProperty.description,Reposiciona encaixes que cairiam no vazio ou furos para a maior região sólida contínua (D2),,PENDENTE
+properties.py,628,BoolProperty.name,Ajustar à Área Válida,,PENDENTE
+properties.py,635,FloatProperty.description,Limite máximo de comprimento lateral calculado para evitar colisão entre encaixes ou com a borda,,PENDENTE
+properties.py,635,FloatProperty.name,Limite Máx Seguro (mm),,PENDENTE
+properties.py,642,FloatProperty.description,Profundidade útil nominal do encaixe,,PENDENTE
+properties.py,642,FloatProperty.name,Comprimento de Inserção (mm),,PENDENTE
+properties.py,652,FloatProperty.description,Chanfro na ponta do pino para facilitar a inserção,,PENDENTE
+properties.py,652,FloatProperty.name,Chanfro de Entrada (mm),,PENDENTE
+properties.py,662,EnumProperty.description,"Predefinições recomendadas para FDM (bico 0,4 mm e PLA)",,PENDENTE
+properties.py,662,EnumProperty.name,Preset de Folga,,PENDENTE
+properties.py,665,enum.description,Impressora muito bem calibrada,,PENDENTE
+properties.py,665,enum.label,"Justo (0,10 mm)",,PENDENTE
+properties.py,666,enum.description,Primeiro teste recomendado para PLA,,PENDENTE
+properties.py,666,enum.label,"Normal (0,15 mm)",,PENDENTE
+properties.py,667,enum.description,Montagem manual suave sem força,,PENDENTE
+properties.py,667,enum.label,"Fácil (0,20 mm)",,PENDENTE
+properties.py,668,enum.description,Peças volumosas ou folga maior,,PENDENTE
+properties.py,668,enum.label,"Solto (0,25 mm)",,PENDENTE
+properties.py,669,enum.description,Valor livre de folga por lado,,PENDENTE
+properties.py,669,enum.label,Personalizado,,PENDENTE
+properties.py,676,FloatProperty.description,Folga radial por lado na cavidade fêmea (folga total no diâmetro = 2x este valor),,PENDENTE
+properties.py,676,FloatProperty.name,Folga por Lado (mm),,PENDENTE
+properties.py,686,FloatProperty.description,Espaço extra no fundo da cavidade fêmea para evitar colisão,,PENDENTE
+properties.py,686,FloatProperty.name,Folga de Fundo (mm),,PENDENTE
+properties.py,696,EnumProperty.description,Padrão de distribuição dos encaixes no plano,,PENDENTE
+properties.py,696,EnumProperty.name,Distribuição,,PENDENTE
+properties.py,699,enum.description,Um conector no centro geométrico do corte,,PENDENTE
+properties.py,699,enum.label,1 Pino (Centro),,PENDENTE
+properties.py,700,enum.description,Dois conectores alinhados no maior vão,,PENDENTE
+properties.py,700,enum.label,2 Pinos (Linha),,PENDENTE
+properties.py,701,enum.description,Três conectores distribuídos em linha,,PENDENTE
+properties.py,701,enum.label,3 Pinos (Linha),,PENDENTE
+properties.py,702,enum.description,Quatro conectores distribuídos em grade 2x2,,PENDENTE
+properties.py,702,enum.label,4 Pinos (Grade),,PENDENTE
+properties.py,709,FloatProperty.description,Distância mínima de segurança até a casca externa do modelo,,PENDENTE
+properties.py,709,FloatProperty.name,Margem da Borda (mm),,PENDENTE
+properties.py,720,FloatProperty.description,Folga física calibrada nas interfaces de contato entre as peças (E01),,PENDENTE
+properties.py,720,FloatProperty.name,Folga entre Peças (mm),,PENDENTE
+properties.py,729,EnumProperty.description,Onde aplicar o alívio de folga entre as peças (E01),,PENDENTE
+properties.py,729,EnumProperty.name,Aplicar Folga em,,PENDENTE
+properties.py,732,enum.description,Aplica a folga reduzindo as paredes da peça extraída,,PENDENTE
+properties.py,732,enum.label,Peça Extraída,,PENDENTE
+properties.py,733,enum.description,Aplica a folga expandindo a cavidade receptora no corpo principal,,PENDENTE
+properties.py,733,enum.label,Cavidade,,PENDENTE
+properties.py,734,enum.description,Aplica metade da folga em cada lado da interface,,PENDENTE
+properties.py,734,enum.label,Ambos (Bilateral),,PENDENTE
+properties.py,743,StringProperty.name,Mensagem de Status,,PENDENTE
+properties.py,748,EnumProperty.name,Nível de Status,,PENDENTE
+properties.py,751,enum.label,Info,,PENDENTE
+properties.py,752,enum.label,Sucesso,,PENDENTE
+properties.py,753,enum.label,Aviso,,PENDENTE
+properties.py,754,enum.label,Erro,,PENDENTE
+properties.py,760,EnumProperty.description,Alterna entre as cores reais dos materiais do modelo e as cores de contraste das partes,,PENDENTE
+properties.py,760,EnumProperty.name,Modo de Cor do Preview,,PENDENTE
+properties.py,763,enum.description,Mantém a visualização dos materiais e texturas reais do modelo,,PENDENTE
+properties.py,763,enum.label,Cores Originais (Materiais),,PENDENTE
+properties.py,764,enum.description,Destaca Parte A e Parte B com azul e laranja para conferir a divisão,,PENDENTE
+properties.py,764,enum.label,Cores A / B (Contraste),,PENDENTE
+properties.py,770,StringProperty.description,Diretório onde os arquivos de impressão 3D serão salvos,,PENDENTE
+properties.py,770,StringProperty.name,Pasta de Exportação,,PENDENTE
+properties.py,777,EnumProperty.description,Formato de exportação para fatiamento e impressão 3D,,PENDENTE
+properties.py,777,EnumProperty.name,Formato,,PENDENTE
+properties.py,780,enum.description,Formato nativo para Bambu Studio / OrcaSlicer com cores preservadas,,PENDENTE
+properties.py,780,enum.label,3MF Multimaterial (.3mf),,PENDENTE
+properties.py,781,enum.description,Arquivos STL separados por cor para importação multipartes,,PENDENTE
+properties.py,781,enum.label,STL por Material / Cor (.stl),,PENDENTE
+properties.py,782,enum.description,Arquivos STL separados para cada parte,,PENDENTE
+properties.py,782,enum.label,STL por Parte (.stl),,PENDENTE
+properties.py,783,enum.description,Geometria e materiais em formato OBJ,,PENDENTE
+properties.py,783,enum.label,Wavefront OBJ (.obj + .mtl),,PENDENTE
+properties.py,789,EnumProperty.description,Orientação espacial dos modelos no arquivo de exportação,,PENDENTE
+properties.py,789,EnumProperty.name,Disposição,,PENDENTE
+properties.py,792,enum.description,Exporta no espaço global de montagem original,,PENDENTE
+properties.py,792,enum.label,Posição Montada,,PENDENTE
+properties.py,793,enum.description,Exporta as peças assentadas lado a lado,,PENDENTE
+properties.py,793,enum.label,Mesa de Impressão,,PENDENTE
+ui.py,31,label.text,1. Objeto Alvo,,PENDENTE
+ui.py,35,operator.text,Usar selecionado como alvo,,PENDENTE
+ui.py,39,label.text,Alvo: {param},,PENDENTE
+ui.py,45,label.text,Dimensões: {param} x {param} x {param} mm,,PENDENTE
+ui.py,49,label.text,Malha: {param} triângulos ({param} faces),,PENDENTE
+ui.py,53,label.text,Volume: {param} mm³,,PENDENTE
+ui.py,62,label.text,Aviso: Escala não aplicada!,,PENDENTE
+ui.py,63,label.text,Cortes e folgas podem ser distorcidos.,,PENDENTE
+ui.py,64,operator.text,Criar cópia com escala aplicada,,PENDENTE
+ui.py,73,label.text,Aviso: {param} aresta(s) abertas/não-manifold.,,PENDENTE
+ui.py,79,label.text,{param} face(s) degeneradas detectadas.,,PENDENTE
+ui.py,84,label.text,Nenhum alvo selecionado. Selecione um objeto malha.,,PENDENTE
+ui.py,90,label.text,2. Método de Corte,,PENDENTE
+ui.py,96,label.text,Defina um objeto alvo primeiro.,,PENDENTE
+ui.py,101,label.text,Posicionamento do Plano,,PENDENTE
+ui.py,105,operator.text,Focar Guia 3D,,PENDENTE
+ui.py,107,label.text,Alinhamentos Rápidos:,,PENDENTE
+ui.py,109,operator.text,Vista,,PENDENTE
+ui.py,111,operator.text,Cursor,,PENDENTE
+ui.py,113,operator.text,Face,,PENDENTE
+ui.py,117,operator.text,Eixo X,,PENDENTE
+ui.py,119,operator.text,Eixo Y,,PENDENTE
+ui.py,121,operator.text,Eixo Z,,PENDENTE
+ui.py,127,prop.text,Mostrar Plano,,PENDENTE
+ui.py,128,prop.text,Linha de Corte,,PENDENTE
+ui.py,130,prop.text,Opacidade (%),,PENDENTE
+ui.py,131,prop.text,Deslocamento (mm),,PENDENTE
+ui.py,136,label.text,Corte por Contorno (Loop),,PENDENTE
+ui.py,141,operator.text,Capturar Contorno,,PENDENTE
+ui.py,142,operator.text,Capturar das Faces,,PENDENTE
+ui.py,145,label.text,Vértices no contorno: {param},,PENDENTE
+ui.py,147,label.text,Status: Planar ({param}mm desvio),,PENDENTE
+ui.py,149,label.text,Aviso: Não-planar ({param}mm desvio),,PENDENTE
+ui.py,151,prop.text,Destacar Contorno no Viewport,,PENDENTE
+ui.py,160,operator.text,Escolher Região,,PENDENTE
+ui.py,165,label.text,Dica: Selecione apenas 1 face dentro da região desejada.,,PENDENTE
+ui.py,168,label.text,Região de Referência: Face #{param},,PENDENTE
+ui.py,172,prop.text,Comportamento,,PENDENTE
+ui.py,177,label.text,Decisão: {param},,PENDENTE
+ui.py,188,label.text,Extração com Profundidade,,PENDENTE
+ui.py,190,prop.text,Profundidade (mm),,PENDENTE
+ui.py,191,prop.text,Corte Passante,,PENDENTE
+ui.py,195,label.text,Configuração do Cortador Sólido,,PENDENTE
+ui.py,202,prop.text,Formato,,PENDENTE
+ui.py,205,operator.text,Criar / Focar Cortador,,PENDENTE
+ui.py,208,prop.text,Cortador,,PENDENTE
+ui.py,210,operator.text,Usar Selecionado como Cortador,,PENDENTE
+ui.py,216,label.text,Cortador: '{param}',,PENDENTE
+ui.py,218,label.text,Status: Fechado / 100% Manifold ({param} tris),,PENDENTE
+ui.py,219,label.text,Volume: {param} mm³,,PENDENTE
+ui.py,223,label.text,Erro: {param} aresta(s) abertas!,,PENDENTE
+ui.py,224,label.text,Cortador precisa ser um sólido 3D estanque.,,PENDENTE
+ui.py,229,label.text,Divisão por Material (Fase 4),,PENDENTE
+ui.py,234,label.text,O modelo não possui materiais atribuídos.,,PENDENTE
+ui.py,235,label.text,Adicione slots de materiais na aba Material.,,PENDENTE
+ui.py,238,label.text,Escolha a cor/área a extrair (Parte A):,,PENDENTE
+ui.py,244,operator.text,{param}: {param},,PENDENTE
+ui.py,250,operator.text,Usar Face Selecionada (Edit Mode),,PENDENTE
+ui.py,259,label.text,Esta cor aparece em {param} áreas separadas:,,PENDENTE
+ui.py,263,operator.text,Área {param} ({param} faces),,PENDENTE
+ui.py,276,label.text,Tipo: Componente 3D Fechado (Sólido),,PENDENTE
+ui.py,277,label.text,Faces: {param} | Malha estanque para fatiador.,,PENDENTE
+ui.py,279,label.text,Tipo: Região Superficial (Com Profundidade),,PENDENTE
+ui.py,280,label.text,Faces: {param} | Fronteira contínua.,,PENDENTE
+ui.py,282,label.text,Opções de Extração (C02/C03):,,PENDENTE
+ui.py,283,prop.text,Modo,,PENDENTE
+ui.py,285,prop.text,Profundidade (mm),,PENDENTE
+ui.py,286,prop.text,Interface,,PENDENTE
+ui.py,289,label.text,Aviso: {param},,PENDENTE
+ui.py,296,label.text,3. Encaixes & Folgas,,PENDENTE
+ui.py,301,label.text,Folga da Interface entre Peças:,,PENDENTE
+ui.py,303,prop.text,Folga (mm),,PENDENTE
+ui.py,305,prop.text,Aplicar em,,PENDENTE
+ui.py,309,prop.text,Folga (mm),,PENDENTE
+ui.py,310,label.text,Folga de interface disponível apenas nos modos Plano e Material.,,PENDENTE
+ui.py,316,label.text,Encaixes de pinos automáticos disponíveis apenas para Plano e Loop.,,PENDENTE
+ui.py,319,prop.text,Ativar Encaixes,,PENDENTE
+ui.py,324,label.text,Formato do Encaixe:,,PENDENTE
+ui.py,329,label.text,Posição dos Pinos (Macho):,,PENDENTE
+ui.py,340,operator.text,Inverter: Pinos na {param},,PENDENTE
+ui.py,348,label.text,Dimensões Nominais:,,PENDENTE
+ui.py,350,prop.text,Espessura / Diâmetro (mm),,PENDENTE
+ui.py,351,prop.text,Comprimento Lateral (mm),,PENDENTE
+ui.py,353,label.text,Limite Seguro Máx: {param} mm (anti-colisão),,PENDENTE
+ui.py,359,prop.text,Profundidade de Inserção (mm),,PENDENTE
+ui.py,365,label.text,Folgas Físicas de Montagem (FDM):,,PENDENTE
+ui.py,370,label.text,Presets:,,PENDENTE
+ui.py,376,label.text,Folga total no diâmetro: {param} mm,,PENDENTE
+ui.py,381,label.text,Distribuição no Corte:,,PENDENTE
+ui.py,390,label.text,4. Prévia do Corte,,PENDENTE
+ui.py,396,label.text,Os ajustes mudaram. Atualize a prévia antes de criar as peças.,,PENDENTE
+ui.py,403,operator.text,Gerar / Atualizar Preview,,PENDENTE
+ui.py,404,operator.text,Remover Prévia,,PENDENTE
+ui.py,415,enum.description,COMMITTED,,PENDENTE
+ui.py,415,enum.label,PREVIEW_STALE,,PENDENTE
+ui.py,418,label.text,Visualização & Cores:,,PENDENTE
+ui.py,431,label.text,Resultados do Corte,,PENDENTE
+ui.py,437,label.text,Parte A{param},,PENDENTE
+ui.py,438,label.text,Volume: {param} mm³,,PENDENTE
+ui.py,440,label.text,Dimensões: {param} x {param} x {param} mm,,PENDENTE
+ui.py,441,label.text,Malha: {param} tris | {param} ilha(s),,PENDENTE
+ui.py,443,label.text,Aviso: {param} aresta(s) abertas,,PENDENTE
+ui.py,446,label.text,Parte B{param},,PENDENTE
+ui.py,447,label.text,Volume: {param} mm³,,PENDENTE
+ui.py,449,label.text,Dimensões: {param} x {param} x {param} mm,,PENDENTE
+ui.py,450,label.text,Malha: {param} tris | {param} ilha(s),,PENDENTE
+ui.py,452,label.text,Aviso: {param} aresta(s) abertas,,PENDENTE
+ui.py,458,label.text,Soma Volumes: {param} mm³ (dif: {param}%),,PENDENTE
+ui.py,465,operator.text,Separar por Cores / Materiais,,PENDENTE
+ui.py,471,label.text,5. Criar Peças,,PENDENTE
+ui.py,476,operator.text,Confirmar Divisão,,PENDENTE
+ui.py,479,operator.text,Remover Prévia,,PENDENTE
+ui.py,483,label.text,Atualize a prévia antes de confirmar as peças.,,PENDENTE
+ui.py,485,operator.text,Remover Prévia,,PENDENTE
+ui.py,488,label.text,Peças finais geradas na coleção CHEST_SPLITTER_PARTS.,,PENDENTE
+ui.py,491,operator.text,Reverter este corte,,PENDENTE
+ui.py,492,operator.text,Refazer / Novo Corte,,PENDENTE
+ui.py,502,label.text,6. Exportação para Fatiador (Bambu / Orca / Prusa),,PENDENTE
+ui.py,510,operator.text,Exportar Peças Selecionadas,,PENDENTE

@@ -1,0 +1,492 @@
+0001: """Módulo de exportação do Chest Part Splitter (Fase 5 e Suporte a Multicolor).
+0002: 
+0003: Permite exportar partes divididas para impressão 3D em múltiplos formatos:
+0004: - 3MF Multimaterial (.3mf) com grupos de cores e metadados preservados.
+0005: - STLs separados por material/cor (.stl) para carregamento como objeto multipartes no Bambu Studio / PrusaSlicer.
+0006: - STLs por parte (.stl).
+0007: - Wavefront OBJ (.obj + .mtl).
+0008: """
+0009: 
+0010: import os
+0011: import io
+0012: import zipfile
+0013: import math
+0014: import html
+0015: import tempfile
+0016: import shutil
+0017: from typing import List, Dict, Any, Tuple, Set
+0018: import bpy
+0019: import bmesh
+0020: from mathutils import Vector, Matrix
+0021: 
+0022: 
+0023: def sanitize_unique_filename(name: str, used_names: Set[str], ext: str = ".stl") -> str:
+0024:     """Sanitiza um nome de arquivo e garante unicidade evitando colisões ou sobrescrita silenciosa."""
+0025:     clean = "".join(c for c in name if c.isalnum() or c in ('_', '-'))
+0026:     clean = clean.strip("._-")
+0027:     if not clean:
+0028:         clean = "Part"
+0029:     
+0030:     candidate = clean
+0031:     counter = 1
+0032:     while candidate.lower() in used_names:
+0033:         counter += 1
+0034:         candidate = f"{clean}_{counter}"
+0035:     used_names.add(candidate.lower())
+0036:     return f"{candidate}{ext}"
+0037: 
+0038: 
+0039: 
+0040: 
+0041: def get_material_rgba(mat: bpy.types.Material) -> Tuple[float, float, float, float]:
+0042:     """Extrai cor RGBA de um material do Blender (diffuse_color ou Principled BSDF)."""
+0043:     if not mat:
+0044:         return (0.8, 0.8, 0.8, 1.0)
+0045:     
+0046:     # 1. Tenta obter do nó Principled BSDF
+0047:     if mat.use_nodes and mat.node_tree:
+0048:         for node in mat.node_tree.nodes:
+0049:             if node.type == 'BSDF_PRINCIPLED':
+0050:                 base_col_sock = node.inputs.get("Base Color")
+0051:                 if base_col_sock and hasattr(base_col_sock, "default_value"):
+0052:                     col = base_col_sock.default_value
+0053:                     return (col[0], col[1], col[2], col[3] if len(col) > 3 else 1.0)
+0054: 
+0055:     # 2. Fallback para diffuse_color
+0056:     d = mat.diffuse_color
+0057:     return (d[0], d[1], d[2], d[3] if len(d) > 3 else 1.0)
+0058: 
+0059: 
+0060: def rgba_to_hex(rgba: Tuple[float, float, float, float]) -> str:
+0061:     """Converte RGBA float (0..1) para string hexadecimal '#RRGGBBAA'."""
+0062:     r = min(255, max(0, int(rgba[0] * 255)))
+0063:     g = min(255, max(0, int(rgba[1] * 255)))
+0064:     b = min(255, max(0, int(rgba[2] * 255)))
+0065:     a = min(255, max(0, int(rgba[3] * 255)))
+0066:     return f"#{r:02X}{g:02X}{b:02X}{a:02X}"
+0067: 
+0068: 
+0069: def publish_staged_files_atomic(staged_files: List[Tuple[str, str]], target_dir: str) -> List[str]:
+0070:     """Publica arquivos estagiados para o diretório de destino de forma atômica com rollback.
+0071:     
+0072:     Se ocorrer qualquer falha durante a publicação de qualquer arquivo:
+0073:     - Todos os arquivos recém-criados no destino durante esta operação são removidos.
+0074:     - Todos os arquivos preexistentes que foram substituídos são restaurados de seus backups.
+0075:     - Nenhuma saída parcial ou corrompida permanece.
+0076:     """
+0077:     os.makedirs(target_dir, exist_ok=True)
+0078:     backup_dir = tempfile.mkdtemp(prefix="chest_publish_backup_")
+0079:     copied_new: List[str] = []
+0080:     replaced_backups: List[Tuple[str, str]] = []  # (target_path, backup_path)
+0081:     published_files: List[str] = []
+0082: 
+0083:     try:
+0084:         for stage_path, filename in staged_files:
+0085:             target_path = os.path.join(target_dir, filename)
+0086:             if os.path.exists(target_path):
+0087:                 backup_path = os.path.join(backup_dir, f"bak_{len(replaced_backups)}_{filename}")
+0088:                 shutil.copy2(target_path, backup_path)
+0089:                 replaced_backups.append((target_path, backup_path))
+0090:             else:
+0091:                 copied_new.append(target_path)
+0092:             
+0093:             shutil.copy2(stage_path, target_path)
+0094:             published_files.append(target_path)
+0095:             
+0096:     except Exception as e:
+0097:         for p in copied_new:
+0098:             if os.path.exists(p):
+0099:                 try:
+0100:                     os.remove(p)
+0101:                 except OSError:
+0102:                     pass
+0103:         for target_path, backup_path in replaced_backups:
+0104:             if os.path.exists(backup_path):
+0105:                 try:
+0106:                     shutil.copy2(backup_path, target_path)
+0107:                 except OSError:
+0108:                     pass
+0109:         raise RuntimeError(f"Falha durante a publicação dos arquivos no destino: {e}. Rollback executado com sucesso.") from e
+0110:     finally:
+0111:         if os.path.exists(backup_dir):
+0112:             try:
+0113:                 shutil.rmtree(backup_dir)
+0114:             except OSError:
+0115:                 pass
+0116: 
+0117:     return published_files
+0118: 
+0119: 
+0120: def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -> str:
+0121:     """Gera o documento XML '3D/3dmodel.model' conforme especificação 3MF Core + Material Extension."""
+0122:     xml_lines = []
+0123:     xml_lines.append('<?xml version="1.0" encoding="UTF-8"?>')
+0124:     xml_lines.append('<model unit="millimeter" xml:lang="en-US"')
+0125:     xml_lines.append(' xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"')
+0126:     xml_lines.append(' xmlns:m="http://schemas.microsoft.com/3dmanufacturing/material/2015/02">')
+0127:     xml_lines.append(' <metadata name="Application">Chest Part Splitter - Blender Extension</metadata>')
+0128:     xml_lines.append(' <resources>')
+0129: 
+0130:     # 1. Coleta e consolida paleta de materiais/cores globais (C27/V29: incluindo malha avaliada)
+0131:     color_map: Dict[str, Tuple[int, int]] = {} # mat_key -> (colorgroup_id, color_index)
+0132:     colorgroup_id = 1
+0133:     unique_materials = []
+0134:     
+0135:     for obj in objects:
+0136:         if obj.type != 'MESH' or not obj.data:
+0137:             continue
+0138:         mats = []
+0139:         eval_obj = None
+0140:         eval_mesh = None
+0141:         if len(obj.modifiers) > 0 and bpy.context:
+0142:             try:
+0143:                 depsgraph = bpy.context.evaluated_depsgraph_get()
+0144:                 eval_obj = obj.evaluated_get(depsgraph)
+0145:                 eval_mesh = eval_obj.to_mesh()
+0146:                 if eval_mesh and eval_mesh.materials:
+0147:                     mats = list(eval_mesh.materials)
+0148:             except Exception as e:
+0149:                 raise RuntimeError(f"Falha ao avaliar modificadores de '{obj.name}': {e}")
+0150:             finally:
+0151:                 if eval_obj and eval_mesh:
+0152:                     eval_obj.to_mesh_clear()
+0153:         if not mats:
+0154:             mats = list(obj.data.materials)
+0155: 
+0156:         for mat in mats:
+0157:             if mat and mat.name not in color_map:
+0158:                 col_rgba = get_material_rgba(mat)
+0159:                 hex_col = rgba_to_hex(col_rgba)
+0160:                 idx = len(unique_materials)
+0161:                 color_map[mat.name] = (colorgroup_id, idx)
+0162:                 unique_materials.append(hex_col)
+0163: 
+0164:     if not unique_materials:
+0165:         unique_materials.append("#CCCCCCFF")
+0166: 
+0167:     xml_lines.append(f'  <m:colorgroup id="{colorgroup_id}">')
+0168:     for c_hex in unique_materials:
+0169:         xml_lines.append(f'   <m:color color="{c_hex}"/>')
+0170:     xml_lines.append('  </m:colorgroup>')
+0171: 
+0172:     # 2. Gera os objetos de malha no XML
+0173:     next_obj_id = colorgroup_id + 1
+0174:     build_items = []
+0175: 
+0176:     for obj in objects:
+0177:         if obj.type != 'MESH' or not obj.data:
+0178:             continue
+0179: 
+0180:         obj_id = next_obj_id
+0181:         next_obj_id += 1
+0182:         build_items.append(obj_id)
+0183: 
+0184:         bm = bmesh.new()
+0185:         eval_obj = None
+0186:         eval_mesh = None
+0187:         if len(obj.modifiers) > 0 and bpy.context:
+0188:             try:
+0189:                 depsgraph = bpy.context.evaluated_depsgraph_get()
+0190:                 eval_obj = obj.evaluated_get(depsgraph)
+0191:                 eval_mesh = eval_obj.to_mesh()
+0192:                 bm.from_mesh(eval_mesh)
+0193:             except Exception as e:
+0194:                 bm.free()
+0195:                 raise RuntimeError(f"Falha ao avaliar modificadores do objeto '{obj.name}': {e}")
+0196:         else:
+0197:             bm.from_mesh(obj.data)
+0198: 
+0199:         bm.transform(obj.matrix_world)
+0200:         bmesh.ops.triangulate(bm, faces=bm.faces[:])
+0201:         bm.verts.ensure_lookup_table()
+0202:         bm.faces.ensure_lookup_table()
+0203: 
+0204:         escaped_name = html.escape(obj.name, quote=True)
+0205:         xml_lines.append(f'  <object id="{obj_id}" type="model" name="{escaped_name}">')
+0206:         xml_lines.append('   <mesh>')
+0207:         xml_lines.append('    <vertices>')
+0208:         for v in bm.verts:
+0209:             # Coordenadas em milímetros
+0210:             x = v.co.x * unit_scale
+0211:             y = v.co.y * unit_scale
+0212:             z = v.co.z * unit_scale
+0213:             xml_lines.append(f'     <vertex x="{x:.5f}" y="{y:.5f}" z="{z:.5f}"/>')
+0214:         xml_lines.append('    </vertices>')
+0215: 
+0216:         xml_lines.append('    <triangles>')
+0217:         mat_slots = eval_mesh.materials if (eval_mesh and len(eval_mesh.materials) > 0) else obj.data.materials
+0218:         for f in bm.faces:
+0219:             v0 = f.verts[0].index
+0220:             v1 = f.verts[1].index
+0221:             v2 = f.verts[2].index
+0222:             
+0223:             c_idx = 0
+0224:             if f.material_index < len(mat_slots):
+0225:                 m_slot = mat_slots[f.material_index]
+0226:                 if m_slot and m_slot.name in color_map:
+0227:                     c_idx = color_map[m_slot.name][1]
+0228: 
+0229:             xml_lines.append(
+0230:                 f'     <triangle v1="{v0}" v2="{v1}" v3="{v2}" pid="{colorgroup_id}" p1="{c_idx}"/>'
+0231:             )
+0232:         xml_lines.append('    </triangles>')
+0233:         xml_lines.append('   </mesh>')
+0234:         xml_lines.append('  </object>')
+0235: 
+0236:         bm.free()
+0237:         if eval_obj and eval_mesh:
+0238:             eval_obj.to_mesh_clear()
+0239: 
+0240:     xml_lines.append(' </resources>')
+0241:     xml_lines.append(' <build>')
+0242:     for bid in build_items:
+0243:         xml_lines.append(f'  <item objectid="{bid}"/>')
+0244:     xml_lines.append(' </build>')
+0245:     xml_lines.append('</model>')
+0246: 
+0247:     return '\n'.join(xml_lines)
+0248: 
+0249: 
+0250: def export_objects_to_3mf(objects: List[bpy.types.Object], filepath: str, unit_scale: float = 1000.0) -> None:
+0251:     """Exporta os objetos fornecidos em um arquivo 3MF compatível com Bambu Studio, OrcaSlicer e PrusaSlicer."""
+0252:     content_types_xml = (
+0253:         '<?xml version="1.0" encoding="UTF-8"?>\n'
+0254:         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\n'
+0255:         ' <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>\n'
+0256:         ' <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>\n'
+0257:         '</Types>'
+0258:     )
+0259:     rels_xml = (
+0260:         '<?xml version="1.0" encoding="UTF-8"?>\n'
+0261:         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\n'
+0262:         ' <Relationship Target="/3D/3dmodel.model" Id="rel-1" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>\n'
+0263:         '</Relationships>'
+0264:     )
+0265:     model_xml = build_3mf_xml(objects, unit_scale=unit_scale)
+0266: 
+0267:     dir_name = os.path.dirname(os.path.abspath(filepath))
+0268:     os.makedirs(dir_name, exist_ok=True)
+0269:     base_name = os.path.basename(filepath)
+0270:     temp_fd, temp_path = tempfile.mkstemp(prefix=f"{base_name}_", suffix=".tmp", dir=dir_name)
+0271:     os.close(temp_fd)
+0272:     try:
+0273:         with zipfile.ZipFile(temp_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+0274:             zf.writestr('[Content_Types].xml', content_types_xml)
+0275:             zf.writestr('_rels/.rels', rels_xml)
+0276:             zf.writestr('3D/3dmodel.model', model_xml.encode('utf-8'))
+0277: 
+0278:         # Substituição atômica sem apagar prematuramente o arquivo anterior em falhas
+0279:         os.replace(temp_path, filepath)
+0280:     except Exception:
+0281:         if os.path.exists(temp_path):
+0282:             try:
+0283:                 os.remove(temp_path)
+0284:             except OSError:
+0285:                 pass
+0286:         raise
+0287: 
+0288: 
+0289: 
+0290: def separate_object_by_material(source_obj: bpy.types.Object, target_collection: bpy.types.Collection) -> List[bpy.types.Object]:
+0291:     """Divide um objeto malha em múltiplos sub-objetos individuais, um para cada material/cor.
+0292:     
+0293:     Cada sub-objeto retém suas faces correspondentes, seu material exclusivo e a mesma
+0294:     origem de coordenadas de mundo, permitindo importação e alinhamento direto no fatiador.
+0295:     """
+0296:     if source_obj.type != 'MESH' or not source_obj.data:
+0297:         return []
+0298: 
+0299:     materials = source_obj.data.materials
+0300:     if len(materials) <= 1:
+0301:         return [source_obj]
+0302: 
+0303:     created_objs = []
+0304:     base_name = source_obj.name
+0305: 
+0306:     for mat_idx, mat in enumerate(materials):
+0307:         mat_name = mat.name if mat else f"Mat_{mat_idx}"
+0308:         
+0309:         bm = bmesh.new()
+0310:         bm.from_mesh(source_obj.data)
+0311:         bm.faces.ensure_lookup_table()
+0312:         
+0313:         faces_to_delete = [f for f in bm.faces if f.material_index != mat_idx]
+0314:         if len(faces_to_delete) == len(bm.faces):
+0315:             bm.free()
+0316:             continue
+0317: 
+0318:         bmesh.ops.delete(bm, geom=faces_to_delete, context='FACES')
+0319: 
+0320:         sub_mesh = bpy.data.meshes.new(f"{base_name}__{mat_name}")
+0321:         if mat:
+0322:             sub_mesh.materials.append(mat)
+0323:         
+0324:         for f in bm.faces:
+0325:             f.material_index = 0
+0326:             
+0327:         bm.to_mesh(sub_mesh)
+0328:         sub_mesh.update()
+0329:         bm.free()
+0330: 
+0331:         sub_obj = bpy.data.objects.new(f"{base_name}__{mat_name}", sub_mesh)
+0332:         sub_obj.matrix_world = source_obj.matrix_world.copy()
+0333:         if mat:
+0334:             sub_obj.color = mat.diffuse_color
+0335: 
+0336:         # Validação estrita de contrato de sólidos para impressão 3D (Seção 9)
+0337:         bm_check = bmesh.new()
+0338:         bm_check.from_mesh(sub_mesh)
+0339:         is_manifold = all(e.is_manifold for e in bm_check.edges)
+0340:         open_edges = len([e for e in bm_check.edges if not e.is_manifold])
+0341:         bm_check.free()
+0342: 
+0343:         sub_obj["is_manifold"] = is_manifold
+0344:         sub_obj["open_edges"] = open_edges
+0345:         sub_obj["is_solid_for_printing"] = is_manifold
+0346:         sub_obj["chest_session_id"] = source_obj.get("chest_session_id", source_obj.get("chest_splitter_session_id", ""))
+0347:         sub_obj["chest_role"] = "SUBPART_MATERIAL"
+0348:         if "chest_splitter_part" in source_obj:
+0349:             sub_obj["chest_splitter_part"] = source_obj["chest_splitter_part"]
+0350: 
+0351:         target_collection.objects.link(sub_obj)
+0352:         created_objs.append(sub_obj)
+0353: 
+0354:     return created_objs
+0355: 
+0356: 
+0357: def export_objects_to_stl_by_material(
+0358:     objects: List[bpy.types.Object],
+0359:     output_dir: str,
+0360:     unit_scale: float = 1000.0,
+0361: ) -> List[str]:
+0362:     """Exporta os objetos divididos em arquivos STL separados por material/cor.
+0363:     
+0364:     Arquivos gerados compartilham o mesmo sistema de coordenadas globais em milímetros.
+0365:     Ao importar todos de uma vez no Bambu Studio ou PrusaSlicer, o fatiador os carrega
+0366:     como um único objeto multipartes, permitindo atribuir filamentos/cores a cada um.
+0367:     Utiliza transação atômica em diretório temporário para evitar saídas parciais ou corrompidas.
+0368:     """
+0369:     os.makedirs(output_dir, exist_ok=True)
+0370:     exported_files = []
+0371: 
+0372:     # Preserva seleção e objeto ativo
+0373:     prev_selected = list(bpy.context.selected_objects) if bpy.context else []
+0374:     prev_active = bpy.context.view_layer.objects.active if bpy.context and bpy.context.view_layer else None
+0375: 
+0376:     # Cria coleção temporária isolada
+0377:     temp_col = bpy.data.collections.new("TEMP_CHEST_EXPORT")
+0378:     bpy.context.scene.collection.children.link(temp_col)
+0379: 
+0380:     temp_stage_dir = tempfile.mkdtemp(prefix="chest_export_stl_")
+0381:     staged_files = []
+0382: 
+0383:     try:
+0384:         all_sub_parts = []
+0385:         for obj in objects:
+0386:             if obj.type != 'MESH' or not obj.data:
+0387:                 continue
+0388: 
+0389:             mats = obj.data.materials
+0390:             if len(mats) > 1:
+0391:                 sub_parts = separate_object_by_material(obj, temp_col)
+0392:                 all_sub_parts.extend([(obj, p) for p in sub_parts])
+0393:             else:
+0394:                 all_sub_parts.append((obj, obj))
+0395: 
+0396:         # Valida todas as subpeças ANTES de qualquer gravação (P07 e T23)
+0397:         for parent_obj, part in all_sub_parts:
+0398:             bm_part = bmesh.new()
+0399:             eval_obj = None
+0400:             eval_mesh = None
+0401:             if len(part.modifiers) > 0 and bpy.context:
+0402:                 try:
+0403:                     depsgraph = bpy.context.evaluated_depsgraph_get()
+0404:                     eval_obj = part.evaluated_get(depsgraph)
+0405:                     eval_mesh = eval_obj.to_mesh()
+0406:                     bm_part.from_mesh(eval_mesh)
+0407:                 except Exception as e:
+0408:                     bm_part.free()
+0409:                     raise RuntimeError(f"Falha ao avaliar modificadores de '{part.name}': {e}")
+0410:             else:
+0411:                 bm_part.from_mesh(part.data)
+0412:             
+0413:             from .operators import validate_printable_mesh
+0414:             is_valid, msg, _ = validate_printable_mesh(bm_part, part_name=part.name, unit_scale=unit_scale, check_manifold=True)
+0415:             bm_part.free()
+0416:             if eval_obj and eval_mesh:
+0417:                 eval_obj.to_mesh_clear()
+0418:             
+0419:             if not is_valid:
+0420:                 raise ValueError(f"Material superficial detectado na peça '{parent_obj.name}' ({msg}). "
+0421:                                  f"Para imprimir separadamente, utilize o modo de corte 'Material' "
+0422:                                  f"com profundidade, gerando um sólido real.")
+0423: 
+0424:         used_names: Set[str] = set()
+0425:         # Gravação no diretório de staging temporário
+0426:         for parent_obj, part in all_sub_parts:
+0427:             filename = sanitize_unique_filename(part.name, used_names, ext=".stl")
+0428:             stage_path = os.path.join(temp_stage_dir, filename)
+0429:             
+0430:             bpy.ops.object.select_all(action='DESELECT')
+0431:             part.select_set(True)
+0432:             bpy.context.view_layer.objects.active = part
+0433: 
+0434:             if hasattr(bpy.ops.wm, "stl_export"):
+0435:                 res = bpy.ops.wm.stl_export(
+0436:                     filepath=stage_path,
+0437:                     export_selected_objects=True,
+0438:                     global_scale=unit_scale,
+0439:                     use_scene_unit=False,
+0440:                     apply_modifiers=True,
+0441:                 )
+0442:                 if 'FINISHED' not in res:
+0443:                     raise RuntimeError(f"Exportador STL nativo falhou para '{part.name}'")
+0444:             else:
+0445:                 res = bpy.ops.export_mesh.stl(
+0446:                     filepath=stage_path,
+0447:                     use_selection=True,
+0448:                     global_scale=unit_scale,
+0449:                     use_scene_unit=False,
+0450:                 )
+0451:                 if 'FINISHED' not in res:
+0452:                     raise RuntimeError(f"Exportador STL clássico falhou para '{part.name}'")
+0453: 
+0454:             if not os.path.exists(stage_path) or os.path.getsize(stage_path) == 0:
+0455:                 raise RuntimeError(f"Exportação falhou: arquivo vazio ou ausente para '{part.name}' ({filename})")
+0456: 
+0457:             staged_files.append((stage_path, filename))
+0458: 
+0459:         # Sucesso completo de todos os arquivos: publicação atômica para o diretório de destino
+0460:         exported_files = publish_staged_files_atomic(staged_files, output_dir)
+0461: 
+0462:     finally:
+0463:         # Limpa staging temporário
+0464:         if os.path.exists(temp_stage_dir):
+0465:             try:
+0466:                 shutil.rmtree(temp_stage_dir)
+0467:             except OSError:
+0468:                 pass
+0469: 
+0470:         # Limpa objetos temporários da coleção
+0471:         for o in list(temp_col.objects):
+0472:             m = o.data
+0473:             temp_col.objects.unlink(o)
+0474:             bpy.data.objects.remove(o, do_unlink=True)
+0475:             if m and m.users == 0:
+0476:                 bpy.data.meshes.remove(m, do_unlink=True)
+0477:         if temp_col.name in bpy.context.scene.collection.children:
+0478:             bpy.context.scene.collection.children.unlink(temp_col)
+0479:         bpy.data.collections.remove(temp_col)
+0480: 
+0481:         # Restaura contexto anterior de seleção e ativo
+0482:         if bpy.context:
+0483:             for o in bpy.context.selected_objects:
+0484:                 o.select_set(False)
+0485:             for o in prev_selected:
+0486:                 if o.name in bpy.data.objects:
+0487:                     o.select_set(True)
+0488:             if prev_active and prev_active.name in bpy.data.objects:
+0489:                 bpy.context.view_layer.objects.active = prev_active
+0490: 
+0491:     return exported_files
+0492: 

@@ -1,0 +1,75 @@
+0001: """Constantes e definições padrão para o Chest Part Splitter."""
+0002: 
+0003: # Identificação e versão do Addon
+0004: ADDON_VERSION = (0, 8, 8)
+0005: ADDON_VERSION_STR = "0.8.8"
+0006: PANEL_TITLE = f"Part Splitter {ADDON_VERSION_STR}"
+0007: 
+0008: # Coleções de organização no Blender
+0009: COLLECTION_GUIDES_NAME = "CHEST_SPLITTER_GUIDES"
+0010: COLLECTION_PREVIEWS_NAME = "CHEST_SPLITTER_PREVIEWS"
+0011: COLLECTION_WORK_NAME = "CHEST_SPLITTER_WORK"
+0012: COLLECTION_PARTS_NAME = "CHEST_SPLITTER_PARTS"
+0013: COLLECTION_BACKUPS_NAME = "CHEST_SPLITTER_BACKUPS"
+0014: 
+0015: # Prefixos de nomes para partes e objetos auxiliares
+0016: PART_A_SUFFIX = "__A"
+0017: PART_B_SUFFIX = "__B"
+0018: WORK_COPY_SUFFIX = "_work_copy"
+0019: PLANE_GUIDE_NAME = "CHEST_SPLITTER_PLANE_GUIDE"
+0020: PREVIEW_A_NAME = "CHEST_SPLITTER_PREVIEW_A"
+0021: PREVIEW_B_NAME = "CHEST_SPLITTER_PREVIEW_B"
+0022: 
+0023: # Papéis de objetos (Object roles para ciclo de vida seguro)
+0024: ROLE_WORK_COPY = "WORK_COPY"
+0025: ROLE_PREVIEW_A = "PREVIEW_A"
+0026: ROLE_PREVIEW_B = "PREVIEW_B"
+0027: ROLE_PREVIEW_PART = "PREVIEW_PART"
+0028: ROLE_COMMITTED_PART = "COMMITTED_PART"
+0029: ROLE_SUBPART_MATERIAL = "SUBPART_MATERIAL"
+0030: ROLE_RESTORE_BACKUP = "RESTORE_BACKUP"
+0031: 
+0032: 
+0033: # Cores da Viewport (RGBA) para visualização clara de peças A e B
+0034: COLOR_PART_A = (0.2, 0.6, 0.9, 1.0)    # Azul ciano
+0035: COLOR_PART_B = (0.95, 0.55, 0.15, 1.0) # Laranja âmbar
+0036: 
+0037: # Tolerâncias geométricas
+0038: MIN_FACE_AREA_BU = 1e-7
+0039: SCALE_TOLERANCE = 1e-4
+0040: VOLUME_REL_TOLERANCE = 0.005  # 0.5% de tolerância relativa de volume
+0041: 
+0042: # Distância padrão de explosão (em mm)
+0043: DEFAULT_EXPLOSION_DIST_MM = 30.0
+0044: 
+0045: # Presets de folga de montagem por lado (Fase 2)
+0046: CLEARANCE_PRESETS = {
+0047:     'TIGHT': 0.10,    # Justo
+0048:     'NORMAL': 0.15,   # Normal
+0049:     'EASY': 0.20,     # Fácil
+0050:     'LOOSE': 0.25,    # Solto
+0051: }
+0052: 
+0053: # Constantes de Cortador Sólido (Fase 3)
+0054: SOLID_CUTTER_NAME = "CHEST_SPLITTER_SOLID_CUTTER"
+0055: 
+0056: SPLIT_MODES = [
+0057:     ('PLANE', "Plano", "Divisão rápida por plano infinito orientável"),
+0058:     ('SOLID', "Cortador Sólido", "Divisão volumétrica por sólido fechado (Interseção / Diferença)"),
+0059:     ('LOOP', "Loop de Arestas", "Divisão direta por anel de arestas fechado (Modo D)"),
+0060:     ('MATERIAL', "Material", "Divisão assistida por fronteiras de materiais (Fase 4)"),
+0061: ]
+0062: 
+0063: SOLID_SOURCE_TYPES = [
+0064:     ('PRIMITIVE', "Primitiva Paramétrica", "Gera uma primitiva volumétrica fechada na coleção de guias"),
+0065:     ('EXISTING', "Objeto Existente", "Utiliza um objeto fechado selecionado na cena"),
+0066: ]
+0067: 
+0068: SOLID_PRIMITIVE_TYPES = [
+0069:     ('BOX', "Caixa / Cubo", "Primitiva em bloco cúbico ou prismático"),
+0070:     ('CYLINDER', "Cilindro", "Primitiva cilíndrica com tampas fechadas"),
+0071:     ('SPHERE', "Esfera", "Primitiva esférica UV"),
+0072:     ('CAPSULE', "Cápsula", "Primitiva tipo cápsula / estádio tridimensional"),
+0073: ]
+0074: 
+0075: 

@@ -125,7 +125,41 @@ def record_unlinked_parent(op_record: Any, obj: bpy.types.Object):
     item = op_record.unlinked_parents.add()
     item.obj = obj
     item.name = obj.name
-    item.role = "UNLINKED_PARENT"
+def resolve_receiver_object(target_or_scene_or_op: Any) -> Optional[bpy.types.Object]:
+    """Identifica o corpo receptor (peça remanescente) de uma operação confirmada ou da cena."""
+    if not target_or_scene_or_op:
+        return None
+    op_record = target_or_scene_or_op
+    if hasattr(target_or_scene_or_op, "chest_operations"):
+        # É uma Scene
+        if len(target_or_scene_or_op.chest_operations) > 0:
+            op_record = target_or_scene_or_op.chest_operations[-1]
+        else:
+            # Fallback buscando na coleção de partes por objeto B
+            parts_col = target_or_scene_or_op.collection.children.get(COLLECTION_PARTS_NAME)
+            if parts_col:
+                for obj in parts_col.objects:
+                    if obj.name.endswith("__B") or obj.get("chest_role") in ("ROLE_PREVIEW_B", "PART_B") or obj.get("chest_semantic_role") == "RECEIVER":
+                        return obj
+            return None
+    if hasattr(op_record, "created_objects"):
+        for item in op_record.created_objects:
+            obj = item.obj
+            if obj and obj.name in bpy.data.objects:
+                if obj.get("chest_semantic_role") == "RECEIVER":
+                    return obj
+        for item in op_record.created_objects:
+            obj = item.obj
+            if obj and obj.name in bpy.data.objects:
+                if obj.get("chest_splitter_part") == "B" or obj.name.endswith("__B"):
+                    return obj
+        for item in op_record.created_objects:
+            obj = item.obj
+            if obj and obj.name in bpy.data.objects:
+                if obj.get("chest_splitter_part") != "A" and not obj.name.endswith("__A"):
+                    return obj
+    return None
+
 
 
 # -----------------------------------------------------------------------------

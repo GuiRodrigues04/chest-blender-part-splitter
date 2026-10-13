@@ -5,7 +5,65 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.8.10] - 2026-10-13
+
+### Corrigido e Aprimorado (Plano de Correções 0.8.10: DEV-01 a DEV-10)
+- **DEV-01 & DEV-06 — Triangulação Construtiva de Delaunay (CDT) e Extrusão em Regiões Planas**:
+  - Implementado motor de triangulação 2D baseado em `mathutils.geometry.delaunay_2d_cdt` com restrição estrita ao domínio interior do contorno (`CDT_INSIDE`).
+  - Eliminação definitiva de triângulos degenerados com área zero em contornos côncavos, entalhes ou vértices colineares.
+  - Resolução das falhas de arestas nulas e arestas abertas não-manifold no fatiamento por loop extrude.
+- **DEV-02 & DEV-04 — Cortador de Caixa de Quina (`create_corner_box_cutter`)**:
+  - Exigência estrita de exatamente 3 faces ortogonais ($|\text{dot}| \le 0.15$) compartilhando um único vértice de quina real.
+  - Orientação correta dos eixos de penetração $e_i = -N_i$ e garantia de referencial dextrógiro por permutação de eixos sem inversão do sentido de penetração.
+  - Adição de 1,0 mm de extensão exterior nas faces externas para eliminar coplanaridade degenerada no solver EXACT do Blender (resolvendo o erro de 3 arestas nulas da quina E01 em `Teste_3.blend`).
+- **DEV-03 — Correção de Assinaturas e Ownership em `create_cutter_from_selection`**:
+  - Ajustada a chamada a `create_material_patch_prism_cutter` e `create_loop_prism_cutter` respeitando o retorno direto de `Object` já vinculado à coleção de guias.
+  - Suporte completo ao parâmetro `invert_direction` e ativação imediata do modo `SOLID` com o cortador selecionado.
+- **DEV-05 — Alinhamento Robusto de Cortadores Sólidos (`align_solid_cutter`)**:
+  - Substituição da dependência de centro de bounding box mundial pela fórmula formal $t = ref\_pos - R @ (S @ a_{local})$, calculando o ponto de apoio $a_{local}$ na malha local sem escala.
+  - Suporte completo aos modos de ancoragem `SUPPORT_FACE` e `CENTER` e preservação do ângulo de rolamento (roll) ao alinhar em faces ativas.
+- **DEV-07 — Destaque de Saliência com Base e Cavidade Receptora (DETACH com Base)**:
+  - Adicionadas propriedades `loop_detach_add_base`, `loop_detach_base_depth_mm` e `loop_detach_base_clearance_mm`.
+  - Geração de base prismática contínua na saliência destacada e escavação de cavidade complementar no corpo receptor, preservando a superfície exterior nominal do modelo e conservando o volume exato.
+  - Verificação rigorosa da espessura disponível de parede antes da criação da cavidade, impedindo perfuração inadvertida.
+- **DEV-08 — Confirmação e Seleção Semântica Exclusiva (`commit_parts`)**:
+  - Ao confirmar o corte, o add-on desmarca todos os objetos e seleciona exclusivamente a peça extraída (garantindo Object Mode e foco imediato para mover com `G`).
+  - Detecção automática de Edição Proporcional (`use_proportional_edit_objects`) na cena, emitindo alerta claro ao usuário para desativar a tecla 'O' quando necessário, impedindo que o receptor seja arrastado inadvertidamente.
+- **DEV-09 — Visualização em Overlay GPU Ciano para Cortador Sólido**:
+  - Integração de desenho GPU no SpaceView3D desenhando as arestas reais do cortador ativo em ciano contrastante (`(0.0, 0.9, 1.0)`), mantendo visibilidade mesmo quando o Blender desenha a seleção laranja de contorno.
+  - Exibição de vetor indicador de direção de penetração e profundidade.
+- **DEV-10 — Unificação e Localização Completa da Interface (PT_BR / EN_US)**:
+  - Tradução e padronização completa de todos os textos, labels, tooltips e mensagens de erro e diagnóstico da extensão.
+  - Remoção de literais em inglês residuais no painel principal.
+
 ## [0.8.9] - 2026-10-12
+
+### Adicionado (Plano Revisado 0.8.9: INV-008 a INV-014, SOL-01 a SOL-06, LANG-01)
+- **INV-008 — Folga Lateral Calibrada no Corte por Material (`part_clearance_lateral_mm`)**:
+  - Aplicação de alívio dimensional lateral por miter offset 2D nas paredes da cavidade (`CAVITY`), no inserto (`PART`) ou bilateralmente (`BOTH`), permitindo montagem precisa de peças plásticas pós-impressão.
+- **INV-009 & SOL-06 — Cortador de Caixa de Quina (`create_corner_box_cutter`)**:
+  - Criação rápida de caixa ortogonal ancorada em cantos/arestas do modelo alvo para chanfros e remoções regulares em milímetros físicos.
+- **INV-010 — Diagnóstico Avançado de Malha no BMesh (`validate_bmesh_mesh_geometry`)**:
+  - Detecção prévia de arestas de comprimento nulo, faces colineares ou com área zero e vértices coincidentes antes da resolução booleana, evitando falhas silenciosas do solver EXACT.
+- **INV-011 — Fluxo de Continuação no Receptor (`continue_on_receiver`)**:
+  - Operador `CHEST_OT_splitter_continue_on_receiver` que define automaticamente o corpo receptor (`Cube__B`) como novo alvo, vinculando `parent_operation_id` para permitir cortes sucessivos e recursivos sem perder rastreabilidade do ciclo de vida.
+- **INV-012 — Isolamento Estrito de Materiais no Encaixe**:
+  - No fatiamento por material (`slice_mesh_by_material`), as faces internas da cavidade recebem o material original do corpo principal e o inserto mantém seu material exclusivo, impedindo que faces externas do receptor sejam repintadas inadvertidamente.
+- **INV-013 — Distribuição Automática de Encaixes e Busca Colinear Adaptativa**:
+  - Adicionado modo `AUTO_SHAPE` para seleção automática do perfil de conector (Cilindro vs Cápsula) com base na razão de aspecto da interface.
+  - Algoritmo adaptativo para `LINEAR_2` ao longo do eixo maior com redução automática de espaçamento quando a interface for estreita.
+  - Exposição do controle `adjust_to_valid_area` no painel da interface N para acomodação em polígonos côncavos.
+- **INV-014 — Limpeza e Validação de Captura de Loop**:
+  - Operadores e funções de validação (`validate_capture`, `clear_capture`) garantindo reset do anel de arestas capturado, sincronização com o GPU overlay e integridade antes do fatiamento.
+- **SOL-01 a SOL-05 — Suíte Completa de Cortador Sólido**:
+  - **SOL-01**: Desacoplamento entre criar cortador, focar (`focus_solid_cutter`) e reiniciar geometria para primitiva padrão (`reset_solid_cutter`).
+  - **SOL-02**: Alinhamento determinístico nos eixos principais e centro da face ativa (`align_solid_cutter`).
+  - **SOL-03**: Propriedades dimensionais em milímetros físicos locais (`solid_cutter_width_mm`, `height`, `depth`), escalando a malha no espaço local sem alteração na rotação nem deriva de orientação.
+  - **SOL-04**: Operadores para duplicar cortador (`duplicate_solid_cutter`) e transformar qualquer malha da cena em cortador sólido (`copy_selected_as_cutter`).
+  - **SOL-05**: Criação de cortador prismático a partir de seleção de faces da malha (`create_cutter_from_selection`).
+- **LANG-01 — Preferências de Idioma e Catálogo Unificado de Tradução**:
+  - Adicionado seletor de idioma nas Preferências do Add-on (`AUTO`, `PT_BR`, `EN_US`).
+  - Catálogo bilíngue completo via `MESSAGES` em `src/translations.py`, com funções auxiliares `tr()`, `set_localized_status()` e `get_localized_status()`.
 
 ### Corrigido (Resolução INV-001 a INV-006 — Plano Gemini Flash 3.8)
 - **INV-004 (A01–A05) — Explosão do Plano, Inversão e Invariância**:
@@ -27,7 +85,7 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   - Distinção rigorosa entre películas espúrias (volume nulo / não-manifold) e cunhas geométricas fiéis (volume > 0, manifold com aresta viva), preservando a geometria nominal de corte sem recuos silenciosos.
   - Diagnóstico por raycast com amostragem múltipla e estado explícito (`MEASURED` vs `INCONCLUSIVE`), evitando estimativas fictícias (ex: 1000 mm) em direções tangentes.
 - **Validação e Regressão**:
-  - 100% de aprovação em 28/28 suítes de testes automatizados no Blender 5.2.0 LTS.
+  - 100% de aprovação em 29/29 suítes de testes automatizados no Blender 5.2.0 LTS.
 
 ## [0.8.8] - 2026-10-12
 

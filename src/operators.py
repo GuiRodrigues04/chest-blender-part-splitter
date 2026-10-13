@@ -187,14 +187,21 @@ def validate_printable_mesh(
         if not (math.isfinite(v.co.x) and math.isfinite(v.co.y) and math.isfinite(v.co.z)):
             return False, f"{part_name}: contém coordenadas infinitas ou NaN.", {}
 
-    vol_bu = abs(bm.calc_volume(signed=True))
-    vol_mm3 = vol_bu * (unit_scale ** 3)
+    from .diagnostic import validate_bmesh_mesh_geometry
+    geom_check = validate_bmesh_mesh_geometry(bm, scale_to_mm=unit_scale)
+
+    if geom_check["null_edges"]:
+        return False, f"{part_name}: possui {len(geom_check['null_edges'])} aresta(s) com comprimento nulo (degeneração).", {}
+
+    if geom_check["degenerate_faces"]:
+        return False, f"{part_name}: possui {len(geom_check['degenerate_faces'])} face(s) com área nula ou vértices colineares/coincidentes.", {}
+
+    vol_mm3 = abs(geom_check["volume_mm3"])
     if vol_mm3 < min_volume_mm3:
         return False, f"{part_name}: volume nulo ou desprezível ({vol_mm3:.4f} mm³).", {}
 
-    non_manifold_edges = [e for e in bm.edges if not e.is_manifold]
-    if check_manifold and len(non_manifold_edges) > 0:
-        return False, f"{part_name}: possui {len(non_manifold_edges)} aresta(s) não-manifold/abertas (não é um sólido fechado).", {}
+    if check_manifold and not geom_check["is_manifold"]:
+        return False, f"{part_name}: possui {len(geom_check['non_manifold_edges'])} aresta(s) não-manifold/abertas (não é um sólido fechado).", {}
 
     metrics = evaluate_bmesh_metrics(bm, unit_scale=unit_scale)
     return True, "OK", metrics
@@ -501,19 +508,21 @@ def get_current_session_parts(scene: bpy.types.Scene) -> List[bpy.types.Object]:
 
 
 def ensure_solid_cutter(context: bpy.types.Context) -> bpy.types.Object:
-    """Cria ou recupera o objeto cortador sólido na coleção CHEST_SPLITTER_GUIDES."""
-
+    """Cria ou recupera o objeto cortador sólido na coleção CHEST_SPLITTER_GUIDES sem destruir malha existente (SOL-01)."""
     col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
     cutter_obj = col.objects.get(SOLID_CUTTER_NAME)
     settings = context.scene.chest_splitter
     target = settings.target_object
+    unit_scale = get_scene_scale_to_mm(context.scene)
 
     if target:
         center, size = get_target_bounds(target)
         dims = Vector((size * 0.6, size * 0.6, size * 0.6))
     else:
         center = Vector((0.0, 0.0, 0.0))
-        dims = Vector((50.0, 50.0, 50.0))
+        # 50 mm físicos convertidos para BU (Critério T46 / SOL-03)
+        phys_50_bu = 50.0 / unit_scale
+        dims = Vector((phys_50_bu, phys_50_bu, phys_50_bu))
 
     prim_type = settings.solid_primitive_type
 
@@ -528,20 +537,50 @@ def ensure_solid_cutter(context: bpy.types.Context) -> bpy.types.Object:
         cutter_obj.display_type = 'WIRE'
         cutter_obj.show_in_front = True
         col.objects.link(cutter_obj)
+    # Se já existe, preserva malha e posição intactas (SOL-01)
+    settings.solid_cutter_object = cutter_obj
+    return cutter_obj
+
+
+
+def reset_solid_cutter_mesh(context: bpy.types.Context) -> bpy.types.Object:
+    """Regenera a malha primitiva padrão no cortador da sessão com ação explícita (SOL-01)."""
+    col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+    cutter_obj = col.objects.get(SOLID_CUTTER_NAME)
+    settings = context.scene.chest_splitter
+    target = settings.target_object
+    unit_scale = get_scene_scale_to_mm(context.scene)
+
+    if target:
+        center, size = get_target_bounds(target)
+        dims = Vector((size * 0.6, size * 0.6, size * 0.6))
+    else:
+        center = Vector((0.0, 0.0, 0.0))
+        phys_50_bu = 50.0 / unit_scale
+        dims = Vector((phys_50_bu, phys_50_bu, phys_50_bu))
+
+    prim_type = settings.solid_primitive_type
+    new_mesh = create_primitive_cutter_mesh(
+        name=f"{SOLID_CUTTER_NAME}_Mesh",
+        primitive_type=prim_type,
+        dims=dims,
+    )
+    if not cutter_obj or cutter_obj.name not in bpy.data.objects:
+        cutter_obj = bpy.data.objects.new(SOLID_CUTTER_NAME, new_mesh)
+        cutter_obj.location = center
+        cutter_obj.display_type = 'WIRE'
+        cutter_obj.show_in_front = True
+        col.objects.link(cutter_obj)
     else:
         old_mesh = cutter_obj.data
-        new_mesh = create_primitive_cutter_mesh(
-            name=f"{SOLID_CUTTER_NAME}_Mesh",
-            primitive_type=prim_type,
-            dims=dims,
-        )
         cutter_obj.data = new_mesh
         cutter_obj.location = center
-        if old_mesh and old_mesh.users == 0:
+        if old_mesh and old_mesh != new_mesh and old_mesh.users == 0:
             bpy.data.meshes.remove(old_mesh, do_unlink=True)
 
     settings.solid_cutter_object = cutter_obj
     return cutter_obj
+
 
 
 def update_preview_positions(scene: bpy.types.Scene):
@@ -916,7 +955,9 @@ class CHEST_OT_splitter_create_or_focus_solid_cutter(bpy.types.Operator):
     def execute(self, context):
         settings = context.scene.chest_splitter
         cutter_obj = ensure_solid_cutter(context)
+        settings.solid_cutter_object = cutter_obj
         for o in context.selected_objects:
+
             o.select_set(False)
         cutter_obj.select_set(True)
         context.view_layer.objects.active = cutter_obj
@@ -964,7 +1005,580 @@ class CHEST_OT_splitter_select_existing_cutter(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class CHEST_OT_splitter_create_solid_cutter(bpy.types.Operator):
+    """Cria um novo cortador sólido na cena caso ainda não exista (SOL-01)"""
+    bl_idname = "chest.splitter_create_solid_cutter"
+    bl_label = "Criar Cortador"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.chest_splitter.target_object is not None
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+        cutter_obj = col.objects.get(SOLID_CUTTER_NAME)
+        if cutter_obj and cutter_obj.name in bpy.data.objects:
+            settings.solid_cutter_object = cutter_obj
+            for o in context.selected_objects:
+                o.select_set(False)
+            cutter_obj.select_set(True)
+            context.view_layer.objects.active = cutter_obj
+            self.report({'INFO'}, "Cortador já existente na sessão foi selecionado. Use 'Focar' ou 'Reiniciar Formato'.")
+            return {'FINISHED'}
+
+        cutter_obj = ensure_solid_cutter(context)
+        settings.solid_cutter_object = cutter_obj
+        for o in context.selected_objects:
+            o.select_set(False)
+        cutter_obj.select_set(True)
+        context.view_layer.objects.active = cutter_obj
+        self.report({'INFO'}, f"Cortador sólido '{settings.solid_primitive_type}' criado.")
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_focus_solid_cutter(bpy.types.Operator):
+    """Foca e seleciona o cortador sólido na Viewport sem alterar malha ou transformações (SOL-01)"""
+    bl_idname = "chest.splitter_focus_solid_cutter"
+    bl_label = "Focar Cortador"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.chest_splitter
+        return (settings.solid_cutter_object is not None and settings.solid_cutter_object.name in bpy.data.objects)
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        cutter_obj = settings.solid_cutter_object
+        for o in context.selected_objects:
+            o.select_set(False)
+        cutter_obj.select_set(True)
+        context.view_layer.objects.active = cutter_obj
+        try:
+            for area in context.screen.areas if context.screen else []:
+                if area.type == 'VIEW_3D':
+                    for region in area.regions:
+                        if region.type == 'WINDOW':
+                            override = {'area': area, 'region': region, 'selected_objects': [cutter_obj], 'active_object': cutter_obj}
+                            with context.temp_override(**override):
+                                bpy.ops.view3d.view_selected(use_all_regions=False)
+                            break
+        except Exception:
+            pass
+        self.report({'INFO'}, f"Cortador '{cutter_obj.name}' focado.")
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_reset_solid_cutter(bpy.types.Operator):
+    """Reinicia a malha e formato do cortador da sessão para os padrões da primitiva (SOL-01)"""
+    bl_idname = "chest.splitter_reset_solid_cutter"
+    bl_label = "Reiniciar Formato"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.chest_splitter
+        return (settings.solid_cutter_object is not None and
+                settings.solid_cutter_object.name == SOLID_CUTTER_NAME)
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        cutter_obj = reset_solid_cutter_mesh(context)
+        for o in context.selected_objects:
+            o.select_set(False)
+        cutter_obj.select_set(True)
+        context.view_layer.objects.active = cutter_obj
+        self.report({'INFO'}, f"Formato do cortador reiniciado para primitiva '{settings.solid_primitive_type}'.")
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_duplicate_solid_cutter(bpy.types.Operator):
+    """Duplica o cortador atual como um objeto independente na sessão (SOL-04)"""
+    bl_idname = "chest.splitter_duplicate_solid_cutter"
+    bl_label = "Duplicar Cortador"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.chest_splitter
+        return (settings.solid_cutter_object is not None and settings.solid_cutter_object.name in bpy.data.objects)
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        source = settings.solid_cutter_object
+        col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+        new_mesh = source.data.copy()
+        new_name = f"{source.name}_Copy"
+        new_mesh.name = f"{new_name}_Mesh"
+        new_obj = bpy.data.objects.new(new_name, new_mesh)
+        new_obj.matrix_world = source.matrix_world.copy()
+        new_obj.display_type = 'WIRE'
+        new_obj.show_in_front = True
+        col.objects.link(new_obj)
+
+        settings.solid_cutter_object = new_obj
+        for o in context.selected_objects:
+            o.select_set(False)
+        new_obj.select_set(True)
+        context.view_layer.objects.active = new_obj
+        self.report({'INFO'}, f"Cortador duplicado como '{new_obj.name}'.")
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_copy_selected_as_cutter(bpy.types.Operator):
+    """Copia o objeto selecionado para a coleção de guias como um novo cortador (SOL-04)"""
+    bl_idname = "chest.splitter_copy_selected_as_cutter"
+    bl_label = "Copiar Selecionado como Cortador"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    use_evaluated_mesh: bpy.props.BoolProperty(
+        name="Usar Malha Avaliada",
+        description="Aplica modificadores na malha do cortador copiado",
+        default=True,
+    )
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        settings = context.scene.chest_splitter
+        return obj is not None and obj.type == 'MESH' and obj != settings.target_object
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        source = context.active_object
+        col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+
+        if self.use_evaluated_mesh and len(source.modifiers) > 0:
+            depsgraph = context.evaluated_depsgraph_get()
+            eval_obj = source.evaluated_get(depsgraph)
+            eval_mesh = eval_obj.to_mesh()
+            new_mesh = eval_mesh.copy()
+            eval_obj.to_mesh_clear()
+        else:
+            new_mesh = source.data.copy()
+
+        new_name = f"{SOLID_CUTTER_NAME}_{source.name}"
+        new_mesh.name = f"{new_name}_Mesh"
+        new_obj = bpy.data.objects.new(new_name, new_mesh)
+        new_obj.matrix_world = source.matrix_world.copy()
+        new_obj.display_type = 'WIRE'
+        new_obj.show_in_front = True
+        col.objects.link(new_obj)
+
+        settings.solid_source = 'EXISTING'
+        settings.solid_cutter_object = new_obj
+        for o in context.selected_objects:
+            o.select_set(False)
+        new_obj.select_set(True)
+        context.view_layer.objects.active = new_obj
+
+        self.report({'INFO'}, f"Objeto copiado como cortador '{new_obj.name}'. Objeto fonte preservado.")
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_align_solid_cutter(bpy.types.Operator):
+    """Alinha o cortador sólido de forma determinística preservando dimensões locais (SOL-02)"""
+    bl_idname = "chest.splitter_align_solid_cutter"
+    bl_label = "Alinhar Cortador Sólido"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    align_mode: bpy.props.EnumProperty(
+        name="Alinhamento",
+        items=[
+            ('ACTIVE_FACE', "Face Ativa", "Alinha à normal e posição da face selecionada no alvo"),
+            ('TARGET_AXES', "Eixos do Alvo", "Alinha à orientação ortonormal do objeto alvo"),
+            ('CURSOR_3D', "Cursor 3D", "Alinha à posição e orientação do Cursor 3D"),
+            ('AXIS_X', "Eixo X", "Alinha a profundidade ao eixo global X"),
+            ('AXIS_Y', "Eixo Y", "Alinha a profundidade ao eixo global Y"),
+            ('AXIS_Z', "Eixo Z", "Alinha a profundidade ao eixo global Z"),
+            ('SELECTION_CENTER', "Centro da Seleção", "Move para o centro dos elementos selecionados"),
+        ],
+        default='ACTIVE_FACE',
+    )
+
+    anchor: bpy.props.EnumProperty(
+        name="Ponto de Apoio",
+        items=[
+            ('CENTER', "Centro", "Posiciona o centro do cortador no ponto de referência"),
+            ('SUPPORT_FACE', "Face de Apoio", "Encosta a face de apoio do cortador na superfície"),
+        ],
+        default='SUPPORT_FACE',
+    )
+
+    invert_direction: bpy.props.BoolProperty(
+        name="Inverter Direção",
+        description="Inverte o vetor de profundidade de penetração no alvo",
+        default=False,
+    )
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.chest_splitter
+        return (settings.solid_cutter_object is not None and
+                settings.solid_cutter_object.name in bpy.data.objects and
+                settings.target_object is not None)
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        cutter = settings.solid_cutter_object
+        target = settings.target_object
+
+        # Preserva escala/dimensões locais existentes
+        curr_scale = cutter.scale.copy()
+        if curr_scale.x <= 0 or curr_scale.y <= 0 or curr_scale.z <= 0:
+            curr_scale = Vector((abs(curr_scale.x) or 1.0, abs(curr_scale.y) or 1.0, abs(curr_scale.z) or 1.0))
+
+        ref_pos = target.matrix_world.translation.copy()
+        rot_mat = Matrix.Identity(3)
+        normal = Vector((0.0, 0.0, 1.0))
+
+        if self.align_mode == 'ACTIVE_FACE':
+            found = False
+            f_ref = None
+            f_edge_dir = None
+            if target.mode == 'EDIT':
+                bm = bmesh.from_edit_mesh(target.data)
+                f = bm.faces.active or next((f for f in bm.faces if f.select), None)
+                if f:
+                    norm_mat = target.matrix_world.to_3x3().inverted().transposed()
+                    normal = (norm_mat @ f.normal).normalized()
+                    ref_pos = target.matrix_world @ f.calc_center_median()
+                    if f.edges:
+                        e_vec = target.matrix_world.to_3x3() @ (f.edges[0].verts[1].co - f.edges[0].verts[0].co)
+                        if e_vec.length > 1e-6:
+                            f_edge_dir = e_vec.normalized()
+                    found = True
+            else:
+                bm = bmesh.new()
+                bm.from_mesh(target.data)
+                f = next((f for f in bm.faces if f.select), None) or (bm.faces[0] if len(bm.faces) > 0 else None)
+                if f:
+                    norm_mat = target.matrix_world.to_3x3().inverted().transposed()
+                    normal = (norm_mat @ f.normal).normalized()
+                    ref_pos = target.matrix_world @ f.calc_center_median()
+                    if f.edges:
+                        e_vec = target.matrix_world.to_3x3() @ (f.edges[0].verts[1].co - f.edges[0].verts[0].co)
+                        if e_vec.length > 1e-6:
+                            f_edge_dir = e_vec.normalized()
+                    found = True
+                bm.free()
+            if not found:
+                self.report({'WARNING'}, "Nenhuma face ativa ou selecionada encontrada no alvo.")
+                return {'CANCELLED'}
+
+            z_axis = normal if not self.invert_direction else -normal
+            if f_edge_dir:
+                x_axis = (f_edge_dir - f_edge_dir.dot(z_axis) * z_axis)
+                if x_axis.length > 1e-5:
+                    x_axis.normalize()
+                else:
+                    up = Vector((0.0, 1.0, 0.0)) if abs(z_axis.dot(Vector((0.0, 0.0, 1.0)))) > 0.9 else Vector((0.0, 0.0, 1.0))
+                    x_axis = up.cross(z_axis).normalized()
+            else:
+                up = Vector((0.0, 1.0, 0.0)) if abs(z_axis.dot(Vector((0.0, 0.0, 1.0)))) > 0.9 else Vector((0.0, 0.0, 1.0))
+                x_axis = up.cross(z_axis).normalized()
+            y_axis = z_axis.cross(x_axis).normalized()
+            x_axis = y_axis.cross(z_axis).normalized()
+            rot_mat = Matrix((x_axis, y_axis, z_axis)).transposed()
+
+        elif self.align_mode == 'TARGET_AXES':
+            ref_pos = target.matrix_world.translation.copy()
+            rot_mat = target.matrix_world.to_3x3().to_quaternion().to_matrix()
+            if self.invert_direction:
+                rot_mat = rot_mat @ Matrix.Rotation(math.pi, 3, 'X')
+
+        elif self.align_mode == 'CURSOR_3D':
+            ref_pos = context.scene.cursor.location.copy()
+            rot_mat = context.scene.cursor.rotation_euler.to_matrix()
+            if self.invert_direction:
+                rot_mat = rot_mat @ Matrix.Rotation(math.pi, 3, 'X')
+
+        elif self.align_mode in ('AXIS_X', 'AXIS_Y', 'AXIS_Z'):
+            axis_vec = Vector((1.0, 0.0, 0.0)) if self.align_mode == 'AXIS_X' else (
+                Vector((0.0, 1.0, 0.0)) if self.align_mode == 'AXIS_Y' else Vector((0.0, 0.0, 1.0))
+            )
+            z_axis = axis_vec if not self.invert_direction else -axis_vec
+            up = Vector((0.0, 1.0, 0.0)) if abs(z_axis.dot(Vector((0.0, 0.0, 1.0)))) > 0.9 else Vector((0.0, 0.0, 1.0))
+            x_axis = up.cross(z_axis).normalized()
+            y_axis = z_axis.cross(x_axis).normalized()
+            rot_mat = Matrix((x_axis, y_axis, z_axis)).transposed()
+
+        elif self.align_mode == 'SELECTION_CENTER':
+            if target.mode == 'EDIT':
+                bm = bmesh.from_edit_mesh(target.data)
+                sel_verts = [v for v in bm.verts if v.select]
+                if sel_verts:
+                    ref_pos = target.matrix_world @ (sum((v.co for v in sel_verts), Vector()) / len(sel_verts))
+            elif context.selected_objects:
+                sel_objs = [o for o in context.selected_objects if o != cutter]
+                if sel_objs:
+                    ref_pos = sum((o.matrix_world.translation for o in sel_objs), Vector()) / len(sel_objs)
+
+        # Determina ponto de apoio local a_local a partir do BMesh real do cortador (DEV-05)
+        bm_c = bmesh.new()
+        bm_c.from_mesh(cutter.data)
+        if bm_c.verts:
+            xs = [v.co.x for v in bm_c.verts]
+            ys = [v.co.y for v in bm_c.verts]
+            zs = [v.co.z for v in bm_c.verts]
+            min_x, max_x = min(xs), max(xs)
+            min_y, max_y = min(ys), max(ys)
+            min_z, max_z = min(zs), max(zs)
+            cen_x = (min_x + max_x) / 2.0
+            cen_y = (min_y + max_y) / 2.0
+            cen_z = (min_z + max_z) / 2.0
+            if self.anchor == 'SUPPORT_FACE':
+                a_local = Vector((cen_x, cen_y, min_z))
+            else:
+                a_local = Vector((cen_x, cen_y, cen_z))
+        else:
+            a_local = Vector((0.0, 0.0, 0.0))
+        bm_c.free()
+
+        # Translação determinística: t = ref_pos - R @ (S @ a_local)
+        scaled_a_local = Vector((curr_scale.x * a_local.x, curr_scale.y * a_local.y, curr_scale.z * a_local.z))
+        final_pos = ref_pos - rot_mat @ scaled_a_local
+
+        cutter.matrix_world = Matrix.LocRotScale(final_pos, rot_mat.to_quaternion(), curr_scale)
+        context.view_layer.update()
+
+        if settings.session_status == 'PREVIEW_VALID':
+            settings.session_status = 'PREVIEW_STALE'
+        self.report({'INFO'}, f"Cortador alinhado ({self.align_mode}, {self.anchor}).")
+        return {'FINISHED'}
+
+
+
+class CHEST_OT_splitter_create_cutter_from_selection(bpy.types.Operator):
+    """Cria um cortador sólido prismático a partir do loop capturado ou região de material planar (SOL-05)"""
+    bl_idname = "chest.splitter_create_cutter_from_selection"
+    bl_label = "Criar Cortador desta Seleção"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    depth_mm: bpy.props.FloatProperty(
+        name="Profundidade (mm)",
+        default=20.0,
+        min=0.1,
+        precision=2,
+    )
+
+    outer_extension_mm: bpy.props.FloatProperty(
+        name="Extensão Exterior (mm)",
+        default=1.0,
+        min=0.0,
+        precision=2,
+    )
+
+    invert_direction: bpy.props.BoolProperty(
+        name="Inverter Direção",
+        default=False,
+    )
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.chest_splitter
+        return (settings.target_object is not None and
+                (settings.loop_is_captured or settings.split_mode == 'MATERIAL'))
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        target = settings.target_object
+        unit_scale = get_scene_scale_to_mm(context.scene)
+        depth_bu = self.depth_mm / unit_scale
+        outer_bu = self.outer_extension_mm / unit_scale
+
+        col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+        prism_name = f"Prism_Cutter_{target.name}"
+
+        if settings.split_mode == 'MATERIAL':
+            from .geometry_material import create_material_patch_prism_cutter, analyze_material_structure
+            mat_idx = settings.material_split_index
+            reg_idx = settings.material_region_index
+            try:
+                analysis = analyze_material_structure(target, scene=context.scene)
+                region_faces = analysis.get("region_face_indices", [])
+                if not region_faces:
+                    self.report({'ERROR'}, "Nenhuma região válida identificada para o material selecionado.")
+                    return {'CANCELLED'}
+                inward_dir = analysis.get("inward_dir_world", Vector((0.0, 0.0, -1.0)))
+                if self.invert_direction:
+                    inward_dir = -inward_dir
+                body_mat = analysis.get("body_mat_index", 0)
+                prism_obj = create_material_patch_prism_cutter(
+                    target,
+                    region_faces,
+                    inward_dir,
+                    depth_bu=depth_bu,
+                    outward_ext_bu=outer_bu,
+                    name=prism_name,
+                    material_index=mat_idx,
+                    interface_mat_mode=settings.material_interface_mat_mode,
+                    body_mat_index=body_mat,
+                    lateral_offset_bu=0.0,
+                )
+            except Exception as e:
+                self.report({'ERROR'}, f"Não foi possível gerar prisma de material: {str(e)}")
+                return {'CANCELLED'}
+        else:
+            if not settings.loop_is_planar:
+                self.report({'ERROR'}, "A seleção de contorno não é planar (desvio > 0.15 mm). Selecione um contorno planar.")
+                return {'CANCELLED'}
+            from .geometry_loop import create_loop_prism_cutter, analyze_loop_region
+            try:
+                indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i.strip()]
+                analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, scene=context.scene)
+                coords_world = analysis.get("coords_world", [])
+                inward_dir = analysis.get("inward_dir_world", Vector((0.0, 0.0, -1.0)))
+                if self.invert_direction:
+                    inward_dir = -inward_dir
+                prism_obj = create_loop_prism_cutter(
+                    coords_world=coords_world,
+                    inward_dir=inward_dir,
+                    depth_bu=depth_bu,
+                    outward_ext_bu=outer_bu,
+                    name=prism_name,
+                )
+            except Exception as e:
+                self.report({'ERROR'}, f"Não foi possível gerar prisma de contorno: {str(e)}")
+                return {'CANCELLED'}
+
+        # Garante que o cortador criado esteja na coleção de guias
+        if prism_obj.name not in col.objects:
+            col.objects.link(prism_obj)
+        if prism_obj.name in context.scene.collection.objects:
+            context.scene.collection.objects.unlink(prism_obj)
+
+        prism_obj.display_type = 'WIRE'
+        prism_obj.show_in_front = True
+
+        settings.split_mode = 'SOLID'
+        settings.solid_source = 'EXISTING'
+        settings.solid_cutter_object = prism_obj
+
+        try:
+            bpy.ops.object.mode_set(mode='OBJECT')
+        except Exception:
+            pass
+
+        for o in context.selected_objects:
+            o.select_set(False)
+        prism_obj.select_set(True)
+        context.view_layer.objects.active = prism_obj
+
+        self.report({'INFO'}, f"Cortador prismático editável criado: '{prism_obj.name}'.")
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_create_corner_box_cutter(bpy.types.Operator):
+    """Propõe um cortador em caixa regular para quinas ortogonais (SOL-06 / INV-009 / DEV-04)"""
+    bl_idname = "chest.splitter_create_corner_box_cutter"
+    bl_label = "Caixa para Quina Regular"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    size_x_mm: bpy.props.FloatProperty(name="Largura (X mm)", default=20.0, min=1.0)
+    size_y_mm: bpy.props.FloatProperty(name="Altura (Y mm)", default=20.0, min=1.0)
+    size_z_mm: bpy.props.FloatProperty(name="Profundidade (Z mm)", default=20.0, min=1.0)
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.chest_splitter
+        return settings.target_object is not None
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        target = settings.target_object
+        unit_scale = get_scene_scale_to_mm(context.scene)
+
+        bm = bmesh.new()
+        if target.mode == 'EDIT':
+            bm_edit = bmesh.from_edit_mesh(target.data)
+            bm = bm_edit.copy()
+        else:
+            bm.from_mesh(target.data)
+
+        sel_faces = [f for f in bm.faces if f.select]
+        if len(sel_faces) != 3:
+            bm.free()
+            self.report({'WARNING'}, "Selecione exatamente 3 faces que formam a quina regular.")
+            return {'CANCELLED'}
+
+        norm_mat = target.matrix_world.to_3x3().inverted().transposed()
+        world_normals = [(norm_mat @ f.normal).normalized() for f in sel_faces]
+        for i in range(3):
+            for j in range(i + 1, 3):
+                dot = abs(world_normals[i].dot(world_normals[j]))
+                if dot > 0.15:
+                    bm.free()
+                    self.report({'ERROR'}, "Quina não ortogonal detectada (ângulo fora de 90°). A geração requer 3 faces ortogonais.")
+                    return {'CANCELLED'}
+
+        shared_verts = set(sel_faces[0].verts).intersection(sel_faces[1].verts).intersection(sel_faces[2].verts)
+        if len(shared_verts) != 1:
+            bm.free()
+            self.report({'ERROR'}, "As 3 faces selecionadas devem compartilhar exatamente um vértice de quina comum.")
+            return {'CANCELLED'}
+
+        v_corner = next(iter(shared_verts))
+        corner_pt = target.matrix_world @ v_corner.co
+        bm.free()
+
+        # Eixos de penetração para o interior do modelo (-normais externas)
+        e1 = -world_normals[0]
+        e2 = -world_normals[1]
+        e3 = -world_normals[2]
+
+        dx = self.size_x_mm / unit_scale
+        dy = self.size_y_mm / unit_scale
+        dz = self.size_z_mm / unit_scale
+
+        # Ajusta sistema dextrógiro (det > 0) permutando eixos sem inverter o sentido de penetração (DEV-04)
+        det = e1.cross(e2).dot(e3)
+        if det < 0:
+            e1, e2 = e2, e1
+            dx, dy = dy, dx
+
+        rot_mat = Matrix((e1, e2, e3)).transposed()
+
+        # Extensão exterior de segurança (1 mm) para prevenir coplanaridade degenerada no solver booleano (DEV-02)
+        ext_bu = 1.0 / unit_scale
+        box_dims = Vector((dx + ext_bu, dy + ext_bu, dz + ext_bu))
+        center_local = Vector(((dx - ext_bu) / 2.0, (dy - ext_bu) / 2.0, (dz - ext_bu) / 2.0))
+        center_world = corner_pt + rot_mat @ center_local
+
+        col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+        mesh_data = create_primitive_cutter_mesh(
+            name=f"{SOLID_CUTTER_NAME}_CornerBox_Mesh",
+            primitive_type='BOX',
+            dims=box_dims,
+        )
+        box_obj = bpy.data.objects.new(f"{SOLID_CUTTER_NAME}_CornerBox", mesh_data)
+        box_obj.matrix_world = Matrix.LocRotScale(center_world, rot_mat.to_quaternion(), Vector((1, 1, 1)))
+        box_obj.display_type = 'WIRE'
+        box_obj.show_in_front = True
+        col.objects.link(box_obj)
+
+        settings.split_mode = 'SOLID'
+        settings.solid_source = 'EXISTING'
+        settings.solid_cutter_object = box_obj
+
+        try:
+            bpy.ops.object.mode_set(mode='OBJECT')
+        except Exception:
+            pass
+
+        for o in context.selected_objects:
+            o.select_set(False)
+        box_obj.select_set(True)
+        context.view_layer.objects.active = box_obj
+
+        self.report({'INFO'}, f"Caixa para quina criada com sucesso ({self.size_x_mm:.1f}x{self.size_y_mm:.1f}x{self.size_z_mm:.1f} mm).")
+        return {'FINISHED'}
+
+
 _is_generating_preview = False
+
 
 
 class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
@@ -1091,23 +1705,22 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 )
 
             elif settings.split_mode == 'LOOP':
-                if not settings.loop_is_captured or not settings.loop_vertex_indices:
-                    raise RuntimeError("Nenhum loop capturado.")
+                from .geometry_loop import (
+                    slice_mesh_by_loop,
+                    slice_mesh_by_loop_extrude,
+                    analyze_loop_region,
+                    get_topology_signature,
+                    validate_capture,
+                )
+                is_valid, reason = validate_capture(target, settings, context)
+                if not is_valid:
+                    raise RuntimeError(f"A malha mudou ou o contorno é inválido ({reason}). Capture o contorno novamente.")
                 if settings.loop_seed_face_index < 0:
                     raise RuntimeError("Nenhuma região definida.")
-
-                from .geometry_loop import slice_mesh_by_loop, slice_mesh_by_loop_extrude, analyze_loop_region, get_topology_signature
-                curr_sig = get_topology_signature(target)
-                if settings.loop_topology_signature and curr_sig != settings.loop_topology_signature:
-                    raise RuntimeError("A malha mudou. Capture o contorno novamente.")
-
-                indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i]
-                # Validação de limites dos índices e face semente (B02)
-                vert_len = len(target.data.vertices) if target.data else 0
-                if any(i < 0 or i >= vert_len for i in indices):
-                    raise RuntimeError("A malha mudou. Capture o contorno novamente.")
                 if target.data and settings.loop_seed_face_index >= len(target.data.polygons):
                     raise RuntimeError("A face semente não é mais válida para a topologia atual.")
+
+                indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i.strip()]
 
                 behavior = settings.loop_behavior
                 if behavior == 'AUTO':
@@ -1129,7 +1742,16 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                         scene=context.scene,
                     )
                 else:
-                    loop_res = slice_mesh_by_loop(target, target.name, indices, settings.loop_seed_face_index, context.scene)
+                    loop_res = slice_mesh_by_loop(
+                        target,
+                        target.name,
+                        indices,
+                        settings.loop_seed_face_index,
+                        context.scene,
+                        detach_add_base=settings.loop_detach_add_base,
+                        detach_base_depth_mm=settings.loop_detach_base_depth_mm,
+                        detach_base_clearance_mm=settings.loop_detach_base_clearance_mm,
+                    )
 
                 bm_a, bm_b = loop_res[0], loop_res[1]
                 candidate_mesh_a.materials.clear()
@@ -1235,11 +1857,23 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             bm_a_chk = bmesh.new()
             bm_a_chk.from_mesh(candidate_mesh_a)
             ok_a, msg_a, _ = validate_printable_mesh(bm_a_chk, part_name="Parte A", unit_scale=unit_scale, check_manifold=check_cand_manifold)
+            if not ok_a and "comprimento nulo" in msg_a:
+                from .diagnostic import sanitize_mesh_micro_degeneracies
+                if sanitize_mesh_micro_degeneracies(bm_a_chk, scale_to_mm=unit_scale):
+                    ok_a, msg_a, _ = validate_printable_mesh(bm_a_chk, part_name="Parte A", unit_scale=unit_scale, check_manifold=check_cand_manifold)
+                    if ok_a:
+                        bm_a_chk.to_mesh(candidate_mesh_a)
             bm_a_chk.free()
 
             bm_b_chk = bmesh.new()
             bm_b_chk.from_mesh(candidate_mesh_b)
             ok_b, msg_b, _ = validate_printable_mesh(bm_b_chk, part_name="Parte B", unit_scale=unit_scale, check_manifold=check_cand_manifold)
+            if not ok_b and "comprimento nulo" in msg_b:
+                from .diagnostic import sanitize_mesh_micro_degeneracies
+                if sanitize_mesh_micro_degeneracies(bm_b_chk, scale_to_mm=unit_scale):
+                    ok_b, msg_b, _ = validate_printable_mesh(bm_b_chk, part_name="Parte B", unit_scale=unit_scale, check_manifold=check_cand_manifold)
+                    if ok_b:
+                        bm_b_chk.to_mesh(candidate_mesh_b)
             bm_b_chk.free()
 
             if not ok_a or not ok_b:
@@ -1705,14 +2339,27 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
         parts_col.objects.link(obj_a)
         parts_col.objects.link(obj_b)
 
-        # Seleciona as peças finais criadas e ativa a peça gerada
+        # Garante Object Mode para evitar estados de seleção mistos (DEV-08)
         try:
-            bpy.ops.object.select_all(action='DESELECT')
-            obj_a.select_set(True)
-            obj_b.select_set(True)
-            context.view_layer.objects.active = obj_a
+            if context.mode != 'OBJECT' and bpy.ops.object.mode_set.poll():
+                bpy.ops.object.mode_set(mode='OBJECT')
         except Exception:
             pass
+
+        # Seleciona EXCLUSIVAMENTE a peça extraída por papel semântico (DEV-08)
+        extracted_obj = obj_b if getattr(settings, "invert_sides", False) else obj_a
+        try:
+            bpy.ops.object.select_all(action='DESELECT')
+            extracted_obj.select_set(True)
+            context.view_layer.objects.active = extracted_obj
+        except Exception:
+            pass
+
+        # Informa e alerta se a edição proporcional estiver ativa (DEV-08)
+        prop_warning = ""
+        if getattr(context.scene.tool_settings, "use_proportional_edit_objects", False):
+            prop_warning = " Aviso: A Edição Proporcional de Objetos está ativa. Desative-a (tecla 'O') para mover a peça sem arrastar o corpo remanescente."
+            self.report({'WARNING'}, prop_warning.strip())
 
         settings.active_operation_id = settings.session_id
 
@@ -1725,11 +2372,126 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
                     guide_obj.hide_viewport = True
 
         settings.session_status = 'COMMITTED'
-        msg = f"Corte confirmado! Peças finais criadas: '{final_name_a}' e '{final_name_b}'."
+        msg = f"Corte confirmado! Peças finais: '{final_name_a}' e '{final_name_b}'. Peça extraída selecionada. Use G para mover.{prop_warning}"
+        settings.last_status = msg
+        settings.last_status_level = 'SUCCESS' if not prop_warning else 'WARNING'
+        self.report({'INFO'}, msg)
+
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_continue_on_receiver(bpy.types.Operator):
+    """Define a peça remanescente (receptor) como novo alvo para continuar a divisão"""
+    bl_idname = "chest.splitter_continue_on_receiver"
+    bl_label = "Continuar no corpo remanescente"
+    bl_description = "Promove o corpo remanescente a novo alvo mantendo o histórico de operações"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = getattr(context.scene, "chest_splitter", None)
+        if not settings:
+            return False
+        if settings.session_status == 'COMMITTED':
+            return True
+        active = context.active_object
+        if active and active.get("chest_role") == ROLE_COMMITTED_PART:
+            return True
+        return False
+
+    def execute(self, context):
+        from .lifecycle import resolve_receiver_object, find_operation_record
+        from .geometry_loop import clear_capture
+
+        settings = context.scene.chest_splitter
+        scene = context.scene
+
+        op_id = settings.active_operation_id or settings.session_id
+        op_rec = find_operation_record(scene, op_id)
+        if not op_rec and hasattr(scene, "chest_operations") and len(scene.chest_operations) > 0:
+            for rec in reversed(scene.chest_operations):
+                if rec.status == 'COMMITTED':
+                    op_rec = rec
+                    break
+
+        receiver_obj = resolve_receiver_object(op_rec) if op_rec else resolve_receiver_object(scene)
+
+
+        if not receiver_obj and context.active_object and context.active_object.get("chest_role") == ROLE_COMMITTED_PART:
+            receiver_obj = context.active_object
+
+        if not receiver_obj:
+            self.report({'ERROR'}, "Não foi possível localizar o corpo remanescente (peça receptora).")
+            return {'CANCELLED'}
+
+        # Selecionar exclusivamente o receptor
+        try:
+            bpy.ops.object.select_all(action='DESELECT')
+            receiver_obj.select_set(True)
+            context.view_layer.objects.active = receiver_obj
+        except Exception:
+            pass
+
+        # Definir como novo alvo
+        settings.target_object = receiver_obj
+        settings.parent_operation_id = receiver_obj.get("chest_operation_id", "") or op_id
+        settings.session_id = ""
+        settings.session_status = 'CONFIGURED'
+
+
+        clear_capture(settings, reason="continue_on_receiver")
+
+        report = analyze_target_mesh(receiver_obj, scene)
+        settings.diag_dims_mm = report["dims_mm"]
+        settings.diag_triangles = report["triangles"]
+        settings.diag_faces = report["faces"]
+        settings.diag_volume_mm3 = report["volume_mm3"]
+        settings.diag_is_manifold = report["is_manifold"]
+        settings.diag_non_manifold_edges = report["non_manifold_edges"]
+        settings.diag_has_unapplied_scale = report["has_unapplied_scale"]
+        settings.diag_is_non_uniform_scale = report["is_non_uniform_scale"]
+        settings.diag_degenerate_faces = report["degenerate_faces"]
+
+        guide_obj = ensure_plane_guide(context)
+        if guide_obj:
+            guide_obj.hide_viewport = False
+            center, _ = get_target_bounds(receiver_obj)
+            guide_obj.location = center
+            context.view_layer.update()
+            read_plane_geometry(context)
+
+        dims = report["dims_mm"]
+        msg = f"Continuando no receptor: '{receiver_obj.name}' ({dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm)"
         settings.last_status = msg
         settings.last_status_level = 'SUCCESS'
         self.report({'INFO'}, msg)
+        return {'FINISHED'}
 
+
+class CHEST_OT_splitter_edit_target(bpy.types.Operator):
+    """Ativa e entra no modo de edição do objeto alvo atual com segurança"""
+    bl_idname = "chest.splitter_edit_target"
+    bl_label = "Editar Alvo"
+    bl_description = "Seleciona o alvo da sessão e entra no Modo de Edição"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = getattr(context.scene, "chest_splitter", None)
+        return settings and settings.target_object and settings.target_object.name in bpy.data.objects
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        target = settings.target_object
+        target.hide_viewport = False
+        try:
+            bpy.ops.object.select_all(action='DESELECT')
+            target.select_set(True)
+            context.view_layer.objects.active = target
+            if bpy.ops.object.mode_set.poll():
+                bpy.ops.object.mode_set(mode='EDIT')
+        except Exception as e:
+            self.report({'WARNING'}, f"Não foi possível entrar no modo de edição: {e}")
         return {'FINISHED'}
 
 
@@ -2537,12 +3299,22 @@ classes = (
     CHEST_OT_splitter_create_or_focus_guide,
     CHEST_OT_splitter_align_plane,
     CHEST_OT_splitter_create_or_focus_solid_cutter,
+    CHEST_OT_splitter_create_solid_cutter,
+    CHEST_OT_splitter_focus_solid_cutter,
+    CHEST_OT_splitter_reset_solid_cutter,
+    CHEST_OT_splitter_duplicate_solid_cutter,
+    CHEST_OT_splitter_copy_selected_as_cutter,
+    CHEST_OT_splitter_align_solid_cutter,
+    CHEST_OT_splitter_create_cutter_from_selection,
+    CHEST_OT_splitter_create_corner_box_cutter,
     CHEST_OT_splitter_select_existing_cutter,
     CHEST_OT_splitter_generate_preview,
     CHEST_OT_splitter_invert_sides,
     CHEST_OT_splitter_invert_male_female,
     CHEST_OT_splitter_apply_connector_preset,
     CHEST_OT_splitter_commit_parts,
+    CHEST_OT_splitter_continue_on_receiver,
+    CHEST_OT_splitter_edit_target,
     CHEST_OT_splitter_remove_preview,
     CHEST_OT_splitter_revert_cut,
     CHEST_OT_splitter_restore_original,

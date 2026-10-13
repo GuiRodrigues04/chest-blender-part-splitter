@@ -1,0 +1,23 @@
+0001: """Pacote principal do Chest Part Splitter."""
+0002: 
+0003: from . import translations
+0004: from . import properties
+0005: from . import operators
+0006: from . import ui
+0007: from . import gpu_drawing
+0008: 
+0009: 
+0010: def register():
+0011:     translations.register_translations()
+0012:     properties.register()
+0013:     operators.register()
+0014:     ui.register()
+0015:     gpu_drawing.register_overlay()
+0016: 
+0017: 
+0018: def unregister():
+0019:     gpu_drawing.unregister_overlay()
+0020:     ui.unregister()
+0021:     operators.unregister()
+0022:     properties.unregister()
+0023:     translations.unregister_translations()

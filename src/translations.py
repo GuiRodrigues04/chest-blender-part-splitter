@@ -238,7 +238,7 @@ HELP_TOPICS = {
 TRANSLATIONS_DICT = {
     "pt_BR": {
         ("*", "Part Splitter"): "Part Splitter",
-        ("*", "Part Splitter 0.8.8"): "Part Splitter 0.8.8",
+        ("*", "Part Splitter 0.8.10"): "Part Splitter 0.8.10",
         ("*", "Usar selecionado como alvo"): "Usar selecionado como alvo",
         ("*", "Posicionamento do Plano"): "Posicionamento do Plano",
         ("*", "Focar Guia 3D"): "Focar Guia 3D",
@@ -246,6 +246,7 @@ TRANSLATIONS_DICT = {
         ("*", "Capturar Contorno"): "Capturar Contorno",
         ("*", "Escolher Região"): "Escolher Região",
         ("*", "Ativar Encaixes"): "Ativar Encaixes",
+        ("*", "Enable Connectors"): "Ativar Encaixes",
         ("*", "Gerar / Atualizar Preview"): "Gerar / Atualizar Preview",
         ("*", "Confirmar Divisão"): "Confirmar Divisão",
         ("*", "Restaurar Original"): "Restaurar Original",
@@ -253,19 +254,32 @@ TRANSLATIONS_DICT = {
         ("*", "Reverter este corte"): "Reverter este corte",
         ("*", "Confirmar Reversão do Corte?"): "Confirmar Reversão do Corte?",
         ("*", "Distância de Explosão (mm)"): "Distância de Explosão (mm)",
+        ("*", "Explosion Distance"): "Distância de Explosão",
+        ("*", "Explosion Distance (mm)"): "Distância de Explosão (mm)",
+        ("*", "Inverter Sentido da Explosão"): "Invert Explosion Direction",
+        ("*", "Invert Explosion Direction"): "Inverter Sentido da Explosão",
         ("*", "Corte por Contorno (Loop)"): "Corte por Contorno (Loop)",
+        ("*", "Boundary Loop Cut"): "Corte por Contorno (Loop)",
         ("*", "Capturar das Faces"): "Capturar das Faces",
         ("*", "Destacar Contorno no Viewport"): "Destacar Contorno no Viewport",
+        ("*", "Highlight Loop in Viewport"): "Destacar Contorno no Viewport",
         ("*", "Destacar Contorno"): "Destacar Contorno",
+        ("*", "Highlight Loop"): "Destacar Contorno",
         ("*", "Resultados do Corte"): "Resultados do Corte",
+        ("*", "Cut Results"): "Resultados do Corte",
         ("*", "Separar por Cores / Materiais"): "Separar por Cores / Materiais",
         ("*", "Folgas Físicas de Montagem (FDM):"): "Folgas Físicas de Montagem (FDM):",
         ("*", "Dimensões Nominais:"): "Dimensões Nominais:",
         ("*", "Distribuição no Corte:"): "Distribuição no Corte:",
+        ("*", "Preview generation error"): "Erro na geração da prévia",
+        ("*", "Adicionar base para encaixe"): "Adicionar base para encaixe",
+        ("*", "Profundidade da base (mm)"): "Profundidade da base (mm)",
+        ("*", "Folga lateral da base (mm)"): "Folga lateral da base (mm)",
+        ("*", "Peça extraída selecionada. Use G para mover."): "Peça extraída selecionada. Use G para mover.",
     },
     "en_US": {
         ("*", "Part Splitter"): "Part Splitter",
-        ("*", "Part Splitter 0.8.8"): "Part Splitter 0.8.8",
+        ("*", "Part Splitter 0.8.10"): "Part Splitter 0.8.10",
         ("*", "Usar selecionado como alvo"): "Use selected as target",
         ("*", "Posicionamento do Plano"): "Plane Positioning",
         ("*", "Focar Guia 3D"): "Focus 3D Guide",
@@ -273,9 +287,12 @@ TRANSLATIONS_DICT = {
         ("*", "Capturar Contorno"): "Capture Boundary",
         ("*", "Capturar das Faces"): "Capture from Faces",
         ("*", "Destacar Contorno no Viewport"): "Highlight Loop in Viewport",
+        ("*", "Highlight Loop in Viewport"): "Highlight Loop in Viewport",
         ("*", "Destacar Contorno"): "Highlight Loop",
+        ("*", "Highlight Loop"): "Highlight Loop",
         ("*", "Escolher Região"): "Choose Region",
         ("*", "Ativar Encaixes"): "Enable Connectors",
+        ("*", "Enable Connectors"): "Enable Connectors",
         ("*", "Gerar / Atualizar Preview"): "Generate / Update Preview",
         ("*", "Confirmar Divisão"): "Confirm Split",
         ("*", "Restaurar Original"): "Restore Original",
@@ -283,47 +300,202 @@ TRANSLATIONS_DICT = {
         ("*", "Reverter este corte"): "Revert this cut",
         ("*", "Confirmar Reversão do Corte?"): "Confirm Reversion of Cut?",
         ("*", "Distância de Explosão (mm)"): "Explosion Distance (mm)",
+        ("*", "Explosion Distance"): "Explosion Distance",
+        ("*", "Explosion Distance (mm)"): "Explosion Distance (mm)",
         ("*", "Inverter Sentido da Explosão"): "Invert Explosion Direction",
+        ("*", "Invert Explosion Direction"): "Invert Explosion Direction",
         ("*", "Corte por Contorno (Loop)"): "Boundary Loop Cut",
+        ("*", "Boundary Loop Cut"): "Boundary Loop Cut",
         ("*", "Resultados do Corte"): "Cut Results",
+        ("*", "Cut Results"): "Cut Results",
         ("*", "Separar por Cores / Materiais"): "Separate by Colors / Materials",
         ("*", "Folgas Físicas de Montagem (FDM):"): "Assembly Clearances (FDM):",
         ("*", "Dimensões Nominais:"): "Nominal Dimensions:",
         ("*", "Distribuição no Corte:"): "Cut Distribution:",
+        ("*", "Preview generation error"): "Preview generation error",
+        ("*", "Adicionar base para encaixe"): "Add base for fitting",
+        ("*", "Profundidade da base (mm)"): "Base depth (mm)",
+        ("*", "Folga lateral da base (mm)"): "Base lateral clearance (mm)",
+        ("*", "Peça extraída selecionada. Use G para mover."): "Extracted part selected. Use G to move.",
+    },
+}
+
+MESSAGES = {
+    "pt_BR": {
+        "connectors.enable": "Ativar encaixes",
+        "connectors.distribution": "Distribuição dos encaixes",
+        "connectors.suggest_positions": "Sugerir posições",
+        "connectors.suggest_count": "Sugerir quantidade",
+        "connectors.outside_domain": "O encaixe {index} está fora da região útil ou viola a margem de {margin_mm} mm.",
+        "preview.failed_preserved": "A atualização falhou: {reason}. A prévia anterior foi mantida.",
+        "loop.recapture_target_changed": "O corpo mudou após o corte. Capture um novo contorno para continuar.",
+        "target.edit": "Editar alvo",
+        "target.continue_receiver": "Continuar no corpo remanescente",
+        "explosion.reverse": "Inverter sentido da explosão",
+        "cutter.focus": "Focar cortador",
+        "cutter.from_selection": "Criar cortador desta seleção",
+        "materials.receiver": "Material da cavidade",
+        "materials.insert": "Material do inserto",
+        "target.use_selected": "Usar selecionado como alvo",
+        "target.model": "1. Objeto Alvo",
+        "split.mode": "2. Método de Corte",
+        "connectors.title": "3. Encaixes e Pinos (Opcional)",
+        "preview.title": "4. Prévia do Corte",
+        "commit.title": "5. Criar Peças",
+        "commit.button": "Confirmar Divisão",
+        "preview.generate": "Gerar / Atualizar Preview",
+        "preview.discard": "Remover Prévia",
+        "revert.button": "Reverter este corte",
+        "cutter.create": "Criar Cortador",
+        "cutter.reset": "Reiniciar Formato",
+        "cutter.duplicate": "Duplicar Cortador",
+        "cutter.copy_selected": "Copiar Selecionado como Cortador",
+        "cutter.align": "Alinhar Cortador",
+        "cutter.corner_box": "Caixa para Quina Regular",
+        "view.assembled": "Montado",
+        "view.exploded": "Explodido",
+        "pin.count_1": "{count} pino gerado com sucesso.",
+        "pin.count_2": "{count} pinos gerados com sucesso.",
+        "pin.count_5": "{count} pinos gerados com sucesso.",
+        "face.count_1": "{count} face na região.",
+        "face.count_2": "{count} faces na região.",
+        "face.count_5": "{count} faces na região.",
+        "error.connector_space": "Falta de espaço: a interface ({width}x{length} mm) não comporta o encaixe com margem de {margin} mm.",
+        "error.linear_space": "Falta de espaço: a distribuição {dist} requer vão de ao menos {min_len} mm (disponível: {avail_len} mm).",
+        "error.grid_space": "Falta de espaço: a distribuição GRID_4 requer ao menos {min_w}x{min_h} mm (disponível: {avail_w}x{avail_h} mm).",
+        "error.non_planar": "A seleção não é planar (desvio: {deviation} mm > 0.15 mm).",
+        "error.irregular_corner": "Quina não ortogonal detectada. A geração de caixa requer 3 faces ortogonais.",
+    },
+    "en_US": {
+        "connectors.enable": "Enable connectors",
+        "connectors.distribution": "Connector distribution",
+        "connectors.suggest_positions": "Suggest positions",
+        "connectors.suggest_count": "Suggest count",
+        "connectors.outside_domain": "Connector {index} is outside the usable region or violates the {margin_mm} mm margin.",
+        "preview.failed_preserved": "Update failed: {reason}. The previous preview was preserved.",
+        "loop.recapture_target_changed": "The body changed after the cut. Capture a new boundary to continue.",
+        "target.edit": "Edit target",
+        "target.continue_receiver": "Continue on the remaining body",
+        "explosion.reverse": "Reverse explosion direction",
+        "cutter.focus": "Focus cutter",
+        "cutter.from_selection": "Create cutter from selection",
+        "materials.receiver": "Cavity material",
+        "materials.insert": "Insert material",
+        "target.use_selected": "Use selected as target",
+        "target.model": "1. Target Model",
+        "split.mode": "2. Cutting Method",
+        "connectors.title": "3. Connectors & Pins (Optional)",
+        "preview.title": "4. Cut Preview",
+        "commit.title": "5. Create Parts",
+        "commit.button": "Confirm Split",
+        "preview.generate": "Generate / Update Preview",
+        "preview.discard": "Discard Preview",
+        "revert.button": "Revert this cut",
+        "cutter.create": "Create Cutter",
+        "cutter.reset": "Reset Shape",
+        "cutter.duplicate": "Duplicate Cutter",
+        "cutter.copy_selected": "Copy Selected as Cutter",
+        "cutter.align": "Align Cutter",
+        "cutter.corner_box": "Box for Regular Corner",
+        "view.assembled": "Assembled",
+        "view.exploded": "Exploded",
+        "pin.count_1": "{count} pin generated successfully.",
+        "pin.count_2": "{count} pins generated successfully.",
+        "pin.count_5": "{count} pins generated successfully.",
+        "face.count_1": "{count} face in region.",
+        "face.count_2": "{count} faces in region.",
+        "face.count_5": "{count} faces in region.",
+        "error.connector_space": "Lack of space: interface ({width}x{length} mm) does not fit connector with {margin} mm margin.",
+        "error.linear_space": "Lack of space: distribution {dist} requires gap of at least {min_len} mm (available: {avail_len} mm).",
+        "error.grid_space": "Lack of space: distribution GRID_4 requires at least {min_w}x{min_h} mm (available: {avail_w}x{avail_h} mm).",
+        "error.non_planar": "Selection is non-planar (deviation: {deviation} mm > 0.15 mm).",
+        "error.irregular_corner": "Non-orthogonal corner detected. Box generation requires 3 orthogonal faces.",
     },
 }
 
 
-def _get_current_locale(forced_locale: Optional[str] = None) -> str:
-    """Retorna o código de idioma atual do Blender (pt_BR ou fallback en_US)."""
+def get_addon_preferences(context: Optional[bpy.types.Context] = None) -> Optional[bpy.types.AddonPreferences]:
+    """Recupera preferências da extensão."""
+    ctx = context or bpy.context
+    if not ctx or not hasattr(ctx, "preferences") or not ctx.preferences:
+        return None
+    addons = getattr(ctx.preferences, "addons", None)
+    if not addons:
+        return None
+    # Identificadores possíveis: package atual, chest_part_splitter, ou src
+    for pkg_id in (__package__, "chest_part_splitter", "src"):
+        if pkg_id and pkg_id in addons:
+            pref = getattr(addons[pkg_id], "preferences", None)
+            if pref:
+                return pref
+    return None
+
+
+def get_addon_locale(context: Optional[bpy.types.Context] = None) -> str:
+    """Retorna o código de idioma atual respeitando as preferências do add-on (pt_BR ou en_US)."""
+    pref = get_addon_preferences(context)
+    if pref and hasattr(pref, "language"):
+        lang = pref.language
+        if lang == 'PT_BR':
+            return "pt_BR"
+        elif lang == 'EN_US':
+            return "en_US"
+
+    # AUTO: detecta idioma configurado no Blender
     try:
-        loc = forced_locale if forced_locale is not None else getattr(bpy.app.translations, "locale", None)
+        loc = getattr(bpy.app.translations, "locale", None)
         if loc and loc.startswith("pt"):
             return "pt_BR"
     except Exception:
         pass
-    return "en_US"  # Padrão internacional em inglês
+    return "en_US"
+
+
+def _get_current_locale(forced_locale: Optional[str] = None) -> str:
+    """Retorna o código de idioma atual (pt_BR ou en_US)."""
+    if forced_locale is not None:
+        return "pt_BR" if forced_locale.startswith("pt") else "en_US"
+    return get_addon_locale()
+
+
+def tr(key: str, **kwargs) -> str:
+    """Resolve uma mensagem pelo catálogo de idiomas (LANG-01)."""
+    loc = get_addon_locale()
+    catalog = MESSAGES.get(loc, MESSAGES.get("en_US", {}))
+    template = catalog.get(key)
+    if template is None:
+        template = MESSAGES.get("en_US", {}).get(key)
+    if template is None:
+        template = MESSAGES.get("pt_BR", {}).get(key, key)
+    if kwargs:
+        try:
+            return template.format(**kwargs)
+        except Exception:
+            return template
+    return template
 
 
 def get_help_tooltip(topic: str) -> str:
     """Retorna o texto de tooltip resumido para o tópico indicado."""
-    loc = _get_current_locale()
+    loc = get_addon_locale()
     topic_data = HELP_TOPICS.get(topic)
     if not topic_data:
-        return "Clique para ajuda sobre este recurso."
+        return "Clique para ajuda sobre este recurso." if loc == "pt_BR" else "Click for help on this feature."
     tooltips = topic_data.get("tooltip", {})
     return tooltips.get(loc, tooltips.get("pt_BR", ""))
 
 
 def get_help_popup_content(topic: str) -> Tuple[str, List[str]]:
     """Retorna título e linhas para exibição em popup dialog."""
-    loc = _get_current_locale()
+    loc = get_addon_locale()
     topic_data = HELP_TOPICS.get(topic)
+    default_title = "Ajuda" if loc == "pt_BR" else "Help"
+    default_lines = ["Nenhum tópico explicativo disponível."] if loc == "pt_BR" else ["No help topic available."]
     if not topic_data:
-        return ("Ajuda", ["Nenhum tópico explicativo disponível."])
-    
-    title = topic_data.get("title", {}).get(loc, topic_data.get("title", {}).get("pt_BR", "Ajuda"))
-    lines = topic_data.get("popup_lines", {}).get(loc, topic_data.get("popup_lines", {}).get("pt_BR", []))
+        return (default_title, default_lines)
+
+    title = topic_data.get("title", {}).get(loc, topic_data.get("title", {}).get("pt_BR", default_title))
+    lines = topic_data.get("popup_lines", {}).get(loc, topic_data.get("popup_lines", {}).get("pt_BR", default_lines))
     return title, lines
 
 
@@ -350,3 +522,4 @@ def unregister_translations():
             _translations_registered = False
         except ValueError:
             pass
+

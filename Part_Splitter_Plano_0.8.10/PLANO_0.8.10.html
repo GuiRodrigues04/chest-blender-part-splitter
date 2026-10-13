@@ -1,0 +1,179 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLANO_0.8.10</title><style>body{font:17px/1.6 system-ui,sans-serif;color:#222;background:#f3f4f6;margin:0}main{max-width:1120px;margin:0 auto;background:white;padding:48px}h1{border-bottom:6px solid #ef831e;padding-bottom:20px}h2{margin-top:48px;color:#963c00}h3{margin-top:30px}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #ddd;padding:10px;vertical-align:top}th{background:#fff0e0}img{max-width:100%;height:auto;border:1px solid #aaa}pre{background:#20252c;color:#e9edf3;padding:18px;overflow:auto;font-size:13px}code{font-size:.9em}a{color:#146a8f}nav{background:#fff0e0;padding:16px}footer{font-size:13px;color:#555}@media print{body{background:white}main{padding:0}h2{break-before:auto}img,pre,tr{break-inside:avoid}a{color:inherit}}</style><main><nav><a href="PLANO_0.8.10.html">Plano completo</a> · <a href="NOTAS_CODIGO.html">Trechos do código</a> · <a href="LEIA_PRIMEIRO.md">Como usar o pacote</a></nav><h1>Part Splitter — plano de desenvolvimento 0.8.10 (versão proposta)</h1>
+<p>Base: ZIP <code>chest_part_splitter-0.8.9.zip</code>. Data: 13/10/2026. Destino: Antigravity com o modelo chamado pelo usuário de Gemini Flash 3.8. Este documento não presume capacidades específicas desse nome de modelo. Execute em etapas pequenas, com evidência de teste a cada etapa.</p>
+<h2>1. Instrução inicial para o agente implementador</h2>
+<p>Leia este plano completo, <code>NOTAS_CODIGO.md</code> e o código da base antes de editar. Abra cópias de <code>casos/Teste_3.blend</code> e <code>casos/Teste_4.blend</code> no Blender. Registre o estado real deles: as capturas podem representar momentos posteriores ao salvamento dos arquivos. Não suponha que o arquivo contém exatamente a seleção da imagem.</p>
+<p>Implemente primeiro a recuperação da extração por loop e os contratos quebrados de criação de cortador. Depois implemente alinhamento, base de saliência, triangulação, visualização e idioma. Não remova verificações de integridade para fazer uma prévia passar. Não altere medidas internas ou a silhueta sem controle explícito do usuário. Não remodele toda a extensão. Preserve restauração de previews/cortes, isolamento por sessão e materiais.</p>
+<p>Antes de cada etapa: descreva o problema, funções atingidas e teste que vai falhar antes e passar depois. Ao terminar: informe arquivos alterados, resultados reais, limitações e pendências. Não declare teste executado com base somente em leitura, compilação Python ou screenshot. Se Blender não estiver disponível, registre a limitação e deixe a validação de execução pendente.</p>
+<h2>2. Evidência e limites desta análise</h2>
+<p>Foram lidos os módulos Python da 0.8.9 e as capturas fornecidas. Nesta análise não havia executável Blender nem módulo <code>bpy</code>; os <code>.blend</code> não foram abertos ou executados. Não está comprovado que coincidência de faces seja a causa das arestas quase nulas. Está comprovado no código que existem contratos incompatíveis, pressupostos incorretos de alinhamento e seleção conjunta na confirmação.</p>
+<p>O manifesto exige Blender &gt;= 4.2.0. As capturas mostram Blender 5.2.0 LTS. Validar ao menos 4.2 e 5.2 ou revisar explicitamente a compatibilidade declarada. Os ZIPs 0.8.5/0.8.6 são históricos; não implementar sobre eles. O pacote inclui a base 0.8.9 intacta e seus hashes.</p>
+<table>
+<tr><th>ID</th><th>Prioridade</th><th>Observação</th><th>Grau de certeza</th></tr>
+<tr><td>DEV-01</td><td>P0</td><td>Extração por loop em região plana falha com 2 ou 5 arestas quase nulas em A</td><td>Falha observada; causa pendente</td></tr>
+<tr><td>DEV-02</td><td>P0</td><td>Corte da quina falha com 3 arestas quase nulas em B</td><td>Falha observada; causa pendente</td></tr>
+<tr><td>DEV-03</td><td>P0</td><td>Criar cortador da seleção chama funções com argumentos incompatíveis</td><td>Confirmado estaticamente</td></tr>
+<tr><td>DEV-04</td><td>P1</td><td>Caixa de quina pode apontar um eixo para fora; falta validação de canto compartilhado</td><td>Confirmado no algoritmo; extensão do efeito a reproduzir</td></tr>
+<tr><td>DEV-05</td><td>P1</td><td>Alinhar à face depende da origem central e dimensão mundial Z</td><td>Confirmado estaticamente</td></tr>
+<tr><td>DEV-06</td><td>P1</td><td>Triangulação da tampa produz leque e triângulos estreitos</td><td>Observado; deformação física não comprovada</td></tr>
+<tr><td>DEV-07</td><td>P1</td><td>Saliência termina com zonas muito finas; usuário quer base retirada do receptor</td><td>Observação + novo requisito</td></tr>
+<tr><td>DEV-08</td><td>P1</td><td>Após confirmar, mover peça move também o cubo</td><td>Relato; seleção de A e B confirmada, edição proporcional é hipótese adicional</td></tr>
+<tr><td>DEV-09</td><td>P2</td><td>Cortador difícil de distinguir visualmente</td><td>Novo requisito</td></tr>
+<tr><td>DEV-10</td><td>P2</td><td>Vários rótulos permanecem em inglês</td><td>Confirmado nas capturas e literais de UI</td></tr>
+</table>
+<h2>3. Casos visuais e reprodução</h2>
+<h3>E01 — caixa de quina: resultado inválido</h3>
+<p><img alt="E01: três arestas quase nulas na Parte B" src="imagens/E01_quina.png"></p>
+<p>Imagem original <code>image(20261013-145344).png</code>. Cortador criado por Caixa para Quina, posteriormente posicionado com operações de cursor/origem. Mensagem: Parte B possui 3 arestas com comprimento nulo. Painel mostra cortador fechado e volume 8.798 mm³, embora dimensões exibidas sejam 20/20/20. Essa diferença exige conferir se houve edição da caixa, escala, geometria deformada ou diagnóstico desatualizado; não assumir cubo perfeito pelo nome.</p>
+<h3>E02 — extração plana de região maior</h3>
+<p><img alt="E02: loop de 16 vértices, profundidade 15,26" src="imagens/E02_loop_16.png"></p>
+<p>Contorno planar, 16 vértices; face de referência #286; extração manual, 15,26 mm, corte passante desligado e encaixes desligados. Falha em A: 5 arestas quase nulas.</p>
+<h3>E03 — falha mesmo com contorno mínimo e passante</h3>
+<p><img alt="E03: quatro vértices e corte passante" src="imagens/E03_loop_4.png"></p>
+<p>Contorno de quatro vértices; face #22; automático escolhe EXTRUDE; 15,26 mm; passante ligado. Falha em A: 2 arestas quase nulas. Logo, não atribuir a falha apenas a colineares ou apenas à ausência de corte passante.</p>
+<h3>E04 — teste de controle: saliência funciona</h3>
+<p><img alt="E04: contorno planar envolvendo saliência" src="imagens/E04_saliencia.png"></p>
+<p>Contorno indicado como planar, 12 vértices; face #433; automático escolhe DETACH. A região tem relevo, mas o contorno de interface é planar. Não confundir região não plana com loop não plano.</p>
+<h3>E05 — leque na tampa</h3>
+<p><img alt="E05: topologia da interface" src="imagens/E05_tampa.png"></p>
+<p>Parte B em edição. Muitas arestas convergem a um ponto da borda. Corrigir qualidade de triangulação, não apenas ocultar arestas ou aplicar smooth shading. A captura não comprova ondulação.</p>
+<h3>E06 — saliência amarela e necessidade de base</h3>
+<p><img alt="E06: saliência amarela" src="imagens/E06_base.png"></p>
+<p>16 vértices, face #60, DETACH automático. Usuário relata películas nas extremidades e pede acrescentar espessura atrás do relevo, retirando volume do cubo. Arquivo de resultado: <code>Teste_4.blend</code>; verificar conteúdo efetivo antes de associar índices.</p>
+<h2>4. DEV-01/02 — recuperação geométrica e tolerâncias</h2>
+<h3>Localização</h3>
+<p><code>operators.py:168–207</code>, <code>validate_printable_mesh</code>; <code>diagnostic.py:141–182</code>, <code>validate_bmesh_mesh_geometry</code>; <code>operators.py:1730–1765</code>, validação de candidatos; <code>geometry_loop.py:981–1039</code>, prisma; <code>geometry_loop.py:1042–1225</code>, extração; <code>geometry_solid.py</code>, booleanos de sólidos. Conferir trechos anexos, pois linhas mudarão durante a implementação.</p>
+<p>Hoje aresta abaixo de <code>1e-7</code> BU é chamada de nula. Coincidência entre vértices usa distância ao quadrado <code>&lt;1e-12</code> BU²; área usa mm². As escalas desses critérios são diferentes: distância implícita de coincidência é 1e-6 BU, maior que o limiar de aresta. A função recebe escala física, mas não a usa em todos os testes.</p>
+<h3>Primeiro diagnosticar, depois reparar</h3>
+<ol>
+<li>Registrar diagnósticos do alvo avaliado, cortador, A/B imediatamente após booleano e após eventual reparo. Medir em World Space e mm; nunca misturar mesh local com unidades mundiais.</li>
+<li>Para cada elemento suspeito, registrar coordenadas, comprimento/área físicos, conectividade, faces adjacentes, distância à interface e presença correspondente na entrada. Exportar relatório técnico opcional.</li>
+<li>Separar: zero exato; quase zero sob tolerância numérica; detalhe pequeno válido; parede fina imprimível ou não. Parede fina não equivale a malha inválida.</li>
+<li>Reproduzir sem alterar dimensões, com e sem passante. Comparar escala aplicada/não aplicada, rotação, região maior/menor e solver EXACT. Não trocar automaticamente para outro solver para ocultar a falha.</li>
+<li>Se defeito surgir no booleano, testar saneamento restrito numa cópia: candidatos recém-criados/perto da interface e sua vizinhança. Dissolve/merge pode abrir a malha; só aceitar após todas as invariantes.</li>
+<li>Se o saneamento não passar, rejeitar o candidato e manter alvo/última prévia válida. Exibir diagnóstico e caminho claro para corrigir. Não publicar malha defeituosa.</li>
+</ol>
+<p>Criar uma política central de tolerâncias, em mm, com conversão <code>eps_bu = eps_mm / scale_to_mm</code> e área quadrática. Definir valor numérico apenas após medir casos e fixtures; o plano não impõe um epsilon mágico. Usar também escala relativa da peça e limite para não apagar folgas/detalhes. Distinguir tolerância geométrica numérica de folga de montagem e extensão externa do cortador. Aumentar epsilon até passar é proibido.</p>
+<h3>Coincidências</h3>
+<p>A causa é hipótese. Para caixa na quina, extensão externa pode ultrapassar a superfície exterior, mantendo as três faces internas que definem o recorte nas posições prescritas. Para loop interno a uma superfície, expandir o contorno lateralmente altera a peça: não usar isso como conserto silencioso. Manter o footprint exato, testar estratégia de booleano e saneamento controlado.</p>
+<p>No prisma por loop, a remoção de pontos colineares muda a subdivisão das paredes do cortador, mas não deve mudar seu domínio. Testar colinearidade, inversão do contorno e correspondência com arestas da superfície.</p>
+<h3>Invariantes</h3>
+<p>Para sólido válido e folga zero: A e B fechados, sem coordenadas inválidas, volumes positivos, sem faces internas duplicadas, sem auto-interseções detectadas; volume de interseção A∩B desprezível; volume da diferença entre alvo e A∪B desprezível. Apenas comparar V(A)+V(B) não basta. Declarar tolerâncias de medida no relatório. Com folga, verificar perda de volume esperada e que a alteração esteja restrita à interface.</p>
+<p>A validação final de confirmação atualmente carrega malha avaliada sem transformar BMesh para mundo; alinhar esse contrato com a validação de geração. Não multiplicar escala duas vezes. Avaliar uso de modificadores no caminho Loop, que lê <code>obj.data</code>, enquanto cópias booleanas também recebem modificadores de <code>obj.copy()</code>. Testar se se está validando o mesmo estado que é cortado.</p>
+<p><strong>Referência crítica R4:</strong> histórico do 3D Print Toolbox retirou uma etapa de dissolve de degenerados por produzir non-manifolds em certos casos. Isso justifica limpeza transacional e revalidação, não cópia de uma receita global.</p>
+<h2>5. DEV-03 — contratos de criação de cortador</h2>
+<p><code>CHEST_OT_splitter_create_cutter_from_selection</code>, <code>operators.py:1305–1394</code>:</p>
+<ul>
+<li>Loop: chama helper com <code>target</code>, <code>depth_bu</code>, <code>outer_extension_bu</code>, <code>unit_scale</code>; helper real exige <code>coords_world</code>, <code>inward_dir</code>, <code>depth_bu</code>, <code>outward_ext_bu</code>, <code>name</code>.</li>
+<li>Material: passa mesh, índice de material/região e keyword <code>outer_extension_bu</code>, mas helper exige lista de índices de faces e <code>inward_dir</code>, com <code>outward_ext_bu</code>.</li>
+<li>Ambos os helpers retornam <strong>Object</strong>, não Mesh. Mesmo consertando keywords, o operador tenta usá-los como Mesh em <code>bpy.data.objects.new</code> e copiar a matriz do alvo. Helpers já criam objeto ligado à cena em coordenadas mundiais: isso pode duplicar objeto ou aplicar transformação duas vezes.</li>
+<li><code>invert_direction</code> é declarado, mas não lido. O operador não muda <code>split_mode</code> para SOLID. Não sincroniza explicitamente dados vivos de edição antes da análise.</li>
+</ul>
+<p>Escolher contrato único. Recomendação: núcleo gera Mesh em mundo, sem links ou objetos; operador cria exatamente um objeto com matriz identidade, liga à coleção de guias e registra lifecycle. Adaptar consumidores antigos de forma explícita. Alternativa legítima: manter retorno Object com ownership documentado e transferi-lo à coleção correta. Não misturar ambos.</p>
+<p>Usar análise real do contorno/região para obter normal, coordenadas e faces. Sincronizar Edit Mode via API adequada sem destruir a captura. Aplicar inversão efetiva. Material deve resolver a área conectada escolhida, não todas as faces da mesma cor. Validar planaridade antes de extrudar a região plana.</p>
+<p>Abrir diálogo compacto para profundidade/extensão/inversão (não depender de F9). Depois de sucesso, entrar em SOLID, apontar cortador e atualizar dimensões/diagnóstico. Selecionar só o cortador em Object Mode. Ao cancelar ou falhar: não deixar objetos/meshes temporários nem mudar modo e seleção inadvertidamente.</p>
+<p>Testar Loop e Material sob translação/rotação/escala não uniforme, contorno invertido, região côncava, duas ilhas da mesma cor, chamada em Edit/Object Mode e ausência de referência válida. Teste de assinatura com <code>inspect.signature(...).bind(...)</code> é complemento de teste funcional, não substituto.</p>
+<h2>6. DEV-04/05 — alinhamento integrado à extensão</h2>
+<h3>Fluxo de produto</h3>
+<p>No modo SOLID: <code>Alinhar cortador</code> → <code>À face</code> ou <code>À quina</code> → <code>Escolher referência na peça</code> → seleção orientada → <code>Confirmar alinhamento</code>. A extensão ativa o alvo sem perder o cortador registrado. Oferecer Cancelar, Realinhar à referência e Desfazer alinhamento. Não obrigar cursor/origem/F9. Tooltip instrui uma face ou três faces do mesmo canto. Mostrar seta de avanço, apoio e referência destacada.</p>
+<p>Alinhamento À face: apoio centralizado, penetração física, giro no plano e inversão explícita. À quina: três medidas para dentro e canto fixo durante redimensionamento. Para começar, aceitar quina externa plana ortogonal; não anunciar suporte a quina chanfrada/curva ou ângulo arbitrário. Não inserir quina na seção Material apenas: expor no SOLID e como atalho de criação.</p>
+<h3>Problemas atuais</h3>
+<p><code>operators.py:1183–1302</code> recompõe uma base somente a partir da normal, perdendo tangente/roll tanto de TARGET_AXES quanto CURSOR_3D. Usa <code>cutter.dimensions.z/2</code>, dimensão da caixa mundial, como distância local de apoio. Presume origem central. <code>SELECTION_CENTER</code> usa a origem do objeto ativo, não centro dos elementos selecionados.</p>
+<p><code>operators.py:1397–1478</code> aceita três faces mesmo sem vértice comum e usa média dos centros; nesse caso não há quina comprovada. O teste <code>abs(dot)&gt;0.35</code> é tolerância angular ampla. Inverte n3 para corrigir handedness e depois assume os três sentidos negativos como interiores: mudar o sinal do eixo muda o lado de penetração. Escolha de shared vertex por conjunto e ordem incidental de faces não é referência determinística robusta.</p>
+<p><code>properties.py:57–99</code> escala em torno da origem atual. Não mantém um canto ou apoio de referência. O mínimo <code>1e-4</code> BU impõe uma dimensão física que depende da escala da cena; revisar junto com unidade.</p>
+<h3>Contrato geométrico proposto</h3>
+<p>Guardar um ponto de apoio local <code>a_local</code>, ponto alvo mundial <code>p</code>, orientação completa <code>R</code>, escala preservada <code>S</code> e deslocamento físico <code>d</code>. Calcular translação:</p>
+<p><code>t = p + d_world - R @ (S @ a_local)</code></p>
+<p>Aqui S é a matriz diagonal de escala; R é orientação ortonormal. Se a implementação for por Matrix completa, deixar a convenção explícita. Esse cálculo funciona com origem central, canto ou origem arbitrária. Não mudar a origem do usuário como etapa obrigatória.</p>
+<p>À face: calcular normal via inversa transposta e tangente a partir de aresta da face projetada no plano; desempate determinístico. Construir base ortonormal com giro controlado. Escolher apoio pelos vértices/limites locais reais, não por <code>dimensions.z</code>. Penetração deve apontar para interior, com teste de ocupação/raycast e aviso de ambiguidade em malhas abertas.</p>
+<p>À quina: exigir canto único compartilhado, três planos independentes, face planar, ângulos dentro da tolerância documentada. Se normais não forem ortogonais, não deformar uma caixa com base oblíqua. Orientar eixos com permutação/sinais de determinante positivo e associar os lados internos/exteriores separadamente. Handedness não determina lado interno. Normais externas e amostras internas devem concordar; falhar se não houver decisão segura.</p>
+<p>Metadados de referência devem acompanhar session/target identity e assinatura de topologia. Índice de face/vértice não basta após edição topológica. Alterou referência? invalidar e pedir escolha novamente. Redimensionar: recalcular t a partir do mesmo apoio. Guardar transformação anterior para desfazer, sem mexer na geometria e com Ctrl-Z também funcional.</p>
+<p>Testar 8 cantos de cubo, cubo rotacionado, escala não uniforme/negativa, origem arbitrária, faces selecionadas em ordens diferentes, três faces sem canto comum, faces chanfradas e referência apagada. Na escala negativa, não normalizar cegamente apagando espelhamento: construir snapshot adequado ou rejeitar com instrução útil.</p>
+<h2>7. DEV-06 — tampas coerentes</h2>
+<p><code>geometry_loop.py:808–978</code>: ear clipping simplifica colineares e reinsere intermediários em leque. Também possui fallback que emite o primeiro triângulo quando nenhuma orelha é encontrada; isso contradiz a garantia de domínio estrito para entradas problemáticas. Substituir esse fallback por erro diagnóstico ou backend validado.</p>
+<p>Avaliar <code>mathutils.geometry.delaunay_2d_cdt</code> (R1), triangulação restrita por todos os segmentos de contorno. API devolve coordenadas e mapas de origem: não tratar índices de saída como índices originais. Pode dividir ou unir pontos; remapear e preservar as cadeias da borda para não criar T-junctions. Testar opções de domínio/hole, epsilon e assinatura em cada Blender suportado; não presumir output_type correto sem teste.</p>
+<p>Projetar para base local 2D centrada, limpar duplicatas estritamente degeneradas e manter correspondência dos vértices reais. Verificar cobertura de área, nenhum triângulo externo, nenhuma sobreposição, borda exata e winding. Triangular uma vez e usar a mesma tesselação para A e B com normais opostas. Criar pontos internos compartilhados se necessário para melhorar ângulos, sob orçamento de elementos. A concavidade pode impor triângulos finos legítimos; não prometer eliminação universal.</p>
+<p>Métrica de qualidade sugerida: ângulo mínimo, distribuição de aspecto e área mínima. Comparar com 0.8.9; geometria e fechamento são condições obrigatórias, qualidade é objetivo secundário. Não fazer remesh global, dissolve de toda a superfície, reconstrução em convex hull ou n-gon que atravesse concavidades.</p>
+<h2>8. DEV-07 — destacar saliência com base</h2>
+<p>Adicionar opção a DETACH: <code>Adicionar base para encaixe</code>, <code>Profundidade da base (mm)</code>, <code>Folga lateral (mm)</code> separada. Base desativada conserva comportamento anterior. AUTO pode sugerir base se detectar região fina, mas não acrescentar profundidade silenciosamente.</p>
+<p>A forma externa original deve permanecer. Definir plano de apoio pelo contorno planar e direção interior <code>n_in</code>. A partir do footprint capturado, retirar material do corpo até distância d para dentro. A peça vira relevo + base; receptor ganha cavidade complementar. Não usar Solidify global nem mover a peça inteira para dentro.</p>
+<p>Implementação candidata: prisma que abrange toda a saliência para fora e d para dentro; <code>A = alvo ∩ prisma</code>, <code>B = alvo − prisma</code>. Extensão externa precisa cobrir altura máxima do relevo e margem numérica, não um 1 mm fixo que corte a ponta. Região selecionada deve ser isolada: se o volume interceptar outro detalhe/ilha no caminho, detectar e impedir extração indevida. Validar que as películas não sejam faces soltas/duplicadas do algoritmo; base não pode mascarar esses defeitos.</p>
+<p>Profundidade positiva não garante espessura mínima em toda geometria. Medir parede disponível com amostras distribuídas no interior, não somente centroid + vértices de borda. Concavidade pode colocar centro fora do domínio. Usar amostras dos triângulos válidos, margem interna e raycasts apropriados. O offset <code>1e-4</code> BU atual é dependente da escala: converter para tolerância física. Se inconclusivo, informar, não autorizar pelo valor mínimo de um único raio. Não atravessar automaticamente o receptor em modo base.</p>
+<p>Revisar <code>build_cut_interface</code> na extração: origem atual está deslocada por profundidade, mas <code>boundary_points_world</code> recebe contorno da superfície original. Base/fundo precisam de coordenadas consistentes na interface real. Para passante, não inventar uma interface de fundo inexistente. Isso afeta encaixes, métricas e explosão.</p>
+<p>Folga lateral é dimensional, não tolerância numérica. Começar com zero e adicionar offset validado mantendo exterior e materiais. Interior da cavidade recebe material do receptor; relevo preserva suas cores; escolher explicitamente material da nova base (padrão da peça extraída). Verificar U/L, cantos finos, reentrâncias e parede insuficiente.</p>
+<h2>9. DEV-08 — confirmação e movimento independente</h2>
+<p><code>operators.py:2221–2228</code>: confirma e seleciona A e B. Alterar para selecionar só a peça extraída por papel semântico, não simplesmente nome A se inversão mudar sua identidade. Garantir Object Mode e uma seleção ativa explícita. Exibir <code>Peça extraída selecionada. Use G para mover.</code></p>
+<p>Capturas anteriores mostram edição proporcional ligada, mas isso não prova a causa do relato. Reproduzir no <code>Teste_4.blend</code>: conferir seleção, <code>use_proportional_edit_objects</code>, parent, constraints/drivers, mesh datablocks compartilhados, ilhas de malha e modificadores. Mover só a extraída e verificar matriz do receptor inalterada. Com proporcional ligada, informar o efeito; não mudar preferências globais do usuário sem indicação. Não introduzir ligação/parent entre peças finais.</p>
+<p>Após mover, Remover Prévia e Reverter Corte devem continuar respeitando estado e sessões. Testar cortes recursivos e objetos de outros usuários/coleções. Não capturar exceções de seleção e continuar silenciosamente deixando UI contraditória.</p>
+<h2>10. DEV-09/10 — visualização e idioma</h2>
+<p>Adicionar overlay GPU de arestas reais do cortador em ciano, por padrão, com largura ajustável. Mostrar canto/face de apoio e seta de penetração. Cor deve continuar identificável quando Blender desenhar seleção laranja; <code>display_type=&#x27;WIRE&#x27;</code> e <code>object.color</code> sozinhos não garantem isso.</p>
+<p>Integrar ao handler já existente (<code>gpu_drawing.py:405–447</code>) em vez de registrar handler por objeto. Usar coordenadas mundiais, BMesh vivo em edição, cache por revisão de geometria/transformação/visibilidade. Desenhar só o cortador da sessão, respeitar ocultação/local view e estados de corte. Restaurar estados GPU em finally; remover handler no unregister/reload. Não renderizar overlays no export/mesh final. Consultar POLYLINE_UNIFORM_COLOR e uniforms adequados (R6); compatibilidade 4.2/5.2 precisa de teste visual, não headless.</p>
+<p>Aplicar idioma em labels, enum items, descriptions/tooltips, diálogos, erros e estado. Exemplos vistos: Boundary Loop Cut, Highlight Loop in Viewport, Enable Connectors, Explosion Distance, Invert Explosion Direction, Cut Results, Preview generation error. Não traduzir IDs de operadores/propriedades ou nomes internos usados por lifecycle. O catálogo em <code>translations.py</code> não resolve literais que não passam pelo sistema de tradução. Testar PT_BR/EN_US/AUTO, pluralização, mm e conteúdo dinâmico. Português padrão deve descrever causa e ação possível sem culpar automaticamente o usuário.</p>
+<h2>11. Matriz de testes obrigatórios</h2>
+<table>
+<tr><th>Teste</th><th>Preparação / ação</th><th>Resultado obrigatório</th></tr>
+<tr><td>T01</td><td><code>Teste_3</code>, região plana de 16 pontos, 15,26 mm sem passante</td><td>A/B válidos ou diagnóstico de causa real com elementos marcados; para entrada válida, prévia deve passar</td></tr>
+<tr><td>T02</td><td>Região plana de 4 pontos, AUTO EXTRUDE e passante</td><td>Sem arestas degeneradas; peça passante coerente</td></tr>
+<tr><td>T03</td><td>Mesmo contorno, 1/2/5/15/15,26 mm e profundidade inválida</td><td>Sucesso nas válidas, erro explícito nas incompatíveis, sem alterar dimensão para passar</td></tr>
+<tr><td>T04</td><td>DETACH de saliência de 12/16 pontos</td><td>Manter sucesso anterior e superfície exterior</td></tr>
+<tr><td>T05</td><td>Quina de <code>Teste_3</code>, origem central/de canto/arbitrária</td><td>Mesmo recorte para mesmos parâmetros; resultado válido</td></tr>
+<tr><td>T06</td><td>Criar cortador da seleção Loop/Material</td><td>Um único cortador, matriz correta, entrada preservada, SOLID ativo</td></tr>
+<tr><td>T07</td><td>Seleções invertidas/duas ilhas material/contorno U/L</td><td>Região correta, sem tampas atravessando vãos</td></tr>
+<tr><td>T08</td><td>Cubo e 8 quinas; face com giro de 30°; origem fora da peça</td><td>Alinhamento determinístico e apoio fixo</td></tr>
+<tr><td>T09</td><td>Alterar medidas 10→20→10 mm e realinhar 10 vezes</td><td>Sem deriva; canto mundial constante dentro da tolerância</td></tr>
+<tr><td>T10</td><td>Três faces sem canto comum/quina curva/normais inválidas</td><td>Rejeição informativa; não criar caixa pela média</td></tr>
+<tr><td>T11</td><td><code>Teste_4</code>: base d=0/1/2/3 mm</td><td>d=0 preserva DETACH; d&gt;0 cria base/cavidade e conserva exterior</td></tr>
+<tr><td>T12</td><td>Base maior que parede disponível</td><td>Bloqueio ou decisão explícita, nunca atravessamento silencioso</td></tr>
+<tr><td>T13</td><td>Tampas: convexa, U/L, 4/12/16/40 pontos colineares</td><td>Cobertura exata, nenhuma T-junction, melhora mensurável de qualidade</td></tr>
+<tr><td>T14</td><td>Folga zero e positiva com materiais distintos</td><td>Conjunto complementar e alteração restrita; materiais preservados</td></tr>
+<tr><td>T15</td><td>Confirmar → desmarcar → mover só extraída, proporcional off/on</td><td>Separação real demonstrada; UI explica eventual influência proporcional</td></tr>
+<tr><td>T16</td><td>Remover preview, reverter corte, continuar receptor, sessões diferentes</td><td>Snapshot/restauração intactos; nenhuma exclusão indevida</td></tr>
+<tr><td>T17</td><td>Unidade de cena 1 / 0,001; mesmo tamanho físico</td><td>Medidas e validade equivalentes</td></tr>
+<tr><td>T18</td><td>Rotação, translação grande, escala não uniforme, espelhamento</td><td>World Space correto, sem aplicação dupla</td></tr>
+<tr><td>T19</td><td>Modificadores no alvo e malha em Edit Mode</td><td>Estado avaliado consistente e captura sincronizada</td></tr>
+<tr><td>T20</td><td>Overlay selecionado/não selecionado/oculto/local view/reload</td><td>Cor legível, sem handlers duplicados ou referências inválidas</td></tr>
+<tr><td>T21</td><td>PT_BR/EN_US/AUTO e preferências Blender em outro idioma</td><td>Traduções completas e IDs intactos</td></tr>
+<tr><td>T22</td><td>Exportação STL/3MF e inspeção em fatiador</td><td>Sem guias exportados; partes e materiais compatíveis com formato</td></tr>
+</table>
+<p>Escrever fixtures sintéticas no Blender com asserts de geometria, matrizes, ownership e volume, não testes que espelham cada linha da implementação. Para <code>.blend</code> reais, guardar resultado JSON e imagens antes/depois; copiar arquivos, não sobrescrever originais.</p>
+<p>Comando-modelo Windows, substituindo caminhos reais:</p>
+<pre><code>&amp; &#x27;C:\Program Files\Blender Foundation\Blender 5.2\blender.exe&#x27; --background --factory-startup --python &#x27;.\tests\run_regression.py&#x27;</code></pre>
+<p>Harness precisa importar/registrar extensão, carregar cópia do caso, configurar propriedades e limpar sessão por teste. Nomes de objetos/índices devem ser inspecionados e registrados; nunca hardcode de face da captura sem conferir arquivo. Headless valida geometria; UI/GPU requer execução gráfica.</p>
+<h2>12. Sequência de implementação e gates</h2>
+<ol>
+<li><strong>Baseline e diagnóstico:</strong> reproduzir T01–T05/T15, registrar valores físicos e hashes. Sem reprodução, não fechar investigação.</li>
+<li><strong>Contratos e tolerâncias:</strong> DEV-03, unidades, diagnóstico localizado e geração plana. Gate: T01–T07/T17–T19.</li>
+<li><strong>Alinhamento:</strong> referência geométrica/âncora e quina correta. Gate: T05/T08–T10/T18.</li>
+<li><strong>Tampas e base:</strong> triangulação com domínio garantido, complemento geométrico e cavidade. Gate: T04/T11–T14.</li>
+<li><strong>Confirmação, overlay e idioma:</strong> seleção semântica e fluxos claros. Gate: T15/T16/T20–T22.</li>
+<li><strong>Empacotamento:</strong> versão proposta 0.8.10, changelog factual, README/ajudas atualizados, instalação limpa e compatibilidade. Entregar ZIP instalável + relatório com testes efetivamente executados. Se gates falharem, não chamar versão pronta para venda.</li>
+</ol>
+<p>Não delegar várias mudanças simultâneas ao mesmo contexto sem gates. Ao terminar cada etapa, resumir contrato final para a próxima. Usar esta lista como fonte de verdade, não a suposição inicial de que todos os casos de superfície não plana funcionam.</p>
+<h2>13. Referências externas e como usá-las</h2>
+<p>Consultadas em 13/10/2026. Links de código externo podem mudar; registrar commit e licença quando forem usados. Referências são padrões técnicos, não dependências a instalar no cliente. O projeto declara GPL-2.0-or-later; manter atribuições e conferir compatibilidade antes de copiar código. Preferir implementação própria orientada por contratos.</p>
+<table>
+<tr><th>Ref</th><th>Fonte</th><th>Uso específico e limitação</th></tr>
+<tr><td>R1</td><td><a href="https://docs.blender.org/api/5.0/mathutils.geometry.html">API mathutils.geometry 5.0</a></td><td>CDT restrita, retorno/mapas de origem. Não presumir que corrige entradas degeneradas; verificar assinatura 4.2/5.2</td></tr>
+<tr><td>R2</td><td><a href="https://docs.blender.org/api/5.0/bmesh.ops.html">API bmesh.ops 5.0</a></td><td>Operadores de saneamento/tesselação; aplicar numa cópia e revalidar</td></tr>
+<tr><td>R3</td><td><a href="https://github.com/blender/blender-addons/blob/main/object_print3d_utils/operators.py">3D Print Toolbox: código histórico</a></td><td><code>MESH_OT_print3d_check_degenerate</code>, <code>...check_solid</code>, <code>...check_thick</code>; relatório com índices de elementos. Repositório arquivado: usar como referência histórica</td></tr>
+<tr><td>R4</td><td><a href="https://extensions.blender.org/add-ons/print3d-toolbox/versions/">3D Print Toolbox: histórico</a></td><td>Alerta real sobre dissolve que pode produzir non-manifolds; não remover validação</td></tr>
+<tr><td>R5</td><td><a href="https://github.com/nickberckley/bool_tool">Bool Tool: projeto</a> e <a href="https://github.com/nickberckley/bool_tool/releases">releases</a></td><td>Alinhamento de superfície, controle de profundidade, origem e gestão de cortadores. Releases foram consultadas; módulos específicos atuais não foram auditados integralmente</td></tr>
+<tr><td>R6</td><td><a href="https://docs.blender.org/api/current/gpu.shader.html">API GPU shaders</a></td><td>POLYLINE_UNIFORM_COLOR; confirmar disponibilidade e uniforms nas versões suportadas</td></tr>
+<tr><td>R7</td><td><a href="https://docs.blender.org/manual/pt/5.2/modeling/modifiers/generate/booleans.html">Boolean Modifier, manual 5.2</a></td><td>Diferenças entre solvers e limitações. EXACT já é usado; não constitui garantia de malha válida</td></tr>
+<tr><td>R8</td><td><a href="https://github.com/blender/blender-addons/blob/main/object_boolean_tools.py">Bool Tool: código histórico</a></td><td>Referência aberta de separação entre canvas/cutter e ações booleanas; não copiar contexto legado sem adaptação</td></tr>
+<tr><td>R9</td><td><a href="https://docs.blender.org/api/5.2/bmesh.html">BMesh, API 5.2</a></td><td>Ownership, malha em edição e operações BMesh</td></tr>
+</table>
+<p>Não incorporar conteúdo de blogs/repositórios não oficiais encontrados por similaridade de nome. Não afirmar que Bool Tool resolve este mesmo defeito: a referência é de fluxo e arquitetura. O arquivo <code>NOTAS_CODIGO.md</code> contém código real da base e aponta os contratos quebrados; o agente deve comparar com as APIs antes de escrever wrappers.</p>
+<h2>14. Checklist final para entregar ao usuário</h2>
+<ul>
+<li>Todos os itens DEV têm estado: resolvido/testado, implementado/pendente de execução ou investigação aberta.</li>
+<li>Casos planos funcionam para entradas válidas; DETACH continua funcionando.</li>
+<li>Criar cortador não duplica transformação/objeto, aplica direção e preserva fonte.</li>
+<li>Alinhamento dispensa operações manuais de cursor/origem, mantém âncora e oferece desfazer.</li>
+<li>Base acrescenta material retirado do receptor, não altera exterior; folgas separadas.</li>
+<li>Tampas preservam domínio/borda/materiais e qualidade melhora.</li>
+<li>Confirmar não deixa ambas as peças selecionadas por padrão.</li>
+<li>Tolerâncias estão em unidades consistentes e não silenciam defeitos.</li>
+<li>Falha preserva alvo e último resultado válido; temporários liberados.</li>
+<li>UI portuguesa completa, overlay próprio legível, exportação limpa.</li>
+<li>Relatório declara explicitamente tudo que não foi possível verificar.</li>
+</ul><footer>Part Splitter • análise da base 0.8.9 • 13/10/2026</footer></main></html>

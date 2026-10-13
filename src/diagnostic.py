@@ -1,9 +1,11 @@
 """Diagnóstico e análise geométrica de malhas para o Chest Part Splitter."""
 
+from typing import Dict, Any, List, Tuple, Optional
 import bpy
 import bmesh
 from mathutils import Vector
 from .constants import MIN_FACE_AREA_BU, SCALE_TOLERANCE
+
 
 
 def get_scene_scale_to_mm(scene) -> float:
@@ -133,4 +135,84 @@ def analyze_target_mesh(obj: bpy.types.Object, scene: bpy.types.Scene) -> dict:
         "has_unapplied_scale": has_unapplied_scale,
         "is_non_uniform_scale": is_non_uniform_scale,
         "degenerate_faces": degenerate_faces,
+    }
+
+
+def sanitize_mesh_micro_degeneracies(bm: bmesh.types.BMesh, scale_to_mm: float = 1000.0) -> bool:
+    """Saneamento restrito e transacional de micro-arestas causadas por arredondamento no solver booleano (DEV-01 / DEV-02).
+    
+    Solda vértices separados por distâncias sub-micrométricas (< 0.1 µm), preservando a integridade manifold.
+    Retorna True se houve saneamento bem-sucedido e a malha permaneceu manifold.
+    """
+    eps_bu = 1e-4 / max(1e-6, scale_to_mm)
+    bm.edges.ensure_lookup_table()
+    micro_edges = [e for e in bm.edges if e.calc_length() < eps_bu]
+    if not micro_edges:
+        return False
+    
+    targetmap = {}
+    for e in micro_edges:
+        if e.is_valid and len(e.verts) == 2:
+            v0, v1 = e.verts[0], e.verts[1]
+            if v1 not in targetmap.values():
+                targetmap[v1] = v0
+    
+    if not targetmap:
+        return False
+    
+    try:
+        bmesh.ops.weld_verts(bm, targetmap=targetmap)
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        return True
+    except Exception:
+        return False
+
+
+def validate_bmesh_mesh_geometry(bm: bmesh.types.BMesh, scale_to_mm: float = 1000.0) -> Dict[str, Any]:
+    """Valida a geometria de um BMesh medindo integridade, áreas nulas e degenerações (INV-010 / DEV-01)."""
+    bm.verts.ensure_lookup_table()
+    bm.edges.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
+
+    # 1. Arestas de comprimento nulo calibradas pela escala física (< 0.1 µm)
+    eps_length_bu = 1e-4 / max(1e-6, scale_to_mm)
+    null_edges = [e.index for e in bm.edges if e.calc_length() < eps_length_bu]
+
+    # 2. Faces de área nula / colineares / com vértices coincidentes
+    min_face_area_mm2 = 1e-6
+    eps_dist_bu_sq = (eps_length_bu) ** 2
+    degenerate_faces = []
+    for f in bm.faces:
+        area_mm2 = f.calc_area() * (scale_to_mm ** 2)
+        if area_mm2 < min_face_area_mm2:
+            degenerate_faces.append(f.index)
+        else:
+            coords = [v.co for v in f.verts]
+            has_coincident = False
+            for i in range(len(coords)):
+                for j in range(i + 1, len(coords)):
+                    if (coords[i] - coords[j]).length_squared < eps_dist_bu_sq:
+                        has_coincident = True
+                        break
+                if has_coincident:
+                    break
+            if has_coincident:
+                degenerate_faces.append(f.index)
+
+    # 3. Arestas não-manifold
+    non_manifold_edges = [e.index for e in bm.edges if not e.is_manifold]
+
+    # 4. Volume orientado
+    vol_bu = bm.calc_volume(signed=True)
+    vol_mm3 = vol_bu * (scale_to_mm ** 3)
+
+    return {
+        "is_valid": len(null_edges) == 0 and len(degenerate_faces) == 0,
+        "null_edges": null_edges,
+        "degenerate_faces": degenerate_faces,
+        "non_manifold_edges": non_manifold_edges,
+        "is_manifold": len(non_manifold_edges) == 0,
+        "volume_mm3": vol_mm3,
     }

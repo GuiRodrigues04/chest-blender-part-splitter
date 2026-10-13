@@ -39,6 +39,11 @@ def _draw_loop_overlay(context, settings):
     if not target or target.name not in bpy.data.objects or target.type != 'MESH':
         return
 
+    from .geometry_loop import validate_capture
+    is_valid, _reason = validate_capture(target, settings, context)
+    if not is_valid:
+        return
+
     indices_str = getattr(settings, "loop_vertex_indices", "")
     if not indices_str:
         return
@@ -60,14 +65,12 @@ def _draw_loop_overlay(context, settings):
             import bmesh
             bm = bmesh.from_edit_mesh(target.data)
             bm.verts.ensure_lookup_table()
-            v_len = len(bm.verts)
-            pts = [mw @ bm.verts[i].co for i in indices if 0 <= i < v_len]
+            pts = [mw @ bm.verts[i].co for i in indices]
         else:
             mesh = target.data
             if not mesh or not mesh.vertices:
                 return
-            v_len = len(mesh.vertices)
-            pts = [mw @ mesh.vertices[i].co for i in indices if 0 <= i < v_len]
+            pts = [mw @ mesh.vertices[i].co for i in indices]
     except Exception:
         return
 
@@ -399,6 +402,108 @@ def _draw_plane_overlay(context, settings):
         pass
 
 
+def _draw_solid_overlay(context, settings):
+    """Desenha as arestas reais do cortador sólido ativo em ciano na Viewport 3D (DEV-09)."""
+    cutter = getattr(settings, "solid_cutter_object", None)
+    if not cutter or cutter.name not in bpy.data.objects or cutter.type != 'MESH':
+        return
+
+    # Respeita visibilidade do cortador e modo
+    if cutter.hide_viewport or cutter.hide_get():
+        return
+
+    # Não desenha se o corte já estiver confirmado
+    if getattr(settings, "session_status", "") == 'COMMITTED':
+        return
+
+    mw = cutter.matrix_world
+    pairs = []
+
+    # Extrai arestas reais em World Space
+    try:
+        if cutter.mode == 'EDIT':
+            import bmesh
+            bm = bmesh.from_edit_mesh(cutter.data)
+            for e in bm.edges:
+                pairs.append(mw @ e.verts[0].co)
+                pairs.append(mw @ e.verts[1].co)
+        else:
+            verts = cutter.data.vertices
+            for e in cutter.data.edges:
+                pairs.append(mw @ verts[e.vertices[0]].co)
+                pairs.append(mw @ verts[e.vertices[1]].co)
+    except Exception:
+        return
+
+    if not pairs:
+        return
+
+    # Eixo de penetração/orientação
+    try:
+        z_dir = (mw.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()
+        cen = mw.translation
+        arrow_len = max(0.02, cutter.dimensions.z * 0.4)
+        arrow_tip = cen + z_dir * arrow_len
+        pairs.append(cen)
+        pairs.append(arrow_tip)
+    except Exception:
+        pass
+
+    try:
+        import gpu
+        from gpu_extras.batch import batch_for_shader
+
+        try:
+            shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+        except Exception:
+            shader = gpu.shader.from_builtin('POLYLINE_UNIFORM_COLOR')
+
+        prev_line_width = gpu.state.line_width_get() if hasattr(gpu.state, 'line_width_get') else None
+        prev_depth_test = gpu.state.depth_test_get() if hasattr(gpu.state, 'depth_test_get') else None
+        prev_blend = gpu.state.blend_get() if hasattr(gpu.state, 'blend_get') else None
+
+        try:
+            if hasattr(gpu.state, 'blend_set'):
+                try:
+                    gpu.state.blend_set('ALPHA')
+                except Exception:
+                    pass
+            if hasattr(gpu.state, 'line_width_set'):
+                try:
+                    gpu.state.line_width_set(2.5)
+                except Exception:
+                    pass
+            if hasattr(gpu.state, 'depth_test_set'):
+                try:
+                    gpu.state.depth_test_set('LESS_EQUAL')
+                except Exception:
+                    pass
+
+            shader.bind()
+            # Cor Ciano vibrante para destacar da seleção laranja do Blender (DEV-09)
+            shader.uniform_float("color", (0.0, 0.9, 1.0, 0.85))
+            batch = batch_for_shader(shader, 'LINES', {"pos": pairs})
+            batch.draw(shader)
+        finally:
+            if hasattr(gpu.state, 'line_width_set') and prev_line_width is not None:
+                try:
+                    gpu.state.line_width_set(prev_line_width)
+                except Exception:
+                    pass
+            if hasattr(gpu.state, 'depth_test_set') and prev_depth_test is not None:
+                try:
+                    gpu.state.depth_test_set(prev_depth_test)
+                except Exception:
+                    pass
+            if hasattr(gpu.state, 'blend_set') and prev_blend is not None:
+                try:
+                    gpu.state.blend_set(prev_blend)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
 def _draw_overlay_callback():
     """Callback mestre executado no espaço 3D (SpaceView3D)."""
     context = bpy.context
@@ -408,11 +513,13 @@ def _draw_overlay_callback():
     settings = context.scene.chest_splitter
     mode = getattr(settings, "split_mode", "PLANE")
 
-    # B01 / F01 / F02: Isolamento estrito por modo
+    # B01 / F01 / F02 / DEV-09: Isolamento estrito por modo
     if mode == 'LOOP':
         _draw_loop_overlay(context, settings)
     elif mode == 'PLANE':
         _draw_plane_overlay(context, settings)
+    elif mode == 'SOLID':
+        _draw_solid_overlay(context, settings)
 
 
 def register_overlay():

@@ -1,0 +1,214 @@
+0001: """Contrato formal de geometria e interfaces de corte para o Part Splitter.
+0002: 
+0003: Define as estruturas de dados padronizadas para resultados de corte (SplitResult)
+0004: e interfaces compartilhadas (CutInterface), garantindo execução determinística
+0005: e desacoplada em coordenadas de mundo (World Space).
+0006: """
+0007: 
+0008: from dataclasses import dataclass, field
+0009: from typing import List, Tuple, Dict, Any, Optional
+0010: import math
+0011: from mathutils import Vector, Matrix
+0012: 
+0013: 
+0014: @dataclass
+0015: class CutInterface:
+0016:     """Representa a interface geométrica compartilhada gerada pelo corte."""
+0017:     origin_world: Vector
+0018:     normal_a_to_b_world: Vector  # Aponta para fora da Parte A, entrando na Parte B
+0019:     axis_u_world: Vector         # Eixo U ortonormal no plano da interface (direção principal)
+0020:     axis_v_world: Vector         # Eixo V ortonormal no plano da interface (V = N x U)
+0021:     outer_contours_uv: List[List[Tuple[float, float]]] = field(default_factory=list)
+0022:     hole_contours_uv: List[List[Tuple[float, float]]] = field(default_factory=list)
+0023:     interface_triangles_world: List[Tuple[Vector, Vector, Vector]] = field(default_factory=list)
+0024:     is_planar: bool = True
+0025:     deviation_mm: float = 0.0
+0026:     source_mode: str = "PLANE"   # 'PLANE', 'LOOP', 'SOLID'
+0027:     width_mm: float = 0.0        # Dimensão útil ao longo do eixo maior (U)
+0028:     height_mm: float = 0.0       # Dimensão útil ao longo do eixo menor (V)
+0029:     area_mm2: float = 0.0
+0030: 
+0031:     def world_to_uv(self, point_world: Vector) -> Tuple[float, float]:
+0032:         """Projeta um ponto 3D de mundo no plano UV 2D da interface."""
+0033:         rel = point_world - self.origin_world
+0034:         u = rel.dot(self.axis_u_world)
+0035:         v = rel.dot(self.axis_v_world)
+0036:         return (u, v)
+0037: 
+0038:     def uv_to_world(self, u: float, v: float, offset_along_normal: float = 0.0) -> Vector:
+0039:         """Converte coordenadas UV 2D de volta para o espaço de mundo 3D."""
+0040:         return (
+0041:             self.origin_world
+0042:             + u * self.axis_u_world
+0043:             + v * self.axis_v_world
+0044:             + offset_along_normal * self.normal_a_to_b_world
+0045:         )
+0046: 
+0047: 
+0048: def build_cut_interface(
+0049:     origin_world: Vector,
+0050:     normal_a_to_b: Vector,
+0051:     boundary_points_world: List[Vector],
+0052:     interface_triangles: Optional[List[Tuple[Vector, Vector, Vector]]] = None,
+0053:     unit_scale: float = 1000.0,
+0054:     source_mode: str = "PLANE",
+0055:     boundary_loops_world: Optional[List[List[Vector]]] = None,
+0056: ) -> CutInterface:
+0057:     """Constrói uma CutInterface formal com eixos principais (U=maior, V=menor) via PCA."""
+0058:     norm = normal_a_to_b.normalized()
+0059:     if norm.length < 1e-6:
+0060:         norm = Vector((0.0, 0.0, 1.0))
+0061: 
+0062:     all_points = list(boundary_points_world)
+0063:     if boundary_loops_world:
+0064:         for loop in boundary_loops_world:
+0065:             all_points.extend(loop)
+0066: 
+0067:     if not all_points:
+0068:         ref = Vector((0.0, 0.0, 1.0)) if abs(norm.z) < 0.9 else Vector((0.0, 1.0, 0.0))
+0069:         u = norm.cross(ref).normalized()
+0070:         v = norm.cross(u).normalized()
+0071:         return CutInterface(
+0072:             origin_world=origin_world,
+0073:             normal_a_to_b_world=norm,
+0074:             axis_u_world=u,
+0075:             axis_v_world=v,
+0076:             is_planar=True,
+0077:             deviation_mm=0.0,
+0078:             source_mode=source_mode,
+0079:         )
+0080: 
+0081:     # Centroide dos pontos da borda
+0082:     centroid = sum(all_points, Vector()) / len(all_points)
+0083:     origin = origin_world.copy() if origin_world is not None else centroid
+0084: 
+0085:     # Base ortonormal inicial perpendicular à normal
+0086:     ref = Vector((0.0, 0.0, 1.0)) if abs(norm.z) < 0.9 else Vector((0.0, 1.0, 0.0))
+0087:     u_init = norm.cross(ref).normalized()
+0088:     v_init = norm.cross(u_init).normalized()
+0089: 
+0090:     # Projeção 2D dos pontos em relação ao centroide para análise de componentes principais (PCA)
+0091:     pts_2d = [
+0092:         ((p - centroid).dot(u_init), (p - centroid).dot(v_init))
+0093:         for p in all_points
+0094:     ]
+0095: 
+0096:     c_xx = sum(x * x for x, y in pts_2d)
+0097:     c_yy = sum(y * y for x, y in pts_2d)
+0098:     c_xy = sum(x * y for x, y in pts_2d)
+0099: 
+0100:     # Direção principal (ângulo theta no plano UV inicial)
+0101:     theta = 0.5 * math.atan2(2.0 * c_xy, c_xx - c_yy)
+0102:     cos_t = math.cos(theta)
+0103:     sin_t = math.sin(theta)
+0104: 
+0105:     axis_u = (cos_t * u_init + sin_t * v_init).normalized()
+0106:     axis_v = norm.cross(axis_u).normalized()
+0107: 
+0108:     # Mede extensões ao longo de U e V
+0109:     u_vals = [(p - origin).dot(axis_u) for p in all_points]
+0110:     v_vals = [(p - origin).dot(axis_v) for p in all_points]
+0111: 
+0112:     span_u = max(u_vals) - min(u_vals)
+0113:     span_v = max(v_vals) - min(v_vals)
+0114: 
+0115:     # Garante que axis_u seja o eixo de maior dimensão (maior comprimento útil)
+0116:     if span_u < span_v:
+0117:         axis_u, axis_v = axis_v, -axis_u
+0118:         u_vals, v_vals = v_vals, [-x for x in u_vals]
+0119:         span_u, span_v = span_v, span_u
+0120: 
+0121:     width_mm = span_u * unit_scale
+0122:     height_mm = span_v * unit_scale
+0123: 
+0124:     # Cálculo do desvio de planicidade
+0125:     dists = [abs((p - centroid).dot(norm)) for p in all_points]
+0126:     max_dev_bu = max(dists) if dists else 0.0
+0127:     dev_mm = max_dev_bu * unit_scale
+0128:     is_planar = dev_mm <= 0.1  # Tolerância de 0.1 mm
+0129: 
+0130:     outer_contours_uv = []
+0131:     hole_contours_uv = []
+0132: 
+0133:     if boundary_loops_world:
+0134:         from .geometry_connectors import point_in_polygon_2d
+0135:         all_uv_loops = []
+0136:         for loop in boundary_loops_world:
+0137:             uv_pts = [((p - origin).dot(axis_u), (p - origin).dot(axis_v)) for p in loop]
+0138:             cleaned = []
+0139:             for pt in uv_pts:
+0140:                 if not cleaned or (pt[0] - cleaned[-1][0]) ** 2 + (pt[1] - cleaned[-1][1]) ** 2 > 1e-12:
+0141:                     cleaned.append(pt)
+0142:             if len(cleaned) > 1 and (cleaned[0][0] - cleaned[-1][0]) ** 2 + (cleaned[0][1] - cleaned[-1][1]) ** 2 < 1e-12:
+0143:                 cleaned.pop()
+0144:             if len(cleaned) >= 3:
+0145:                 all_uv_loops.append(cleaned)
+0146: 
+0147:         for i, loop_a in enumerate(all_uv_loops):
+0148:             test_x, test_y = (loop_a[0][0] + loop_a[1][0]) * 0.5, (loop_a[0][1] + loop_a[1][1]) * 0.5
+0149:             containment_count = 0
+0150:             for j, loop_b in enumerate(all_uv_loops):
+0151:                 if i != j:
+0152:                     if point_in_polygon_2d(test_x, test_y, loop_b):
+0153:                         containment_count += 1
+0154:             if containment_count % 2 == 0:
+0155:                 outer_contours_uv.append(loop_a)
+0156:             else:
+0157:                 hole_contours_uv.append(loop_a)
+0158:     elif boundary_points_world:
+0159:         uv_contour = list(zip(u_vals[:len(boundary_points_world)], v_vals[:len(boundary_points_world)]))
+0160:         if uv_contour:
+0161:             outer_contours_uv.append(uv_contour)
+0162: 
+0163:     # Área pelo somatório dos polígonos UV
+0164:     area_bu = 0.0
+0165:     for poly in outer_contours_uv:
+0166:         n_pts = len(poly)
+0167:         if n_pts >= 3:
+0168:             a = sum(poly[i][0] * poly[(i + 1) % n_pts][1] - poly[(i + 1) % n_pts][0] * poly[i][1] for i in range(n_pts))
+0169:             area_bu += abs(a) * 0.5
+0170:     for poly in hole_contours_uv:
+0171:         n_pts = len(poly)
+0172:         if n_pts >= 3:
+0173:             a = sum(poly[i][0] * poly[(i + 1) % n_pts][1] - poly[(i + 1) % n_pts][0] * poly[i][1] for i in range(n_pts))
+0174:             area_bu -= abs(a) * 0.5
+0175:     area_mm2 = max(0.0, area_bu) * (unit_scale ** 2)
+0176: 
+0177:     return CutInterface(
+0178:         origin_world=origin,
+0179:         normal_a_to_b_world=norm,
+0180:         axis_u_world=axis_u,
+0181:         axis_v_world=axis_v,
+0182:         outer_contours_uv=outer_contours_uv,
+0183:         hole_contours_uv=hole_contours_uv,
+0184:         interface_triangles_world=interface_triangles or [],
+0185:         is_planar=is_planar,
+0186:         deviation_mm=dev_mm,
+0187:         source_mode=source_mode,
+0188:         width_mm=width_mm,
+0189:         height_mm=height_mm,
+0190:         area_mm2=area_mm2,
+0191:     )
+0192: 
+0193: 
+0194: @dataclass
+0195: class SplitResult:
+0196:     """Resultado formal do corte de um modelo em duas peças."""
+0197:     part_a_metrics: Dict[str, Any] = field(default_factory=dict)
+0198:     part_b_metrics: Dict[str, Any] = field(default_factory=dict)
+0199:     interface: Optional[CutInterface] = None
+0200:     diagnostics_before_connectors: Dict[str, Any] = field(default_factory=dict)
+0201:     success: bool = True
+0202:     error_message: str = ""
+0203: 
+0204:     def to_legacy_report(self) -> Dict[str, Any]:
+0205:         """Dicionário de compatibilidade com os testes e operadores legados."""
+0206:         return {
+0207:             "A": self.part_a_metrics,
+0208:             "B": self.part_b_metrics,
+0209:             "sum_volume_mm3": (
+0210:                 self.part_a_metrics.get("volume_mm3", 0.0)
+0211:                 + self.part_b_metrics.get("volume_mm3", 0.0)
+0212:             ),
+0213:             "interface": self.interface,
+0214:         }

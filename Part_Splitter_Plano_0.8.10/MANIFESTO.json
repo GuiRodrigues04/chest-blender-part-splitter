@@ -1,0 +1,77 @@
+[
+  {
+    "path": "LEIA_PRIMEIRO.md",
+    "bytes": 842,
+    "sha256": "40094ec435a87ee7f472401fb427d37e14a0e0ca35494cd6cc5f2737fef74752"
+  },
+  {
+    "path": "NOTAS_CODIGO.html",
+    "bytes": 48703,
+    "sha256": "aec2231bfef0cf279da340fdbecf46889f35326645b865dad1e3613e56b72f25"
+  },
+  {
+    "path": "NOTAS_CODIGO.md",
+    "bytes": 44518,
+    "sha256": "05ca5b1610cd4db6c6e2912ab7727ee36812475bf5e3a6918ff5204ed0edff09"
+  },
+  {
+    "path": "PLANO_0.8.10.html",
+    "bytes": 35784,
+    "sha256": "f8115c4104cfcb101e523cf90a3f36d7b74999d732020bd0e9fbb41acf556e05"
+  },
+  {
+    "path": "PLANO_0.8.10.md",
+    "bytes": 31380,
+    "sha256": "ad256684501b1980715833e12cb711c51902b58b9e3cb8c6ef51b72c96a89d84"
+  },
+  {
+    "path": "base/chest_part_splitter-0.8.9.zip",
+    "bytes": 141484,
+    "sha256": "da2e8dfecad6ff099d826b6d27540c1da745519fbb1e44430096c63c6f5a7b74"
+  },
+  {
+    "path": "casos/Teste_3.blend",
+    "bytes": 167813,
+    "sha256": "31b1ef74084787acab9b268ef2ee7781cf6adb48344ae8c7cc34d29a6e80f8ea"
+  },
+  {
+    "path": "casos/Teste_4.blend",
+    "bytes": 195005,
+    "sha256": "6f9efd79dd3a4823e8700f914992495a8509fe5731d9c8724255e6eb4e306a7a"
+  },
+  {
+    "path": "imagens/E01_quina.png",
+    "bytes": 590021,
+    "sha256": "5029f18be78ceaff6eaa5d5000ce05f0f7c45a458a66390a6e5823a2932e3b35"
+  },
+  {
+    "path": "imagens/E02_loop_16.png",
+    "bytes": 703814,
+    "sha256": "ca26e43bdaa38f6505fc7d76dd39d0c49183867a678472a776b4b43c957dd1f3"
+  },
+  {
+    "path": "imagens/E03_loop_4.png",
+    "bytes": 799193,
+    "sha256": "3f621572184baae02a6dd365a768b6743ba71e32c220ca2d15555dc7278b0db7"
+  },
+  {
+    "path": "imagens/E04_saliencia.png",
+    "bytes": 695656,
+    "sha256": "982788683d16093780adec865b341eeb980a7825b95087af976aa20e98265377"
+  },
+  {
+    "path": "imagens/E05_tampa.png",
+    "bytes": 761511,
+    "sha256": "c0cac390bd9d00b3fdfdd4c663a104ad9e9ad7ef8ab32d94f2ffc65078ad800c"
+  },
+  {
+    "path": "imagens/E06_base.png",
+    "bytes": 716042,
+    "sha256": "18dff4dd6e7958389570300012e692f3c381db56341296f5cf33685472af76b5"
+  },
+  {
+    "path": "imagens/E07_deformacao.png",
+    "bytes": 667165,
+    "sha256": "f65a95e6b76625fbd5a968406e7b6503c274e46ded522c587be9915770de6256"
+  }
+]

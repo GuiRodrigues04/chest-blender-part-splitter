@@ -51,6 +51,47 @@ def _poll_mesh_cutter(self, obj):
     return obj.type == 'MESH' and obj != self.target_object
 
 
+_updating_solid_dims = False
+
+
+def _on_solid_dim_update(self, context):
+    """Atualiza as dimensões físicas locais do cortador em mm sem deriva ou recursão (SOL-03)."""
+    global _updating_solid_dims
+    if _updating_solid_dims:
+        return
+    cutter = self.solid_cutter_object
+    if not cutter or cutter.type != 'MESH' or not cutter.data:
+        return
+    try:
+        from .diagnostic import get_scene_scale_to_mm
+        import bmesh
+        unit_scale = get_scene_scale_to_mm(context.scene if context else None)
+        bm = bmesh.new()
+        bm.from_mesh(cutter.data)
+        xs = [v.co.x for v in bm.verts]
+        ys = [v.co.y for v in bm.verts]
+        zs = [v.co.z for v in bm.verts]
+        bm.free()
+
+        span_x = (max(xs) - min(xs)) if xs else 1.0
+        span_y = (max(ys) - min(ys)) if ys else 1.0
+        span_z = (max(zs) - min(zs)) if zs else 1.0
+
+        desired_x_bu = max(1e-4, self.solid_cutter_width_mm / unit_scale)
+        desired_y_bu = max(1e-4, self.solid_cutter_height_mm / unit_scale)
+        desired_z_bu = max(1e-4, self.solid_cutter_depth_mm / unit_scale)
+
+        _updating_solid_dims = True
+        cutter.scale.x = desired_x_bu / max(1e-6, span_x)
+        cutter.scale.y = desired_y_bu / max(1e-6, span_y)
+        cutter.scale.z = desired_z_bu / max(1e-6, span_z)
+    except Exception:
+        pass
+    finally:
+        _updating_solid_dims = False
+    _on_param_change_mark_stale(self, context)
+
+
 def _on_cutter_object_update(self, context):
     """Atualiza diagnósticos imediatos ao alterar o objeto cortador."""
     if self.solid_cutter_object and self.solid_cutter_object.type == 'MESH':
@@ -58,9 +99,10 @@ def _on_cutter_object_update(self, context):
             from .diagnostic import get_scene_scale_to_mm
             import bmesh
             scale_to_mm = get_scene_scale_to_mm(context.scene if context else None)
+            cutter = self.solid_cutter_object
             bm = bmesh.new()
-            bm.from_mesh(self.solid_cutter_object.data)
-            bm.transform(self.solid_cutter_object.matrix_world)
+            bm.from_mesh(cutter.data)
+            bm.transform(cutter.matrix_world)
             self.solid_cutter_is_manifold = all(e.is_manifold for e in bm.edges)
             self.solid_cutter_non_manifold_edges = len([e for e in bm.edges if not e.is_manifold])
             self.solid_cutter_triangles = sum(len(f.verts) - 2 for f in bm.faces)
@@ -76,13 +118,36 @@ def _on_cutter_object_update(self, context):
                     (max(zs) - min(zs)) * scale_to_mm,
                 )
             bm.free()
+
+            # Sincroniza dimensões locais em mm sem recursão (SOL-03)
+            global _updating_solid_dims
+            if not _updating_solid_dims and cutter.data:
+                bm2 = bmesh.new()
+                bm2.from_mesh(cutter.data)
+                lxs = [v.co.x for v in bm2.verts]
+                lys = [v.co.y for v in bm2.verts]
+                lzs = [v.co.z for v in bm2.verts]
+                bm2.free()
+                l_span_x = (max(lxs) - min(lxs)) if lxs else 1.0
+                l_span_y = (max(lys) - min(lys)) if lys else 1.0
+                l_span_z = (max(lzs) - min(lzs)) if lzs else 1.0
+                _updating_solid_dims = True
+                try:
+                    self.solid_cutter_width_mm = l_span_x * cutter.scale.x * scale_to_mm
+                    self.solid_cutter_height_mm = l_span_y * cutter.scale.y * scale_to_mm
+                    self.solid_cutter_depth_mm = l_span_z * cutter.scale.z * scale_to_mm
+                finally:
+                    _updating_solid_dims = False
         except Exception:
             pass
     _on_param_change_mark_stale(self, context)
 
 
+
 def _on_target_object_update(self, context):
     """Callback ao alterar ou limpar o objeto alvo."""
+    from .geometry_loop import clear_capture
+    clear_capture(self, reason="target_change")
     _on_param_change_mark_stale(self, context)
 
 
@@ -131,6 +196,12 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         default="",
         description="UUID da operação atualmente em foco na sessão",
     )
+    parent_operation_id: StringProperty(
+        name="ID da Operação Pai",
+        default="",
+        description="UUID da operação pai quando continuando no receptor (INV-011)",
+    )
+
 
     session_input_signature: StringProperty(
         name="Assinatura de Entrada da Prévia",
@@ -352,6 +423,29 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         default="",
     )
 
+    loop_detach_add_base: BoolProperty(
+        name="Adicionar Base para Encaixe",
+        description="Acrescenta uma base retirada do corpo receptor sob a saliência destacada (DEV-07)",
+        default=False,
+        update=_on_param_change_mark_stale,
+    )
+    loop_detach_base_depth_mm: FloatProperty(
+        name="Profundidade da Base (mm)",
+        description="Profundidade física da base e da cavidade receptora",
+        default=2.0,
+        min=0.1,
+        precision=2,
+        update=_on_param_change_mark_stale,
+    )
+    loop_detach_base_clearance_mm: FloatProperty(
+        name="Folga Lateral da Base (mm)",
+        description="Folga lateral aplicada na cavidade receptora para montagem justa",
+        default=0.15,
+        min=0.0,
+        precision=2,
+        update=_on_param_change_mark_stale,
+    )
+
     # --- Fim Loop ---
 
     # --- Configurações do Corte por Material (Etapa 6) ---
@@ -488,6 +582,34 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         default=(0.0, 0.0, 0.0),
         precision=2,
     )
+
+    solid_cutter_width_mm: FloatProperty(
+        name="Largura (X mm)",
+        default=50.0,
+        min=0.1,
+        precision=2,
+        description="Dimensão física local X em milímetros",
+        update=_on_solid_dim_update,
+    )
+
+    solid_cutter_height_mm: FloatProperty(
+        name="Altura (Y mm)",
+        default=50.0,
+        min=0.1,
+        precision=2,
+        description="Dimensão física local Y em milímetros",
+        update=_on_solid_dim_update,
+    )
+
+    solid_cutter_depth_mm: FloatProperty(
+        name="Profundidade (Z mm)",
+        default=50.0,
+        min=0.1,
+        precision=2,
+        description="Dimensão física local Z em milímetros",
+        update=_on_solid_dim_update,
+    )
+
 
 
     # --- Diagnósticos das Partes Divididas ---
@@ -700,6 +822,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
             ('LINEAR_2', "2 Pinos (Linha)", "Dois conectores alinhados no maior vão"),
             ('LINEAR_3', "3 Pinos (Linha)", "Três conectores distribuídos em linha"),
             ('GRID_4', "4 Pinos (Grade)", "Quatro conectores distribuídos em grade 2x2"),
+            ('AUTO_SHAPE', "Pela Forma (Auto)", "Distribuição adaptada à forma e área sólida útil do corte"),
         ],
         default='CENTER',
         description="Padrão de distribuição dos encaixes no plano",
@@ -745,6 +868,16 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         default="",
     )
 
+    last_status_code: StringProperty(
+        name="Código de Mensagem",
+        default="",
+    )
+
+    last_status_params: StringProperty(
+        name="Parâmetros de Mensagem",
+        default="",
+    )
+
     last_status_level: EnumProperty(
         name="Nível de Status",
         items=[
@@ -755,6 +888,28 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         ],
         default='INFO',
     )
+
+    def set_localized_status(self, code: str, level: str = 'INFO', **params):
+        """Define o status usando código do catálogo e parâmetros nomeados (LANG-01)."""
+        import json
+        from .translations import tr
+        self.last_status_code = code
+        self.last_status_params = json.dumps(params)
+        self.last_status = tr(code, **params)
+        self.last_status_level = level
+
+    def get_localized_status(self) -> str:
+        """Resolve a mensagem de status atual no idioma em vigor (LANG-01)."""
+        import json
+        from .translations import tr
+        if self.last_status_code:
+            try:
+                params = json.loads(self.last_status_params) if self.last_status_params else {}
+                return tr(self.last_status_code, **params)
+            except Exception:
+                pass
+        return self.last_status
+
 
     # --- Visualização de Cores e Exportação Multicolor (Fase 5) ---
     preview_color_mode: EnumProperty(
@@ -797,11 +952,33 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     )
 
 
+class ChestSplitterAddonPreferences(bpy.types.AddonPreferences):
+    """Preferências globais da extensão Chest Part Splitter (LANG-01)."""
+    bl_idname = __package__ if __package__ else "chest_part_splitter"
+
+    language: EnumProperty(
+        name="Idioma / Language",
+        items=[
+            ('AUTO', "Automático / Auto", "Detecta o idioma do Blender / Follows Blender language"),
+            ('PT_BR', "Português (Brasil)", "Interface e mensagens em Português"),
+            ('EN_US', "English (US)", "Interface and messages in English"),
+        ],
+        default='AUTO',
+        description="Selecione o idioma da extensão / Select extension language",
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "language")
+
+
 classes = (
     ChestObjectRef,
     ChestOperationRecord,
     ChestSplitterSettings,
+    ChestSplitterAddonPreferences,
 )
+
 
 
 def register():

@@ -1,0 +1,1 @@
+Conferidos: sintaxe AST de 53 arquivos Python; ZIP; integridade byte a byte dos dois .blend;17 links de imagens;73 testes marcados NÃO EXECUTADO; catálogo atual25PT/26EN;33 arquivos de testes e runner28 suítes. Não houve execução Blender ou aplicação de patches. Fonte recebida preservada sem mudanças.

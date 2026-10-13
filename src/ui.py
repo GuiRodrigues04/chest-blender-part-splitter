@@ -37,6 +37,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
         if obj:
             row_target_info = box_target.row(align=True)
             row_target_info.label(text=f"Alvo: {obj.name}", icon='CHECKMARK')
+            row_target_info.operator("chest.splitter_edit_target", text="Editar Alvo", icon='EDITMODE_HLT')
             row_target_info.operator("chest.splitter_clear_target", text="", icon='X')
 
             # Métricas físicas e topológicas
@@ -190,6 +191,21 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 box_depth.prop(settings, "loop_extrude_depth_mm", text="Profundidade (mm)")
                 box_depth.prop(settings, "loop_through_cut", text="Corte Passante")
 
+            show_detach_base = (settings.loop_behavior == 'DETACH') or (
+                settings.loop_behavior == 'AUTO' and settings.loop_detected_mode == 'DETACH'
+            )
+            if show_detach_base:
+                box_base = box_behavior.box()
+                box_base.prop(settings, "loop_detach_add_base", text="Adicionar base para encaixe")
+                if settings.loop_detach_add_base:
+                    box_base.prop(settings, "loop_detach_base_depth_mm", text="Profundidade da base (mm)")
+                    box_base.prop(settings, "loop_detach_base_clearance_mm", text="Folga lateral (mm)")
+
+            if settings.loop_is_captured and settings.loop_is_planar:
+                row_solid_loop = box_loop.row(align=True)
+                row_solid_loop.operator("chest.splitter_create_cutter_from_selection", text="Criar Cortador desta Seleção", icon='MOD_SOLIDIFY')
+
+
         elif settings.split_mode == 'SOLID':
             box_solid = box_split.box()
             box_solid.label(text="Configuração do Cortador Sólido", icon='MESH_UVSPHERE')
@@ -201,17 +217,35 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 col_prim = box_solid.column(align=True)
                 col_prim.prop(settings, "solid_primitive_type", text="Formato")
                 row_prim_btn = box_solid.row(align=True)
-                row_prim_btn.scale_y = 1.2
-                row_prim_btn.operator("chest.splitter_create_or_focus_solid_cutter", text="Criar / Focar Cortador", icon='GIZMO')
+                row_prim_btn.scale_y = 1.1
+                row_prim_btn.operator("chest.splitter_create_solid_cutter", text="Criar", icon='ADD')
+                row_prim_btn.operator("chest.splitter_focus_solid_cutter", text="Focar", icon='VIEW_ZOOM')
+                row_prim_btn.operator("chest.splitter_reset_solid_cutter", text="Reiniciar", icon='FILE_REFRESH')
             else:
                 col_exist = box_solid.column(align=True)
                 col_exist.prop(settings, "solid_cutter_object", text="Cortador")
                 row_pick = box_solid.row(align=True)
-                row_pick.operator("chest.splitter_select_existing_cutter", text="Usar Selecionado como Cortador", icon='EYEDROPPER')
+                row_pick.operator("chest.splitter_select_existing_cutter", text="Usar Selecionado", icon='EYEDROPPER')
+                row_pick.operator("chest.splitter_copy_selected_as_cutter", text="Copiar Selecionado", icon='DUPLICATE')
 
-            # Diagnóstico do Cortador Selecionado
+            # Ações e Alinhamento do Cortador
             cutter = settings.solid_cutter_object
             if cutter and cutter.name in bpy.data.objects:
+                row_actions = box_solid.row(align=True)
+                row_actions.operator("chest.splitter_duplicate_solid_cutter", text="Duplicar Cortador", icon='DUPLICATE')
+                op_align = row_actions.operator("chest.splitter_align_solid_cutter", text="Alinhar à Face", icon='SNAP_FACE')
+                op_align.align_mode = 'ACTIVE_FACE'
+                op_align.anchor = 'SUPPORT_FACE'
+
+                # Dimensões físicas locais (mm)
+                box_dims = box_solid.box()
+                box_dims.label(text="Dimensões Físicas Locais (mm):", icon='CON_SIZELIMIT')
+                col_dims = box_dims.column(align=True)
+                col_dims.prop(settings, "solid_cutter_width_mm")
+                col_dims.prop(settings, "solid_cutter_height_mm")
+                col_dims.prop(settings, "solid_cutter_depth_mm")
+
+                # Diagnóstico do Cortador Selecionado
                 box_cutter_diag = box_solid.box()
                 box_cutter_diag.label(text=f"Cortador: '{cutter.name}'", icon='OUTLINER_OB_MESH')
                 if settings.solid_cutter_is_manifold:
@@ -222,6 +256,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     box_cutter_warn.alert = True
                     box_cutter_warn.label(text=f"Erro: {settings.solid_cutter_non_manifold_edges} aresta(s) abertas!", icon='ERROR')
                     box_cutter_warn.label(text="Cortador precisa ser um sólido 3D estanque.")
+
 
         elif settings.split_mode == 'MATERIAL':
             box_mat = box_split.box()
@@ -287,6 +322,11 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 else:
                     box_diag_mat.alert = True
                     box_diag_mat.label(text=f"Aviso: {analysis.get('error', 'Estrutura inválida')}", icon='ERROR')
+
+                row_sol_tools = box_mat.row(align=True)
+                row_sol_tools.operator("chest.splitter_create_cutter_from_selection", text="Criar Cortador Desta Seleção", icon='MOD_SOLIDIFY')
+                row_sol_tools.operator("chest.splitter_create_corner_box_cutter", text="Caixa para Quina", icon='MESH_CUBE')
+
 
         layout.separator()
 
@@ -381,6 +421,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 box_dist.label(text="Distribuição no Corte:", icon='PARTICLE_DATA')
                 box_dist.prop(settings, "connector_distribution", expand=True)
                 box_dist.prop(settings, "connector_edge_margin_mm", slider=True)
+                box_dist.prop(settings, "adjust_to_valid_area")
 
         layout.separator()
 
@@ -486,8 +527,11 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
             elif settings.session_status == 'COMMITTED':
                 box_commit.label(text="Peças finais geradas na coleção CHEST_SPLITTER_PARTS.", icon='CHECKMARK')
+                row_cont = box_commit.row()
+                row_cont.scale_y = 1.3
+                row_cont.operator("chest.splitter_continue_on_receiver", text="Continuar no corpo remanescente", icon='FORWARD')
                 row_revert = box_commit.row()
-                row_revert.scale_y = 1.2
+                row_revert.scale_y = 1.1
                 row_revert.operator("chest.splitter_revert_cut", text="Reverter este corte", icon='LOOP_BACK')
                 box_commit.operator("chest.splitter_redo_session", text="Refazer / Novo Corte", icon='FILE_REFRESH')
 
@@ -510,7 +554,8 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             row_exp_act.operator("chest.splitter_export_parts", text="Exportar Peças Selecionadas", icon='EXPORT')
 
         # --- FEEDBACK DE STATUS ---
-        if settings.last_status:
+        status_text = settings.get_localized_status() if hasattr(settings, "get_localized_status") else settings.last_status
+        if status_text:
             layout.separator()
             box_status = layout.box()
             icon_status = 'INFO'
@@ -524,7 +569,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 box_status.alert = True
 
             import textwrap
-            paragraphs = settings.last_status.split('\n')
+            paragraphs = status_text.split('\n')
             for p_idx, para in enumerate(paragraphs):
                 lines = textwrap.wrap(para, width=44) or [para]
                 for l_idx, line in enumerate(lines):
@@ -532,6 +577,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                         box_status.label(text=line, icon=icon_status)
                     else:
                         box_status.label(text=line)
+
 
 
 def register():

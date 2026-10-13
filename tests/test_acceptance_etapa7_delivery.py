@@ -83,13 +83,13 @@ class TestAcceptanceEtapa7Delivery(unittest.TestCase):
         init_path = os.path.join(parent_dir, "__init__.py")
         with open(init_path, "r", encoding="utf-8") as f:
             init_code = f.read()
-        self.assertTrue('"version": (0, 8, 9)' in init_code or '"version": (0, 8, 8)' in init_code or '"version": (0, 8, 7)' in init_code or '"version": (0, 8, 6)' in init_code or '"version": (0, 8, 5)' in init_code or '"version": (0, 8, 4)' in init_code)
+        self.assertTrue('"version": (0, 8, 10)' in init_code or '"version": (0, 8, 9)' in init_code or '"version": (0, 8, 8)' in init_code or '"version": (0, 8, 7)' in init_code or '"version": (0, 8, 6)' in init_code or '"version": (0, 8, 5)' in init_code or '"version": (0, 8, 4)' in init_code)
 
         import tomllib
         manifest_path = os.path.join(parent_dir, "blender_manifest.toml")
         with open(manifest_path, "rb") as mf:
             mdata = tomllib.load(mf)
-        self.assertIn(mdata.get("version"), ("0.8.9", "0.8.8", "0.8.7", "0.8.6", "0.8.5", "0.8.4"))
+        self.assertIn(mdata.get("version"), ("0.8.10", "0.8.9", "0.8.8", "0.8.7", "0.8.6", "0.8.5", "0.8.4"))
         self.assertEqual(mdata.get("id"), "chest_part_splitter")
 
     def test_04_full_material_multi_region_workflow(self):

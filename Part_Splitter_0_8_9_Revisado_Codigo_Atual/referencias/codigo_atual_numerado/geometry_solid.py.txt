@@ -1,0 +1,414 @@
+0001: """Módulo de corte volumétrico por cortador sólido personalizado (Fase 3).
+0002: 
+0003: Permite dividir modelos 3D usando sólidos fechados e manifold (primitivas como
+0004: caixa, cilindro, esfera e cápsula, ou qualquer objeto fechado da cena) através
+0005: de operações booleanas exatas (Interseção e Diferença).
+0006: """
+0007: 
+0008: import math
+0009: from typing import List, Tuple, Dict, Any, Optional
+0010: import bpy
+0011: import bmesh
+0012: from mathutils import Vector, Matrix
+0013: 
+0014: from .constants import (
+0015:     COLLECTION_GUIDES_NAME,
+0016:     SOLID_CUTTER_NAME,
+0017:     VOLUME_REL_TOLERANCE,
+0018: )
+0019: from .geometry_plane import evaluate_bmesh_metrics, NoIntersectionError
+0020: 
+0021: 
+0022: class SolidCutterValidationError(Exception):
+0023:     """Exceção para cortador sólido inválido, aberto ou sem contato com o alvo."""
+0024:     pass
+0025: 
+0026: 
+0027: class SolidSliceError(Exception):
+0028:     """Exceção para falha na execução do corte booleano volumétrico."""
+0029:     pass
+0030: 
+0031: 
+0032: def create_bmesh_capsule(
+0033:     bm: bmesh.types.BMesh,
+0034:     radius: float,
+0035:     total_length: float,
+0036:     segments: int = 32,
+0037:     rings: int = 8,
+0038: ):
+0039:     """Cria uma cápsula tridimensional 100% manifold orientada ao longo do eixo Z."""
+0040:     r = radius
+0041:     cyl_h = max(0.0, total_length - 2.0 * r)
+0042:     half_h = cyl_h / 2.0
+0043: 
+0044:     verts_grid = []
+0045: 
+0046:     # 1. Polo inferior (-Z)
+0047:     bot_pole = bm.verts.new((0.0, 0.0, -half_h - r))
+0048: 
+0049:     # 2. Anéis do hemisfério inferior
+0050:     for ring in range(1, rings):
+0051:         phi = -math.pi / 2.0 + (math.pi / 2.0) * (ring / rings)
+0052:         cos_phi = math.cos(phi)
+0053:         sin_phi = math.sin(phi)
+0054:         z = -half_h + r * sin_phi
+0055:         ring_r = r * cos_phi
+0056:         ring_verts = []
+0057:         for s in range(segments):
+0058:             theta = 2.0 * math.pi * s / segments
+0059:             x = ring_r * math.cos(theta)
+0060:             y = ring_r * math.sin(theta)
+0061:             ring_verts.append(bm.verts.new((x, y, z)))
+0062:         verts_grid.append(ring_verts)
+0063: 
+0064:     # 3. Equador inferior
+0065:     eq_bot = []
+0066:     for s in range(segments):
+0067:         theta = 2.0 * math.pi * s / segments
+0068:         eq_bot.append(bm.verts.new((r * math.cos(theta), r * math.sin(theta), -half_h)))
+0069:     verts_grid.append(eq_bot)
+0070: 
+0071:     # 4. Equador superior
+0072:     eq_top = []
+0073:     for s in range(segments):
+0074:         theta = 2.0 * math.pi * s / segments
+0075:         eq_top.append(bm.verts.new((r * math.cos(theta), r * math.sin(theta), half_h)))
+0076:     verts_grid.append(eq_top)
+0077: 
+0078:     # 5. Anéis do hemisfério superior
+0079:     for ring in range(1, rings):
+0080:         phi = (math.pi / 2.0) * (ring / rings)
+0081:         cos_phi = math.cos(phi)
+0082:         sin_phi = math.sin(phi)
+0083:         z = half_h + r * sin_phi
+0084:         ring_r = r * cos_phi
+0085:         ring_verts = []
+0086:         for s in range(segments):
+0087:             theta = 2.0 * math.pi * s / segments
+0088:             x = ring_r * math.cos(theta)
+0089:             y = ring_r * math.sin(theta)
+0090:             ring_verts.append(bm.verts.new((x, y, z)))
+0091:         verts_grid.append(ring_verts)
+0092: 
+0093:     # 6. Polo superior (+Z)
+0094:     top_pole = bm.verts.new((0.0, 0.0, half_h + r))
+0095: 
+0096:     # Conecta polo inferior ao primeiro anel
+0097:     first_ring = verts_grid[0]
+0098:     for s in range(segments):
+0099:         s_next = (s + 1) % segments
+0100:         bm.faces.new((bot_pole, first_ring[s], first_ring[s_next]))
+0101: 
+0102:     # Conecta anéis consecutivos com quads
+0103:     for r_idx in range(len(verts_grid) - 1):
+0104:         r1 = verts_grid[r_idx]
+0105:         r2 = verts_grid[r_idx + 1]
+0106:         for s in range(segments):
+0107:             s_next = (s + 1) % segments
+0108:             bm.faces.new((r1[s], r2[s], r2[s_next], r1[s_next]))
+0109: 
+0110:     # Conecta último anel ao polo superior
+0111:     last_ring = verts_grid[-1]
+0112:     for s in range(segments):
+0113:         s_next = (s + 1) % segments
+0114:         bm.faces.new((last_ring[s_next], last_ring[s], top_pole))
+0115: 
+0116:     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+0117: 
+0118: 
+0119: def create_primitive_cutter_mesh(
+0120:     name: str,
+0121:     primitive_type: str,
+0122:     dims: Vector,
+0123:     segments: int = 32,
+0124: ) -> bpy.types.Mesh:
+0125:     """Gera uma malha fechada e manifold para uso como cortador sólido."""
+0126:     bm = bmesh.new()
+0127: 
+0128:     dx = max(1e-4, dims.x)
+0129:     dy = max(1e-4, dims.y)
+0130:     dz = max(1e-4, dims.z)
+0131: 
+0132:     if primitive_type == 'BOX':
+0133:         bmesh.ops.create_cube(bm, size=1.0)
+0134:         bmesh.ops.scale(bm, vec=Vector((dx, dy, dz)), verts=bm.verts[:])
+0135: 
+0136:     elif primitive_type == 'CYLINDER':
+0137:         r = min(dx, dy) / 2.0
+0138:         depth = dz
+0139:         bmesh.ops.create_cone(
+0140:             bm,
+0141:             cap_ends=True,
+0142:             cap_tris=False,
+0143:             segments=segments,
+0144:             radius1=r,
+0145:             radius2=r,
+0146:             depth=depth,
+0147:         )
+0148: 
+0149:     elif primitive_type == 'SPHERE':
+0150:         rx = dx / 2.0
+0151:         ry = dy / 2.0
+0152:         rz = dz / 2.0
+0153:         bmesh.ops.create_uvsphere(
+0154:             bm,
+0155:             u_segments=segments,
+0156:             v_segments=max(8, segments // 2),
+0157:             radius=1.0,
+0158:         )
+0159:         bmesh.ops.scale(bm, vec=Vector((rx, ry, rz)), verts=bm.verts[:])
+0160: 
+0161:     elif primitive_type == 'CAPSULE':
+0162:         r = min(dx, dy) / 2.0
+0163:         total_len = max(dz, 2.0 * r + 1e-4)
+0164:         create_bmesh_capsule(
+0165:             bm,
+0166:             radius=r,
+0167:             total_length=total_len,
+0168:             segments=segments,
+0169:             rings=max(6, segments // 4),
+0170:         )
+0171: 
+0172:     else:
+0173:         # Fallback para cubo
+0174:         bmesh.ops.create_cube(bm, size=1.0)
+0175:         bmesh.ops.scale(bm, vec=Vector((dx, dy, dz)), verts=bm.verts[:])
+0176: 
+0177:     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+0178: 
+0179:     mesh_data = bpy.data.meshes.new(name)
+0180:     bm.to_mesh(mesh_data)
+0181:     bm.free()
+0182:     return mesh_data
+0183: 
+0184: 
+0185: def validate_solid_cutter(
+0186:     cutter_obj: Optional[bpy.types.Object],
+0187:     target_obj: Optional[bpy.types.Object],
+0188:     unit_scale: float = 1000.0,
+0189: ) -> Dict[str, Any]:
+0190:     """Verifica se o cortador é válido, fechado, manifold e intersecta o alvo."""
+0191:     if bpy.context and hasattr(bpy.context, "view_layer") and bpy.context.view_layer:
+0192:         try:
+0193:             bpy.context.view_layer.update()
+0194:         except Exception:
+0195:             pass
+0196: 
+0197:     if not cutter_obj or cutter_obj.name not in bpy.data.objects:
+0198:         raise SolidCutterValidationError("Nenhum objeto cortador sólido foi especificado ou o objeto foi excluído.")
+0199: 
+0200:     if cutter_obj.type != 'MESH':
+0201:         raise SolidCutterValidationError(f"O cortador '{cutter_obj.name}' deve ser do tipo MESH (malha poligonal).")
+0202: 
+0203:     if target_obj and cutter_obj == target_obj:
+0204:         raise SolidCutterValidationError("O cortador não pode ser o próprio objeto alvo da divisão.")
+0205: 
+0206:     mesh = cutter_obj.data
+0207:     if not mesh or len(mesh.vertices) < 4 or len(mesh.polygons) < 4:
+0208:         raise SolidCutterValidationError(f"O cortador '{cutter_obj.name}' possui geometria insuficiente ou vazia.")
+0209: 
+0210:     # Avaliação com BMesh em espaço global
+0211:     bm = bmesh.new()
+0212:     bm.from_mesh(mesh)
+0213:     bm.transform(cutter_obj.matrix_world)
+0214: 
+0215:     non_manifold = [e for e in bm.edges if not e.is_manifold]
+0216:     is_manifold = (len(non_manifold) == 0 and len(bm.verts) >= 4 and len(bm.faces) >= 4)
+0217: 
+0218:     if not is_manifold:
+0219:         count_open = len(non_manifold)
+0220:         bm.free()
+0221:         raise SolidCutterValidationError(
+0222:             f"O cortador '{cutter_obj.name}' não é um sólido fechado "
+0223:             f"({count_open} arestas abertas/não-manifold detectadas). "
+0224:             "Cortadores sólidos precisam ser volumes 3D perfeitamente estanques."
+0225:         )
+0226: 
+0227:     vol_bu = abs(bm.calc_volume())
+0228:     vol_mm3 = vol_bu * (unit_scale ** 3)
+0229:     triangles = sum(len(f.verts) - 2 for f in bm.faces)
+0230: 
+0231:     xs = [v.co.x for v in bm.verts]
+0232:     ys = [v.co.y for v in bm.verts]
+0233:     zs = [v.co.z for v in bm.verts]
+0234:     c_min = Vector((min(xs), min(ys), min(zs)))
+0235:     c_max = Vector((max(xs), max(ys), max(zs)))
+0236:     bm.free()
+0237: 
+0238:     if vol_mm3 < 1e-4:
+0239:         raise SolidCutterValidationError(f"O cortador '{cutter_obj.name}' possui volume nulo.")
+0240: 
+0241:     # Verificação de colisão de bounding box com o alvo
+0242:     if target_obj and target_obj.type == 'MESH':
+0243:         t_corners = [target_obj.matrix_world @ Vector(corner) for corner in target_obj.bound_box]
+0244:         t_xs = [c.x for c in t_corners]
+0245:         t_ys = [c.y for c in t_corners]
+0246:         t_zs = [c.z for c in t_corners]
+0247:         t_min = Vector((min(t_xs), min(t_ys), min(t_zs)))
+0248:         t_max = Vector((max(t_xs), max(t_ys), max(t_zs)))
+0249: 
+0250:         no_overlap = (
+0251:             c_max.x < t_min.x or c_min.x > t_max.x or
+0252:             c_max.y < t_min.y or c_min.y > t_max.y or
+0253:             c_max.z < t_min.z or c_min.z > t_max.z
+0254:         )
+0255:         if no_overlap:
+0256:             raise SolidCutterValidationError(
+0257:                 f"O cortador sólido '{cutter_obj.name}' não intercepta o modelo alvo "
+0258:                 "(as caixas delimitadoras não se tocam). Posicione o cortador sobre o modelo."
+0259:             )
+0260: 
+0261:     return {
+0262:         "valid": True,
+0263:         "is_manifold": is_manifold,
+0264:         "non_manifold_edges": 0,
+0265:         "volume_mm3": vol_mm3,
+0266:         "triangles": triangles,
+0267:     }
+0268: 
+0269: 
+0270: def slice_mesh_by_solid(
+0271:     source_mesh: bpy.types.Mesh,
+0272:     matrix_world: Matrix,
+0273:     cutter_obj: bpy.types.Object,
+0274:     target_mesh_a: bpy.types.Mesh,
+0275:     target_mesh_b: bpy.types.Mesh,
+0276:     invert_sides: bool = False,
+0277:     unit_scale: float = 1000.0,
+0278: ) -> Dict[str, Any]:
+0279:     """Corta uma malha pelo cortador sólido gerando Parte A e Parte B fechadas.
+0280: 
+0281:     Convenção:
+0282:     - Normal (invert_sides=False):
+0283:         Parte A = Interseção (Target ∩ Cutter)  [Região interna ao cortador]
+0284:         Parte B = Diferença (Target \\ Cutter)  [Região externa ao cortador]
+0285:     - Invertido (invert_sides=True):
+0286:         Parte A = Diferença (Target \\ Cutter)
+0287:         Parte B = Interseção (Target ∩ Cutter)
+0288:     """
+0289:     if bpy.context and hasattr(bpy.context, "view_layer") and bpy.context.view_layer:
+0290:         try:
+0291:             bpy.context.view_layer.update()
+0292:         except Exception:
+0293:             pass
+0294: 
+0295:     scene = bpy.context.scene
+0296:     temp_col = scene.collection
+0297: 
+0298:     # 1. Cria objeto de trabalho temporário para a operação de INTERSECT
+0299:     work_mesh_intersect = source_mesh.copy()
+0300:     work_obj_intersect = bpy.data.objects.new("temp_work_intersect", work_mesh_intersect)
+0301:     work_obj_intersect.matrix_world = matrix_world.copy()
+0302:     work_obj_intersect.hide_viewport = False
+0303:     work_obj_intersect.hide_render = False
+0304:     temp_col.objects.link(work_obj_intersect)
+0305: 
+0306:     mod_intersect = work_obj_intersect.modifiers.new(name="Mod_Intersect", type='BOOLEAN')
+0307:     mod_intersect.operation = 'INTERSECT'
+0308:     mod_intersect.solver = 'EXACT'
+0309:     mod_intersect.object = cutter_obj
+0310: 
+0311:     # 2. Cria objeto de trabalho temporário para a operação de DIFFERENCE
+0312:     work_mesh_diff = source_mesh.copy()
+0313:     work_obj_diff = bpy.data.objects.new("temp_work_diff", work_mesh_diff)
+0314:     work_obj_diff.matrix_world = matrix_world.copy()
+0315:     work_obj_diff.hide_viewport = False
+0316:     work_obj_diff.hide_render = False
+0317:     temp_col.objects.link(work_obj_diff)
+0318: 
+0319:     mod_diff = work_obj_diff.modifiers.new(name="Mod_Difference", type='BOOLEAN')
+0320:     mod_diff.operation = 'DIFFERENCE'
+0321:     mod_diff.solver = 'EXACT'
+0322:     mod_diff.object = cutter_obj
+0323: 
+0324:     depsgraph = bpy.context.evaluated_depsgraph_get()
+0325: 
+0326:     try:
+0327:         eval_intersect = work_obj_intersect.evaluated_get(depsgraph)
+0328:         eval_mesh_intersect = eval_intersect.to_mesh()
+0329: 
+0330:         eval_diff = work_obj_diff.evaluated_get(depsgraph)
+0331:         eval_mesh_diff = eval_diff.to_mesh()
+0332: 
+0333:         # Atribuição conforme invert_sides
+0334:         mesh_part_a = eval_mesh_diff if invert_sides else eval_mesh_intersect
+0335:         mesh_part_b = eval_mesh_intersect if invert_sides else eval_mesh_diff
+0336: 
+0337:         results = {}
+0338: 
+0339:         for side_key, eval_m in [("A", mesh_part_a), ("B", mesh_part_b)]:
+0340:             bm = bmesh.new()
+0341:             bm.from_mesh(eval_m)
+0342:             bm.transform(matrix_world)
+0343: 
+0344:             if len(bm.verts) == 0:
+0345:                 bm.free()
+0346:                 raise NoIntersectionError(
+0347:                     f"O corte sólido não produziu geometria válida para a Parte {side_key}. "
+0348:                     "Certifique-se de que o cortador intersecta o modelo adequadamente."
+0349:                 )
+0350: 
+0351:             metrics = evaluate_bmesh_metrics(bm, unit_scale=unit_scale)
+0352:             results[side_key] = metrics
+0353: 
+0354:             # Garante que faces geradas pela casca do cortador herdam o material base do modelo
+0355:             for f in bm.faces:
+0356:                 if f.material_index >= len(source_mesh.materials):
+0357:                     f.material_index = 0
+0358: 
+0359:             dest_mesh = target_mesh_a if side_key == "A" else target_mesh_b
+0360:             dest_mesh.clear_geometry()
+0361:             # Sincroniza materiais da malha fonte ANTES do to_mesh para preservar atribuição de cores
+0362:             dest_mesh.materials.clear()
+0363:             for mat in source_mesh.materials:
+0364:                 dest_mesh.materials.append(mat)
+0365:             bm.to_mesh(dest_mesh)
+0366:             dest_mesh.update()
+0367:             bm.free()
+0368: 
+0369:         eval_intersect.to_mesh_clear()
+0370:         eval_diff.to_mesh_clear()
+0371: 
+0372:         results["sum_volume_mm3"] = results["A"]["volume_mm3"] + results["B"]["volume_mm3"]
+0373:         return results
+0374: 
+0375:     finally:
+0376:         for temp_obj in (work_obj_intersect, work_obj_diff):
+0377:             t_mesh = temp_obj.data
+0378:             temp_col.objects.unlink(temp_obj)
+0379:             bpy.data.objects.remove(temp_obj, do_unlink=True)
+0380:             if t_mesh and t_mesh.users == 0:
+0381:                 bpy.data.meshes.remove(t_mesh, do_unlink=True)
+0382: 
+0383: 
+0384: def compute_solid_explosion_offsets(
+0385:     obj_a: bpy.types.Object,
+0386:     obj_b: bpy.types.Object,
+0387:     explosion_distance_mm: float,
+0388:     unit_scale: float = 1000.0,
+0389: ) -> Tuple[Vector, Vector]:
+0390:     """Calcula os vetores de deslocamento explodido baseados no vetor entre os centróides de A e B."""
+0391:     dist_bu = (explosion_distance_mm / unit_scale) / 2.0
+0392:     if dist_bu < 1e-6:
+0393:         return Vector((0.0, 0.0, 0.0)), Vector((0.0, 0.0, 0.0))
+0394: 
+0395:     center_a = Vector((0.0, 0.0, 0.0))
+0396:     center_b = Vector((0.0, 0.0, 0.0))
+0397: 
+0398:     if obj_a and obj_a.data and len(obj_a.data.vertices) > 0:
+0399:         corners_a = [obj_a.matrix_world @ Vector(c) for c in obj_a.bound_box]
+0400:         center_a = sum(corners_a, Vector((0.0, 0.0, 0.0))) / float(len(corners_a))
+0401: 
+0402:     if obj_b and obj_b.data and len(obj_b.data.vertices) > 0:
+0403:         corners_b = [obj_b.matrix_world @ Vector(c) for c in obj_b.bound_box]
+0404:         center_b = sum(corners_b, Vector((0.0, 0.0, 0.0))) / float(len(corners_b))
+0405: 
+0406:     direction = center_a - center_b
+0407:     if direction.length > 1e-4:
+0408:         norm = direction.normalized()
+0409:     else:
+0410:         norm = Vector((0.0, 0.0, 1.0))
+0411: 
+0412:     offset_a = norm * dist_bu
+0413:     offset_b = -norm * dist_bu
+0414:     return offset_a, offset_b

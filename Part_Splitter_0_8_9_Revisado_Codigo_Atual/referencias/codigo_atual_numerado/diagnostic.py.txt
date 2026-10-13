@@ -1,0 +1,136 @@
+0001: """Diagnóstico e análise geométrica de malhas para o Chest Part Splitter."""
+0002: 
+0003: import bpy
+0004: import bmesh
+0005: from mathutils import Vector
+0006: from .constants import MIN_FACE_AREA_BU, SCALE_TOLERANCE
+0007: 
+0008: 
+0009: def get_scene_scale_to_mm(scene) -> float:
+0010:     """Retorna o fator de conversão de unidades do Blender para milímetros."""
+0011:     if scene and scene.unit_settings:
+0012:         scale_length = scene.unit_settings.scale_length
+0013:         if scale_length > 0:
+0014:             return scale_length * 1000.0
+0015:     return 1000.0
+0016: 
+0017: 
+0018: def analyze_target_mesh(obj: bpy.types.Object, scene: bpy.types.Scene) -> dict:
+0019:     """Executa diagnóstico completo da malha do objeto alvo.
+0020:     
+0021:     Retorna métricas de dimensões físicas em mm, volume, contagem de triângulos,
+0022:     status de manifoldness, escala aplicada e integridade de faces.
+0023:     """
+0024:     if not obj or obj.type != 'MESH':
+0025:         return {
+0026:             "valid": False,
+0027:             "errors": ["Objeto alvo inválido ou não é uma malha (MESH)."],
+0028:             "warnings": [],
+0029:             "dims_mm": (0.0, 0.0, 0.0),
+0030:             "triangles": 0,
+0031:             "faces": 0,
+0032:             "volume_mm3": 0.0,
+0033:             "is_manifold": False,
+0034:             "non_manifold_edges": 0,
+0035:             "has_unapplied_scale": False,
+0036:             "is_non_uniform_scale": False,
+0037:             "degenerate_faces": 0,
+0038:         }
+0039: 
+0040:     errors = []
+0041:     warnings = []
+0042:     scale_to_mm = get_scene_scale_to_mm(scene)
+0043: 
+0044:     # 1. Análise de transformações e escala no objeto
+0045:     scale = obj.scale
+0046:     is_singular = (abs(scale.x) < 1e-7 or abs(scale.y) < 1e-7 or abs(scale.z) < 1e-7)
+0047:     if is_singular:
+0048:         errors.append("A escala do objeto possui componentes nulos (matriz singular).")
+0049: 
+0050:     has_unapplied_scale = (
+0051:         abs(scale.x - 1.0) > SCALE_TOLERANCE
+0052:         or abs(scale.y - 1.0) > SCALE_TOLERANCE
+0053:         or abs(scale.z - 1.0) > SCALE_TOLERANCE
+0054:     )
+0055:     is_non_uniform_scale = (
+0056:         abs(scale.x - scale.y) > SCALE_TOLERANCE
+0057:         or abs(scale.x - scale.z) > SCALE_TOLERANCE
+0058:     )
+0059: 
+0060:     if has_unapplied_scale:
+0061:         warnings.append(
+0062:             f"Escala não aplicada: ({scale.x:.3f}, {scale.y:.3f}, {scale.z:.3f}). Recomenda-se criar cópia com transformações aplicadas."
+0063:         )
+0064: 
+0065:     # 2. Avaliação de malha com modificadores
+0066:     depsgraph = bpy.context.evaluated_depsgraph_get()
+0067:     eval_obj = obj.evaluated_get(depsgraph)
+0068:     eval_mesh = eval_obj.to_mesh()
+0069: 
+0070:     try:
+0071:         bm = bmesh.new()
+0072:         bm.from_mesh(eval_mesh)
+0073:         # Transforma o snapshot para World Space para métricas físicas fidedignas sob qualquer escala/rotação
+0074:         bm.transform(obj.matrix_world)
+0075:         bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+0076:         bm.verts.ensure_lookup_table()
+0077:         bm.edges.ensure_lookup_table()
+0078:         bm.faces.ensure_lookup_table()
+0079: 
+0080:         face_count = len(bm.faces)
+0081:         tri_count = sum(len(f.verts) - 2 for f in bm.faces)
+0082: 
+0083:         # Cálculo de volume físico em mm³ (World Space)
+0084:         vol_bu = abs(bm.calc_volume(signed=True))
+0085:         vol_mm3 = vol_bu * (scale_to_mm ** 3)
+0086: 
+0087:         # Checagem de arestas não-manifold
+0088:         non_manifold_edges = sum(1 for e in bm.edges if not e.is_manifold)
+0089:         is_manifold = (non_manifold_edges == 0 and face_count > 0)
+0090: 
+0091:         if not is_manifold and face_count > 0:
+0092:             warnings.append(
+0093:                 f"Malha possui {non_manifold_edges} aresta(s) abertas ou não-manifold."
+0094:             )
+0095: 
+0096:         # Checagem de faces degeneradas
+0097:         min_area_bu = MIN_FACE_AREA_BU
+0098:         degenerate_faces = sum(1 for f in bm.faces if f.calc_area() < min_area_bu)
+0099:         if degenerate_faces > 0:
+0100:             warnings.append(
+0101:                 f"Malha possui {degenerate_faces} face(s) com área nula ou degenerada."
+0102:             )
+0103: 
+0104:         # Dimensões físicas avaliadas no espaço de mundo em mm
+0105:         xs = [v.co.x for v in bm.verts]
+0106:         ys = [v.co.y for v in bm.verts]
+0107:         zs = [v.co.z for v in bm.verts]
+0108:         if xs:
+0109:             dims_mm = (
+0110:                 round((max(xs) - min(xs)) * scale_to_mm, 2),
+0111:                 round((max(ys) - min(ys)) * scale_to_mm, 2),
+0112:                 round((max(zs) - min(zs)) * scale_to_mm, 2),
+0113:             )
+0114:         else:
+0115:             dims_mm = (0.0, 0.0, 0.0)
+0116: 
+0117:         bm.free()
+0118:     finally:
+0119:         eval_obj.to_mesh_clear()
+0120: 
+0121:     is_valid = len(errors) == 0
+0122: 
+0123:     return {
+0124:         "valid": is_valid,
+0125:         "errors": errors,
+0126:         "warnings": warnings,
+0127:         "dims_mm": dims_mm,
+0128:         "triangles": tri_count,
+0129:         "faces": face_count,
+0130:         "volume_mm3": round(vol_mm3, 2),
+0131:         "is_manifold": is_manifold,
+0132:         "non_manifold_edges": non_manifold_edges,
+0133:         "has_unapplied_scale": has_unapplied_scale,
+0134:         "is_non_uniform_scale": is_non_uniform_scale,
+0135:         "degenerate_faces": degenerate_faces,
+0136:     }

@@ -1,0 +1,428 @@
+0001: """Cálculos geométricos de corte por plano e fechamento de malhas (Domain/Core).
+0002: 
+0003: Este módulo não depende de seleção ativa nem de contexto de interface da Viewport,
+0004: permitindo execução determinística e testes automatizados headless.
+0005: """
+0006: 
+0007: from typing import Dict, Any, Tuple, Optional, List
+0008: import bpy
+0009: import bmesh
+0010: from mathutils import Vector
+0011: 
+0012: 
+0013: class PlaneSliceError(Exception):
+0014:     """Exceção base para falhas de corte por plano."""
+0015:     pass
+0016: 
+0017: 
+0018: class NoIntersectionError(PlaneSliceError):
+0019:     """Lançada quando o plano de corte não intersecta a geometria do modelo alvo."""
+0020:     pass
+0021: 
+0022: 
+0023: def count_mesh_islands(bm: bmesh.types.BMesh) -> int:
+0024:     """Conta a quantidade de componentes/ilhas desconexas na malha."""
+0025:     visited = set()
+0026:     islands = 0
+0027: 
+0028:     for face in bm.faces:
+0029:         if face in visited:
+0030:             continue
+0031:         islands += 1
+0032:         queue = [face]
+0033:         visited.add(face)
+0034: 
+0035:         while queue:
+0036:             curr = queue.pop(0)
+0037:             for edge in curr.edges:
+0038:                 for linked_face in edge.link_faces:
+0039:                     if linked_face not in visited:
+0040:                         visited.add(linked_face)
+0041:                         queue.append(linked_face)
+0042: 
+0043:     return islands
+0044: 
+0045: 
+0046: def cap_open_cut_boundaries(
+0047:     bm: bmesh.types.BMesh,
+0048:     cut_edges: Optional[list] = None,
+0049:     plane_origin: Optional[Vector] = None,
+0050:     plane_normal: Optional[Vector] = None,
+0051:     coplanar_tol_bu: float = 1e-4,
+0052: ) -> int:
+0053:     """Fecha bordas abertas resultantes do corte planar para garantir malha manifold.
+0054:     
+0055:     Restringe o fechamento às bordas realmente geradas pelo corte e ao domínio no plano (B11 / T38),
+0056:     impedindo o preenchimento de aberturas pré-existentes do modelo em outros locais.
+0057:     Retorna o número de faces de fechamento geradas.
+0058:     """
+0059:     faces_created = 0
+0060: 
+0061:     # Coleta arestas que delimitam o corte
+0062:     target_edges = []
+0063:     if cut_edges:
+0064:         target_edges = [e for e in cut_edges if e.is_valid and e.is_boundary]
+0065: 
+0066:     if not target_edges and plane_origin is not None and plane_normal is not None:
+0067:         norm = plane_normal.normalized()
+0068:         target_edges = [
+0069:             e for e in bm.edges
+0070:             if e.is_valid and e.is_boundary and
+0071:             abs((e.verts[0].co - plane_origin).dot(norm)) <= coplanar_tol_bu and
+0072:             abs((e.verts[1].co - plane_origin).dot(norm)) <= coplanar_tol_bu
+0073:         ]
+0074: 
+0075:     if not target_edges and cut_edges is None and plane_origin is None:
+0076:         target_edges = [e for e in bm.edges if e.is_valid and e.is_boundary]
+0077: 
+0078:     if not target_edges:
+0079:         return 0
+0080: 
+0081:     created_all = []
+0082:     # 1. Tentativa com edgenet_fill
+0083:     try:
+0084:         res = bmesh.ops.edgenet_fill(bm, edges=target_edges)
+0085:         created = res.get("faces", [])
+0086:         created_all.extend(created)
+0087:         faces_created += len(created)
+0088:     except Exception:
+0089:         pass
+0090: 
+0091:     # 2. Fallback: fecha arestas abertas remanescentes exclusivamente no plano de corte (C09 / V13)
+0092:     if plane_origin is not None and plane_normal is not None:
+0093:         norm = plane_normal.normalized()
+0094:         remaining_boundary = [
+0095:             e for e in bm.edges
+0096:             if e.is_valid and e.is_boundary and
+0097:             abs((e.verts[0].co - plane_origin).dot(norm)) <= coplanar_tol_bu and
+0098:             abs((e.verts[1].co - plane_origin).dot(norm)) <= coplanar_tol_bu
+0099:         ]
+0100:     elif cut_edges:
+0101:         remaining_boundary = [e for e in cut_edges if e.is_valid and e.is_boundary]
+0102:     else:
+0103:         remaining_boundary = []
+0104: 
+0105:     if remaining_boundary:
+0106:         try:
+0107:             res_holes = bmesh.ops.holes_fill(bm, edges=remaining_boundary, sides=0)
+0108:             created_holes = res_holes.get("faces", [])
+0109:             created_all.extend(created_holes)
+0110:             faces_created += len(created_holes)
+0111:         except Exception:
+0112:             pass
+0113: 
+0114:     # Atribuição inteligente de material para as novas faces da tampa (interface de corte):
+0115:     if created_all:
+0116:         created_set = set(created_all)
+0117:         for f in created_all:
+0118:             adj_mats = []
+0119:             for e in f.edges:
+0120:                 for lf in e.link_faces:
+0121:                     if lf not in created_set:
+0122:                         adj_mats.append(lf.material_index)
+0123:             if adj_mats:
+0124:                 f.material_index = max(set(adj_mats), key=adj_mats.count)
+0125: 
+0126:     # Recalcula normais para garantir orientação exterior consistente
+0127:     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+0128:     return faces_created
+0129: 
+0130: 
+0131: def evaluate_bmesh_metrics(bm: bmesh.types.BMesh, unit_scale: float = 1000.0) -> Dict[str, Any]:
+0132:     """Calcula volume, dimensões, manifold e componentes de um BMesh."""
+0133:     bm.verts.ensure_lookup_table()
+0134:     bm.edges.ensure_lookup_table()
+0135:     bm.faces.ensure_lookup_table()
+0136: 
+0137:     verts_count = len(bm.verts)
+0138:     faces_count = len(bm.faces)
+0139:     tris_count = sum(len(f.verts) - 2 for f in bm.faces)
+0140: 
+0141:     if verts_count == 0:
+0142:         return {
+0143:             "volume_mm3": 0.0,
+0144:             "dims_mm": (0.0, 0.0, 0.0),
+0145:             "triangles": 0,
+0146:             "faces": 0,
+0147:             "verts": 0,
+0148:             "is_manifold": False,
+0149:             "non_manifold_edges": 0,
+0150:             "components": 0,
+0151:         }
+0152: 
+0153:     # Bounding box
+0154:     xs = [v.co.x for v in bm.verts]
+0155:     ys = [v.co.y for v in bm.verts]
+0156:     zs = [v.co.z for v in bm.verts]
+0157:     dims_bu = (max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs))
+0158:     dims_mm = (dims_bu[0] * unit_scale, dims_bu[1] * unit_scale, dims_bu[2] * unit_scale)
+0159: 
+0160:     # Volume (bu³ -> mm³)
+0161:     vol_bu = bm.calc_volume()
+0162:     vol_mm3 = abs(vol_bu) * (unit_scale ** 3)
+0163: 
+0164:     # Manifold
+0165:     non_manifold_edges = [e for e in bm.edges if not e.is_manifold]
+0166:     is_manifold = (len(non_manifold_edges) == 0 and verts_count >= 4 and faces_count >= 4)
+0167: 
+0168:     # Componentes desconectados
+0169:     components = count_mesh_islands(bm)
+0170: 
+0171:     return {
+0172:         "volume_mm3": vol_mm3,
+0173:         "dims_mm": dims_mm,
+0174:         "triangles": tris_count,
+0175:         "faces": faces_count,
+0176:         "verts": verts_count,
+0177:         "is_manifold": is_manifold,
+0178:         "non_manifold_edges": len(non_manifold_edges),
+0179:         "components": components,
+0180:     }
+0181: 
+0182: 
+0183: def reconstruct_boundary_loops(cut_edges: List[bmesh.types.BMEdge]) -> List[List[Vector]]:
+0184:     """Reconstrói ciclos ordenados e contínuos a partir das arestas de corte geradas por bisect.
+0185:     
+0186:     Remove vértices finais repetidos e duplicações consecutivas; valida fechamento,
+0187:     continuidade e ausência de ramificações, evitando diagonais e cruzamentos espúrios.
+0188:     """
+0189:     from collections import defaultdict
+0190:     vert_to_edges = defaultdict(list)
+0191:     for e in cut_edges:
+0192:         if e.is_valid:
+0193:             vert_to_edges[e.verts[0]].append(e)
+0194:             vert_to_edges[e.verts[1]].append(e)
+0195: 
+0196:     visited_edges = set()
+0197:     loops = []
+0198: 
+0199:     for e_start in cut_edges:
+0200:         if not e_start.is_valid or e_start in visited_edges:
+0201:             continue
+0202:         v_start = e_start.verts[0]
+0203:         curr_v = e_start.verts[1]
+0204:         visited_edges.add(e_start)
+0205:         loop_verts = [v_start, curr_v]
+0206:         curr_e = e_start
+0207:         closed = False
+0208: 
+0209:         while True:
+0210:             candidates = [e for e in vert_to_edges[curr_v] if e != curr_e and e not in visited_edges and e.is_valid]
+0211:             if not candidates:
+0212:                 # Verifica se fechou no vértice inicial
+0213:                 if curr_v == v_start or any(e == e_start for e in vert_to_edges[curr_v]):
+0214:                     closed = True
+0215:                 break
+0216:             next_e = candidates[0]
+0217:             visited_edges.add(next_e)
+0218:             next_v = next_e.verts[0] if next_e.verts[1] == curr_v else next_e.verts[1]
+0219:             if next_v == v_start:
+0220:                 closed = True
+0221:                 break
+0222:             loop_verts.append(next_v)
+0223:             curr_v = next_v
+0224:             curr_e = next_e
+0225: 
+0226:         if closed and len(loop_verts) >= 3:
+0227:             pts = []
+0228:             for v in loop_verts:
+0229:                 co = v.co.copy()
+0230:                 if not pts or (co - pts[-1]).length > 1e-6:
+0231:                     pts.append(co)
+0232:             # Remove vértice final repetido se coincidir com o inicial
+0233:             if len(pts) > 1 and (pts[0] - pts[-1]).length < 1e-6:
+0234:                 pts.pop()
+0235:             if len(pts) >= 3:
+0236:                 loops.append(pts)
+0237: 
+0238:     return loops
+0239: 
+0240: 
+0241: def slice_mesh_by_plane(
+0242:     source_mesh: bpy.types.Mesh,
+0243:     matrix_world,
+0244:     plane_origin: Vector,
+0245:     plane_normal: Vector,
+0246:     target_mesh_a: bpy.types.Mesh,
+0247:     target_mesh_b: bpy.types.Mesh,
+0248:     invert_sides: bool = False,
+0249:     unit_scale: float = 1000.0,
+0250:     coplanar_tol_mm: float = 0.05,
+0251:     plane_offset_mm: float = 0.0,
+0252:     part_clearance_mm: float = 0.0,
+0253:     part_clearance_apply_to: str = 'PART',
+0254: ) -> Dict[str, Any]:
+0255:     """Corta uma malha pelo plano dado, gerando Parte A e Parte B fechadas (B11 / P02 / P03).
+0256:     
+0257:     Elimina lâminas e películas coplanares espúrias em alinhamentos por face,
+0258:     aplica folga física calibrada entre peças (E01) e processa em World Space.
+0259:     """
+0260:     norm = plane_normal.normalized()
+0261:     if norm.length < 1e-6:
+0262:         raise PlaneSliceError("Vetor normal do plano inválido (comprimento nulo).")
+0263: 
+0264:     # Inversão de lados A/B caso solicitada
+0265:     effective_normal_a = -norm if invert_sides else norm
+0266:     effective_normal_b = -effective_normal_a
+0267: 
+0268:     # Deslocamento explícito do usuário (mm -> BU)
+0269:     base_origin = plane_origin.copy()
+0270:     if abs(plane_offset_mm) > 1e-7:
+0271:         base_origin += (plane_offset_mm / unit_scale) * norm
+0272: 
+0273:     coplanar_tol_bu = max(1e-6, coplanar_tol_mm / unit_scale)
+0274:     clearance_bu = max(0.0, part_clearance_mm / unit_scale)
+0275: 
+0276:     results = {}
+0277: 
+0278:     for side_key, cut_normal in [("A", effective_normal_a), ("B", effective_normal_b)]:
+0279:         # Calcula origem específica considerando folga entre peças (Etapa E / E01)
+0280:         side_origin = base_origin.copy()
+0281:         if clearance_bu > 1e-7:
+0282:             if part_clearance_apply_to == 'PART':
+0283:                 if side_key == 'A':
+0284:                     side_origin -= (clearance_bu * effective_normal_a)
+0285:             elif part_clearance_apply_to == 'CAVITY':
+0286:                 if side_key == 'B':
+0287:                     side_origin -= (clearance_bu * effective_normal_b)
+0288:             elif part_clearance_apply_to == 'BOTH':
+0289:                 half_c = clearance_bu * 0.5
+0290:                 if side_key == 'A':
+0291:                     side_origin -= (half_c * effective_normal_a)
+0292:                 elif side_key == 'B':
+0293:                     side_origin -= (half_c * effective_normal_b)
+0294: 
+0295:         bm = bmesh.new()
+0296:         bm.from_mesh(source_mesh)
+0297:         bm.transform(matrix_world)
+0298: 
+0299:         # 1. Classificação pré-corte de faces coplanares para eliminar lâminas (B11 / P02 / P03)
+0300:         # Identifica se o plano de corte coincide com alguma face planar real do modelo
+0301:         coplanar_faces_pre = []
+0302:         for f in bm.faces:
+0303:             if f.calc_area() < 1e-8:
+0304:                 continue
+0305:             dists = [(v.co - side_origin).dot(norm) for v in f.verts]
+0306:             if all(abs(d) <= coplanar_tol_bu for d in dists):
+0307:                 dot_val = f.normal.dot(norm)
+0308:                 if abs(dot_val) > 0.8:
+0309:                     coplanar_faces_pre.append((f.index, dot_val))
+0310: 
+0311:         has_coplanar = len(coplanar_faces_pre) > 0
+0312: 
+0313:         # 2. Executa corte bisect
+0314:         bisect_res = bmesh.ops.bisect_plane(
+0315:             bm,
+0316:             geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
+0317:             plane_co=side_origin,
+0318:             plane_no=cut_normal,
+0319:             clear_outer=True,
+0320:             clear_inner=False,
+0321:         )
+0322: 
+0323:         cut_edges = [e for e in bisect_res.get("geom_cut", []) if isinstance(e, bmesh.types.BMEdge) and e.is_valid]
+0324: 
+0325:         # 3. Eliminação estrita de lâminas coplanares da outra metade quando o corte for coplanar (B11 / P02 / P03)
+0326:         if has_coplanar:
+0327:             retained_positive_halfspace = (cut_normal.dot(norm) < 0)
+0328:             faces_to_remove = []
+0329:             for f in bm.faces:
+0330:                 if not f.is_valid:
+0331:                     continue
+0332:                 dists = [(v.co - side_origin).dot(norm) for v in f.verts]
+0333:                 if all(abs(d) <= coplanar_tol_bu for d in dists):
+0334:                     dot_val = f.normal.dot(norm)
+0335:                     if retained_positive_halfspace and dot_val > 0.8:
+0336:                         # Face exterior do corpo inferior não deve virar tampa/lâmina na peça superior
+0337:                         faces_to_remove.append(f)
+0338:                     elif not retained_positive_halfspace and dot_val < -0.8:
+0339:                         faces_to_remove.append(f)
+0340:                     elif f.calc_area() < 1e-8:
+0341:                         faces_to_remove.append(f)
+0342: 
+0343:             if faces_to_remove:
+0344:                 bmesh.ops.delete(bm, geom=faces_to_remove, context='FACES')
+0345:                 loose_edges = [e for e in bm.edges if e.is_valid and not e.link_faces]
+0346:                 if loose_edges:
+0347:                     bmesh.ops.delete(bm, geom=loose_edges, context='EDGES')
+0348:                 loose_verts = [v for v in bm.verts if v.is_valid and not v.link_faces]
+0349:                 if loose_verts:
+0350:                     bmesh.ops.delete(bm, geom=loose_verts, context='VERTS')
+0351:                 cut_edges = [e for e in cut_edges if e.is_valid and e.is_boundary]
+0352: 
+0353:         # Se a malha resultante ficou completamente vazia, o plano não cortou o modelo
+0354:         if len(bm.verts) == 0:
+0355:             bm.free()
+0356:             raise NoIntersectionError(
+0357:                 f"O plano de corte não intersecta o modelo (lado {side_key} ficou vazio)."
+0358:             )
+0359: 
+0360:         # 4. Fecha bordas abertas no plano de corte estritamente (C09 / V13)
+0361:         cap_open_cut_boundaries(
+0362:             bm,
+0363:             cut_edges=cut_edges,
+0364:             plane_origin=side_origin,
+0365:             plane_normal=cut_normal,
+0366:             coplanar_tol_bu=coplanar_tol_bu,
+0367:         )
+0368: 
+0369:         # Avalia métricas
+0370:         metrics = evaluate_bmesh_metrics(bm, unit_scale=unit_scale)
+0371:         results[side_key] = metrics
+0372: 
+0373:         # Coleta loops ordenados de borda do corte para construção da interface compartilhada
+0374:         if side_key == "A":
+0375:             interface_loops = reconstruct_boundary_loops(cut_edges)
+0376:             interface_points = [p for loop in interface_loops for p in loop] if interface_loops else [v.co.copy() for e in cut_edges if e.is_valid for v in e.verts]
+0377: 
+0378:         # Escreve na malha de destino correspondente
+0379:         target_mesh = target_mesh_a if side_key == "A" else target_mesh_b
+0380:         target_mesh.clear_geometry()
+0381:         target_mesh.materials.clear()
+0382:         for mat in source_mesh.materials:
+0383:             target_mesh.materials.append(mat)
+0384:         bm.to_mesh(target_mesh)
+0385:         target_mesh.update()
+0386:         bm.free()
+0387: 
+0388:     # Se um dos lados tiver volume nulo ou faces insuficientes, considerar sem interseção
+0389:     if results["A"]["verts"] == 0 or results["B"]["verts"] == 0:
+0390:         raise NoIntersectionError("O plano não cortou o objeto em duas partes distintas.")
+0391: 
+0392:     results["sum_volume_mm3"] = results["A"]["volume_mm3"] + results["B"]["volume_mm3"]
+0393: 
+0394:     # Constrói CutInterface formal para o corte planar
+0395:     from .geometry_contract import build_cut_interface
+0396:     cut_interface = build_cut_interface(
+0397:         origin_world=base_origin,
+0398:         normal_a_to_b=effective_normal_a,
+0399:         boundary_points_world=interface_points if 'interface_points' in locals() else [],
+0400:         boundary_loops_world=interface_loops if 'interface_loops' in locals() else None,
+0401:         unit_scale=unit_scale,
+0402:         source_mode="PLANE",
+0403:     )
+0404:     results["interface"] = cut_interface
+0405: 
+0406:     return results
+0407: 
+0408: 
+0409: def compute_explosion_offsets(
+0410:     plane_normal: Vector,
+0411:     explosion_distance_mm: float,
+0412:     unit_scale: float = 1000.0,
+0413:     invert_direction: bool = False,
+0414: ) -> Tuple[Vector, Vector]:
+0415:     """Calcula os vetores de deslocamento da visão explodida para as partes A e B (C04 / V06 / INV-004).
+0416:     
+0417:     A distância é expressa em mm e convertida para unidades do Blender (BU).
+0418:     Como bisect com clear_outer=True retém Parte A no lado negativo da normal e Parte B no positivo,
+0419:     Parte A move-se na direção oposta à normal (-), e Parte B na direção da normal (+),
+0420:     afastando ambas para fora uma da outra.
+0421:     O parâmetro invert_direction permite inversão visual independente sem afetar a geometria nominal.
+0422:     """
+0423:     norm = plane_normal.normalized()
+0424:     dist_bu = (explosion_distance_mm / unit_scale) / 2.0
+0425:     factor = -1.0 if invert_direction else 1.0
+0426:     offset_a = -norm * dist_bu * factor
+0427:     offset_b = norm * dist_bu * factor
+0428:     return offset_a, offset_b

@@ -1,0 +1,14 @@
+{
+  "uploaded_filename": "chest-blender-part-splitter(2).zip",
+  "sha256_uploaded_zip": "d05a1860786e62880bba78bbde88b74d788e391ef697df4bf6f0d40a3161d977",
+  "manifest_version": "0.8.9",
+  "blender_min": "4.2.0",
+  "source_python_files": 16,
+  "test_python_files": 33,
+  "runner_suite_count": 28,
+  "translation_entry_counts": {
+    "pt_BR": 25,
+    "en_US": 26
+  },
+  "Blender_tests_executed_here": false
+}

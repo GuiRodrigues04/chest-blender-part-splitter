@@ -1,0 +1,20 @@
+{
+  "src/__init__.py": "c22b312f1d4776163f1d54f8ee19f6cd58b4b94dcaf6b1591503b996d118a426",
+  "src/constants.py": "7e185caf38b235f19a6fb43c8aad8e4a83737189462aeb53cfd3e9612d5cad66",
+  "src/diagnostic.py": "5fcd3043659040e6206a47e53c839c74915172e452bff613b4fb5d2bfaf882d2",
+  "src/geometry_connectors.py": "295aa5ea4f20dc74403a292c0ef2a28f709060197c4c8860718d523dc57cf884",
+  "src/geometry_contract.py": "1105cad9f42d01a4caa8831b134e3d0cbcf1827113f6deaf342b6b33348baa83",
+  "src/geometry_loop.py": "7fbdd3c5374d7ea48f55acfdeaea1023b3b507abff15b281f18c656a59dfc7b8",
+  "src/geometry_material.py": "6da3a99045c66aaf2c0a5594f921a6f40be8a8d9cd8707d4e37d446f9512b5bd",
+  "src/geometry_plane.py": "7624fa2c6451d4dbed9de4beb3af04955ab45bdd0c86317aff471e7d2dde90d7",
+  "src/geometry_solid.py": "5e0055d5cd938557ef68f3d41d02ad6c0a5fd297874cf5474aced6046d2dc021",
+  "src/gpu_drawing.py": "4a9bb6b1127c4d59d28c98515b186375dafb6aca94fc89c7a4f0636544c67817",
+  "src/io_export.py": "e4ebb4b52a456eb5ac4bef43be5c01a2bc8402d1c435cc67766e9484db15e4e1",
+  "src/lifecycle.py": "d2941b4a106602889ed96ac985aceb83b86e177d33e5e9d47c0dd0ad3649394c",
+  "src/operators.py": "8ffc75cead622e6aff7593c84aee83844dee936ec1831242f6f9c322d6a67bd1",
+  "src/properties.py": "1a407d0c659d6b006e83cd8b263daa605bf9c8aafb62907ea2036d7dbe4fa846",
+  "src/translations.py": "d5b226e20c9269ce1fe329d117019562282560c0ac6f53891b8db7c633452ce8",
+  "src/ui.py": "30de32f8da4fb288c36e3a0833fa1fae6f36333ee759391feebd44a169d0b98d",
+  "blender_manifest.toml": "615a392a1aff8ec82eae438099e0acb3a1fac51f4a5396b522ac33e8925a0180",
+  "__init__.py": "eff5fe3d21141a825c1adb6640eb392f41c153cd2699c1424452840b6f63df54"
+}

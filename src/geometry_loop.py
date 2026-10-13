@@ -66,6 +66,78 @@ def get_topology_signature(obj) -> str:
     return f"V{v_count}E{e_count}F{f_count}H{h.hexdigest()[:8]}"
 
 
+def clear_capture(settings: Any, reason: str = ""):
+    """Limpa de forma atômica e segura todos os metadados de captura de loop."""
+    if not settings:
+        return
+    settings.loop_is_captured = False
+    settings.loop_vertex_count = 0
+    settings.loop_vertex_indices = ""
+    settings.loop_is_planar = False
+    settings.loop_planarity_deviation_mm = 0.0
+    settings.loop_seed_face_index = -1
+    settings.loop_topology_signature = ""
+
+
+def validate_capture(target: Any, settings: Any, context: Optional[bpy.types.Context] = None) -> Tuple[bool, str]:
+    """Valida se o loop capturado é estritamente consistente com o objeto alvo atual.
+
+    Retorna (is_valid: bool, reason: str).
+    """
+    if not settings or not getattr(settings, "loop_is_captured", False):
+        return False, "Nenhum contorno capturado."
+
+    if not target or target.type != 'MESH' or not target.data:
+        return False, "Alvo inválido ou inexistente."
+
+    indices_str = getattr(settings, "loop_vertex_indices", "")
+    if not indices_str:
+        return False, "Lista de índices do contorno está vazia."
+
+    try:
+        indices = [int(i) for i in indices_str.split(',') if i.strip()]
+    except ValueError:
+        return False, "Índices de vértices mal formatados."
+
+    if len(indices) < 3:
+        return False, "Contorno requer no mínimo 3 vértices."
+
+    expected_sig = getattr(settings, "loop_topology_signature", "")
+    current_sig = get_topology_signature(target)
+    if expected_sig and current_sig and expected_sig != current_sig:
+        return False, f"Assinatura topológica divergente: {current_sig} vs {expected_sig}."
+
+    if target.mode == 'EDIT':
+        bm = bmesh.from_edit_mesh(target.data)
+        bm.verts.ensure_lookup_table()
+        v_count = len(bm.verts)
+        for idx in indices:
+            if idx < 0 or idx >= v_count:
+                return False, f"Índice {idx} fora dos limites de vértices ({v_count})."
+
+        n = len(indices)
+        for i in range(n):
+            v1 = bm.verts[indices[i]]
+            v2 = bm.verts[indices[(i + 1) % n]]
+            edge_exists = any(e.other_vert(v1) == v2 for e in v1.link_edges)
+            if not edge_exists:
+                return False, f"Vértices consecutivos ({indices[i]}, {indices[(i+1)%n]}) não formam uma aresta contígua."
+    else:
+        v_count = len(target.data.vertices)
+        for idx in indices:
+            if idx < 0 or idx >= v_count:
+                return False, f"Índice {idx} fora dos limites de vértices ({v_count})."
+
+        edge_keys = set(target.data.edge_keys)
+        n = len(indices)
+        for i in range(n):
+            k = (min(indices[i], indices[(i + 1) % n]), max(indices[i], indices[(i + 1) % n]))
+            if k not in edge_keys:
+                return False, f"Vértices consecutivos ({indices[i]}, {indices[(i+1)%n]}) não formam uma aresta contígua na malha."
+
+    return True, "Captura válida."
+
+
 def capture_edge_loop(obj: bpy.types.Object, scene: Optional[bpy.types.Scene] = None) -> Tuple[bool, List[int], bool, float, str]:
     """Captura e valida um loop fechado de arestas no modo de edição.
     
@@ -289,6 +361,9 @@ def slice_mesh_by_loop(
     indices: List[int],
     seed_face_idx: int,
     scene: Optional[bpy.types.Scene] = None,
+    detach_add_base: bool = False,
+    detach_base_depth_mm: float = 0.0,
+    detach_base_clearance_mm: float = 0.0,
 ) -> LoopSliceResult:
     """Realiza a separação da malha usando o contorno (loop) capturado.
     
@@ -424,29 +499,117 @@ def slice_mesh_by_loop(
     created_faces_a = []
     created_faces_b = []
 
-    if tri_indices:
-        for i, j, k in tri_indices:
-            va = (loop_verts_a[i], loop_verts_a[j], loop_verts_a[k])
+    if detach_add_base and detach_base_depth_mm > 0.0:
+        analysis = analyze_loop_region(obj, indices, seed_face_idx, scene=scene)
+        inward_dir = analysis["inward_dir_world"]
+        max_avail_mm = analysis.get("max_avail_depth_mm", 0.0)
+        if analysis.get("thickness_determined", False) and max_avail_mm > 0:
+            if detach_base_depth_mm > (max_avail_mm + 1e-3):
+                bm_a.free()
+                bm_b.free()
+                raise ValueError(
+                    f"A profundidade da base ({detach_base_depth_mm:.1f} mm) ultrapassa a espessura da parede "
+                    f"({max_avail_mm:.1f} mm). Reduza a profundidade da base."
+                )
+
+        depth_bu = detach_base_depth_mm / scale_to_mm
+        new_verts_a = [bm_a.verts.new(v.co + inward_dir * depth_bu) for v in loop_verts_a]
+        bm_a.verts.ensure_lookup_table()
+        for i in range(n_loop):
+            i_next = (i + 1) % n_loop
             try:
-                fa = bm_a.faces.new(va)
+                fa = bm_a.faces.new((loop_verts_a[i], new_verts_a[i], new_verts_a[i_next], loop_verts_a[i_next]))
                 created_faces_a.append(fa)
-            except ValueError:
+            except Exception:
                 try:
-                    fa = bm_a.faces.new((va[0], va[2], va[1]))
+                    fa = bm_a.faces.new((loop_verts_a[i], loop_verts_a[i_next], new_verts_a[i_next], new_verts_a[i]))
                     created_faces_a.append(fa)
                 except Exception:
                     pass
 
-            vb = (loop_verts_b[i], loop_verts_b[k], loop_verts_b[j])
+        for i, j, k in tri_indices:
             try:
-                fb = bm_b.faces.new(vb)
-                created_faces_b.append(fb)
+                fa = bm_a.faces.new((new_verts_a[i], new_verts_a[k], new_verts_a[j]))
+                created_faces_a.append(fa)
             except ValueError:
                 try:
-                    fb = bm_b.faces.new((vb[0], vb[2], vb[1]))
+                    fa = bm_a.faces.new((new_verts_a[i], new_verts_a[j], new_verts_a[k]))
+                    created_faces_a.append(fa)
+                except Exception:
+                    pass
+
+        # Cavidade do receptor (Parte B) com folga dimensional
+        clearance_bu = max(0.0, detach_base_clearance_mm) / scale_to_mm
+        vert_offsets_3d = []
+        if clearance_bu > 1e-6:
+            area2 = sum(pts_2d[i].x * pts_2d[(i + 1) % n_loop].y - pts_2d[(i + 1) % n_loop].x * pts_2d[i].y for i in range(n_loop))
+            is_ccw = area2 > 0
+            for i in range(n_loop):
+                p_prev = pts_2d[(i - 1) % n_loop]
+                p_curr = pts_2d[i]
+                p_next = pts_2d[(i + 1) % n_loop]
+                d1 = (p_curr - p_prev).normalized() if (p_curr - p_prev).length > 1e-7 else Vector((1.0, 0.0))
+                d2 = (p_next - p_curr).normalized() if (p_next - p_curr).length > 1e-7 else Vector((1.0, 0.0))
+                n1 = Vector((d1.y, -d1.x)) if is_ccw else Vector((-d1.y, d1.x))
+                n2 = Vector((d2.y, -d2.x)) if is_ccw else Vector((-d2.y, d2.x))
+                n_sum = n1 + n2
+                n_avg = n_sum.normalized() if n_sum.length > 1e-6 else n1
+                cos_half = max(0.5, n_avg.dot(n1))
+                scale_fac = min(2.0, 1.0 / cos_half)
+                offset_3d = (n_avg.x * u_vec + n_avg.y * v_vec) * (clearance_bu * scale_fac)
+                vert_offsets_3d.append(offset_3d)
+        else:
+            vert_offsets_3d = [Vector((0.0, 0.0, 0.0)) for _ in range(n_loop)]
+
+        new_verts_b = [bm_b.verts.new(v.co + inward_dir * depth_bu + vert_offsets_3d[i]) for i, v in enumerate(loop_verts_b)]
+        bm_b.verts.ensure_lookup_table()
+        for i in range(n_loop):
+            i_next = (i + 1) % n_loop
+            try:
+                fb = bm_b.faces.new((loop_verts_b[i], loop_verts_b[i_next], new_verts_b[i_next], new_verts_b[i]))
+                created_faces_b.append(fb)
+            except Exception:
+                try:
+                    fb = bm_b.faces.new((loop_verts_b[i], new_verts_b[i], new_verts_b[i_next], loop_verts_b[i_next]))
                     created_faces_b.append(fb)
                 except Exception:
                     pass
+
+        for i, j, k in tri_indices:
+            try:
+                fb = bm_b.faces.new((new_verts_b[i], new_verts_b[j], new_verts_b[k]))
+                created_faces_b.append(fb)
+            except ValueError:
+                try:
+                    fb = bm_b.faces.new((new_verts_b[i], new_verts_b[k], new_verts_b[j]))
+                    created_faces_b.append(fb)
+                except Exception:
+                    pass
+    else:
+        # Fechamento direto no plano do contorno
+        if tri_indices:
+            for i, j, k in tri_indices:
+                va = (loop_verts_a[i], loop_verts_a[j], loop_verts_a[k])
+                try:
+                    fa = bm_a.faces.new(va)
+                    created_faces_a.append(fa)
+                except ValueError:
+                    try:
+                        fa = bm_a.faces.new((va[0], va[2], va[1]))
+                        created_faces_a.append(fa)
+                    except Exception:
+                        pass
+
+                vb = (loop_verts_b[i], loop_verts_b[k], loop_verts_b[j])
+                try:
+                    fb = bm_b.faces.new(vb)
+                    created_faces_b.append(fb)
+                except ValueError:
+                    try:
+                        fb = bm_b.faces.new((vb[0], vb[2], vb[1]))
+                        created_faces_b.append(fb)
+                    except Exception:
+                        pass
 
     # Fallback estrito apenas para arestas do contorno remanescentes
     bm_a.edges.ensure_lookup_table()
@@ -506,13 +669,18 @@ def slice_mesh_by_loop(
     bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
 
     # Determina a normal da interface que aponta DE A PARA B
-    normal_a_to_b = Vector((0.0, 0.0, 1.0))
-    if created_faces_a:
+    if detach_add_base and detach_base_depth_mm > 0.0:
+        normal_a_to_b = inward_dir
+    elif created_faces_a:
         valid_caps = [f for f in created_faces_a if f.is_valid]
         if valid_caps:
             avg_cap_norm = sum((f.normal for f in valid_caps), Vector()) / len(valid_caps)
             if avg_cap_norm.length > 1e-5:
                 normal_a_to_b = avg_cap_norm.normalized()
+            else:
+                normal_a_to_b = n
+        else:
+            normal_a_to_b = n
     else:
         normal_a_to_b = n
 
@@ -650,11 +818,12 @@ def analyze_loop_region(
     span_h_mm = span_h_bu * scale_to_mm
 
     # Avalia espessura disponível na direção inward via BVHTree (E02 / E03)
+    offset_bu = max(1e-7, 0.01 / scale_to_mm)
     min_wall_depth_bu = 1e9
     sampled_hits = 0
     test_points = [centroid] + loop_coords_world
     for pt in test_points:
-        ray_start = pt + inward_dir * 1e-4
+        ray_start = pt + inward_dir * offset_bu
         hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(ray_start, inward_dir)
         if hit_loc is not None:
             dist = (hit_loc - pt).length
@@ -734,7 +903,7 @@ def _get_orthonormal_basis(normal: Vector) -> Tuple[Vector, Vector]:
 
 
 def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
-    """Triangulação estrita por Ear Clipping para polígono simples 2D (B05 / L01-L06 / C01 / V01).
+    """Triangulação estrita 2D via Constrained Delaunay Triangulation (CDT) e Ear Clipping (DEV-06 / B05 / V01).
     
     Garante que 100% dos triângulos fiquem dentro do domínio do polígono,
     inclusive em formas côncavas (L, U, etc.), eliminando triângulos degenerados (área zero)
@@ -760,10 +929,42 @@ def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
         return [(0, 1, 2)] if area > 0 else [(0, 2, 1)]
 
     is_ccw = (area > 0.0)
+
+    # 2. Triangulação nativa restrita via mathutils.geometry.delaunay_2d_cdt (R1 / DEV-06)
+    try:
+        import mathutils
+        edges = [(i, (i + 1) % n) for i in range(n)]
+        face_poly = [list(range(n))] if is_ccw else [list(reversed(range(n)))]
+        out_verts, out_edges, out_faces, orig_v, orig_e, orig_f = mathutils.geometry.delaunay_2d_cdt(
+            pts_vec, edges, face_poly, 1, 1e-6
+        )
+        cdt_tris = []
+        for f in out_faces:
+            if len(f) != 3:
+                continue
+            idx0 = orig_v[f[0]][0] if orig_v[f[0]] else f[0]
+            idx1 = orig_v[f[1]][0] if orig_v[f[1]] else f[1]
+            idx2 = orig_v[f[2]][0] if orig_v[f[2]] else f[2]
+            if idx0 == idx1 or idx1 == idx2 or idx2 == idx0:
+                continue
+            p0, p1, p2 = pts_vec[idx0], pts_vec[idx1], pts_vec[idx2]
+            tri_signed = 0.5 * ((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y))
+            if abs(tri_signed) < 1e-12:
+                continue
+            if is_ccw:
+                tri = (idx0, idx1, idx2) if tri_signed > 0 else (idx0, idx2, idx1)
+            else:
+                tri = (idx0, idx2, idx1) if tri_signed > 0 else (idx0, idx1, idx2)
+            cdt_tris.append(tri)
+        if len(cdt_tris) >= (n - 2):
+            return cdt_tris
+    except Exception:
+        pass
+
+    # 3. Fallback: Ear Clipping com filtragem estrita de degenerações
     indices = list(range(n)) if is_ccw else list(reversed(range(n)))
     poly = [pts_vec[i] for i in indices]
 
-    # 2. Identifica cantos essenciais (elimina colineares na mesma reta para o Ear Clipping)
     corners = []
     m_len = len(poly)
     for i in range(m_len):
@@ -787,9 +988,8 @@ def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
             corners.append(i)
 
     if len(corners) < 3:
-        raise ValueError("Polígono degenerado: todos os pontos são colineares.")
+        corners = list(range(m_len))
 
-    # 3. Mapeia intermediários colineares pertencentes a cada aresta de canto
     edge_intermediates = {}
     num_corners = len(corners)
     for c_i in range(num_corners):
@@ -807,7 +1007,6 @@ def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
                 inter.append(indices[k])
         edge_intermediates[(indices[c_curr], indices[c_next])] = inter
 
-    # 4. Ear clipping no polígono simplificado de cantos essenciais
     corner_indices = [indices[c] for c in corners]
 
     def is_point_in_tri(pt: Vector, a: Vector, b: Vector, c: Vector) -> bool:
@@ -874,7 +1073,6 @@ def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
     if len(cur_c_indices) == 3:
         corner_triangles.append((cur_c_indices[0], cur_c_indices[1], cur_c_indices[2]))
 
-    # 5. Subdivide as arestas de cantos que possuem intermediários colineares
     final_triangles = []
     for tri in corner_triangles:
         sub_tris = [tri]
@@ -900,10 +1098,18 @@ def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
 
         final_triangles.extend(sub_tris)
 
-    if not is_ccw:
-        final_triangles = [(t[0], t[2], t[1]) for t in final_triangles]
+    # Filtra triângulos degenerados (área zero)
+    valid_final = []
+    for t in final_triangles:
+        p0, p1, p2 = pts_vec[t[0]], pts_vec[t[1]], pts_vec[t[2]]
+        t_area = 0.5 * abs((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y))
+        if t_area > 1e-12:
+            valid_final.append(t)
 
-    return final_triangles
+    if not is_ccw:
+        valid_final = [(t[0], t[2], t[1]) for t in valid_final]
+
+    return valid_final
 
 
 def create_loop_prism_cutter(
@@ -1074,11 +1280,16 @@ def slice_mesh_by_loop_extrude(
         bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
         bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
 
-        interface_origin = analysis["centroid_world"] + (depth_mm / scale_to_mm) * inward_dir
+        if through_cut:
+            interface_origin = analysis["centroid_world"]
+            interface_boundary = coords_world
+        else:
+            interface_origin = analysis["centroid_world"] + (depth_mm / scale_to_mm) * inward_dir
+            interface_boundary = [p + (depth_mm / scale_to_mm) * inward_dir for p in coords_world]
         cut_interface = build_cut_interface(
             origin_world=interface_origin,
             normal_a_to_b=inward_dir,
-            boundary_points_world=coords_world,
+            boundary_points_world=interface_boundary,
             unit_scale=scale_to_mm,
             source_mode="LOOP",
         )

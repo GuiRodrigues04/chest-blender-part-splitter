@@ -33,10 +33,18 @@ def _on_preview_transform_update(self, context):
 
 def _on_param_change_mark_stale(self, context):
     """Callback para marcar o preview como desatualizado quando parâmetros de corte ou encaixe mudam."""
-    if self.session_status == 'PREVIEW_VALID':
-        self.session_status = 'PREVIEW_STALE'
-        self.last_status = "Os ajustes mudaram. Atualize a prévia antes de criar as peças."
-        self.last_status_level = 'WARNING'
+    settings = None
+    if hasattr(self, "session_status"):
+        settings = self
+    elif context and hasattr(context, "scene") and hasattr(context.scene, "chest_splitter"):
+        settings = context.scene.chest_splitter
+    elif hasattr(bpy, "context") and bpy.context and hasattr(bpy.context, "scene") and hasattr(bpy.context.scene, "chest_splitter"):
+        settings = bpy.context.scene.chest_splitter
+
+    if settings and getattr(settings, "session_status", "") == 'PREVIEW_VALID':
+        settings.session_status = 'PREVIEW_STALE'
+        settings.last_status = "Os ajustes mudaram. Atualize a prévia antes de criar as peças."
+        settings.last_status_level = 'WARNING'
 
 
 def _on_clearance_preset_update(self, context):
@@ -81,10 +89,22 @@ def _on_solid_dim_update(self, context):
         desired_y_bu = max(1e-4, self.solid_cutter_height_mm / unit_scale)
         desired_z_bu = max(1e-4, self.solid_cutter_depth_mm / unit_scale)
 
+        anchor_local_tuple = cutter.get("chest_align_anchor_local")
+        anchor_world = None
+        R_pure = cutter.matrix_world.to_quaternion().to_matrix()
+        if anchor_local_tuple:
+            a_local = Vector(anchor_local_tuple)
+            anchor_world = cutter.matrix_world @ a_local
+
         _updating_solid_dims = True
         cutter.scale.x = desired_x_bu / max(1e-6, span_x)
         cutter.scale.y = desired_y_bu / max(1e-6, span_y)
         cutter.scale.z = desired_z_bu / max(1e-6, span_z)
+
+        if anchor_world is not None and anchor_local_tuple is not None:
+            a_local = Vector(anchor_local_tuple)
+            new_scaled_a = Vector((cutter.scale.x * a_local.x, cutter.scale.y * a_local.y, cutter.scale.z * a_local.z))
+            cutter.location = anchor_world - R_pure @ new_scaled_a
     except Exception:
         pass
     finally:
@@ -181,6 +201,52 @@ class ChestOperationRecord(bpy.types.PropertyGroup):
     created_objects: CollectionProperty(type=ChestObjectRef)
     unlinked_parents: CollectionProperty(type=ChestObjectRef)
     version: IntProperty(default=1)
+
+
+class ChestManualConnector(bpy.types.PropertyGroup):
+    connector_id: StringProperty(
+        name="ID do Conector",
+        description="Identificador único persistente do conector manual",
+        default="",
+    )
+    u_mm: FloatProperty(
+        name="U (mm)",
+        description="Posição horizontal U no plano de corte em milímetros",
+        default=0.0,
+        precision=2,
+        update=_on_param_change_mark_stale,
+    )
+    v_mm: FloatProperty(
+        name="V (mm)",
+        description="Posição vertical V no plano de corte em milímetros",
+        default=0.0,
+        precision=2,
+        update=_on_param_change_mark_stale,
+    )
+    yaw_deg: FloatProperty(
+        name="Rotação (°)",
+        description="Rotação do encaixe no plano de corte (relevante para cápsula)",
+        default=0.0,
+        min=-180.0,
+        max=180.0,
+        precision=1,
+        update=_on_param_change_mark_stale,
+    )
+    is_valid: BoolProperty(
+        name="Válido",
+        description="Indica se o conector está dentro dos limites da interface",
+        default=True,
+    )
+    status_reason: StringProperty(
+        name="Motivo",
+        description="Diagnóstico da posição do conector",
+        default="OK",
+    )
+    validation_msg: StringProperty(
+        name="Mensagem de Validação",
+        description="Diagnóstico da posição do conector",
+        default="OK",
+    )
 
 
 class ChestSplitterSettings(bpy.types.PropertyGroup):
@@ -823,6 +889,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
             ('LINEAR_3', "3 Pinos (Linha)", "Três conectores distribuídos em linha"),
             ('GRID_4', "4 Pinos (Grade)", "Quatro conectores distribuídos em grade 2x2"),
             ('AUTO_SHAPE', "Pela Forma (Auto)", "Distribuição adaptada à forma e área sólida útil do corte"),
+            ('MANUAL', "Manual (Visual)", "Posicionamento e edição manual de cada encaixe"),
         ],
         default='CENTER',
         description="Padrão de distribuição dos encaixes no plano",
@@ -839,10 +906,46 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         update=_on_param_change_mark_stale,
     )
 
+    # --- Posicionamento Manual Visual (A05) ---
+    manual_connectors: CollectionProperty(type=ChestManualConnector)
+    manual_connector_index: IntProperty(
+        name="Conector Manual Ativo",
+        default=0,
+    )
+    is_editing_connectors: BoolProperty(
+        name="Editando Conectores",
+        description="Indica se a ferramenta interativa de posicionamento contínuo de pinos está ativa",
+        default=False,
+    )
+    manual_editor_submode: EnumProperty(
+        name="Submodo do Editor",
+        items=[
+            ('ADD', "Adicionar", "Clique para adicionar novo pino na interface"),
+            ('MOVE', "Mover", "Clique e arraste para reposicionar pinos existentes"),
+        ],
+        default='ADD',
+        description="Submodo operacional do editor de pinos",
+    )
+
     # --- Folga Física entre Peças (Etapa E / E01) ---
     part_clearance_mm: FloatProperty(
         name="Folga entre Peças (mm)",
         description="Folga física calibrada nas interfaces de contato entre as peças (E01)",
+        default=0.0,
+        min=0.0,
+        max=5.0,
+        precision=2,
+        update=_on_param_change_mark_stale,
+    )
+    part_clearance_bottom_enable: BoolProperty(
+        name="Folga de Fundo Separada",
+        description="Usa uma folga de fundo (axial) independente da folga lateral no modo Material",
+        default=False,
+        update=_on_param_change_mark_stale,
+    )
+    part_clearance_bottom_mm: FloatProperty(
+        name="Folga de Fundo (mm)",
+        description="Folga axial no fundo da extração, independente da folga lateral",
         default=0.0,
         min=0.0,
         max=5.0,
@@ -975,6 +1078,7 @@ class ChestSplitterAddonPreferences(bpy.types.AddonPreferences):
 classes = (
     ChestObjectRef,
     ChestOperationRecord,
+    ChestManualConnector,
     ChestSplitterSettings,
     ChestSplitterAddonPreferences,
 )

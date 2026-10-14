@@ -472,6 +472,148 @@ def create_material_patch_prism_cutter(
     return prism_obj
 
 
+def _material_support_frame(obj, analysis, scale_to_mm):
+    """A03: referência de apoio planar da região (plano, normal para fora, alturas do relevo).
+
+    Retorna dict ou None quando não há relevo com apoio planar confiável.
+    """
+    if not analysis.get("is_planar_base", False) or not analysis.get("protrusion_face_indices"):
+        return None
+    n = Vector(analysis["normal_world"]).normalized()
+    inward = Vector(analysis["inward_dir_world"]).normalized()
+    if n.dot(inward) > 0.0:
+        n = -n  # n aponta para fora (lado do relevo/ar)
+    c = Vector(analysis["centroid_world"])
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.transform(obj.matrix_world)
+    bm.faces.ensure_lookup_table()
+    heights = []
+    for i in analysis["region_face_indices"]:
+        if i < len(bm.faces):
+            heights.extend((v.co - c).dot(n) for v in bm.faces[i].verts)
+    bm.free()
+    if not heights:
+        return None
+    return {
+        "n_out": n,
+        "centroid": c,
+        "h_max_bu": max(0.0, max(heights)),
+        "h_min_bu": min(0.0, min(heights)),
+    }
+
+
+def _check_wall_thickness(obj, sample_points_world, inward_dir, depth_mm, scale_to_mm):
+    """A03: levanta erro se a parede for mais fina que a profundidade pedida (sem perfurar em silêncio).
+
+    Usa raycast físico a partir de pontos do domínio. Sem acerto (malha aberta) = inconclusivo,
+    não bloqueia, mas também não é tratado como espessura comprovada.
+    """
+    from mathutils.bvhtree import BVHTree
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.transform(obj.matrix_world)
+    tree = BVHTree.FromBMesh(bm)
+    bm.free()
+    d = inward_dir.normalized()
+    eps_bu = 0.01 / scale_to_mm
+    min_thick_mm = None
+    for p in sample_points_world:
+        hit = tree.ray_cast(p + d * eps_bu, d)
+        if hit[0] is None:
+            continue
+        thick = (hit[3] + eps_bu) * scale_to_mm
+        if min_thick_mm is None or thick < min_thick_mm:
+            min_thick_mm = thick
+    if min_thick_mm is not None and min_thick_mm < depth_mm - 0.05:
+        raise ValueError(
+            f"A profundidade ({depth_mm:.2f} mm) ultrapassa a espessura disponível da parede "
+            f"({min_thick_mm:.2f} mm). Reduza a profundidade."
+        )
+    return min_thick_mm
+
+
+def create_material_footprint_prism_cutter(
+    obj: bpy.types.Object,
+    coords_world: List[Vector],
+    centroid: Vector,
+    n_out: Vector,
+    top_bu: float,
+    depth_bu: float,
+    name: str,
+    material_index: int,
+    interface_mat_mode: str,
+    body_mat_index: int,
+    lateral_offset_bu: float = 0.0,
+):
+    """A03: prisma definido pela pegada da região sobre o plano de apoio.
+
+    Vai de top_bu acima do apoio (cobre todo o relevo) até depth_bu abaixo dele; as paredes são
+    perpendiculares ao apoio. A profundidade começa no apoio, não no topo do relevo.
+    Retorna (objeto, triângulos da pegada projetados no apoio).
+    """
+    n = n_out.normalized()
+    inward = -n
+    u_vec, v_vec = _get_orthonormal_basis(n)
+    footprint = [p - ((p - centroid).dot(n)) * n for p in coords_world]
+    pts_2d = [Vector(((p - centroid).dot(u_vec), (p - centroid).dot(v_vec))) for p in footprint]
+    if abs(lateral_offset_bu) > 1e-9:
+        new_pts, ok = offset_polygon_2d(pts_2d, lateral_offset_bu)
+        if not ok:
+            scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+            raise ValueError(
+                f"A folga lateral configurada ({lateral_offset_bu * scale_to_mm:.2f} mm) provoca colapso da geometria útil da peça."
+            )
+        footprint = [centroid + q.x * u_vec + q.y * v_vec for q in new_pts]
+        pts_2d = new_pts
+    tris = triangulate_polygon_2d(pts_2d)
+    if not tris:
+        raise ValueError("Não foi possível triangular a pegada da região para o cortador.")
+
+    target_iface_mat = material_index if interface_mat_mode == 'EXTRACTED' else body_mat_index
+    bm_prism = bmesh.new()
+    top = [bm_prism.verts.new(p + n * top_bu) for p in footprint]
+    bot = [bm_prism.verts.new(p + inward * depth_bu) for p in footprint]
+    n_pts = len(footprint)
+    for i, j, k in tris:
+        ft = bm_prism.faces.new((top[i], top[j], top[k]))
+        ft.material_index = material_index
+        fb = bm_prism.faces.new((bot[k], bot[j], bot[i]))
+        fb.material_index = target_iface_mat
+    for i in range(n_pts):
+        j = (i + 1) % n_pts
+        fs = bm_prism.faces.new((top[j], top[i], bot[i], bot[j]))
+        fs.material_index = target_iface_mat
+    bmesh.ops.triangulate(bm_prism, faces=bm_prism.faces[:])
+    bmesh.ops.recalc_face_normals(bm_prism, faces=bm_prism.faces[:])
+
+    scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+    from .diagnostic import validate_bmesh_mesh_geometry
+    chk = validate_bmesh_mesh_geometry(bm_prism, scale_to_mm)
+    if not chk["is_manifold"] or abs(chk["volume_mm3"]) <= 1e-4 or chk["degenerate_faces"] or chk["null_edges"]:
+        bm_prism.free()
+        raise ValueError("O cortador de pegada gerou geometria inválida; revise o contorno da região.")
+
+    mesh = bpy.data.meshes.new(f"{name}_Mesh")
+    for mat in obj.data.materials:
+        mesh.materials.append(mat)
+    bm_prism.to_mesh(mesh)
+    bm_prism.free()
+    prism_obj = bpy.data.objects.new(name, mesh)
+    prism_obj.hide_viewport = False
+    prism_obj.hide_render = False
+    bpy.context.scene.collection.objects.link(prism_obj)
+    bot_centroid = centroid + inward * depth_bu
+    iface_tris = [(pts_2d_to_world(pts_2d, i, bot_centroid, u_vec, v_vec), pts_2d_to_world(pts_2d, j, bot_centroid, u_vec, v_vec),
+                   pts_2d_to_world(pts_2d, k, bot_centroid, u_vec, v_vec)) for i, j, k in tris]
+    return prism_obj, iface_tris
+
+
+def pts_2d_to_world(pts_2d, idx, centroid, u_vec, v_vec):
+    q = pts_2d[idx]
+    return centroid + q.x * u_vec + q.y * v_vec
+
+
 def slice_mesh_by_material(
     obj: bpy.types.Object,
     material_index: int,
@@ -483,6 +625,7 @@ def slice_mesh_by_material(
     interface_mat_mode: str = 'SOURCE',
     part_clearance_mm: float = 0.0,
     part_clearance_apply_to: str = 'PART',
+    part_clearance_bottom_mm: Optional[float] = None,
 ) -> LoopSliceResult:
     """Realiza a separação da malha com base em uma região do material selecionado.
     
@@ -776,19 +919,29 @@ def slice_mesh_by_material(
         outward_ext_bu = max(0.5 / scale_to_mm, 1.0 / scale_to_mm)
 
         clearance_bu = (part_clearance_mm / scale_to_mm) if part_clearance_mm > 0.0 else 0.0
+        # Folga de fundo (axial) independente da lateral; None = igual à lateral (legado)
+        if part_clearance_bottom_mm is None:
+            bottom_bu = clearance_bu
+        else:
+            bottom_bu = max(0.0, part_clearance_bottom_mm) / scale_to_mm
+            if bottom_bu * scale_to_mm >= depth_mm - 0.1:
+                raise ValueError(
+                    f"A folga de fundo ({part_clearance_bottom_mm:.2f} mm) excede ou elimina a profundidade "
+                    f"útil da peça ({depth_mm:.2f} mm). Reduza a folga de fundo ou aumente a profundidade."
+                )
         if part_clearance_apply_to == 'PART':
-            depth_a_bu = max(0.05 / scale_to_mm, depth_bu - clearance_bu)
+            depth_a_bu = max(0.05 / scale_to_mm, depth_bu - bottom_bu)
             depth_b_bu = depth_bu
             lat_off_a = clearance_bu
             lat_off_b = 0.0
         elif part_clearance_apply_to == 'CAVITY':
             depth_a_bu = depth_bu
-            depth_b_bu = depth_bu + clearance_bu
+            depth_b_bu = depth_bu + bottom_bu
             lat_off_a = 0.0
             lat_off_b = -clearance_bu
         elif part_clearance_apply_to == 'BOTH':
-            depth_a_bu = max(0.05 / scale_to_mm, depth_bu - 0.5 * clearance_bu)
-            depth_b_bu = depth_bu + 0.5 * clearance_bu
+            depth_a_bu = max(0.05 / scale_to_mm, depth_bu - 0.5 * bottom_bu)
+            depth_b_bu = depth_bu + 0.5 * bottom_bu
             lat_off_a = 0.5 * clearance_bu
             lat_off_b = -0.5 * clearance_bu
         else:
@@ -808,30 +961,80 @@ def slice_mesh_by_material(
 
         try:
             body_mat_idx = analysis.get("body_mat_index", 0)
-            prism_obj_a = create_material_patch_prism_cutter(
-                obj=obj,
-                region_face_indices=analysis["region_face_indices"],
-                inward_dir=inward_dir,
-                depth_bu=depth_a_bu,
-                outward_ext_bu=outward_ext_bu,
-                name=f"{obj.name}_mat_prism_a",
-                material_index=material_index,
-                interface_mat_mode=interface_mat_mode,
-                body_mat_index=body_mat_idx,
-                lateral_offset_bu=lat_off_a,
-            )
-            prism_obj_b = create_material_patch_prism_cutter(
-                obj=obj,
-                region_face_indices=analysis["region_face_indices"],
-                inward_dir=inward_dir,
-                depth_bu=depth_b_bu,
-                outward_ext_bu=outward_ext_bu,
-                name=f"{obj.name}_mat_prism_b",
-                material_index=body_mat_idx,
-                interface_mat_mode='SOURCE',
-                body_mat_index=body_mat_idx,
-                lateral_offset_bu=lat_off_b,
-            )
+            depth_mm_eff = depth_mm
+            frame = _material_support_frame(obj, analysis, scale_to_mm)
+            iface_tris_world = None
+            if frame is not None:
+                # A03: relevo com apoio planar -> prisma de pegada; profundidade parte do apoio
+                n_out = frame["n_out"]
+                inward_dir = -n_out
+                dip_mm = -frame["h_min_bu"] * scale_to_mm
+                if dip_mm > 0.0 and depth_mm <= dip_mm + 0.1:
+                    raise ValueError(
+                        f"A profundidade ({depth_mm:.2f} mm) não cobre o rebaixo da região ({dip_mm:.2f} mm). Aumente a profundidade."
+                    )
+                top_bu = frame["h_max_bu"] + outward_ext_bu
+                coords = [Vector(c) for c in analysis["coords_world"]]
+                u_c, v_c = _get_orthonormal_basis(n_out)
+                pts_c = [Vector(((c - frame["centroid"]).dot(u_c), (c - frame["centroid"]).dot(v_c))) for c in coords]
+                tri_c = triangulate_polygon_2d(pts_c)
+                # amostras no INTERIOR da pegada (centros dos triângulos), longe de arestas do corpo
+                fp_samples = []
+                for t in tri_c:
+                    q = (pts_c[t[0]] + pts_c[t[1]] + pts_c[t[2]]) / 3.0
+                    fp_samples.append(frame["centroid"] + q.x * u_c + q.y * v_c)
+                if not through_cut and fp_samples:
+                    step_c = max(1, len(fp_samples) // 64)
+                    _check_wall_thickness(obj, fp_samples[::step_c], inward_dir, depth_mm, scale_to_mm)
+                prism_obj_a, _ = create_material_footprint_prism_cutter(
+                    obj, coords, frame["centroid"], n_out, top_bu, depth_a_bu,
+                    f"{obj.name}_mat_prism_a", material_index, interface_mat_mode, body_mat_idx, lat_off_a)
+                prism_obj_b, _ = create_material_footprint_prism_cutter(
+                    obj, coords, frame["centroid"], n_out, top_bu, depth_b_bu,
+                    f"{obj.name}_mat_prism_b", body_mat_idx, 'SOURCE', body_mat_idx, lat_off_b)
+                # Interface de contato = fundo da base (nominal), sem folga
+                u_i, v_i = _get_orthonormal_basis(n_out)
+                pts_i = [Vector(((c - frame["centroid"]).dot(u_i), (c - frame["centroid"]).dot(v_i))) for c in coords]
+                tri_i = triangulate_polygon_2d(pts_i)
+                shift_i = inward_dir * depth_bu
+                iface_tris_world = [tuple(frame["centroid"] + pts_i[x].x * u_i + pts_i[x].y * v_i + shift_i for x in t)
+                                    for t in tri_i]
+            else:
+                if not through_cut:
+                    sample_bm = bmesh.new()
+                    sample_bm.from_mesh(obj.data)
+                    sample_bm.transform(obj.matrix_world)
+                    sample_bm.faces.ensure_lookup_table()
+                    samples = [sample_bm.faces[i].calc_center_median() for i in analysis["region_face_indices"]
+                               if i < len(sample_bm.faces)]
+                    sample_bm.free()
+                    # amostragem limitada para manter o desempenho
+                    step = max(1, len(samples) // 64)
+                    _check_wall_thickness(obj, samples[::step], inward_dir, depth_mm, scale_to_mm)
+                prism_obj_a = create_material_patch_prism_cutter(
+                    obj=obj,
+                    region_face_indices=analysis["region_face_indices"],
+                    inward_dir=inward_dir,
+                    depth_bu=depth_a_bu,
+                    outward_ext_bu=outward_ext_bu,
+                    name=f"{obj.name}_mat_prism_a",
+                    material_index=material_index,
+                    interface_mat_mode=interface_mat_mode,
+                    body_mat_index=body_mat_idx,
+                    lateral_offset_bu=lat_off_a,
+                )
+                prism_obj_b = create_material_patch_prism_cutter(
+                    obj=obj,
+                    region_face_indices=analysis["region_face_indices"],
+                    inward_dir=inward_dir,
+                    depth_bu=depth_b_bu,
+                    outward_ext_bu=outward_ext_bu,
+                    name=f"{obj.name}_mat_prism_b",
+                    material_index=body_mat_idx,
+                    interface_mat_mode='SOURCE',
+                    body_mat_index=body_mat_idx,
+                    lateral_offset_bu=lat_off_b,
+                )
 
             bpy.context.view_layer.update()
 
@@ -881,10 +1084,13 @@ def slice_mesh_by_material(
             if not boundary_pts_world:
                 boundary_pts_world = [Vector(v) for v in analysis.get("coords_world", [])]
 
+            # A03: interface efetiva = fundo da base/extração (deslocada pela profundidade nominal)
+            iface_shift = inward_dir.normalized() * depth_bu
             cut_iface = build_cut_interface(
-                origin_world=analysis["centroid_world"],
+                origin_world=Vector(analysis["centroid_world"]) + iface_shift,
                 normal_a_to_b=inward_dir,
-                boundary_points_world=boundary_pts_world,
+                boundary_points_world=[Vector(p) + iface_shift for p in boundary_pts_world],
+                interface_triangles=iface_tris_world,
                 unit_scale=scale_to_mm,
                 source_mode='MATERIAL',
             )

@@ -513,7 +513,31 @@ def slice_mesh_by_loop(
                 )
 
         depth_bu = detach_base_depth_mm / scale_to_mm
-        new_verts_a = [bm_a.verts.new(v.co + inward_dir * depth_bu) for v in loop_verts_a]
+        # Folga (A04): aplicada na peca extraida A (fundo da base encolhido), cavidade B nominal.
+        # Boca sem folga; folga cresce com a profundidade, sem rebaixo (encaixe sem prender).
+        clearance_bu = max(0.0, detach_base_clearance_mm) / scale_to_mm
+        vert_offsets_3d = []
+        if clearance_bu > 1e-6:
+            area2 = sum(pts_2d[i].x * pts_2d[(i + 1) % n_loop].y - pts_2d[(i + 1) % n_loop].x * pts_2d[i].y for i in range(n_loop))
+            is_ccw = area2 > 0
+            for i in range(n_loop):
+                p_prev = pts_2d[(i - 1) % n_loop]
+                p_curr = pts_2d[i]
+                p_next = pts_2d[(i + 1) % n_loop]
+                d1 = (p_curr - p_prev).normalized() if (p_curr - p_prev).length > 1e-7 else Vector((1.0, 0.0))
+                d2 = (p_next - p_curr).normalized() if (p_next - p_curr).length > 1e-7 else Vector((1.0, 0.0))
+                n1 = Vector((d1.y, -d1.x)) if is_ccw else Vector((-d1.y, d1.x))
+                n2 = Vector((d2.y, -d2.x)) if is_ccw else Vector((-d2.y, d2.x))
+                n_sum = n1 + n2
+                n_avg = n_sum.normalized() if n_sum.length > 1e-6 else n1
+                cos_half = max(0.5, n_avg.dot(n1))
+                scale_fac = min(2.0, 1.0 / cos_half)
+                offset_3d = (n_avg.x * u_vec + n_avg.y * v_vec) * (clearance_bu * scale_fac)
+                vert_offsets_3d.append(offset_3d)
+        else:
+            vert_offsets_3d = [Vector((0.0, 0.0, 0.0)) for _ in range(n_loop)]
+
+        new_verts_a = [bm_a.verts.new(v.co + inward_dir * depth_bu - vert_offsets_3d[i]) for i, v in enumerate(loop_verts_a)]
         bm_a.verts.ensure_lookup_table()
         for i in range(n_loop):
             i_next = (i + 1) % n_loop
@@ -538,30 +562,7 @@ def slice_mesh_by_loop(
                 except Exception:
                     pass
 
-        # Cavidade do receptor (Parte B) com folga dimensional
-        clearance_bu = max(0.0, detach_base_clearance_mm) / scale_to_mm
-        vert_offsets_3d = []
-        if clearance_bu > 1e-6:
-            area2 = sum(pts_2d[i].x * pts_2d[(i + 1) % n_loop].y - pts_2d[(i + 1) % n_loop].x * pts_2d[i].y for i in range(n_loop))
-            is_ccw = area2 > 0
-            for i in range(n_loop):
-                p_prev = pts_2d[(i - 1) % n_loop]
-                p_curr = pts_2d[i]
-                p_next = pts_2d[(i + 1) % n_loop]
-                d1 = (p_curr - p_prev).normalized() if (p_curr - p_prev).length > 1e-7 else Vector((1.0, 0.0))
-                d2 = (p_next - p_curr).normalized() if (p_next - p_curr).length > 1e-7 else Vector((1.0, 0.0))
-                n1 = Vector((d1.y, -d1.x)) if is_ccw else Vector((-d1.y, d1.x))
-                n2 = Vector((d2.y, -d2.x)) if is_ccw else Vector((-d2.y, d2.x))
-                n_sum = n1 + n2
-                n_avg = n_sum.normalized() if n_sum.length > 1e-6 else n1
-                cos_half = max(0.5, n_avg.dot(n1))
-                scale_fac = min(2.0, 1.0 / cos_half)
-                offset_3d = (n_avg.x * u_vec + n_avg.y * v_vec) * (clearance_bu * scale_fac)
-                vert_offsets_3d.append(offset_3d)
-        else:
-            vert_offsets_3d = [Vector((0.0, 0.0, 0.0)) for _ in range(n_loop)]
-
-        new_verts_b = [bm_b.verts.new(v.co + inward_dir * depth_bu + vert_offsets_3d[i]) for i, v in enumerate(loop_verts_b)]
+        new_verts_b = [bm_b.verts.new(v.co + inward_dir * depth_bu) for i, v in enumerate(loop_verts_b)]
         bm_b.verts.ensure_lookup_table()
         for i in range(n_loop):
             i_next = (i + 1) % n_loop
@@ -649,20 +650,35 @@ def slice_mesh_by_loop(
             f"Selecione um contorno planar ou na ligação da base."
         )
 
-    # Herança de materiais
-    if created_faces_a:
-        created_set_a = set(created_faces_a)
-        for f in created_faces_a:
-            adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set_a]
+    # Herança de materiais (A10): faces novas sem vizinho antigo herdam por propagação
+    # a partir das faces novas já resolvidas, evitando ficar no índice inicial.
+    def _inherit_cap_materials(created):
+        created = [f for f in created if f.is_valid]
+        if not created:
+            return
+        created_set = set(created)
+        resolved = set()
+        for f in created:
+            adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set]
             if adj:
                 f.material_index = max(set(adj), key=adj.count)
+                resolved.add(f)
+        pending = [f for f in created if f not in resolved]
+        while pending and resolved:
+            progressed = False
+            for f in list(pending):
+                adj = [lf.material_index for e in f.edges for lf in e.link_faces
+                       if lf in resolved]
+                if adj:
+                    f.material_index = max(set(adj), key=adj.count)
+                    resolved.add(f)
+                    pending.remove(f)
+                    progressed = True
+            if not progressed:
+                break
 
-    if created_faces_b:
-        created_set_b = set(created_faces_b)
-        for f in created_faces_b:
-            adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set_b]
-            if adj:
-                f.material_index = max(set(adj), key=adj.count)
+    _inherit_cap_materials(created_faces_a)
+    _inherit_cap_materials(created_faces_b)
 
     # Recalcula normais da Parte A e Parte B (garante orientação externa no sólido manifold)
     bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
@@ -685,15 +701,22 @@ def slice_mesh_by_loop(
         normal_a_to_b = n
 
     # Constrói CutInterface formal em World Space
+    # A03: com base adicional, a interface efetiva de contato é o fundo da base
+    # (deslocado por inward_dir * profundidade), não o contorno original no topo.
+    iface_offset = Vector((0.0, 0.0, 0.0))
+    if detach_add_base and detach_base_depth_mm > 0.0:
+        iface_offset = inward_dir.normalized() * (detach_base_depth_mm / scale_to_mm)
+    iface_loop_coords = [Vector(c) + iface_offset for c in loop_coords_world]
+    iface_origin = Vector(centroid_world) + iface_offset
     iface_tris = [
-        (loop_coords_world[i], loop_coords_world[j], loop_coords_world[k])
+        (iface_loop_coords[i], iface_loop_coords[j], iface_loop_coords[k])
         for i, j, k in tri_indices
     ] if tri_indices else None
 
     cut_interface = build_cut_interface(
-        origin_world=centroid_world,
+        origin_world=iface_origin,
         normal_a_to_b=normal_a_to_b,
-        boundary_points_world=loop_coords_world,
+        boundary_points_world=iface_loop_coords,
         interface_triangles=iface_tris,
         unit_scale=scale_to_mm,
         source_mode="LOOP",
@@ -947,6 +970,9 @@ def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
             idx2 = orig_v[f[2]][0] if orig_v[f[2]] else f[2]
             if idx0 == idx1 or idx1 == idx2 or idx2 == idx0:
                 continue
+            # A11: garante que índices mapeados estão estritamente dentro dos vértices da borda
+            if idx0 >= n or idx1 >= n or idx2 >= n:
+                continue
             p0, p1, p2 = pts_vec[idx0], pts_vec[idx1], pts_vec[idx2]
             tri_signed = 0.5 * ((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y))
             if abs(tri_signed) < 1e-12:
@@ -956,7 +982,9 @@ def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
             else:
                 tri = (idx0, idx2, idx1) if tri_signed > 0 else (idx0, idx1, idx2)
             cdt_tris.append(tri)
-        if len(cdt_tris) >= (n - 2):
+        # Validação estrita de cobertura integral de área do polígono (sem perdas nem Steiner externos)
+        sum_cdt_area = sum(0.5 * abs((pts_vec[t[1]].x - pts_vec[t[0]].x) * (pts_vec[t[2]].y - pts_vec[t[0]].y) - (pts_vec[t[2]].x - pts_vec[t[0]].x) * (pts_vec[t[1]].y - pts_vec[t[0]].y)) for t in cdt_tris)
+        if len(cdt_tris) >= (n - 2) and abs(sum_cdt_area - abs(area)) / abs(area) < 1e-3:
             return cdt_tris
     except Exception:
         pass

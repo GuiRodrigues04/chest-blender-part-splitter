@@ -343,6 +343,10 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             box_part_clearance.prop(settings, "part_clearance_mm", text="Folga (mm)", slider=True)
             if settings.part_clearance_mm > 0.0:
                 box_part_clearance.prop(settings, "part_clearance_apply_to", text="Aplicar em")
+            if settings.split_mode == 'MATERIAL':
+                box_part_clearance.prop(settings, "part_clearance_bottom_enable", text="Folga de fundo separada")
+                if settings.part_clearance_bottom_enable:
+                    box_part_clearance.prop(settings, "part_clearance_bottom_mm", text="Folga de fundo (mm)")
         else:
             col_disabled = box_part_clearance.column()
             col_disabled.enabled = False
@@ -352,8 +356,8 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 icon='INFO'
             )
 
-        if settings.split_mode in ('SOLID', 'MATERIAL'):
-            box_conn.label(text="Encaixes de pinos automáticos disponíveis apenas para Plano e Loop.", icon='INFO')
+        if settings.split_mode == 'SOLID':
+            box_conn.label(text="Encaixes de pinos não são suportados no modo Cortador Sólido.", icon='INFO')
         else:
             row_enable = box_conn.row(align=True)
             row_enable.prop(settings, "connector_enabled", text="Ativar Encaixes", toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')
@@ -423,6 +427,72 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 box_dist.prop(settings, "connector_edge_margin_mm", slider=True)
                 box_dist.prop(settings, "adjust_to_valid_area")
 
+                if settings.connector_distribution == 'MANUAL':
+                    box_manual = box_conn.box()
+                    row_man_head = box_manual.row(align=True)
+                    row_man_head.label(text="Posicionamento Manual:", icon='RESTRICT_SELECT_OFF')
+
+                    row_click = box_manual.row(align=True)
+                    row_click.scale_y = 1.35
+                    if settings.is_editing_connectors:
+                        row_click.operator(
+                            "chest.splitter_confirm_manual_connectors",
+                            text="Confirmar Posições e Gerar Prévia",
+                            icon='CHECKMARK'
+                        )
+                    else:
+                        row_click.operator(
+                            "chest.splitter_edit_manual_connectors",
+                            text="Editar Posições dos Pinos",
+                            icon='EDITMODE_HLT'
+                        )
+
+                    row_sub = box_manual.row(align=True)
+                    row_sub.operator("chest.splitter_view_cut_face", text="Ver Face de Encaixe", icon='VIEW_CAMERA')
+                    row_sub.prop(settings, "manual_editor_submode", expand=True)
+
+                    row_actions = box_manual.row(align=True)
+                    row_actions.operator("chest.splitter_add_manual_connector", text="Adicionar", icon='ADD')
+                    row_actions.operator("chest.splitter_remove_manual_connector", text="Remover", icon='REMOVE')
+                    row_actions.operator("chest.splitter_clear_manual_connectors", text="Limpar", icon='TRASH')
+
+                    n_manual = len(settings.manual_connectors)
+                    if n_manual == 0:
+                        box_manual.label(text="Nenhum pino posicionado. Clique em 'Editar Posições' para adicionar.", icon='INFO')
+                    else:
+                        box_manual.label(text=f"Total de Pinos: {n_manual}", icon='LAYER_ACTIVE')
+                        box_edit = box_manual.box()
+                        idx = settings.manual_connector_index
+                        if 0 <= idx < n_manual:
+                            active_conn = settings.manual_connectors[idx]
+                            row_sel = box_edit.row(align=True)
+                            row_sel.prop(settings, "manual_connector_index", text=f"Pino #{idx + 1}")
+
+                            row_coords = box_edit.row(align=True)
+                            row_coords.prop(active_conn, "u_mm", text="U (mm)")
+                            row_coords.prop(active_conn, "v_mm", text="V (mm)")
+                            if settings.connector_type == 'CAPSULE':
+                                box_edit.prop(active_conn, "yaw_deg", text="Rotação Yaw (°)", slider=True)
+
+                            if not getattr(active_conn, "is_valid", True):
+                                row_err = box_edit.row(align=True)
+                                row_err.alert = True
+                                reason = getattr(active_conn, "status_reason", "") or getattr(active_conn, "validation_msg", "") or "Posição fora do domínio / margem violada"
+                                row_err.label(
+                                    text=reason,
+                                    icon='CANCEL'
+                                )
+                            else:
+                                box_edit.label(text="Posição Válida", icon='CHECKMARK')
+                        else:
+                            box_edit.prop(settings, "manual_connector_index", text="Pino Ativo")
+                else:
+                    box_dist.operator(
+                        "chest.splitter_convert_pattern_to_manual",
+                        text="Converter Padrão para Manual",
+                        icon='GREASEPENCIL'
+                    )
+
         layout.separator()
 
         # --- SEÇÃO 4: PRÉVIA E VISUALIZAÇÃO ---
@@ -443,6 +513,14 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             row_preview.scale_y = 1.3
             row_preview.operator("chest.splitter_generate_preview", text="Gerar / Atualizar Preview", icon='PLAY')
             row_preview.operator("chest.splitter_remove_preview", text="Remover Prévia", icon='X')
+
+            if settings.connector_enabled and settings.connector_distribution == 'MANUAL':
+                row_reedit = box_preview.row(align=True)
+                row_reedit.operator(
+                    "chest.splitter_edit_manual_connectors",
+                    text="Editar Posições Novamente",
+                    icon='EDITMODE_HLT'
+                )
 
             if settings.split_mode in ('PLANE', 'SOLID'):
                 row_inv = box_preview.row(align=True)

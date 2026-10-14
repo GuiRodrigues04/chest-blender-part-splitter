@@ -139,35 +139,70 @@ def analyze_target_mesh(obj: bpy.types.Object, scene: bpy.types.Scene) -> dict:
 
 
 def sanitize_mesh_micro_degeneracies(bm: bmesh.types.BMesh, scale_to_mm: float = 1000.0) -> bool:
-    """Saneamento restrito e transacional de micro-arestas causadas por arredondamento no solver booleano (DEV-01 / DEV-02).
+    """Saneamento restrito e transacional de micro-arestas causadas por arredondamento no solver booleano (DEV-01 / DEV-02 / A08).
     
-    Solda vértices separados por distâncias sub-micrométricas (< 0.1 µm), preservando a integridade manifold.
+    Solda vértices separados por distâncias sub-micrométricas (< 0.1 µm), resolvendo cadeias de mapeamento
+    de forma determinística (Union-Find) e realizando rollback se o saneamento quebrar integridade manifold.
     Retorna True se houve saneamento bem-sucedido e a malha permaneceu manifold.
     """
     eps_bu = 1e-4 / max(1e-6, scale_to_mm)
     bm.edges.ensure_lookup_table()
-    micro_edges = [e for e in bm.edges if e.calc_length() < eps_bu]
+    micro_edges = [e for e in bm.edges if e.is_valid and e.calc_length() < eps_bu]
     if not micro_edges:
         return False
     
-    targetmap = {}
+    parent = {}
+    def find(v):
+        p = parent.get(v, v)
+        if p != v:
+            p = find(p)
+            parent[v] = p
+        return p
+
+    def union(v_from, v_to):
+        root_from = find(v_from)
+        root_to = find(v_to)
+        if root_from != root_to:
+            parent[root_from] = root_to
+
     for e in micro_edges:
         if e.is_valid and len(e.verts) == 2:
-            v0, v1 = e.verts[0], e.verts[1]
-            if v1 not in targetmap.values():
-                targetmap[v1] = v0
-    
+            union(e.verts[1], e.verts[0])
+
+    targetmap = {}
+    for v in list(parent.keys()):
+        root = find(v)
+        if v != root:
+            targetmap[v] = root
+
     if not targetmap:
         return False
-    
+
+    orig_had_nm = any(not e.is_manifold for e in bm.edges)
+
+    # Cria malha temporária para rollback determinístico
+    tmp_msh = bpy.data.meshes.new("_tmp_rollback")
+    bm.to_mesh(tmp_msh)
+
     try:
         bmesh.ops.weld_verts(bm, targetmap=targetmap)
         bm.edges.ensure_lookup_table()
         bm.faces.ensure_lookup_table()
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        
+        now_has_nm = any(not e.is_manifold for e in bm.edges)
+        if now_has_nm and not orig_had_nm:
+            # Rollback: restaura topologia anterior
+            bm.clear()
+            bm.from_mesh(tmp_msh)
+            return False
         return True
     except Exception:
+        bm.clear()
+        bm.from_mesh(tmp_msh)
         return False
+    finally:
+        bpy.data.meshes.remove(tmp_msh, do_unlink=True)
 
 
 def validate_bmesh_mesh_geometry(bm: bmesh.types.BMesh, scale_to_mm: float = 1000.0) -> Dict[str, Any]:

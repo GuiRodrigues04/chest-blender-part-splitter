@@ -5,6 +5,46 @@ Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.8.11] - 2026-10-14
+
+### Implementado e Corrigido (Plano de Implementação 0.8.11: Gates A01 a A12)
+- **A01 — Sincronização Geométrica do Plano (`plane_state.py`)**:
+  - Extraído helper neutro e puro `resolve_plane_state(scene, settings)` como única fonte de verdade para origem, normal e tangentes do plano de corte.
+  - Normal mundial calculada rigorosamente pela matriz inversa transposta da transformação do guia (`matrix_world.to_3x3().inverted().transposed()`), tratando escalas não-uniformes e rotações.
+  - Sincronização perfeita entre overlay GPU, bisecção/corte booleano, linha de interseção e assinaturas de estado durante transformações interativas (G/R), alinhamentos rápidos e desfazimento.
+- **A02 — Contrato do Cortador por Seleção de Material (`analyze_material_structure`)**:
+  - Corrigida a chamada da API de análise em `operators.py` enviando os argumentos requeridos `target`, `material_index` e `region_index`.
+  - Tratamento de regiões com múltiplas ilhas e validação de coplanaridade antes da geração do cortador prismático, eliminando exceções `TypeError`.
+- **A03 — Contrato Físico de Base e Apoio em Loop e Material**:
+  - **Loop com Base Adicional**: `CutInterface` agora referencia formalmente o fundo da base (origem, anel de contorno e triângulos de interface deslocados pela profundidade), garantindo que conectores sejam gerados na interface real de encaixe.
+  - **Material com Apoio Planar**: Substituída a extrusão média de relevo por prisma perpendicular erguido a partir do footprint da base de apoio (`create_material_footprint_prism_cutter`). A profundidade conta a partir do apoio, preservando a geometria exterior nominal e escavando cavidade complementar no corpo receptor.
+  - Análise física de espessura de parede por múltiplos raycasts distribuídos pelo domínio (incluindo concavidades e formas em U/L), prevenindo perfurações inadvertidas.
+- **A04 — Folgas Físicas Independentes**:
+  - Separação completa entre folga lateral (`part_clearance_mm`) e folga de fundo axial (`part_clearance_bottom_mm`) no modo Material.
+  - No modo Loop com base, a folga é aplicada na peça extraída A encolhendo o fundo sem alargar a boca, eliminando cavidades inclinadas ou rebaixos invertidos (undercuts).
+- **A05 & A07 — Padrões Editáveis, Posicionamento Manual e Contenção Exata**:
+  - Implementado sistema de conectores manuais (`ChestManualConnector`) e modo de distribuição `MANUAL`.
+  - Ferramenta interativa de posicionamento por clique no Viewport 3D (`CHEST_OT_splitter_manual_connector_click`) através de raycasting direto no plano/interface de corte.
+  - Operador de conversão de padrões (`CHEST_OT_splitter_convert_pattern_to_manual`) que transforma posições calculadas (Padrões 1, 2, 3, 4 ou Auto) em pontos manuais editáveis individualmente em coordenadas U/V e rotação Yaw.
+  - Overlay GPU no Viewport com círculos e cápsulas de conectores com anéis de folga, cruz central e identificação imediata de status: verde (válido), vermelho (fora do domínio ou margem violada) e amarelo (conector ativo).
+  - Algoritmo de amostragem no domínio real (`sample_domain_valid_points`) para localização de posições válidas em geometrias complexas e côncavas (formas em U, L e S), rejeitando posições no vazio sem reduzir silenciosamente diâmetros ou quantidades.
+- **A06 — Encaixes e Conectores no Modo Material**:
+  - Habilitados encaixes (pinos e cápsulas) no modo Material, reutilizando o pipeline comum de layout, validação física e união/subtração booleana.
+- **A08 — Saneamento Determinístico Pós-Booleanos (`sanitize_mesh_micro_degeneracies`)**:
+  - Implementada rotina de soldagem de micro-arestas geradas pelo solver EXACT do Blender ao longo das costuras dos cilindros, com agrupamento Union-Find determinístico e rollback transacional caso a integridade do sólido sofra degradação.
+  - Aplicação automática pós-booleano eliminando falhas de arestas quase nulas e garantindo sólidos 100% estanques (manifold).
+- **A09 — Desacoplamento de Orientação Geométrica e Explosão Visual**:
+  - Separação estrita entre a normal física da interface (`normal_a_to_b`), orientação das peças e direção de afastamento da visualização explodida.
+  - Posições montadas imutáveis armazenadas em snapshot (`chest_assembled_loc`), garantindo zero deriva ou deslocamento físico ao alterar distâncias de explosão ou alternar entre montado e explodido.
+- **A10 — Coerência de Materiais em Tampas, Bases e Conectores**:
+  - Correção na atribuição de materiais nas tampas criadas no corte por loop, propagando os materiais das faces vizinhas para evitar triângulos brancos não mapeados.
+  - Pinos recebem o material da superfície de contato onde estão ancorados, e as cavidades receptoras herdam o material do corpo hospedeiro.
+- **A11 — Fidelidade Geométrica na Tesselação de Tampas (CDT)**:
+  - Verificação de cobertura e conservação de área na Triangulação de Delaunay Construtiva (`mathutils.geometry.delaunay_2d_cdt`), com fallback automático para Ear Clipping robusto caso haja criação de pontos espúrios.
+- **A12 — Preservação de Âncora Fixa e Localização PT_BR / EN_US**:
+  - Preservação da posição do ponto de apoio/ancoragem em coordenadas mundiais durante o redimensionamento de cortadores sólidos (`solid_cutter_width_mm`, `height`, `depth`), impedindo deriva no alinhamento de quinas e faces.
+  - Catálogo de tradução atualizado com suporte bidirecional completo em Português do Brasil e Inglês Americano.
+
 ## [0.8.10] - 2026-10-13
 
 ### Corrigido e Aprimorado (Plano de Correções 0.8.10: DEV-01 a DEV-10)

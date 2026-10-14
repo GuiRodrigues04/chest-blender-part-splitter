@@ -1,0 +1,1521 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AUDITORIA_CODIGO</title><style>body{font:17px/1.6 system-ui,sans-serif;color:#252b32;background:#eee;margin:0}main{max-width:1180px;background:white;padding:42px;margin:auto}h1{border-bottom:6px solid #ef831e;padding-bottom:20px}h2{color:#944500;margin-top:44px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:10px;border:1px solid #ccc;vertical-align:top}th{background:#fff0df}pre{font:13px/1.5 monospace;background:#20252d;color:white;padding:20px;overflow:auto}img{max-width:100%;height:auto;border:1px solid #aaa}a{color:#086d9a}nav{padding:15px;background:#fff0df}figure{margin:30px 0}figcaption{font-size:14px} @media print{main{padding:0}img,tr{break-inside:avoid}}</style><main><nav><a href="PLANO_0.8.11.html">Plano</a> · <a href="AUDITORIA_CODIGO.html">Código e achados</a> · <a href="GALERIA.html">Todas as capturas</a> · <a href="REGISTRO_RELATOS.html">Histórico completo</a></nav><h1>Auditoria estática da base 0.8.10</h1>
+<p>Fonte: ZIP original incluído. Nenhum código foi corrigido. AST de 17 arquivos válido não prova comportamento Blender. Linhas são da base.</p>
+<h2>Achados prioritários</h2>
+<ol>
+<li>A chamada analyze_material_structure(target, scene=...) é incompatível com assinatura que exige material_index e region_index e não recebe scene.</li>
+</ol>
+<ol>
+<li>O overlay usa propriedades enquanto o corte lê o guia; falta fonte única ao transformar.</li>
+</ol>
+<ol>
+<li>A assinatura LOOP visível não inclui loop_detach_add_base/depth/clearance nem loop_through_cut nesse ramo. Callbacks stale não substituem assinatura completa; confirmar tokens globais e todos os consumidores.</li>
+</ol>
+<ol>
+<li>Material continua excluído da geração/assinatura de encaixes.</li>
+</ol>
+<ol>
+<li>Tampas novas sem adjacência a faces antigas ficam sem material explícito; interface DETACH com base usa contorno/origem antigos.</li>
+</ol>
+<ol>
+<li>Saneamento antes dos pinos não equivale a validação/saneamento depois. Não transformar hipótese de origem dos micro-defeitos em causa provada.</li>
+</ol>
+<h2>Mapa de símbolos</h2>
+<h3>__init__.py</h3>
+<ul>
+<li><code>__init__.py:10–15</code> — <code>register</code></li>
+</ul>
+<ul>
+<li><code>__init__.py:18–23</code> — <code>unregister</code></li>
+</ul>
+<h3>constants.py</h3>
+<h3>diagnostic.py</h3>
+<ul>
+<li><code>diagnostic.py:11–17</code> — <code>get_scene_scale_to_mm</code></li>
+</ul>
+<ul>
+<li><code>diagnostic.py:20–138</code> — <code>analyze_target_mesh</code></li>
+</ul>
+<ul>
+<li><code>diagnostic.py:141–170</code> — <code>sanitize_mesh_micro_degeneracies</code></li>
+</ul>
+<ul>
+<li><code>diagnostic.py:173–218</code> — <code>validate_bmesh_mesh_geometry</code></li>
+</ul>
+<h3>geometry_connectors.py</h3>
+<ul>
+<li><code>geometry_connectors.py:20–22</code> — <code>ConnectorValidationError</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:25–38</code> — <code>point_in_polygon_2d</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:41–51</code> — <code>point_to_segment_dist_sq</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:54–78</code> — <code>min_distance_to_polygon_boundaries</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:81–136</code> — <code>find_optimal_grid_axes</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:139–160</code> — <code>create_capsule_2d_profile</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:163–249</code> — <code>create_pin_mesh_data</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:252–315</code> — <code>check_receiving_wall_thickness</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:319–717</code> — <code>compute_connector_layout</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:720–739</code> — <code>compute_connector_positions</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:742–791</code> — <code>validate_connectors</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:795–860</code> — <code>determine_connector_material</code></li>
+</ul>
+<ul>
+<li><code>geometry_connectors.py:863–1083</code> — <code>apply_connectors_boolean</code></li>
+</ul>
+<h3>geometry_contract.py</h3>
+<ul>
+<li><code>geometry_contract.py:15–45</code> — <code>CutInterface</code></li>
+</ul>
+<ul>
+<li><code>geometry_contract.py:48–191</code> — <code>build_cut_interface</code></li>
+</ul>
+<ul>
+<li><code>geometry_contract.py:195–214</code> — <code>SplitResult</code></li>
+</ul>
+<h3>geometry_loop.py</h3>
+<ul>
+<li><code>geometry_loop.py:21–36</code> — <code>LoopSliceResult</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:42–66</code> — <code>get_topology_signature</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:69–79</code> — <code>clear_capture</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:82–138</code> — <code>validate_capture</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:141–225</code> — <code>capture_edge_loop</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:228–338</code> — <code>capture_face_boundary_loop</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:341–355</code> — <code>get_selected_seed_face</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:358–719</code> — <code>slice_mesh_by_loop</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:722–891</code> — <code>analyze_loop_region</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:894–902</code> — <code>_get_orthonormal_basis</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:905–1112</code> — <code>triangulate_polygon_2d</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:1115–1173</code> — <code>create_loop_prism_cutter</code></li>
+</ul>
+<ul>
+<li><code>geometry_loop.py:1176–1346</code> — <code>slice_mesh_by_loop_extrude</code></li>
+</ul>
+<h3>geometry_material.py</h3>
+<ul>
+<li><code>geometry_material.py:22–30</code> — <code>_get_orthonormal_basis</code></li>
+</ul>
+<ul>
+<li><code>geometry_material.py:33–101</code> — <code>offset_polygon_2d</code></li>
+</ul>
+<ul>
+<li><code>geometry_material.py:104–128</code> — <code>get_material_regions</code></li>
+</ul>
+<ul>
+<li><code>geometry_material.py:131–161</code> — <code>_order_boundary_loops</code></li>
+</ul>
+<ul>
+<li><code>geometry_material.py:164–172</code> — <code>list_material_regions</code></li>
+</ul>
+<ul>
+<li><code>geometry_material.py:175–187</code> — <code>find_region_of_face</code></li>
+</ul>
+<ul>
+<li><code>geometry_material.py:190–344</code> — <code>analyze_material_structure</code></li>
+</ul>
+<ul>
+<li><code>geometry_material.py:347–472</code> — <code>create_material_patch_prism_cutter</code></li>
+</ul>
+<ul>
+<li><code>geometry_material.py:475–950</code> — <code>slice_mesh_by_material</code></li>
+</ul>
+<h3>geometry_plane.py</h3>
+<ul>
+<li><code>geometry_plane.py:13–15</code> — <code>PlaneSliceError</code></li>
+</ul>
+<ul>
+<li><code>geometry_plane.py:18–20</code> — <code>NoIntersectionError</code></li>
+</ul>
+<ul>
+<li><code>geometry_plane.py:23–43</code> — <code>count_mesh_islands</code></li>
+</ul>
+<ul>
+<li><code>geometry_plane.py:46–128</code> — <code>cap_open_cut_boundaries</code></li>
+</ul>
+<ul>
+<li><code>geometry_plane.py:131–180</code> — <code>evaluate_bmesh_metrics</code></li>
+</ul>
+<ul>
+<li><code>geometry_plane.py:183–238</code> — <code>reconstruct_boundary_loops</code></li>
+</ul>
+<ul>
+<li><code>geometry_plane.py:241–406</code> — <code>slice_mesh_by_plane</code></li>
+</ul>
+<ul>
+<li><code>geometry_plane.py:409–428</code> — <code>compute_explosion_offsets</code></li>
+</ul>
+<h3>geometry_solid.py</h3>
+<ul>
+<li><code>geometry_solid.py:22–24</code> — <code>SolidCutterValidationError</code></li>
+</ul>
+<ul>
+<li><code>geometry_solid.py:27–29</code> — <code>SolidSliceError</code></li>
+</ul>
+<ul>
+<li><code>geometry_solid.py:32–116</code> — <code>create_bmesh_capsule</code></li>
+</ul>
+<ul>
+<li><code>geometry_solid.py:119–182</code> — <code>create_primitive_cutter_mesh</code></li>
+</ul>
+<ul>
+<li><code>geometry_solid.py:185–267</code> — <code>validate_solid_cutter</code></li>
+</ul>
+<ul>
+<li><code>geometry_solid.py:270–381</code> — <code>slice_mesh_by_solid</code></li>
+</ul>
+<ul>
+<li><code>geometry_solid.py:384–414</code> — <code>compute_solid_explosion_offsets</code></li>
+</ul>
+<h3>gpu_drawing.py</h3>
+<ul>
+<li><code>gpu_drawing.py:19–27</code> — <code>_get_orthonormal_basis</code></li>
+</ul>
+<ul>
+<li><code>gpu_drawing.py:30–135</code> — <code>_draw_loop_overlay</code></li>
+</ul>
+<ul>
+<li><code>gpu_drawing.py:138–239</code> — <code>_compute_cut_line_segments</code></li>
+</ul>
+<ul>
+<li><code>gpu_drawing.py:242–402</code> — <code>_draw_plane_overlay</code></li>
+</ul>
+<ul>
+<li><code>gpu_drawing.py:405–504</code> — <code>_draw_solid_overlay</code></li>
+</ul>
+<ul>
+<li><code>gpu_drawing.py:507–522</code> — <code>_draw_overlay_callback</code></li>
+</ul>
+<ul>
+<li><code>gpu_drawing.py:525–537</code> — <code>register_overlay</code></li>
+</ul>
+<ul>
+<li><code>gpu_drawing.py:540–548</code> — <code>unregister_overlay</code></li>
+</ul>
+<h3>io_export.py</h3>
+<ul>
+<li><code>io_export.py:23–36</code> — <code>sanitize_unique_filename</code></li>
+</ul>
+<ul>
+<li><code>io_export.py:41–57</code> — <code>get_material_rgba</code></li>
+</ul>
+<ul>
+<li><code>io_export.py:60–66</code> — <code>rgba_to_hex</code></li>
+</ul>
+<ul>
+<li><code>io_export.py:69–117</code> — <code>publish_staged_files_atomic</code></li>
+</ul>
+<ul>
+<li><code>io_export.py:120–247</code> — <code>build_3mf_xml</code></li>
+</ul>
+<ul>
+<li><code>io_export.py:250–286</code> — <code>export_objects_to_3mf</code></li>
+</ul>
+<ul>
+<li><code>io_export.py:290–354</code> — <code>separate_object_by_material</code></li>
+</ul>
+<ul>
+<li><code>io_export.py:357–491</code> — <code>export_objects_to_stl_by_material</code></li>
+</ul>
+<h3>lifecycle.py</h3>
+<ul>
+<li><code>lifecycle.py:27–34</code> — <code>get_or_create_collection</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:37–42</code> — <code>find_collection</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:45–50</code> — <code>ensure_backups_collection</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:57–64</code> — <code>find_operation_record</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:67–95</code> — <code>get_or_create_operation_record</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:98–115</code> — <code>record_created_object</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:118–127</code> — <code>record_unlinked_parent</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:128–161</code> — <code>resolve_receiver_object</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:169–200</code> — <code>capture_target_snapshot</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:203–226</code> — <code>discard_target_snapshot</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:233–279</code> — <code>resolve_operation_status</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:282–285</code> — <code>resolve_operation</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:288–315</code> — <code>check_child_operations</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:322–444</code> — <code>remove_preview</code></li>
+</ul>
+<ul>
+<li><code>lifecycle.py:451–637</code> — <code>revert_committed_operation</code></li>
+</ul>
+<h3>operators.py</h3>
+<ul>
+<li><code>operators.py:80–85</code> — <code>find_collection</code></li>
+</ul>
+<ul>
+<li><code>operators.py:88–95</code> — <code>get_or_create_collection</code></li>
+</ul>
+<ul>
+<li><code>operators.py:99–165</code> — <code>cleanup_collection_objects</code></li>
+</ul>
+<ul>
+<li><code>operators.py:168–207</code> — <code>validate_printable_mesh</code></li>
+</ul>
+<ul>
+<li><code>operators.py:211–222</code> — <code>get_target_bounds</code></li>
+</ul>
+<ul>
+<li><code>operators.py:225–261</code> — <code>ensure_plane_guide</code></li>
+</ul>
+<ul>
+<li><code>operators.py:264–277</code> — <code>read_plane_geometry</code></li>
+</ul>
+<ul>
+<li><code>operators.py:280–417</code> — <code>compute_session_input_signature</code></li>
+</ul>
+<ul>
+<li><code>operators.py:420–452</code> — <code>verify_preview_current</code></li>
+</ul>
+<ul>
+<li><code>operators.py:455–507</code> — <code>get_current_session_parts</code></li>
+</ul>
+<ul>
+<li><code>operators.py:510–542</code> — <code>ensure_solid_cutter</code></li>
+</ul>
+<ul>
+<li><code>operators.py:546–582</code> — <code>reset_solid_cutter_mesh</code></li>
+</ul>
+<ul>
+<li><code>operators.py:586–655</code> — <code>update_preview_positions</code></li>
+</ul>
+<ul>
+<li><code>operators.py:658–717</code> — <code>CHEST_OT_splitter_set_target</code></li>
+</ul>
+<ul>
+<li><code>operators.py:720–755</code> — <code>CHEST_OT_splitter_clear_target</code></li>
+</ul>
+<ul>
+<li><code>operators.py:758–813</code> — <code>CHEST_OT_splitter_create_work_copy</code></li>
+</ul>
+<ul>
+<li><code>operators.py:816–833</code> — <code>CHEST_OT_splitter_create_or_focus_guide</code></li>
+</ul>
+<ul>
+<li><code>operators.py:836–942</code> — <code>CHEST_OT_splitter_align_plane</code></li>
+</ul>
+<ul>
+<li><code>operators.py:945–975</code> — <code>CHEST_OT_splitter_create_or_focus_solid_cutter</code></li>
+</ul>
+<ul>
+<li><code>operators.py:978–1005</code> — <code>CHEST_OT_splitter_select_existing_cutter</code></li>
+</ul>
+<ul>
+<li><code>operators.py:1008–1038</code> — <code>CHEST_OT_splitter_create_solid_cutter</code></li>
+</ul>
+<ul>
+<li><code>operators.py:1041–1071</code> — <code>CHEST_OT_splitter_focus_solid_cutter</code></li>
+</ul>
+<ul>
+<li><code>operators.py:1074–1094</code> — <code>CHEST_OT_splitter_reset_solid_cutter</code></li>
+</ul>
+<ul>
+<li><code>operators.py:1097–1127</code> — <code>CHEST_OT_splitter_duplicate_solid_cutter</code></li>
+</ul>
+<ul>
+<li><code>operators.py:1130–1178</code> — <code>CHEST_OT_splitter_copy_selected_as_cutter</code></li>
+</ul>
+<ul>
+<li><code>operators.py:1181–1350</code> — <code>CHEST_OT_splitter_align_solid_cutter</code></li>
+</ul>
+<ul>
+<li><code>operators.py:1354–1471</code> — <code>CHEST_OT_splitter_create_cutter_from_selection</code></li>
+</ul>
+<ul>
+<li><code>operators.py:1474–1577</code> — <code>CHEST_OT_splitter_create_corner_box_cutter</code></li>
+</ul>
+<ul>
+<li><code>operators.py:1584–2139</code> — <code>CHEST_OT_splitter_generate_preview</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2144–2162</code> — <code>CHEST_OT_splitter_invert_sides</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2165–2189</code> — <code>CHEST_OT_splitter_invert_male_female</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2192–2225</code> — <code>CHEST_OT_splitter_apply_connector_preset</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2229–2380</code> — <code>CHEST_OT_splitter_commit_parts</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2383–2468</code> — <code>CHEST_OT_splitter_continue_on_receiver</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2471–2495</code> — <code>CHEST_OT_splitter_edit_target</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2498–2521</code> — <code>CHEST_OT_splitter_remove_preview</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2524–2589</code> — <code>CHEST_OT_splitter_revert_cut</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2592–2633</code> — <code>CHEST_OT_splitter_restore_original</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2636–2661</code> — <code>CHEST_OT_splitter_redo_session</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2664–2712</code> — <code>CHEST_OT_splitter_capture_loop</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2715–2783</code> — <code>CHEST_OT_splitter_capture_face_boundary</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2786–2817</code> — <code>CHEST_OT_splitter_define_seed_face</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2820–2885</code> — <code>CHEST_OT_splitter_separate_by_material</code></li>
+</ul>
+<ul>
+<li><code>operators.py:2888–3136</code> — <code>CHEST_OT_splitter_export_parts</code></li>
+</ul>
+<ul>
+<li><code>operators.py:3139–3173</code> — <code>CHEST_OT_splitter_help</code></li>
+</ul>
+<ul>
+<li><code>operators.py:3174–3189</code> — <code>CHEST_OT_splitter_select_split_material</code></li>
+</ul>
+<ul>
+<li><code>operators.py:3192–3292</code> — <code>CHEST_OT_splitter_pick_material_region</code></li>
+</ul>
+<ul>
+<li><code>operators.py:3338–3406</code> — <code>on_depsgraph_update_post</code></li>
+</ul>
+<ul>
+<li><code>operators.py:3410–3424</code> — <code>on_undo_post</code></li>
+</ul>
+<ul>
+<li><code>operators.py:3428–3441</code> — <code>on_redo_post</code></li>
+</ul>
+<ul>
+<li><code>operators.py:3444–3451</code> — <code>register_handlers</code></li>
+</ul>
+<ul>
+<li><code>operators.py:3454–3461</code> — <code>unregister_handlers</code></li>
+</ul>
+<ul>
+<li><code>operators.py:3464–3470</code> — <code>register</code></li>
+</ul>
+<ul>
+<li><code>operators.py:3473–3479</code> — <code>unregister</code></li>
+</ul>
+<h3>properties.py</h3>
+<ul>
+<li><code>properties.py:24–31</code> — <code>_on_preview_transform_update</code></li>
+</ul>
+<ul>
+<li><code>properties.py:34–39</code> — <code>_on_param_change_mark_stale</code></li>
+</ul>
+<ul>
+<li><code>properties.py:42–46</code> — <code>_on_clearance_preset_update</code></li>
+</ul>
+<ul>
+<li><code>properties.py:49–51</code> — <code>_poll_mesh_cutter</code></li>
+</ul>
+<ul>
+<li><code>properties.py:57–92</code> — <code>_on_solid_dim_update</code></li>
+</ul>
+<ul>
+<li><code>properties.py:95–143</code> — <code>_on_cutter_object_update</code></li>
+</ul>
+<ul>
+<li><code>properties.py:147–151</code> — <code>_on_target_object_update</code></li>
+</ul>
+<ul>
+<li><code>properties.py:154–158</code> — <code>ChestObjectRef</code></li>
+</ul>
+<ul>
+<li><code>properties.py:161–183</code> — <code>ChestOperationRecord</code></li>
+</ul>
+<ul>
+<li><code>properties.py:186–952</code> — <code>ChestSplitterSettings</code></li>
+</ul>
+<ul>
+<li><code>properties.py:955–972</code> — <code>ChestSplitterAddonPreferences</code></li>
+</ul>
+<ul>
+<li><code>properties.py:984–993</code> — <code>register</code></li>
+</ul>
+<ul>
+<li><code>properties.py:996–1007</code> — <code>unregister</code></li>
+</ul>
+<h3>translations.py</h3>
+<ul>
+<li><code>translations.py:417–431</code> — <code>get_addon_preferences</code></li>
+</ul>
+<ul>
+<li><code>translations.py:434–451</code> — <code>get_addon_locale</code></li>
+</ul>
+<ul>
+<li><code>translations.py:454–458</code> — <code>_get_current_locale</code></li>
+</ul>
+<ul>
+<li><code>translations.py:461–475</code> — <code>tr</code></li>
+</ul>
+<ul>
+<li><code>translations.py:478–485</code> — <code>get_help_tooltip</code></li>
+</ul>
+<ul>
+<li><code>translations.py:488–499</code> — <code>get_help_popup_content</code></li>
+</ul>
+<ul>
+<li><code>translations.py:505–513</code> — <code>register_translations</code></li>
+</ul>
+<ul>
+<li><code>translations.py:516–524</code> — <code>unregister_translations</code></li>
+</ul>
+<h3>ui.py</h3>
+<ul>
+<li><code>ui.py:7–11</code> — <code>draw_help_button</code></li>
+</ul>
+<ul>
+<li><code>ui.py:14–579</code> — <code>VIEW3D_PT_chest_part_splitter</code></li>
+</ul>
+<ul>
+<li><code>ui.py:583–587</code> — <code>register</code></li>
+</ul>
+<ul>
+<li><code>ui.py:590–594</code> — <code>unregister</code></li>
+</ul>
+<h2>Overlay plano lê settings — src/gpu_drawing.py:242–268</h2>
+<pre><code>
+0242  def _draw_plane_overlay(context, settings):
+0243      &quot;&quot;&quot;Desenha o retângulo translúcido e a linha de corte do plano na Viewport 3D (F02).&quot;&quot;&quot;
+0244      show_plane = getattr(settings, &quot;show_plane_preview&quot;, True)
+0245      show_cut_line = getattr(settings, &quot;show_plane_cut_line&quot;, True)
+0246  
+0247      if not show_plane and not show_cut_line:
+0248          return
+0249  
+0250      target = getattr(settings, &quot;target_object&quot;, None)
+0251      if not target or target.name not in bpy.data.objects or target.type != &#x27;MESH&#x27;:
+0252          return
+0253  
+0254      # Normal e Origem em World Space
+0255      norm = Vector(getattr(settings, &quot;plane_normal&quot;, (0.0, 0.0, 1.0))).normalized()
+0256      if norm.length &lt; 1e-5:
+0257          return
+0258  
+0259      # Lê origem atual do corte considerando deslocamento se houver
+0260      origin = Vector(getattr(settings, &quot;plane_origin&quot;, (0.0, 0.0, 0.0)))
+0261      offset_mm = getattr(settings, &quot;plane_offset_mm&quot;, 0.0)
+0262      if abs(offset_mm) &gt; 1e-6:
+0263          from .diagnostic import get_scene_scale_to_mm
+0264          scale_to_mm = get_scene_scale_to_mm(context.scene)
+0265          origin = origin + (offset_mm / scale_to_mm) * norm
+0266  
+0267      mw = target.matrix_world
+0268      # Centro e raio envolvente do alvo em World Space
+</code></pre>
+<h2>Reader plano lê objeto guia — src/operators.py:264–278</h2>
+<pre><code>
+0264  def read_plane_geometry(context: bpy.types.Context) -&gt; (Vector, Vector):
+0265      &quot;&quot;&quot;Lê a origem e a normal do plano a partir do objeto guia ou das propriedades.&quot;&quot;&quot;
+0266      col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+0267      guide_obj = col.objects.get(PLANE_GUIDE_NAME)
+0268      settings = context.scene.chest_splitter
+0269  
+0270      if guide_obj:
+0271          origin = guide_obj.matrix_world.translation.copy()
+0272          normal = (guide_obj.matrix_world.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()
+0273          settings.plane_origin = origin
+0274          settings.plane_normal = normal
+0275          return origin, normal
+0276      else:
+0277          return Vector(settings.plane_origin), Vector(settings.plane_normal).normalized()
+0278  
+</code></pre>
+<h2>Assinatura por modo; observar flags de base/passante — src/operators.py:386–418</h2>
+<pre><code>
+0386      elif settings.split_mode == &#x27;LOOP&#x27;:
+0387          tokens.append(f&quot;loop_indices:{settings.loop_vertex_indices}&quot;)
+0388          tokens.append(f&quot;loop_depth:{settings.loop_extrude_depth_mm:.4f}&quot;)
+0389          tokens.append(f&quot;loop_mode:{settings.loop_behavior}&quot;)
+0390          tokens.append(f&quot;loop_seed:{settings.loop_seed_face_index}&quot;)
+0391  
+0392      elif settings.split_mode == &#x27;MATERIAL&#x27;:
+0393          tokens.append(f&quot;mat_idx:{settings.material_split_index}&quot;)
+0394          tokens.append(f&quot;mat_region:{settings.material_region_index}&quot;)
+0395          tokens.append(f&quot;mat_depth:{settings.material_extrude_depth_mm:.4f}&quot;)
+0396          tokens.append(f&quot;mat_mode:{settings.material_extraction_mode}&quot;)
+0397          tokens.append(f&quot;mat_iface_mat:{settings.material_interface_mat_mode}&quot;)
+0398          tokens.append(f&quot;mat_clearance:{getattr(settings, &#x27;part_clearance_mm&#x27;, 0.0):.4f}&quot;)
+0399          tokens.append(f&quot;mat_clearance_app:{getattr(settings, &#x27;part_clearance_apply_to&#x27;, &#x27;PART&#x27;)}&quot;)
+0400  
+0401      # 3. Encaixes (apenas se ativos e suportados no modo)
+0402      tokens.append(f&quot;conn_enabled:{settings.connector_enabled}&quot;)
+0403      if settings.connector_enabled and settings.split_mode not in (&#x27;SOLID&#x27;, &#x27;MATERIAL&#x27;):
+0404          tokens.append(f&quot;conn_type:{settings.connector_type}&quot;)
+0405          tokens.append(f&quot;conn_diam:{settings.connector_diameter_mm:.4f}&quot;)
+0406          tokens.append(f&quot;conn_len:{settings.connector_length_mm:.4f}&quot;)
+0407          tokens.append(f&quot;conn_cap_len:{settings.connector_capsule_length_mm:.4f}&quot;)
+0408          tokens.append(f&quot;conn_chamf:{getattr(settings, &#x27;connector_chamfer_mm&#x27;, 0.5):.4f}&quot;)
+0409          tokens.append(f&quot;conn_end_clear:{getattr(settings, &#x27;end_clearance_mm&#x27;, 0.5):.4f}&quot;)
+0410          tokens.append(f&quot;conn_adj_valid:{getattr(settings, &#x27;adjust_to_valid_area&#x27;, False)}&quot;)
+0411          tokens.append(f&quot;conn_dist:{settings.connector_distribution}&quot;)
+0412          tokens.append(f&quot;conn_margin:{settings.connector_edge_margin_mm:.4f}&quot;)
+0413          tokens.append(f&quot;conn_male:{settings.connector_male_part}&quot;)
+0414  
+0415      if tokens:
+0416          h.update(&quot;|&quot;.join(tokens).encode(&quot;utf-8&quot;))
+0417      return h.hexdigest()[:16]
+0418  
+</code></pre>
+<h2>Chamada incompatível de análise Material — src/operators.py:1389–1424</h2>
+<pre><code>
+1389          depth_bu = self.depth_mm / unit_scale
+1390          outer_bu = self.outer_extension_mm / unit_scale
+1391  
+1392          col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+1393          prism_name = f&quot;Prism_Cutter_{target.name}&quot;
+1394  
+1395          if settings.split_mode == &#x27;MATERIAL&#x27;:
+1396              from .geometry_material import create_material_patch_prism_cutter, analyze_material_structure
+1397              mat_idx = settings.material_split_index
+1398              reg_idx = settings.material_region_index
+1399              try:
+1400                  analysis = analyze_material_structure(target, scene=context.scene)
+1401                  region_faces = analysis.get(&quot;region_face_indices&quot;, [])
+1402                  if not region_faces:
+1403                      self.report({&#x27;ERROR&#x27;}, &quot;Nenhuma região válida identificada para o material selecionado.&quot;)
+1404                      return {&#x27;CANCELLED&#x27;}
+1405                  inward_dir = analysis.get(&quot;inward_dir_world&quot;, Vector((0.0, 0.0, -1.0)))
+1406                  if self.invert_direction:
+1407                      inward_dir = -inward_dir
+1408                  body_mat = analysis.get(&quot;body_mat_index&quot;, 0)
+1409                  prism_obj = create_material_patch_prism_cutter(
+1410                      target,
+1411                      region_faces,
+1412                      inward_dir,
+1413                      depth_bu=depth_bu,
+1414                      outward_ext_bu=outer_bu,
+1415                      name=prism_name,
+1416                      material_index=mat_idx,
+1417                      interface_mat_mode=settings.material_interface_mat_mode,
+1418                      body_mat_index=body_mat,
+1419                      lateral_offset_bu=0.0,
+1420                  )
+1421              except Exception as e:
+1422                  self.report({&#x27;ERROR&#x27;}, f&quot;Não foi possível gerar prisma de material: {str(e)}&quot;)
+1423                  return {&#x27;CANCELLED&#x27;}
+1424          else:
+</code></pre>
+<h2>Assinatura real e estado avaliado — src/geometry_material.py:190–212</h2>
+<pre><code>
+0190  def analyze_material_structure(obj: bpy.types.Object, material_index: int, region_index: int = 0) -&gt; Dict[str, Any]:
+0191      &quot;&quot;&quot;Analisa a topologia de UMA região conectada (ilha) de faces de um material.
+0192  
+0193      Um mesmo material pode aparecer em várias áreas separadas do modelo (ex: dois quadrados
+0194      rosa em lados diferentes). Cada área é tratada como uma região independente, com seu
+0195      próprio contorno e direção de extração.
+0196      &quot;&quot;&quot;
+0197      if not obj or obj.type != &#x27;MESH&#x27;:
+0198          return {&quot;valid&quot;: False, &quot;error&quot;: &quot;Objeto inválido.&quot;}
+0199  
+0200      bm = bmesh.new()
+0201      bm.from_mesh(obj.data)
+0202      bm.transform(obj.matrix_world)
+0203      bm.verts.ensure_lookup_table()
+0204      bm.edges.ensure_lookup_table()
+0205      bm.faces.ensure_lookup_table()
+0206  
+0207      total_faces = len(bm.faces)
+0208      regions = get_material_regions(bm, material_index)
+0209  
+0210      if not regions:
+0211          bm.free()
+0212          return {&quot;valid&quot;: False, &quot;error&quot;: f&quot;Nenhuma face com o material #{material_index} encontrada.&quot;, &quot;region_count&quot;: 0}
+</code></pre>
+<h2>EXTRUDE Material: depth e lateral offset — src/geometry_material.py:759–829</h2>
+<pre><code>
+0759                  &quot;sum_volume_mm3&quot;: metrics_a[&quot;volume_mm3&quot;] + metrics_b[&quot;volume_mm3&quot;],
+0760              },
+0761              success=True,
+0762          )
+0763          return LoopSliceResult(bm_a, bm_b, split_res)
+0764  
+0765      else:
+0766          # Extração superficial com profundidade (M03)
+0767          if part_clearance_mm &gt; 0.0:
+0768              if part_clearance_mm &gt;= depth_mm - 0.1:
+0769                  raise ValueError(
+0770                      f&quot;A folga de material ({part_clearance_mm:.2f} mm) excede ou elimina a profundidade útil da peça &quot;
+0771                      f&quot;({depth_mm:.2f} mm). Reduza a folga ou aumente a profundidade.&quot;
+0772                  )
+0773  
+0774          inward_dir = analysis[&quot;inward_dir_world&quot;]
+0775          depth_bu = depth_mm / scale_to_mm
+0776          outward_ext_bu = max(0.5 / scale_to_mm, 1.0 / scale_to_mm)
+0777  
+0778          clearance_bu = (part_clearance_mm / scale_to_mm) if part_clearance_mm &gt; 0.0 else 0.0
+0779          if part_clearance_apply_to == &#x27;PART&#x27;:
+0780              depth_a_bu = max(0.05 / scale_to_mm, depth_bu - clearance_bu)
+0781              depth_b_bu = depth_bu
+0782              lat_off_a = clearance_bu
+0783              lat_off_b = 0.0
+0784          elif part_clearance_apply_to == &#x27;CAVITY&#x27;:
+0785              depth_a_bu = depth_bu
+0786              depth_b_bu = depth_bu + clearance_bu
+0787              lat_off_a = 0.0
+0788              lat_off_b = -clearance_bu
+0789          elif part_clearance_apply_to == &#x27;BOTH&#x27;:
+0790              depth_a_bu = max(0.05 / scale_to_mm, depth_bu - 0.5 * clearance_bu)
+0791              depth_b_bu = depth_bu + 0.5 * clearance_bu
+0792              lat_off_a = 0.5 * clearance_bu
+0793              lat_off_b = -0.5 * clearance_bu
+0794          else:
+0795              depth_a_bu = depth_bu
+0796              depth_b_bu = depth_bu
+0797              lat_off_a = 0.0
+0798              lat_off_b = 0.0
+0799  
+0800          temp_obj_a = None
+0801          temp_obj_b = None
+0802          prism_obj_a = None
+0803          prism_obj_b = None
+0804          eval_a = None
+0805          eval_b = None
+0806          mesh_a = None
+0807          mesh_b = None
+0808  
+0809          try:
+0810              body_mat_idx = analysis.get(&quot;body_mat_index&quot;, 0)
+0811              prism_obj_a = create_material_patch_prism_cutter(
+0812                  obj=obj,
+0813                  region_face_indices=analysis[&quot;region_face_indices&quot;],
+0814                  inward_dir=inward_dir,
+0815                  depth_bu=depth_a_bu,
+0816                  outward_ext_bu=outward_ext_bu,
+0817                  name=f&quot;{obj.name}_mat_prism_a&quot;,
+0818                  material_index=material_index,
+0819                  interface_mat_mode=interface_mat_mode,
+0820                  body_mat_index=body_mat_idx,
+0821                  lateral_offset_bu=lat_off_a,
+0822              )
+0823              prism_obj_b = create_material_patch_prism_cutter(
+0824                  obj=obj,
+0825                  region_face_indices=analysis[&quot;region_face_indices&quot;],
+0826                  inward_dir=inward_dir,
+0827                  depth_bu=depth_b_bu,
+0828                  outward_ext_bu=outward_ext_bu,
+0829                  name=f&quot;{obj.name}_mat_prism_b&quot;,
+</code></pre>
+<h2>Base adicional já existe — src/geometry_loop.py:504–524</h2>
+<pre><code>
+0504          inward_dir = analysis[&quot;inward_dir_world&quot;]
+0505          max_avail_mm = analysis.get(&quot;max_avail_depth_mm&quot;, 0.0)
+0506          if analysis.get(&quot;thickness_determined&quot;, False) and max_avail_mm &gt; 0:
+0507              if detach_base_depth_mm &gt; (max_avail_mm + 1e-3):
+0508                  bm_a.free()
+0509                  bm_b.free()
+0510                  raise ValueError(
+0511                      f&quot;A profundidade da base ({detach_base_depth_mm:.1f} mm) ultrapassa a espessura da parede &quot;
+0512                      f&quot;({max_avail_mm:.1f} mm). Reduza a profundidade da base.&quot;
+0513                  )
+0514  
+0515          depth_bu = detach_base_depth_mm / scale_to_mm
+0516          new_verts_a = [bm_a.verts.new(v.co + inward_dir * depth_bu) for v in loop_verts_a]
+0517          bm_a.verts.ensure_lookup_table()
+0518          for i in range(n_loop):
+0519              i_next = (i + 1) % n_loop
+0520              try:
+0521                  fa = bm_a.faces.new((loop_verts_a[i], new_verts_a[i], new_verts_a[i_next], loop_verts_a[i_next]))
+0522                  created_faces_a.append(fa)
+0523              except Exception:
+0524                  try:
+</code></pre>
+<h2>Offset só nos vértices novos do receptor — src/geometry_loop.py:551–589</h2>
+<pre><code>
+0551                  d1 = (p_curr - p_prev).normalized() if (p_curr - p_prev).length &gt; 1e-7 else Vector((1.0, 0.0))
+0552                  d2 = (p_next - p_curr).normalized() if (p_next - p_curr).length &gt; 1e-7 else Vector((1.0, 0.0))
+0553                  n1 = Vector((d1.y, -d1.x)) if is_ccw else Vector((-d1.y, d1.x))
+0554                  n2 = Vector((d2.y, -d2.x)) if is_ccw else Vector((-d2.y, d2.x))
+0555                  n_sum = n1 + n2
+0556                  n_avg = n_sum.normalized() if n_sum.length &gt; 1e-6 else n1
+0557                  cos_half = max(0.5, n_avg.dot(n1))
+0558                  scale_fac = min(2.0, 1.0 / cos_half)
+0559                  offset_3d = (n_avg.x * u_vec + n_avg.y * v_vec) * (clearance_bu * scale_fac)
+0560                  vert_offsets_3d.append(offset_3d)
+0561          else:
+0562              vert_offsets_3d = [Vector((0.0, 0.0, 0.0)) for _ in range(n_loop)]
+0563  
+0564          new_verts_b = [bm_b.verts.new(v.co + inward_dir * depth_bu + vert_offsets_3d[i]) for i, v in enumerate(loop_verts_b)]
+0565          bm_b.verts.ensure_lookup_table()
+0566          for i in range(n_loop):
+0567              i_next = (i + 1) % n_loop
+0568              try:
+0569                  fb = bm_b.faces.new((loop_verts_b[i], loop_verts_b[i_next], new_verts_b[i_next], new_verts_b[i]))
+0570                  created_faces_b.append(fb)
+0571              except Exception:
+0572                  try:
+0573                      fb = bm_b.faces.new((loop_verts_b[i], new_verts_b[i], new_verts_b[i_next], loop_verts_b[i_next]))
+0574                      created_faces_b.append(fb)
+0575                  except Exception:
+0576                      pass
+0577  
+0578          for i, j, k in tri_indices:
+0579              try:
+0580                  fb = bm_b.faces.new((new_verts_b[i], new_verts_b[j], new_verts_b[k]))
+0581                  created_faces_b.append(fb)
+0582              except ValueError:
+0583                  try:
+0584                      fb = bm_b.faces.new((new_verts_b[i], new_verts_b[k], new_verts_b[j]))
+0585                      created_faces_b.append(fb)
+0586                  except Exception:
+0587                      pass
+0588      else:
+0589          # Fechamento direto no plano do contorno
+</code></pre>
+<h2>Herança de materiais e interface da base — src/geometry_loop.py:650–704</h2>
+<pre><code>
+0650          )
+0651  
+0652      # Herança de materiais
+0653      if created_faces_a:
+0654          created_set_a = set(created_faces_a)
+0655          for f in created_faces_a:
+0656              adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set_a]
+0657              if adj:
+0658                  f.material_index = max(set(adj), key=adj.count)
+0659  
+0660      if created_faces_b:
+0661          created_set_b = set(created_faces_b)
+0662          for f in created_faces_b:
+0663              adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set_b]
+0664              if adj:
+0665                  f.material_index = max(set(adj), key=adj.count)
+0666  
+0667      # Recalcula normais da Parte A e Parte B (garante orientação externa no sólido manifold)
+0668      bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
+0669      bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
+0670  
+0671      # Determina a normal da interface que aponta DE A PARA B
+0672      if detach_add_base and detach_base_depth_mm &gt; 0.0:
+0673          normal_a_to_b = inward_dir
+0674      elif created_faces_a:
+0675          valid_caps = [f for f in created_faces_a if f.is_valid]
+0676          if valid_caps:
+0677              avg_cap_norm = sum((f.normal for f in valid_caps), Vector()) / len(valid_caps)
+0678              if avg_cap_norm.length &gt; 1e-5:
+0679                  normal_a_to_b = avg_cap_norm.normalized()
+0680              else:
+0681                  normal_a_to_b = n
+0682          else:
+0683              normal_a_to_b = n
+0684      else:
+0685          normal_a_to_b = n
+0686  
+0687      # Constrói CutInterface formal em World Space
+0688      iface_tris = [
+0689          (loop_coords_world[i], loop_coords_world[j], loop_coords_world[k])
+0690          for i, j, k in tri_indices
+0691      ] if tri_indices else None
+0692  
+0693      cut_interface = build_cut_interface(
+0694          origin_world=centroid_world,
+0695          normal_a_to_b=normal_a_to_b,
+0696          boundary_points_world=loop_coords_world,
+0697          interface_triangles=iface_tris,
+0698          unit_scale=scale_to_mm,
+0699          source_mode=&quot;LOOP&quot;,
+0700      )
+0701  
+0702      metrics_a = evaluate_bmesh_metrics(bm_a, unit_scale=scale_to_mm)
+0703      metrics_b = evaluate_bmesh_metrics(bm_b, unit_scale=scale_to_mm)
+0704  
+</code></pre>
+<h2>Interface EXTRUDE deslocada — src/geometry_loop.py:1280–1304</h2>
+<pre><code>
+1280          bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
+1281          bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
+1282  
+1283          if through_cut:
+1284              interface_origin = analysis[&quot;centroid_world&quot;]
+1285              interface_boundary = coords_world
+1286          else:
+1287              interface_origin = analysis[&quot;centroid_world&quot;] + (depth_mm / scale_to_mm) * inward_dir
+1288              interface_boundary = [p + (depth_mm / scale_to_mm) * inward_dir for p in coords_world]
+1289          cut_interface = build_cut_interface(
+1290              origin_world=interface_origin,
+1291              normal_a_to_b=inward_dir,
+1292              boundary_points_world=interface_boundary,
+1293              unit_scale=scale_to_mm,
+1294              source_mode=&quot;LOOP&quot;,
+1295          )
+1296  
+1297          metrics_a = evaluate_bmesh_metrics(bm_a, unit_scale=scale_to_mm)
+1298          metrics_b = evaluate_bmesh_metrics(bm_b, unit_scale=scale_to_mm)
+1299  
+1300          split_result = SplitResult(
+1301              part_a_metrics=metrics_a,
+1302              part_b_metrics=metrics_b,
+1303              interface=cut_interface,
+1304              diagnostics_before_connectors={
+</code></pre>
+<h2>CDT e mapas de origem — src/geometry_loop.py:933–968</h2>
+<pre><code>
+0933      # 2. Triangulação nativa restrita via mathutils.geometry.delaunay_2d_cdt (R1 / DEV-06)
+0934      try:
+0935          import mathutils
+0936          edges = [(i, (i + 1) % n) for i in range(n)]
+0937          face_poly = [list(range(n))] if is_ccw else [list(reversed(range(n)))]
+0938          out_verts, out_edges, out_faces, orig_v, orig_e, orig_f = mathutils.geometry.delaunay_2d_cdt(
+0939              pts_vec, edges, face_poly, 1, 1e-6
+0940          )
+0941          cdt_tris = []
+0942          for f in out_faces:
+0943              if len(f) != 3:
+0944                  continue
+0945              idx0 = orig_v[f[0]][0] if orig_v[f[0]] else f[0]
+0946              idx1 = orig_v[f[1]][0] if orig_v[f[1]] else f[1]
+0947              idx2 = orig_v[f[2]][0] if orig_v[f[2]] else f[2]
+0948              if idx0 == idx1 or idx1 == idx2 or idx2 == idx0:
+0949                  continue
+0950              p0, p1, p2 = pts_vec[idx0], pts_vec[idx1], pts_vec[idx2]
+0951              tri_signed = 0.5 * ((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y))
+0952              if abs(tri_signed) &lt; 1e-12:
+0953                  continue
+0954              if is_ccw:
+0955                  tri = (idx0, idx1, idx2) if tri_signed &gt; 0 else (idx0, idx2, idx1)
+0956              else:
+0957                  tri = (idx0, idx2, idx1) if tri_signed &gt; 0 else (idx0, idx1, idx2)
+0958              cdt_tris.append(tri)
+0959          if len(cdt_tris) &gt;= (n - 2):
+0960              return cdt_tris
+0961      except Exception:
+0962          pass
+0963  
+0964      # 3. Fallback: Ear Clipping com filtragem estrita de degenerações
+0965      indices = list(range(n)) if is_ccw else list(reversed(range(n)))
+0966      poly = [pts_vec[i] for i in indices]
+0967  
+0968      corners = []
+</code></pre>
+<h2>CENTER busca grid 25 — src/geometry_connectors.py:413–447</h2>
+<pre><code>
+0413  
+0414      margin_bu = edge_margin_mm / unit_scale
+0415      avail_major = max(0.0, (span_major / 2.0) - margin_bu)
+0416      avail_minor = max(0.0, (span_minor / 2.0) - margin_bu)
+0417  
+0418      positions = []
+0419  
+0420      # Validação de distribuições múltiplas (Critério C4: sem redução silenciosa)
+0421      if distribution == &#x27;CENTER&#x27;:
+0422          cand_u, cand_v = center_u, center_v
+0423          check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
+0424          is_center_valid = False
+0425          if outer_polys:
+0426              in_outer = any(point_in_polygon_2d(cand_u, cand_v, poly) for poly in outer_polys)
+0427              not_in_hole = not any(point_in_polygon_2d(cand_u, cand_v, h_poly) for h_poly in hole_polys)
+0428              if in_outer and not_in_hole:
+0429                  dist_to_edges = min_distance_to_polygon_boundaries(cand_u, cand_v, outer_polys, hole_polys)
+0430                  if dist_to_edges &gt;= check_r - 1e-6:
+0431                      is_center_valid = True
+0432  
+0433          if not is_center_valid and outer_polys and adjust_to_valid_area:
+0434              # Em regiões côncavas (como U ou L), o centro da bounding box cai no vazio (B06 / D2 / T12).
+0435              # Busca determinística pelo ponto de maior distância útil das bordas (pólo de inacessibilidade)
+0436              best_pt = None
+0437              best_dist = -1.0
+0438              steps = 25
+0439              for si in range(1, steps):
+0440                  gu = min_u + (span_u * si / steps)
+0441                  for sj in range(1, steps):
+0442                      gv = min_v + (span_v * sj / steps)
+0443                      if any(point_in_polygon_2d(gu, gv, poly) for poly in outer_polys):
+0444                          if not any(point_in_polygon_2d(gu, gv, h_poly) for h_poly in hole_polys):
+0445                              d = min_distance_to_polygon_boundaries(gu, gv, outer_polys, hole_polys)
+0446                              if d &gt; best_dist:
+0447                                  best_dist = d
+</code></pre>
+<h2>LINEAR_2 e LINEAR_3 — src/geometry_connectors.py:449–504</h2>
+<pre><code>
+0449  
+0450              if best_pt is not None:
+0451                  cand_u, cand_v = best_pt[0], best_pt[1]
+0452  
+0453          p = plane_origin + (u_axis * cand_u) + (v_axis * cand_v)
+0454          positions.append(p)
+0455  
+0456      elif distribution == &#x27;LINEAR_2&#x27;:
+0457          min_span_linear2 = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
+0458          if span_major_mm &lt; min_span_linear2:
+0459              raise ConnectorValidationError(
+0460                  f&quot;Falta de espaço: a distribuição LINEAR_2 requer vão de ao menos {min_span_linear2:.1f} mm &quot;
+0461                  f&quot;(disponível: {span_major_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes.&quot;
+0462              )
+0463          d_major = avail_major * 0.6
+0464          if outer_polys and adjust_to_valid_area:
+0465              best_d = d_major
+0466              best_min_dist = -1.0
+0467              for factor in [0.6, 0.5, 0.45, 0.4, 0.35, 0.3, 0.7, 0.25]:
+0468                  dt = avail_major * factor
+0469                  test_p1 = plane_origin + (major_axis * (center_major - dt)) + (minor_axis * center_minor)
+0470                  test_p2 = plane_origin + (major_axis * (center_major + dt)) + (minor_axis * center_minor)
+0471                  rel1 = test_p1 - plane_origin
+0472                  rel2 = test_p2 - plane_origin
+0473                  u1, v1 = rel1.dot(u_axis), rel1.dot(v_axis)
+0474                  u2, v2 = rel2.dot(u_axis), rel2.dot(v_axis)
+0475                  if any(point_in_polygon_2d(u1, v1, poly) for poly in outer_polys) and not any(point_in_polygon_2d(u1, v1, h) for h in hole_polys):
+0476                      if any(point_in_polygon_2d(u2, v2, poly) for poly in outer_polys) and not any(point_in_polygon_2d(u2, v2, h) for h in hole_polys):
+0477                          dist1 = min_distance_to_polygon_boundaries(u1, v1, outer_polys, hole_polys)
+0478                          dist2 = min_distance_to_polygon_boundaries(u2, v2, outer_polys, hole_polys)
+0479                          min_d = min(dist1, dist2)
+0480                          if min_d &gt; best_min_dist:
+0481                              best_min_dist = min_d
+0482                              best_d = dt
+0483              d_major = best_d
+0484  
+0485          p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
+0486          p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
+0487          positions.extend([p1, p2])
+0488  
+0489      elif distribution == &#x27;LINEAR_3&#x27;:
+0490          min_span_linear3 = 3.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 4.0
+0491          if span_major_mm &lt; min_span_linear3:
+0492              raise ConnectorValidationError(
+0493                  f&quot;Falta de espaço: a distribuição LINEAR_3 requer vão de ao menos {min_span_linear3:.1f} mm &quot;
+0494                  f&quot;(disponível: {span_major_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes.&quot;
+0495              )
+0496          p_mid = plane_origin + (major_axis * center_major) + (minor_axis * center_minor)
+0497          d_major = avail_major * 0.7
+0498          p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
+0499          p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
+0500          positions.extend([p_mid, p1, p2])
+0501  
+0502      elif distribution == &#x27;AUTO_SHAPE&#x27;:
+0503          min_span_auto2 = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
+0504          if span_major_mm &gt;= min_span_auto2 and (span_major / max(span_minor, 1e-4)) &gt;= 1.6:
+</code></pre>
+<h2>AUTO busca linha ou ponto — src/geometry_connectors.py:504–545</h2>
+<pre><code>
+0504          if span_major_mm &gt;= min_span_auto2 and (span_major / max(span_minor, 1e-4)) &gt;= 1.6:
+0505              d_major = avail_major * 0.55
+0506              if outer_polys:
+0507                  best_d = d_major
+0508                  best_min_dist = -1.0
+0509                  for factor in [0.55, 0.45, 0.35, 0.65, 0.25]:
+0510                      dt = avail_major * factor
+0511                      test_p1 = plane_origin + (major_axis * (center_major - dt)) + (minor_axis * center_minor)
+0512                      test_p2 = plane_origin + (major_axis * (center_major + dt)) + (minor_axis * center_minor)
+0513                      rel1 = test_p1 - plane_origin
+0514                      rel2 = test_p2 - plane_origin
+0515                      u1, v1 = rel1.dot(u_axis), rel1.dot(v_axis)
+0516                      u2, v2 = rel2.dot(u_axis), rel2.dot(v_axis)
+0517                      if any(point_in_polygon_2d(u1, v1, poly) for poly in outer_polys) and not any(point_in_polygon_2d(u1, v1, h) for h in hole_polys):
+0518                          if any(point_in_polygon_2d(u2, v2, poly) for poly in outer_polys) and not any(point_in_polygon_2d(u2, v2, h) for h in hole_polys):
+0519                              dist1 = min_distance_to_polygon_boundaries(u1, v1, outer_polys, hole_polys)
+0520                              dist2 = min_distance_to_polygon_boundaries(u2, v2, outer_polys, hole_polys)
+0521                              min_d = min(dist1, dist2)
+0522                              if min_d &gt; best_min_dist:
+0523                                  best_min_dist = min_d
+0524                                  best_d = dt
+0525                  d_major = best_d
+0526              p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
+0527              p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
+0528              positions.extend([p1, p2])
+0529          else:
+0530              best_pt = (center_u, center_v)
+0531              best_dist = -1.0
+0532              if outer_polys:
+0533                  steps = 25
+0534                  for si in range(1, steps):
+0535                      gu = min_u + (span_u * si / steps)
+0536                      for sj in range(1, steps):
+0537                          gv = min_v + (span_v * sj / steps)
+0538                          if any(point_in_polygon_2d(gu, gv, poly) for poly in outer_polys):
+0539                              if not any(point_in_polygon_2d(gu, gv, h_poly) for h_poly in hole_polys):
+0540                                  d = min_distance_to_polygon_boundaries(gu, gv, outer_polys, hole_polys)
+0541                                  if d &gt; best_dist:
+0542                                      best_dist = d
+0543                                      best_pt = (gu, gv)
+0544              p = plane_origin + (u_axis * best_pt[0]) + (v_axis * best_pt[1])
+0545              positions.append(p)
+</code></pre>
+<h2>GRID_4 restringe grade — src/geometry_connectors.py:546–625</h2>
+<pre><code>
+0546  
+0547      elif distribution == &#x27;GRID_4&#x27;:
+0548          min_grid_major = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
+0549          min_grid_minor = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
+0550  
+0551          grid_u_axis = u_axis
+0552          grid_v_axis = v_axis
+0553          grid_span_u = span_u
+0554          grid_span_v = span_v
+0555          grid_center_u = center_u
+0556          grid_center_v = center_v
+0557  
+0558          # Se houver contorno poligonal definido, calcula os eixos ótimos alinhados às arestas (OMBB - C05)
+0559          if outer_polys:
+0560              g_u, g_v, s_u, s_v, c_u, c_v = find_optimal_grid_axes(outer_polys[0], u_axis, v_axis)
+0561              if s_u &gt; 1e-4 and s_v &gt; 1e-4:
+0562                  grid_u_axis = g_u
+0563                  grid_v_axis = g_v
+0564                  grid_span_u = s_u
+0565                  grid_span_v = s_v
+0566                  grid_center_u = c_u
+0567                  grid_center_v = c_v
+0568  
+0569          grid_span_u_mm = grid_span_u * unit_scale
+0570          grid_span_v_mm = grid_span_v * unit_scale
+0571  
+0572          if grid_span_u_mm &lt; min_grid_minor - 1e-3 or grid_span_v_mm &lt; min_grid_minor - 1e-3:
+0573              raise ConnectorValidationError(
+0574                  f&quot;Falta de espaço: a distribuição GRID_4 requer ao menos {min_grid_major:.1f}x{min_grid_minor:.1f} mm &quot;
+0575                  f&quot;(disponível: {grid_span_u_mm:.1f}x{grid_span_v_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes.&quot;
+0576              )
+0577  
+0578          avail_grid_u = max(0.0, (grid_span_u / 2.0) - margin_bu)
+0579          avail_grid_v = max(0.0, (grid_span_v / 2.0) - margin_bu)
+0580  
+0581          check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
+0582          min_pitch_mm = cavity_diam_mm + 2.0
+0583  
+0584          def _generate_4_cand(scale_f: float) -&gt; List[Vector]:
+0585              du = avail_grid_u * scale_f
+0586              dv = avail_grid_v * scale_f
+0587              pts = []
+0588              for su, sv in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+0589                  p = plane_origin + (grid_u_axis * (grid_center_u + su * du)) + (grid_v_axis * (grid_center_v + sv * dv))
+0590                  pts.append(p)
+0591              return pts
+0592  
+0593          def _is_4_cand_valid(pts: List[Vector]) -&gt; bool:
+0594              if not outer_polys:
+0595                  return True
+0596              for pos in pts:
+0597                  up = (pos - plane_origin).dot(u_axis)
+0598                  vp = (pos - plane_origin).dot(v_axis)
+0599                  if not any(point_in_polygon_2d(up, vp, p) for p in outer_polys):
+0600                      return False
+0601                  if any(point_in_polygon_2d(up, vp, hp) for hp in hole_polys):
+0602                      return False
+0603                  d = min_distance_to_polygon_boundaries(up, vp, outer_polys, hole_polys)
+0604                  if d &lt; check_r - 1e-6:
+0605                      return False
+0606              return True
+0607  
+0608          selected_cand = None
+0609          for test_scale in (0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15):
+0610              cand = _generate_4_cand(test_scale)
+0611              du_mm = 2.0 * avail_grid_u * test_scale * unit_scale
+0612              dv_mm = 2.0 * avail_grid_v * test_scale * unit_scale
+0613              if du_mm &lt; min_pitch_mm or dv_mm &lt; min_pitch_mm:
+0614                  continue
+0615              if _is_4_cand_valid(cand):
+0616                  selected_cand = cand
+0617                  break
+0618  
+0619          if selected_cand is not None:
+0620              positions.extend(selected_cand)
+0621          else:
+0622              cand_nom = _generate_4_cand(0.55)
+0623              positions.extend(cand_nom)
+0624  
+0625      # Cálculo dos limites laterais seguros para cápsula
+</code></pre>
+<h2>Footprint amostrado — src/geometry_connectors.py:662–710</h2>
+<pre><code>
+0662      # Validação rigorosa de inclusão do perfil completo no domínio sólido da interface (B04/B05)
+0663      if outer_polys:
+0664          check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
+0665          u_proj = major_axis.dot(u_axis)
+0666          v_proj = major_axis.dot(v_axis)
+0667          rot_ang = math.atan2(v_proj, u_proj)
+0668          cos_rot = math.cos(rot_ang)
+0669          sin_rot = math.sin(rot_ang)
+0670  
+0671          for idx, pos in enumerate(positions):
+0672              u_p = (pos - plane_origin).dot(u_axis)
+0673              v_p = (pos - plane_origin).dot(v_axis)
+0674  
+0675              test_pts = [(u_p, v_p)]
+0676              if connector_type == &#x27;CAPSULE&#x27;:
+0677                  eff_cap = max(diameter_mm, adjusted_cap_len_mm) if adjusted_cap_len_mm &gt; 0.0 else (diameter_mm * 2.4)
+0678                  half_len = max(0.0, (eff_cap - diameter_mm) / 2.0) / unit_scale
+0679                  prof = create_capsule_2d_profile(w=check_r, half_len=half_len, segments=24)
+0680                  # No perfil da cápsula: Y (ly) é o eixo de alongamento (major_axis) e X (lx) é a largura (minor_axis)
+0681                  # major_axis no plano UV é (cos_rot, sin_rot), minor_axis é (-sin_rot, cos_rot)
+0682                  for lx, ly in prof:
+0683                      test_pts.append((
+0684                          u_p + ly * cos_rot - lx * sin_rot,
+0685                          v_p + ly * sin_rot + lx * cos_rot,
+0686                      ))
+0687              else:
+0688                  for ang_idx in range(16):
+0689                      ang = 2.0 * math.pi * ang_idx / 16.0
+0690                      test_pts.append((u_p + check_r * math.cos(ang), v_p + check_r * math.sin(ang)))
+0691  
+0692              for tp in test_pts:
+0693                  in_any_outer = any(point_in_polygon_2d(tp[0], tp[1], poly) for poly in outer_polys)
+0694                  if not in_any_outer:
+0695                      raise ConnectorValidationError(
+0696                          f&quot;O encaixe #{idx+1} ultrapassa a margem de segurança de {edge_margin_mm:.1f} mm &quot;
+0697                          f&quot;ou cai fora do domínio sólido da peça.&quot;
+0698                      )
+0699                  for hole_poly in hole_polys:
+0700                      if point_in_polygon_2d(tp[0], tp[1], hole_poly):
+0701                          raise ConnectorValidationError(
+0702                              f&quot;O encaixe #{idx+1} invade um furo/vazio interno da interface.&quot;
+0703                          )
+0704  
+0705      return {
+0706          &quot;positions&quot;: positions,
+0707          &quot;major_axis&quot;: major_axis,
+0708          &quot;minor_axis&quot;: minor_axis,
+0709          &quot;span_major_mm&quot;: span_major_mm,
+0710          &quot;span_minor_mm&quot;: span_minor_mm,
+</code></pre>
+<h2>Espessura centro e quatro raios — src/geometry_connectors.py:252–318</h2>
+<pre><code>
+0252  def check_receiving_wall_thickness(
+0253      obj_female: bpy.types.Object,
+0254      positions: List[Vector],
+0255      normal: Vector,
+0256      required_depth_bu: float,
+0257      min_wall_bu: float = 1e-4,
+0258      cavity_radius_bu: float = 0.0,
+0259  ) -&gt; Tuple[bool, float]:
+0260      &quot;&quot;&quot;Verifica se a cavidade de inserção atravessaria a parede da peça receptora (Defeito C5).
+0261      
+0262      Amostra o centro e pontos perimétricos para detectar paredes inclinadas ou perfurações
+0263      indesejadas em quinas e superfícies curvas.
+0264      &quot;&quot;&quot;
+0265      depsgraph = bpy.context.evaluated_depsgraph_get()
+0266      eval_obj = obj_female.evaluated_get(depsgraph)
+0267      eval_mesh = eval_obj.to_mesh()
+0268      try:
+0269          bm = bmesh.new()
+0270          bm.from_mesh(eval_mesh)
+0271          bm.transform(obj_female.matrix_world)
+0272          bvh = BVHTree.FromBMesh(bm)
+0273          norm = normal.normalized()
+0274  
+0275          # Vetores perpendiculares no plano de corte para amostragem perimétrica
+0276          ref = Vector((1.0, 0.0, 0.0))
+0277          if abs(norm.dot(ref)) &gt; 0.9:
+0278              ref = Vector((0.0, 1.0, 0.0))
+0279          u_dir = norm.cross(ref).normalized()
+0280          v_dir = norm.cross(u_dir).normalized()
+0281  
+0282          sample_offsets = [Vector((0.0, 0.0, 0.0))]
+0283          if cavity_radius_bu &gt; 1e-5:
+0284              r = cavity_radius_bu * 0.95
+0285              sample_offsets.extend([
+0286                  u_dir * r,
+0287                  -u_dir * r,
+0288                  v_dir * r,
+0289                  -v_dir * r,
+0290              ])
+0291  
+0292          min_found_depth = 1e9
+0293  
+0294          for pos in positions:
+0295              for offset in sample_offsets:
+0296                  sample_p = pos + offset
+0297                  ray_start = sample_p + norm * 1e-4
+0298                  hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(ray_start, norm)
+0299                  if hit_loc is None:
+0300                      # Raio sem interseção: não há parede receptora na direção de inserção
+0301                      bm.free()
+0302                      return False, 0.0
+0303  
+0304                  avail_depth = (hit_loc - sample_p).length
+0305                  if avail_depth &lt; min_found_depth:
+0306                      min_found_depth = avail_depth
+0307  
+0308                  if avail_depth &lt; (required_depth_bu + min_wall_bu):
+0309                      bm.free()
+0310                      return False, avail_depth
+0311  
+0312          bm.free()
+0313          return True, min_found_depth if min_found_depth &lt; 1e8 else 0.0
+0314      finally:
+0315          eval_obj.to_mesh_clear()
+0316  
+0317  
+0318  
+</code></pre>
+<h2>Offset/chamfer de união — src/geometry_connectors.py:180–202</h2>
+<pre><code>
+0180        profundidade útil length + clearance_end, sem chanfro automático.
+0181      - Separação entre centros dos semicírculos da cápsula: exatamente L - D em macho e cavidade.
+0182      &quot;&quot;&quot;
+0183      bm = bmesh.new()
+0184  
+0185      eff_radius = (diameter / 2.0) + (clearance_side if is_cavity else 0.0)
+0186      eff_length = length + (clearance_end if is_cavity else 0.0)
+0187      eff_chamfer = 0.0 if is_cavity else min(chamfer, eff_length * 0.4, eff_radius * 0.7)
+0188  
+0189      # Tolerância proporcional de sobreposição na base para garantir operação booleana não coplanar
+0190      base_offset = min(eff_length * 0.05, eff_radius * 0.1)
+0191      z_min = -base_offset
+0192      z_max = eff_length
+0193      z_shoulder = z_max - eff_chamfer
+0194  
+0195      base_verts = []
+0196      shoulder_verts = []
+0197      tip_verts = []
+0198  
+0199      if connector_type == &#x27;CAPSULE&#x27;:
+0200          # Chave tipo cápsula / estádio
+0201          w = eff_radius
+0202          eff_cap_len = max(diameter, capsule_length) if capsule_length &gt; 0.0 else (diameter * 2.4)
+</code></pre>
+<h2>Saneamento antes dos encaixes — src/operators.py:1854–1881</h2>
+<pre><code>
+1854  
+1855              # Validação geométrica nos candidatos
+1856              check_cand_manifold = getattr(settings, &quot;diag_is_manifold&quot;, True)
+1857              bm_a_chk = bmesh.new()
+1858              bm_a_chk.from_mesh(candidate_mesh_a)
+1859              ok_a, msg_a, _ = validate_printable_mesh(bm_a_chk, part_name=&quot;Parte A&quot;, unit_scale=unit_scale, check_manifold=check_cand_manifold)
+1860              if not ok_a and &quot;comprimento nulo&quot; in msg_a:
+1861                  from .diagnostic import sanitize_mesh_micro_degeneracies
+1862                  if sanitize_mesh_micro_degeneracies(bm_a_chk, scale_to_mm=unit_scale):
+1863                      ok_a, msg_a, _ = validate_printable_mesh(bm_a_chk, part_name=&quot;Parte A&quot;, unit_scale=unit_scale, check_manifold=check_cand_manifold)
+1864                      if ok_a:
+1865                          bm_a_chk.to_mesh(candidate_mesh_a)
+1866              bm_a_chk.free()
+1867  
+1868              bm_b_chk = bmesh.new()
+1869              bm_b_chk.from_mesh(candidate_mesh_b)
+1870              ok_b, msg_b, _ = validate_printable_mesh(bm_b_chk, part_name=&quot;Parte B&quot;, unit_scale=unit_scale, check_manifold=check_cand_manifold)
+1871              if not ok_b and &quot;comprimento nulo&quot; in msg_b:
+1872                  from .diagnostic import sanitize_mesh_micro_degeneracies
+1873                  if sanitize_mesh_micro_degeneracies(bm_b_chk, scale_to_mm=unit_scale):
+1874                      ok_b, msg_b, _ = validate_printable_mesh(bm_b_chk, part_name=&quot;Parte B&quot;, unit_scale=unit_scale, check_manifold=check_cand_manifold)
+1875                      if ok_b:
+1876                          bm_b_chk.to_mesh(candidate_mesh_b)
+1877              bm_b_chk.free()
+1878  
+1879              if not ok_a or not ok_b:
+1880                  err_msg = msg_a if not ok_a else msg_b
+1881                  raise RuntimeError(f&quot;Validação da geometria cortada falhou: {err_msg}&quot;)
+</code></pre>
+<h2>Material excluído do pipeline encaixes — src/operators.py:1889–1928</h2>
+<pre><code>
+1889              # Aplica encaixes (macho e cavidade) se ativados na sessão
+1890              if settings.connector_enabled:
+1891                  if settings.split_mode in (&#x27;SOLID&#x27;, &#x27;MATERIAL&#x27;):
+1892                      self.report({&#x27;INFO&#x27;}, &quot;Encaixes automáticos não são suportados no modo Cortador Sólido / Material.&quot;)
+1893                  else:
+1894                      if settings.split_mode == &#x27;LOOP&#x27;:
+1895                          norm_a = plane_normal
+1896                      else:
+1897                          norm_a = -plane_normal if settings.invert_sides else plane_normal
+1898  
+1899                      if settings.connector_male_part == &#x27;A&#x27;:
+1900                          male_obj = candidate_obj_a
+1901                          female_obj = candidate_obj_b
+1902                          norm = norm_a
+1903                      else:
+1904                          male_obj = candidate_obj_b
+1905                          female_obj = candidate_obj_a
+1906                          norm = -norm_a
+1907  
+1908                      layout = compute_connector_layout(
+1909                          target_mesh=target.data,
+1910                          matrix_world=target.matrix_world,
+1911                          plane_origin=plane_origin,
+1912                          plane_normal=plane_normal,
+1913                          distribution=settings.connector_distribution,
+1914                          edge_margin_mm=settings.connector_edge_margin_mm,
+1915                          unit_scale=unit_scale,
+1916                          diameter_mm=settings.connector_diameter_mm,
+1917                          clearance_per_side_mm=settings.clearance_per_side_mm,
+1918                          interface=report.get(&quot;interface&quot;),
+1919                          connector_type=settings.connector_type,
+1920                          capsule_length_mm=settings.connector_capsule_length_mm,
+1921                          adjust_to_valid_area=getattr(settings, &quot;adjust_to_valid_area&quot;, False),
+1922                      )
+1923                      positions = layout[&quot;positions&quot;]
+1924                      major_axis = layout[&quot;major_axis&quot;]
+1925                      max_safe_lateral_mm = layout[&quot;max_safe_lateral_mm&quot;]
+1926                      settings.connector_max_safe_lateral_mm = max_safe_lateral_mm
+1927  
+1928                      cap_len = layout.get(&quot;adjusted_capsule_length_mm&quot;, settings.connector_capsule_length_mm)
+</code></pre>
+<h2>Validação após encaixes — src/operators.py:1956–1971</h2>
+<pre><code>
+1956  
+1957              # Re-avalia diagnósticos atualizados e validação final nos candidatos
+1958              metrics_final = {}
+1959              for side, p_obj in ((&quot;A&quot;, candidate_obj_a), (&quot;B&quot;, candidate_obj_b)):
+1960                  bm_res = bmesh.new()
+1961                  bm_res.from_mesh(p_obj.data)
+1962                  ok_res, msg_res, metrics = validate_printable_mesh(bm_res, part_name=f&quot;Parte {side}&quot;, unit_scale=unit_scale, check_manifold=check_cand_manifold)
+1963                  bm_res.free()
+1964                  if not ok_res:
+1965                      raise RuntimeError(f&quot;Resultado inválido após encaixes ({msg_res}).&quot;)
+1966                  metrics_final[side] = metrics
+1967  
+1968              # Pré-calcula métricas, limites e nova assinatura antes de alterar a cena (C22 / V23)
+1969              sum_vol = metrics_final[&quot;A&quot;][&quot;volume_mm3&quot;] + metrics_final[&quot;B&quot;][&quot;volume_mm3&quot;]
+1970              orig_vol = settings.diag_volume_mm3
+1971              vol_diff = (abs(sum_vol - orig_vol) / orig_vol * 100.0) if orig_vol &gt; 0 else 0.0
+</code></pre>
+<h2>Saneamento mutante sem cheque manifold interno — src/diagnostic.py:141–180</h2>
+<pre><code>
+0141  def sanitize_mesh_micro_degeneracies(bm: bmesh.types.BMesh, scale_to_mm: float = 1000.0) -&gt; bool:
+0142      &quot;&quot;&quot;Saneamento restrito e transacional de micro-arestas causadas por arredondamento no solver booleano (DEV-01 / DEV-02).
+0143      
+0144      Solda vértices separados por distâncias sub-micrométricas (&lt; 0.1 µm), preservando a integridade manifold.
+0145      Retorna True se houve saneamento bem-sucedido e a malha permaneceu manifold.
+0146      &quot;&quot;&quot;
+0147      eps_bu = 1e-4 / max(1e-6, scale_to_mm)
+0148      bm.edges.ensure_lookup_table()
+0149      micro_edges = [e for e in bm.edges if e.calc_length() &lt; eps_bu]
+0150      if not micro_edges:
+0151          return False
+0152      
+0153      targetmap = {}
+0154      for e in micro_edges:
+0155          if e.is_valid and len(e.verts) == 2:
+0156              v0, v1 = e.verts[0], e.verts[1]
+0157              if v1 not in targetmap.values():
+0158                  targetmap[v1] = v0
+0159      
+0160      if not targetmap:
+0161          return False
+0162      
+0163      try:
+0164          bmesh.ops.weld_verts(bm, targetmap=targetmap)
+0165          bm.edges.ensure_lookup_table()
+0166          bm.faces.ensure_lookup_table()
+0167          bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+0168          return True
+0169      except Exception:
+0170          return False
+0171  
+0172  
+0173  def validate_bmesh_mesh_geometry(bm: bmesh.types.BMesh, scale_to_mm: float = 1000.0) -&gt; Dict[str, Any]:
+0174      &quot;&quot;&quot;Valida a geometria de um BMesh medindo integridade, áreas nulas e degenerações (INV-010 / DEV-01).&quot;&quot;&quot;
+0175      bm.verts.ensure_lookup_table()
+0176      bm.edges.ensure_lookup_table()
+0177      bm.faces.ensure_lookup_table()
+0178  
+0179      # 1. Arestas de comprimento nulo calibradas pela escala física (&lt; 0.1 µm)
+0180      eps_length_bu = 1e-4 / max(1e-6, scale_to_mm)
+</code></pre>
+<h2>Tolerâncias agora em mm — src/diagnostic.py:181–202</h2>
+<pre><code>
+0181      null_edges = [e.index for e in bm.edges if e.calc_length() &lt; eps_length_bu]
+0182  
+0183      # 2. Faces de área nula / colineares / com vértices coincidentes
+0184      min_face_area_mm2 = 1e-6
+0185      eps_dist_bu_sq = (eps_length_bu) ** 2
+0186      degenerate_faces = []
+0187      for f in bm.faces:
+0188          area_mm2 = f.calc_area() * (scale_to_mm ** 2)
+0189          if area_mm2 &lt; min_face_area_mm2:
+0190              degenerate_faces.append(f.index)
+0191          else:
+0192              coords = [v.co for v in f.verts]
+0193              has_coincident = False
+0194              for i in range(len(coords)):
+0195                  for j in range(i + 1, len(coords)):
+0196                      if (coords[i] - coords[j]).length_squared &lt; eps_dist_bu_sq:
+0197                          has_coincident = True
+0198                          break
+0199                  if has_coincident:
+0200                      break
+0201              if has_coincident:
+0202                  degenerate_faces.append(f.index)
+</code></pre>
+<h2>Seleção exclusiva e aviso proporcional — src/operators.py:2342–2366</h2>
+<pre><code>
+2342          # Garante Object Mode para evitar estados de seleção mistos (DEV-08)
+2343          try:
+2344              if context.mode != &#x27;OBJECT&#x27; and bpy.ops.object.mode_set.poll():
+2345                  bpy.ops.object.mode_set(mode=&#x27;OBJECT&#x27;)
+2346          except Exception:
+2347              pass
+2348  
+2349          # Seleciona EXCLUSIVAMENTE a peça extraída por papel semântico (DEV-08)
+2350          extracted_obj = obj_b if getattr(settings, &quot;invert_sides&quot;, False) else obj_a
+2351          try:
+2352              bpy.ops.object.select_all(action=&#x27;DESELECT&#x27;)
+2353              extracted_obj.select_set(True)
+2354              context.view_layer.objects.active = extracted_obj
+2355          except Exception:
+2356              pass
+2357  
+2358          # Informa e alerta se a edição proporcional estiver ativa (DEV-08)
+2359          prop_warning = &quot;&quot;
+2360          if getattr(context.scene.tool_settings, &quot;use_proportional_edit_objects&quot;, False):
+2361              prop_warning = &quot; Aviso: A Edição Proporcional de Objetos está ativa. Desative-a (tecla &#x27;O&#x27;) para mover a peça sem arrastar o corpo remanescente.&quot;
+2362              self.report({&#x27;WARNING&#x27;}, prop_warning.strip())
+2363  
+2364          settings.active_operation_id = settings.session_id
+2365  
+2366          # Oculta guias de corte
+</code></pre></main></html>

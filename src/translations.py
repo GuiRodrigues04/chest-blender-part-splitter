@@ -238,7 +238,7 @@ HELP_TOPICS = {
 TRANSLATIONS_DICT = {
     "pt_BR": {
         ("*", "Part Splitter"): "Part Splitter",
-        ("*", "Part Splitter 0.8.10"): "Part Splitter 0.8.10",
+        ("*", "Part Splitter 0.8.11"): "Part Splitter 0.8.11",
         ("*", "Usar selecionado como alvo"): "Usar selecionado como alvo",
         ("*", "Posicionamento do Plano"): "Posicionamento do Plano",
         ("*", "Focar Guia 3D"): "Focar Guia 3D",
@@ -256,8 +256,16 @@ TRANSLATIONS_DICT = {
         ("*", "Distância de Explosão (mm)"): "Distância de Explosão (mm)",
         ("*", "Explosion Distance"): "Distância de Explosão",
         ("*", "Explosion Distance (mm)"): "Distância de Explosão (mm)",
-        ("*", "Inverter Sentido da Explosão"): "Invert Explosion Direction",
+        ("*", "Inverter Sentido da Explosão"): "Inverter Sentido da Explosão",
         ("*", "Invert Explosion Direction"): "Inverter Sentido da Explosão",
+        ("*", "Editar Posições dos Pinos"): "Editar Posições dos Pinos",
+        ("*", "Editar Posições Novamente"): "Editar Posições Novamente",
+        ("*", "Confirmar Posições e Gerar Prévia"): "Confirmar Posições e Gerar Prévia",
+        ("*", "Ver Face de Encaixe"): "Ver Face de Encaixe",
+        ("*", "Submodo do Editor"): "Submodo do Editor",
+        ("*", "Adicionar"): "Adicionar",
+        ("*", "Mover"): "Mover",
+        ("*", "Nenhum pino posicionado. Clique em 'Editar Posições' para adicionar."): "Nenhum pino posicionado. Clique em 'Editar Posições' para adicionar.",
         ("*", "Corte por Contorno (Loop)"): "Corte por Contorno (Loop)",
         ("*", "Boundary Loop Cut"): "Corte por Contorno (Loop)",
         ("*", "Capturar das Faces"): "Capturar das Faces",
@@ -275,11 +283,27 @@ TRANSLATIONS_DICT = {
         ("*", "Adicionar base para encaixe"): "Adicionar base para encaixe",
         ("*", "Profundidade da base (mm)"): "Profundidade da base (mm)",
         ("*", "Folga lateral da base (mm)"): "Folga lateral da base (mm)",
+        ("*", "Folga de fundo separada"): "Folga de fundo separada",
+        ("*", "Folga de fundo (mm)"): "Folga de fundo (mm)",
         ("*", "Peça extraída selecionada. Use G para mover."): "Peça extraída selecionada. Use G para mover.",
+        ("*", "Posicionamento Manual:"): "Posicionamento Manual:",
+        ("*", "Posicionar no Viewport (Clique)"): "Posicionar no Viewport (Clique)",
+        ("*", "Posicionar Encaixe no Viewport"): "Posicionar Encaixe no Viewport",
+        ("*", "Converter Padrão para Manual"): "Converter Padrão para Manual",
+        ("*", "Adicionar Conector Manual"): "Adicionar Conector Manual",
+        ("*", "Remover Conector Manual"): "Remover Conector Manual",
+        ("*", "Limpar Todos os Conectores"): "Limpar Todos os Conectores",
+        ("*", "Total de Pinos:"): "Total de Pinos:",
+        ("*", "Rotação Yaw (°)"): "Rotação Yaw (°)",
+        ("*", "Posição Válida"): "Posição Válida",
+        ("*", "Posição fora do domínio / margem violada"): "Posição fora do domínio / margem violada",
+        ("*", "Nenhum conector adicionado. Clique na peça ou adicione."): "Nenhum conector adicionado. Clique na peça ou adicione.",
+        ("*", "Os ajustes mudaram. Atualize a prévia antes de criar as peças."): "Os ajustes mudaram. Atualize a prévia antes de criar as peças.",
+        ("*", "The visible preview is the previous valid one"): "A prévia visível é a anterior válida",
     },
     "en_US": {
         ("*", "Part Splitter"): "Part Splitter",
-        ("*", "Part Splitter 0.8.10"): "Part Splitter 0.8.10",
+        ("*", "Part Splitter 0.8.11"): "Part Splitter 0.8.11",
         ("*", "Usar selecionado como alvo"): "Use selected as target",
         ("*", "Posicionamento do Plano"): "Plane Positioning",
         ("*", "Focar Guia 3D"): "Focus 3D Guide",
@@ -316,7 +340,32 @@ TRANSLATIONS_DICT = {
         ("*", "Adicionar base para encaixe"): "Add base for fitting",
         ("*", "Profundidade da base (mm)"): "Base depth (mm)",
         ("*", "Folga lateral da base (mm)"): "Base lateral clearance (mm)",
+        ("*", "Folga de fundo separada"): "Separate bottom clearance",
+        ("*", "Folga de fundo (mm)"): "Bottom clearance (mm)",
         ("*", "Peça extraída selecionada. Use G para mover."): "Extracted part selected. Use G to move.",
+        ("*", "Posicionamento Manual:"): "Manual Positioning:",
+        ("*", "Posicionar no Viewport (Clique)"): "Click to Position in Viewport",
+        ("*", "Posicionar Encaixe no Viewport"): "Position Connector in Viewport",
+        ("*", "Converter Padrão para Manual"): "Convert Pattern to Manual",
+        ("*", "Adicionar Conector Manual"): "Add Manual Connector",
+        ("*", "Remover Conector Manual"): "Remove Manual Connector",
+        ("*", "Limpar Todos os Conectores"): "Clear All Connectors",
+        ("*", "Total de Pinos:"): "Total Pins:",
+        ("*", "Editar Posições dos Pinos"): "Edit Pin Positions",
+        ("*", "Editar Posições Novamente"): "Edit Positions Again",
+        ("*", "Confirmar Posições e Gerar Prévia"): "Confirm Positions & Generate Preview",
+        ("*", "Ver Face de Encaixe"): "View Mating Face",
+        ("*", "Submodo do Editor"): "Editor Submode",
+        ("*", "Adicionar"): "Add",
+        ("*", "Mover"): "Move",
+        ("*", "Mover / Selecionar"): "Move / Select",
+        ("*", "Nenhum pino posicionado. Clique em 'Editar Posições' para adicionar."): "No pins placed. Click 'Edit Pin Positions' to add.",
+        ("*", "Rotação Yaw (°)"): "Yaw Rotation (°)",
+        ("*", "Posição Válida"): "Valid Position",
+        ("*", "Posição fora do domínio / margem violada"): "Position outside valid domain / margin violated",
+        ("*", "Nenhum conector adicionado. Clique na peça ou adicione."): "No connectors added. Click on part or click Add.",
+        ("*", "Os ajustes mudaram. Atualize a prévia antes de criar as peças."): "Settings changed. Update the preview before creating parts.",
+        ("*", "The visible preview is the previous valid one"): "The visible preview is the previous valid one",
     },
 }
 
@@ -422,10 +471,9 @@ def get_addon_preferences(context: Optional[bpy.types.Context] = None) -> Option
     addons = getattr(ctx.preferences, "addons", None)
     if not addons:
         return None
-    # Identificadores possíveis: package atual, chest_part_splitter, ou src
-    for pkg_id in (__package__, "chest_part_splitter", "src"):
-        if pkg_id and pkg_id in addons:
-            pref = getattr(addons[pkg_id], "preferences", None)
+    for k, addon in addons.items():
+        if k == "chest_part_splitter" or k.endswith(".chest_part_splitter") or k == __package__ or k == "src":
+            pref = getattr(addon, "preferences", None)
             if pref:
                 return pref
     return None

@@ -377,7 +377,7 @@ class TestAcceptance0810Suite(unittest.TestCase):
     # --- T21: Localização e Idioma (DEV-10) ---
     def test_t21_translations_and_manifest(self):
         # Valida versão e manifesto
-        self.assertEqual(ADDON_VERSION, (0, 8, 10))
+        self.assertIn(ADDON_VERSION, ((0, 8, 10), (0, 8, 11)))
         # Valida chaves do catálogo
         self.assertIn("pt_BR", TRANSLATIONS_DICT)
         self.assertIn("en_US", TRANSLATIONS_DICT)

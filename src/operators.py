@@ -74,6 +74,11 @@ from .geometry_solid import (
     SolidSliceError,
 )
 from .translations import _get_current_locale
+from .connector_editor import (
+    CHEST_OT_splitter_edit_manual_connectors,
+    CHEST_OT_splitter_confirm_manual_connectors,
+    CHEST_OT_splitter_view_cut_face,
+)
 
 
 
@@ -263,18 +268,13 @@ def ensure_plane_guide(context: bpy.types.Context) -> bpy.types.Object:
 
 def read_plane_geometry(context: bpy.types.Context) -> (Vector, Vector):
     """Lê a origem e a normal do plano a partir do objeto guia ou das propriedades."""
-    col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
-    guide_obj = col.objects.get(PLANE_GUIDE_NAME)
+    from .plane_state import resolve_plane_state
+    get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
     settings = context.scene.chest_splitter
-
-    if guide_obj:
-        origin = guide_obj.matrix_world.translation.copy()
-        normal = (guide_obj.matrix_world.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()
-        settings.plane_origin = origin
-        settings.plane_normal = normal
-        return origin, normal
-    else:
-        return Vector(settings.plane_origin), Vector(settings.plane_normal).normalized()
+    origin, normal = resolve_plane_state(context.scene, settings)
+    settings.plane_origin = origin
+    settings.plane_normal = normal
+    return origin, normal
 
 
 def compute_session_input_signature(context: bpy.types.Context) -> str:
@@ -396,11 +396,12 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
         tokens.append(f"mat_mode:{settings.material_extraction_mode}")
         tokens.append(f"mat_iface_mat:{settings.material_interface_mat_mode}")
         tokens.append(f"mat_clearance:{getattr(settings, 'part_clearance_mm', 0.0):.4f}")
+        tokens.append(f"mat_clearance_bottom:{getattr(settings, 'part_clearance_bottom_enable', False)}:{getattr(settings, 'part_clearance_bottom_mm', 0.0):.4f}")
         tokens.append(f"mat_clearance_app:{getattr(settings, 'part_clearance_apply_to', 'PART')}")
 
     # 3. Encaixes (apenas se ativos e suportados no modo)
     tokens.append(f"conn_enabled:{settings.connector_enabled}")
-    if settings.connector_enabled and settings.split_mode not in ('SOLID', 'MATERIAL'):
+    if settings.connector_enabled and settings.split_mode != 'SOLID':
         tokens.append(f"conn_type:{settings.connector_type}")
         tokens.append(f"conn_diam:{settings.connector_diameter_mm:.4f}")
         tokens.append(f"conn_len:{settings.connector_length_mm:.4f}")
@@ -409,6 +410,9 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
         tokens.append(f"conn_end_clear:{getattr(settings, 'end_clearance_mm', 0.5):.4f}")
         tokens.append(f"conn_adj_valid:{getattr(settings, 'adjust_to_valid_area', False)}")
         tokens.append(f"conn_dist:{settings.connector_distribution}")
+        if settings.connector_distribution == 'MANUAL':
+            for sp in settings.manual_connectors:
+                tokens.append(f"man:{sp.u_mm:.2f}:{sp.v_mm:.2f}:{sp.yaw_deg:.1f}")
         tokens.append(f"conn_margin:{settings.connector_edge_margin_mm:.4f}")
         tokens.append(f"conn_male:{settings.connector_male_part}")
 
@@ -1342,6 +1346,8 @@ class CHEST_OT_splitter_align_solid_cutter(bpy.types.Operator):
         final_pos = ref_pos - rot_mat @ scaled_a_local
 
         cutter.matrix_world = Matrix.LocRotScale(final_pos, rot_mat.to_quaternion(), curr_scale)
+        cutter["chest_align_anchor_local"] = tuple(a_local)
+        cutter["chest_align_ref_pos"] = tuple(ref_pos)
         context.view_layer.update()
 
         if settings.session_status == 'PREVIEW_VALID':
@@ -1397,7 +1403,10 @@ class CHEST_OT_splitter_create_cutter_from_selection(bpy.types.Operator):
             mat_idx = settings.material_split_index
             reg_idx = settings.material_region_index
             try:
-                analysis = analyze_material_structure(target, scene=context.scene)
+                analysis = analyze_material_structure(target, mat_idx, reg_idx)
+                if not analysis.get("valid", False):
+                    self.report({'ERROR'}, analysis.get("error") or "Região de material inválida ou sem apoio.")
+                    return {'CANCELLED'}
                 region_faces = analysis.get("region_face_indices", [])
                 if not region_faces:
                     self.report({'ERROR'}, "Nenhuma região válida identificada para o material selecionado.")
@@ -1555,6 +1564,8 @@ class CHEST_OT_splitter_create_corner_box_cutter(bpy.types.Operator):
         )
         box_obj = bpy.data.objects.new(f"{SOLID_CUTTER_NAME}_CornerBox", mesh_data)
         box_obj.matrix_world = Matrix.LocRotScale(center_world, rot_mat.to_quaternion(), Vector((1, 1, 1)))
+        box_obj["chest_align_anchor_local"] = tuple(-center_local)
+        box_obj["chest_align_ref_pos"] = tuple(corner_pt)
         box_obj.display_type = 'WIRE'
         box_obj.show_in_front = True
         col.objects.link(box_obj)
@@ -1797,6 +1808,10 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     interface_mat_mode=getattr(settings, "material_interface_mat_mode", 'SOURCE'),
                     part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
                     part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
+                    part_clearance_bottom_mm=(
+                        getattr(settings, "part_clearance_bottom_mm", 0.0)
+                        if getattr(settings, "part_clearance_bottom_enable", False) else None
+                    ),
                 )
                 bm_a, bm_b = mat_res[0], mat_res[1]
                 candidate_mesh_a.materials.clear()
@@ -1888,8 +1903,8 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
             # Aplica encaixes (macho e cavidade) se ativados na sessão
             if settings.connector_enabled:
-                if settings.split_mode in ('SOLID', 'MATERIAL'):
-                    self.report({'INFO'}, "Encaixes automáticos não são suportados no modo Cortador Sólido / Material.")
+                if settings.split_mode == 'SOLID':
+                    self.report({'INFO'}, "Encaixes automáticos não são suportados no modo Cortador Sólido.")
                 else:
                     if settings.split_mode == 'LOOP':
                         norm_a = plane_normal
@@ -1905,6 +1920,13 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                         female_obj = candidate_obj_a
                         norm = -norm_a
 
+                    manual_specs = None
+                    if settings.connector_distribution == 'MANUAL':
+                        manual_specs = [
+                            {"u_mm": sp.u_mm, "v_mm": sp.v_mm, "yaw_deg": sp.yaw_deg}
+                            for sp in settings.manual_connectors
+                        ]
+
                     layout = compute_connector_layout(
                         target_mesh=target.data,
                         matrix_world=target.matrix_world,
@@ -1919,40 +1941,59 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                         connector_type=settings.connector_type,
                         capsule_length_mm=settings.connector_capsule_length_mm,
                         adjust_to_valid_area=getattr(settings, "adjust_to_valid_area", False),
+                        manual_specs=manual_specs,
                     )
+                    if settings.connector_distribution == 'MANUAL':
+                        eval_res = layout.get("manual_eval_results", [])
+                        for ev in eval_res:
+                            idx = ev.get("index", 0)
+                            if idx < len(settings.manual_connectors):
+                                settings.manual_connectors[idx].is_valid = ev.get("is_valid", True)
+                                settings.manual_connectors[idx].status_reason = ev.get("reason", "OK")
+                                settings.manual_connectors[idx].validation_msg = ev.get("reason", "OK")
+
+                        has_invalid = any(not ev.get("is_valid", True) for ev in eval_res)
+                        if has_invalid:
+                            first_reason = next(ev.get("reason", "Posição inválida") for ev in eval_res if not ev.get("is_valid", True))
+                            raise RuntimeError(f"Posicionamento manual inválido: {first_reason}. Corrija a posição antes de aplicar.")
+
                     positions = layout["positions"]
                     major_axis = layout["major_axis"]
                     max_safe_lateral_mm = layout["max_safe_lateral_mm"]
                     settings.connector_max_safe_lateral_mm = max_safe_lateral_mm
 
-                    cap_len = layout.get("adjusted_capsule_length_mm", settings.connector_capsule_length_mm)
-                    if layout.get("capsule_was_adjusted", False):
-                        self.report({'WARNING'}, f"Comprimento lateral ({settings.connector_capsule_length_mm:.1f} mm) ajustado para limite seguro: {cap_len:.1f} mm.")
-                        settings.connector_capsule_length_mm = cap_len
+                    if len(positions) == 0:
+                        self.report({'INFO'}, "Nenhum conector posicionado na interface. Corte gerado sem pinos.")
+                    else:
+                        cap_len = layout.get("adjusted_capsule_length_mm", settings.connector_capsule_length_mm)
+                        if layout.get("capsule_was_adjusted", False):
+                            self.report({'WARNING'}, f"Comprimento lateral ({settings.connector_capsule_length_mm:.1f} mm) ajustado para limite seguro: {cap_len:.1f} mm.")
+                            settings.connector_capsule_length_mm = cap_len
 
-                    validate_connectors(
-                        positions=positions,
-                        diameter_mm=settings.connector_diameter_mm,
-                        clearance_per_side_mm=settings.clearance_per_side_mm,
-                        unit_scale=unit_scale,
-                        connector_type=settings.connector_type,
-                        capsule_length_mm=cap_len,
-                    )
-                    apply_connectors_boolean(
-                        obj_male=male_obj,
-                        obj_female=female_obj,
-                        plane_normal=norm,
-                        positions=positions,
-                        connector_type=settings.connector_type,
-                        diameter_mm=settings.connector_diameter_mm,
-                        length_mm=settings.connector_length_mm,
-                        chamfer_mm=settings.connector_chamfer_mm,
-                        clearance_side_mm=settings.clearance_per_side_mm,
-                        end_clearance_mm=settings.end_clearance_mm,
-                        unit_scale=unit_scale,
-                        capsule_length_mm=cap_len,
-                        major_axis=major_axis,
-                    )
+                        validate_connectors(
+                            positions=positions,
+                            diameter_mm=settings.connector_diameter_mm,
+                            clearance_per_side_mm=settings.clearance_per_side_mm,
+                            unit_scale=unit_scale,
+                            connector_type=settings.connector_type,
+                            capsule_length_mm=cap_len,
+                        )
+                        apply_connectors_boolean(
+                            obj_male=male_obj,
+                            obj_female=female_obj,
+                            plane_normal=norm,
+                            positions=positions,
+                            connector_type=settings.connector_type,
+                            diameter_mm=settings.connector_diameter_mm,
+                            length_mm=settings.connector_length_mm,
+                            chamfer_mm=settings.connector_chamfer_mm,
+                            clearance_side_mm=settings.clearance_per_side_mm,
+                            end_clearance_mm=settings.end_clearance_mm,
+                            unit_scale=unit_scale,
+                            capsule_length_mm=cap_len,
+                            major_axis=major_axis,
+                            pin_rotations=layout.get("pin_rotations"),
+                        )
 
             # Re-avalia diagnósticos atualizados e validação final nos candidatos
             metrics_final = {}
@@ -1970,7 +2011,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             orig_vol = settings.diag_volume_mm3
             vol_diff = (abs(sum_vol - orig_vol) / orig_vol * 100.0) if orig_vol > 0 else 0.0
 
-            if settings.connector_enabled and settings.split_mode not in ('SOLID', 'MATERIAL'):
+            if settings.connector_enabled and settings.split_mode != 'SOLID':
                 min_explosion_needed = settings.connector_length_mm + settings.end_clearance_mm + 15.0
                 if settings.explosion_distance_mm < min_explosion_needed:
                     settings.explosion_distance_mm = round(min_explosion_needed, 1)
@@ -2059,7 +2100,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             update_preview_positions(context.scene)
             target.hide_viewport = True
 
-            conn_info = f" (+{settings.connector_distribution} encaixes)" if (settings.connector_enabled and settings.split_mode not in ('SOLID', 'MATERIAL')) else ""
+            conn_info = f" (+{settings.connector_distribution} encaixes)" if (settings.connector_enabled and settings.split_mode != 'SOLID') else ""
             msg = (
                 f"Preview gerado com sucesso{conn_info}! "
                 f"Parte A: {settings.part_a_volume_mm3:,.0f} mm³ | "
@@ -2225,6 +2266,143 @@ class CHEST_OT_splitter_apply_connector_preset(bpy.types.Operator):
         return {'FINISHED'}
 
 
+
+
+class CHEST_OT_splitter_add_manual_connector(bpy.types.Operator):
+    """Adiciona um novo conector manual na interface de corte (A05)"""
+    bl_idname = "chest.splitter_add_manual_connector"
+    bl_label = "Adicionar Conector Manual"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        settings.connector_distribution = 'MANUAL'
+        settings.connector_enabled = True
+        item = settings.manual_connectors.add()
+        n = len(settings.manual_connectors)
+        item.connector_id = f"pin_{n}"
+
+        # Se já houver conectores, posiciona com offset inicial inteligente sem forçar fila
+        if n > 1:
+            prev = settings.manual_connectors[n - 2]
+            shift = settings.connector_diameter_mm + 2.0 * settings.clearance_per_side_mm + 4.0
+            item.u_mm = prev.u_mm + shift
+            item.v_mm = prev.v_mm
+        else:
+            item.u_mm = 0.0
+            item.v_mm = 0.0
+        item.yaw_deg = 0.0
+        settings.manual_connector_index = n - 1
+        settings.session_status = 'PREVIEW_STALE'
+
+        from .connector_surface import prepare_split_candidates, evaluate_connector_specs
+        try:
+            prep = prepare_split_candidates(context)
+            evaluate_connector_specs(prep, settings)
+        except Exception:
+            pass
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_remove_manual_connector(bpy.types.Operator):
+    """Remove o conector manual selecionado (A05)"""
+    bl_idname = "chest.splitter_remove_manual_connector"
+    bl_label = "Remover Conector Manual"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        idx = settings.manual_connector_index
+        if 0 <= idx < len(settings.manual_connectors):
+            settings.manual_connectors.remove(idx)
+            settings.manual_connector_index = max(0, min(idx, len(settings.manual_connectors) - 1))
+            settings.session_status = 'PREVIEW_STALE'
+            from .connector_surface import get_cached_prepared_split, evaluate_connector_specs
+            prep = get_cached_prepared_split()
+            if prep:
+                evaluate_connector_specs(prep, settings)
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_clear_manual_connectors(bpy.types.Operator):
+    """Remove todos os conectores manuais (A05)"""
+    bl_idname = "chest.splitter_clear_manual_connectors"
+    bl_label = "Limpar Todos os Conectores"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        settings.manual_connectors.clear()
+        settings.manual_connector_index = 0
+        settings.session_status = 'PREVIEW_STALE'
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_convert_pattern_to_manual(bpy.types.Operator):
+    """Converte o padrão atual (1, 2, 3, 4 ou Auto) em conectores manuais editáveis (A05)"""
+    bl_idname = "chest.splitter_convert_pattern_to_manual"
+    bl_label = "Converter Padrão para Manual"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        target = settings.target_object
+        if not target:
+            self.report({'WARNING'}, "Nenhum objeto alvo definido.")
+            return {'CANCELLED'}
+
+        from .connector_surface import prepare_split_candidates, evaluate_connector_specs
+        try:
+            prep = prepare_split_candidates(context)
+        except Exception as e:
+            self.report({'ERROR'}, f"Falha ao preparar corte: {e}")
+            return {'CANCELLED'}
+
+        layout = compute_connector_layout(
+            target_mesh=target.data,
+            matrix_world=target.matrix_world,
+            plane_origin=prep.surface_origin,
+            plane_normal=prep.surface_normal,
+            distribution=settings.connector_distribution if settings.connector_distribution != 'MANUAL' else 'CENTER',
+            edge_margin_mm=settings.connector_edge_margin_mm,
+            unit_scale=prep.unit_scale,
+            diameter_mm=settings.connector_diameter_mm,
+            clearance_per_side_mm=settings.clearance_per_side_mm,
+            interface=prep.interface,
+            connector_type=settings.connector_type,
+            capsule_length_mm=settings.connector_capsule_length_mm,
+            adjust_to_valid_area=getattr(settings, "adjust_to_valid_area", False),
+        )
+
+        positions = layout["positions"]
+        settings.manual_connectors.clear()
+        for i, pos in enumerate(positions):
+            item = settings.manual_connectors.add()
+            item.connector_id = f"pin_{i + 1}"
+            u_mm, v_mm = prep.world_to_uv_mm(pos)
+            item.u_mm = round(u_mm, 2)
+            item.v_mm = round(v_mm, 2)
+            item.yaw_deg = 0.0
+
+        settings.connector_distribution = 'MANUAL'
+        settings.manual_connector_index = 0
+        settings.session_status = 'PREVIEW_STALE'
+        evaluate_connector_specs(prep, settings)
+        self.report({'INFO'}, f"{len(positions)} conector(es) convertidos para edição manual.")
+        return {'FINISHED'}
+
+
+class CHEST_OT_splitter_manual_connector_click(bpy.types.Operator):
+    """Posiciona ou adiciona conector clicando diretamente na interface no Viewport 3D (A05)"""
+    bl_idname = "chest.splitter_manual_connector_click"
+    bl_label = "Posicionar Encaixe no Viewport"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def invoke(self, context, event):
+        return bpy.ops.chest.splitter_edit_manual_connectors('INVOKE_DEFAULT')
+
+    def execute(self, context):
+        return bpy.ops.chest.splitter_edit_manual_connectors('INVOKE_DEFAULT')
 
 class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
     """Confirma o corte e move as partes finais para a coleção definitiva"""
@@ -3312,6 +3490,11 @@ classes = (
     CHEST_OT_splitter_invert_sides,
     CHEST_OT_splitter_invert_male_female,
     CHEST_OT_splitter_apply_connector_preset,
+    CHEST_OT_splitter_add_manual_connector,
+    CHEST_OT_splitter_remove_manual_connector,
+    CHEST_OT_splitter_clear_manual_connectors,
+    CHEST_OT_splitter_convert_pattern_to_manual,
+    CHEST_OT_splitter_manual_connector_click,
     CHEST_OT_splitter_commit_parts,
     CHEST_OT_splitter_continue_on_receiver,
     CHEST_OT_splitter_edit_target,
@@ -3327,6 +3510,9 @@ classes = (
     CHEST_OT_splitter_help,
     CHEST_OT_splitter_select_split_material,
     CHEST_OT_splitter_pick_material_region,
+    CHEST_OT_splitter_edit_manual_connectors,
+    CHEST_OT_splitter_confirm_manual_connectors,
+    CHEST_OT_splitter_view_cut_face,
 )
 
 

@@ -316,6 +316,75 @@ def check_receiving_wall_thickness(
 
 
 
+def sample_domain_valid_points(
+    outer_polys: List[List[Tuple[float, float]]],
+    hole_polys: List[List[Tuple[float, float]]],
+    min_u: float,
+    max_u: float,
+    min_v: float,
+    max_v: float,
+    check_r: float,
+    steps: int = 35,
+) -> List[Tuple[float, float, float]]:
+    """Amostra pontos no interior do domínio sólido da interface que respeitam a margem de segurança.
+    
+    Retorna lista de tuplas (u, v, dist_to_boundary) ordenadas da maior para a menor distância.
+    """
+    valid = []
+    if not outer_polys:
+        return valid
+    span_u = max_u - min_u
+    span_v = max_v - min_v
+    for si in range(1, steps):
+        gu = min_u + (span_u * si / steps)
+        for sj in range(1, steps):
+            gv = min_v + (span_v * sj / steps)
+            if any(point_in_polygon_2d(gu, gv, poly) for poly in outer_polys):
+                if not any(point_in_polygon_2d(gu, gv, h_poly) for h_poly in hole_polys):
+                    d = min_distance_to_polygon_boundaries(gu, gv, outer_polys, hole_polys)
+                    if d >= check_r - 1e-6:
+                        valid.append((gu, gv, d))
+    valid.sort(key=lambda item: item[2], reverse=True)
+    return valid
+
+
+def validate_connector_footprint(
+    u_p: float,
+    v_p: float,
+    check_r: float,
+    outer_polys: List[List[Tuple[float, float]]],
+    hole_polys: List[List[Tuple[float, float]]],
+    edge_margin_mm: float = 1.0,
+    connector_type: str = 'CYLINDER',
+    half_len: float = 0.0,
+    yaw_rad: float = 0.0,
+) -> Tuple[bool, str]:
+    """Valida se o footprint completo de um encaixe cabe no domínio sólido sem cruzar furos ou bordas."""
+    if not outer_polys:
+        return True, "OK"
+    test_pts = [(u_p, v_p)]
+    if connector_type == 'CAPSULE' and half_len > 0.0:
+        cos_rot = math.cos(yaw_rad)
+        sin_rot = math.sin(yaw_rad)
+        prof = create_capsule_2d_profile(w=check_r, half_len=half_len, segments=24)
+        for lx, ly in prof:
+            test_pts.append((
+                u_p + ly * cos_rot - lx * sin_rot,
+                v_p + ly * sin_rot + lx * cos_rot,
+            ))
+    else:
+        for ang_idx in range(16):
+            ang = 2.0 * math.pi * ang_idx / 16.0
+            test_pts.append((u_p + check_r * math.cos(ang), v_p + check_r * math.sin(ang)))
+
+    for tp in test_pts:
+        if not any(point_in_polygon_2d(tp[0], tp[1], poly) for poly in outer_polys):
+            return False, f"Ultrapassa margem ({edge_margin_mm:.1f} mm) ou cai fora da peça"
+        for hole_poly in hole_polys:
+            if point_in_polygon_2d(tp[0], tp[1], hole_poly):
+                return False, "Invade furo ou vazio interno da interface"
+    return True, "OK"
+
 def compute_connector_layout(
     target_mesh: bpy.types.Mesh,
     matrix_world: Matrix,
@@ -330,6 +399,7 @@ def compute_connector_layout(
     connector_type: str = 'CYLINDER',
     capsule_length_mm: float = 0.0,
     adjust_to_valid_area: bool = False,
+    manual_specs: Optional[List[Dict[str, float]]] = None,
 ) -> Dict[str, Any]:
     """Calcula posições, eixos de alinhamento e limites seguros para encaixes na interface de corte."""
     outer_polys = []
@@ -417,10 +487,30 @@ def compute_connector_layout(
 
     positions = []
 
-    # Validação de distribuições múltiplas (Critério C4: sem redução silenciosa)
-    if distribution == 'CENTER':
+    check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
+    valid_domain_points = sample_domain_valid_points(outer_polys, hole_polys, min_u, max_u, min_v, max_v, check_r, steps=35) if outer_polys else []
+
+    # Validação de distribuições múltiplas e Modo Manual (A05 / A07)
+    manual_eval_results = []
+    if distribution == 'MANUAL':
+        if manual_specs and len(manual_specs) > 0:
+            for m_idx, spec in enumerate(manual_specs):
+                u_bu = spec.get("u_mm", 0.0) / unit_scale
+                v_bu = spec.get("v_mm", 0.0) / unit_scale
+                yaw_rad = math.radians(spec.get("yaw_deg", 0.0))
+                p = plane_origin + (u_axis * u_bu) + (v_axis * v_bu)
+                positions.append(p)
+                eff_cap = max(diameter_mm, capsule_length_mm) if capsule_length_mm > 0.0 else (diameter_mm * 2.4)
+                half_len = max(0.0, (eff_cap - diameter_mm) / 2.0) / unit_scale if connector_type == 'CAPSULE' else 0.0
+                is_ok, reason = validate_connector_footprint(u_bu, v_bu, check_r, outer_polys, hole_polys, edge_margin_mm, connector_type, half_len, yaw_rad)
+                manual_eval_results.append({"index": m_idx, "is_valid": is_ok, "reason": reason})
+        else:
+            # Lista manual vazia: nenhum pino é sintetizado (PM10)
+            positions = []
+            manual_eval_results = []
+
+    elif distribution == 'CENTER':
         cand_u, cand_v = center_u, center_v
-        check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
         is_center_valid = False
         if outer_polys:
             in_outer = any(point_in_polygon_2d(cand_u, cand_v, poly) for poly in outer_polys)
@@ -430,25 +520,9 @@ def compute_connector_layout(
                 if dist_to_edges >= check_r - 1e-6:
                     is_center_valid = True
 
-        if not is_center_valid and outer_polys and adjust_to_valid_area:
-            # Em regiões côncavas (como U ou L), o centro da bounding box cai no vazio (B06 / D2 / T12).
-            # Busca determinística pelo ponto de maior distância útil das bordas (pólo de inacessibilidade)
-            best_pt = None
-            best_dist = -1.0
-            steps = 25
-            for si in range(1, steps):
-                gu = min_u + (span_u * si / steps)
-                for sj in range(1, steps):
-                    gv = min_v + (span_v * sj / steps)
-                    if any(point_in_polygon_2d(gu, gv, poly) for poly in outer_polys):
-                        if not any(point_in_polygon_2d(gu, gv, h_poly) for h_poly in hole_polys):
-                            d = min_distance_to_polygon_boundaries(gu, gv, outer_polys, hole_polys)
-                            if d > best_dist:
-                                best_dist = d
-                                best_pt = (gu, gv)
-
-            if best_pt is not None:
-                cand_u, cand_v = best_pt[0], best_pt[1]
+        if not is_center_valid and valid_domain_points and adjust_to_valid_area:
+            # Em regiões côncavas (como U ou L), seleciona o ponto com maior afastamento das bordas se ajuste ativo
+            cand_u, cand_v = valid_domain_points[0][0], valid_domain_points[0][1]
 
         p = plane_origin + (u_axis * cand_u) + (v_axis * cand_v)
         positions.append(p)
@@ -482,8 +556,36 @@ def compute_connector_layout(
                             best_d = dt
             d_major = best_d
 
+        # Testa validade dos pontos colineares nominais
         p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
         p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
+        u1, v1 = (p1 - plane_origin).dot(u_axis), (p1 - plane_origin).dot(v_axis)
+        u2, v2 = (p2 - plane_origin).dot(u_axis), (p2 - plane_origin).dot(v_axis)
+        is_l2_valid = True
+        if outer_polys:
+            is_l2_valid = (
+                any(point_in_polygon_2d(u1, v1, p) for p in outer_polys) and not any(point_in_polygon_2d(u1, v1, h) for h in hole_polys) and
+                any(point_in_polygon_2d(u2, v2, p) for p in outer_polys) and not any(point_in_polygon_2d(u2, v2, h) for h in hole_polys) and
+                min_distance_to_polygon_boundaries(u1, v1, outer_polys, hole_polys) >= check_r - 1e-6 and
+                min_distance_to_polygon_boundaries(u2, v2, outer_polys, hole_polys) >= check_r - 1e-6
+            )
+        if not is_l2_valid and valid_domain_points and len(valid_domain_points) >= 2:
+            # Busca melhor par no domínio válido (ex: hastes de U ou L)
+            min_sep_bu = (cavity_diam_mm + 2.0 * edge_margin_mm) / unit_scale
+            best_pair = None
+            best_sep = -1.0
+            for i in range(min(15, len(valid_domain_points))):
+                for j in range(i + 1, min(25, len(valid_domain_points))):
+                    q1 = valid_domain_points[i]
+                    q2 = valid_domain_points[j]
+                    sep = math.hypot(q1[0] - q2[0], q1[1] - q2[1])
+                    if sep >= min_sep_bu and sep > best_sep:
+                        best_sep = sep
+                        best_pair = (q1, q2)
+            if best_pair is not None:
+                p1 = plane_origin + (u_axis * best_pair[0][0]) + (v_axis * best_pair[0][1])
+                p2 = plane_origin + (u_axis * best_pair[1][0]) + (v_axis * best_pair[1][1])
+
         positions.extend([p1, p2])
 
     elif distribution == 'LINEAR_3':
@@ -634,7 +736,9 @@ def compute_connector_layout(
     else:
         pitch_limit_mm = 1e9
 
-    if len(positions) == 1:
+    if len(positions) == 0:
+        edge_limit_mm = max(diameter_mm, span_major_mm - (2.0 * edge_margin_mm + 2.0 * clearance_per_side_mm))
+    elif len(positions) == 1:
         edge_limit_mm = max(diameter_mm, span_major_mm - (2.0 * edge_margin_mm + 2.0 * clearance_per_side_mm))
     else:
         center_pos = sum(positions, Vector()) / len(positions)
@@ -646,7 +750,7 @@ def compute_connector_layout(
 
     adjusted_cap_len_mm = capsule_length_mm
     capsule_was_adjusted = False
-    if connector_type == 'CAPSULE':
+    if connector_type == 'CAPSULE' and len(positions) > 0:
         if capsule_length_mm <= 0.0 or capsule_length_mm > max_safe_lateral_mm:
             adjusted_cap_len_mm = max_safe_lateral_mm
             capsule_was_adjusted = (capsule_length_mm > 0.0 and adjusted_cap_len_mm != capsule_length_mm)
@@ -660,7 +764,7 @@ def compute_connector_layout(
             )
 
     # Validação rigorosa de inclusão do perfil completo no domínio sólido da interface (B04/B05)
-    if outer_polys:
+    if outer_polys and distribution != 'MANUAL':
         check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
         u_proj = major_axis.dot(u_axis)
         v_proj = major_axis.dot(v_axis)
@@ -702,6 +806,27 @@ def compute_connector_layout(
                             f"O encaixe #{idx+1} invade um furo/vazio interno da interface."
                         )
 
+    # Constrói rotações individuais precisas por pino (PM11)
+    pin_rotations = []
+    norm_z = norm.normalized()
+    for idx, pos in enumerate(positions):
+        if connector_type == 'CAPSULE':
+            if distribution == 'MANUAL' and manual_specs and idx < len(manual_specs):
+                yaw_rad = math.radians(manual_specs[idx].get("yaw_deg", 0.0))
+                cap_dir = (math.cos(yaw_rad) * u_axis + math.sin(yaw_rad) * v_axis).normalized()
+            else:
+                cap_dir = major_axis
+            loc_y = (cap_dir - norm_z * cap_dir.dot(norm_z)).normalized()
+            loc_x = loc_y.cross(norm_z).normalized()
+            rot_mat = Matrix((loc_x, loc_y, norm_z)).transposed()
+            pin_rotations.append(rot_mat.to_euler())
+        else:
+            ref_up = Vector((0, 0, 1)) if abs(norm_z.z) < 0.9 else Vector((0, 1, 0))
+            loc_y = norm_z.cross(ref_up).normalized()
+            loc_x = loc_y.cross(norm_z).normalized()
+            rot_mat = Matrix((loc_x, loc_y, norm_z)).transposed()
+            pin_rotations.append(rot_mat.to_euler())
+
     return {
         "positions": positions,
         "major_axis": major_axis,
@@ -714,6 +839,8 @@ def compute_connector_layout(
         "max_safe_lateral_mm": max_safe_lateral_mm,
         "adjusted_capsule_length_mm": adjusted_cap_len_mm,
         "capsule_was_adjusted": capsule_was_adjusted,
+        "manual_eval_results": manual_eval_results,
+        "pin_rotations": pin_rotations,
     }
 
 
@@ -874,6 +1001,7 @@ def apply_connectors_boolean(
     unit_scale: float = 1000.0,
     capsule_length_mm: float = 0.0,
     major_axis: Optional[Vector] = None,
+    pin_rotations: Optional[List[Euler]] = None,
 ):
     """Executa as operações booleanas para unir os machos e subtrair as cavidades de forma transacional."""
     norm = plane_normal.normalized()
@@ -956,7 +1084,8 @@ def apply_connectors_boolean(
 
             pin_obj = bpy.data.objects.new(f"temp_pin_{idx}", pin_mesh)
             pin_obj.location = pos
-            pin_obj.rotation_euler = pin_rot
+            cur_rot = pin_rotations[idx] if (pin_rotations and idx < len(pin_rotations)) else pin_rot
+            pin_obj.rotation_euler = cur_rot
             temp_col.objects.link(pin_obj)
             cutters_to_clean.append(pin_obj)
 
@@ -1006,7 +1135,8 @@ def apply_connectors_boolean(
 
             cavity_obj = bpy.data.objects.new(f"temp_cavity_{idx}", cavity_mesh)
             cavity_obj.location = pos
-            cavity_obj.rotation_euler = pin_rot
+            cur_rot = pin_rotations[idx] if (pin_rotations and idx < len(pin_rotations)) else pin_rot
+            cavity_obj.rotation_euler = cur_rot
             temp_col.objects.link(cavity_obj)
             cutters_to_clean.append(cavity_obj)
 
@@ -1040,10 +1170,21 @@ def apply_connectors_boolean(
             # Transfere malhas avaliadas em definitivo
             old_mesh_male = obj_male.data
             final_male = new_male_mesh.copy()
-            obj_male.data = final_male
-
+            
             old_mesh_female = obj_female.data
             final_female = new_female_mesh.copy()
+
+            # A08: Saneamento determinístico pós-booleanos para eliminar micro-arestas sub-micrométricas
+            from .diagnostic import sanitize_mesh_micro_degeneracies
+            for msh in (final_male, final_female):
+                bm_san = bmesh.new()
+                bm_san.from_mesh(msh)
+                if sanitize_mesh_micro_degeneracies(bm_san, scale_to_mm=unit_scale):
+                    bm_san.to_mesh(msh)
+                    msh.update()
+                bm_san.free()
+
+            obj_male.data = final_male
             obj_female.data = final_female
         finally:
             eval_male.to_mesh_clear()

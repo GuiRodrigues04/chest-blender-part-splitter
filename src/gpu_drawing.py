@@ -252,12 +252,12 @@ def _draw_plane_overlay(context, settings):
         return
 
     # Normal e Origem em World Space
-    norm = Vector(getattr(settings, "plane_normal", (0.0, 0.0, 1.0))).normalized()
+    from .plane_state import resolve_plane_state
+    origin, norm = resolve_plane_state(context.scene, settings)
     if norm.length < 1e-5:
         return
 
-    # Lê origem atual do corte considerando deslocamento se houver
-    origin = Vector(getattr(settings, "plane_origin", (0.0, 0.0, 0.0)))
+    # Origem lida do guia vivo (mesma fonte do corte); aplica deslocamento se houver
     offset_mm = getattr(settings, "plane_offset_mm", 0.0)
     if abs(offset_mm) > 1e-6:
         from .diagnostic import get_scene_scale_to_mm
@@ -504,6 +504,288 @@ def _draw_solid_overlay(context, settings):
         pass
 
 
+def _generate_marker_lines(center, u_axis, v_axis, yaw_rad, radius, half_len, num_segments=16):
+    """Gera pares de coordenadas 3D para desenhar o contorno do pino ou cápsula e sua cruz central."""
+    u_c = (math.cos(yaw_rad) * u_axis + math.sin(yaw_rad) * v_axis).normalized()
+    v_c = (-math.sin(yaw_rad) * u_axis + math.cos(yaw_rad) * v_axis).normalized()
+    lines = []
+
+    if half_len <= 1e-5:
+        # Círculo
+        pts = []
+        for i in range(num_segments):
+            angle = 2.0 * math.pi * i / num_segments
+            pts.append(center + radius * (math.cos(angle) * u_c + math.sin(angle) * v_c))
+        for i in range(num_segments):
+            lines.append(pts[i])
+            lines.append(pts[(i + 1) % num_segments])
+    else:
+        # Cápsula (estádio)
+        c_left = center - half_len * u_c
+        c_right = center + half_len * u_c
+        # Lados retos
+        lines.append(c_left + radius * v_c)
+        lines.append(c_right + radius * v_c)
+        lines.append(c_left - radius * v_c)
+        lines.append(c_right - radius * v_c)
+        # Semicírculo direito (-pi/2 a pi/2)
+        half_segs = max(4, num_segments // 2)
+        pts_r = []
+        for i in range(half_segs + 1):
+            angle = -math.pi / 2.0 + math.pi * i / half_segs
+            pts_r.append(c_right + radius * (math.cos(angle) * u_c + math.sin(angle) * v_c))
+        for i in range(len(pts_r) - 1):
+            lines.append(pts_r[i])
+            lines.append(pts_r[i + 1])
+        # Semicírculo esquerdo (pi/2 a 3pi/2)
+        pts_l = []
+        for i in range(half_segs + 1):
+            angle = math.pi / 2.0 + math.pi * i / half_segs
+            pts_l.append(c_left + radius * (math.cos(angle) * u_c + math.sin(angle) * v_c))
+        for i in range(len(pts_l) - 1):
+            lines.append(pts_l[i])
+            lines.append(pts_l[i + 1])
+
+    # Cruz central
+    cross_sz = radius * 0.75
+    lines.append(center - cross_sz * u_c)
+    lines.append(center + cross_sz * u_c)
+    lines.append(center - cross_sz * v_c)
+    lines.append(center + cross_sz * v_c)
+    return lines
+
+
+def _draw_connector_markers_overlay(context, settings):
+    """Desenha os marcadores visuais de conectores na interface de corte (A05)."""
+    if not getattr(settings, "connector_enabled", False):
+        return
+
+    mode = getattr(settings, "split_mode", "PLANE")
+    if mode not in ('PLANE', 'LOOP', 'MATERIAL'):
+        return
+
+    if getattr(settings, "session_status", "") == 'COMMITTED':
+        return
+
+    target = getattr(settings, "target_object", None)
+    if not target or target.name not in bpy.data.objects:
+        return
+
+    from .diagnostic import get_scene_scale_to_mm
+    from .connector_surface import get_cached_prepared_split, get_explosion_display_offset
+    from .connector_editor import get_editor_interaction_state
+
+    prep = get_cached_prepared_split()
+    unit_scale = get_scene_scale_to_mm(context.scene)
+    if unit_scale <= 0.0:
+        unit_scale = 1000.0
+
+    disp_offset = Vector((0.0, 0.0, 0.0))
+    if prep is not None:
+        origin = prep.surface_origin
+        normal = prep.surface_normal
+        u_axis = prep.axis_u
+        v_axis = prep.axis_v
+        disp_offset = get_explosion_display_offset(settings, prep)
+    else:
+        from .plane_state import resolve_plane_state
+        if mode == 'PLANE':
+            origin, normal = resolve_plane_state(context.scene, settings)
+        else:
+            origin = Vector(getattr(settings, "loop_interface_origin", (0, 0, 0)))
+            normal = Vector(getattr(settings, "loop_interface_normal", (0, 0, 1)))
+
+        if normal.length < 1e-6:
+            return
+        normal = normal.normalized()
+        u_axis, v_axis = _get_orthonormal_basis(normal)
+
+    diam_mm = getattr(settings, "connector_diameter_mm", 4.0)
+    radius_bu = (diam_mm / 2.0) / unit_scale
+    clearance_bu = (getattr(settings, "clearance_per_side_mm", 0.15)) / unit_scale
+    conn_type = getattr(settings, "connector_type", "CYLINDER")
+    half_len_bu = 0.0
+    if conn_type == 'CAPSULE':
+        cap_mm = getattr(settings, "connector_capsule_length_mm", 6.0)
+        half_len_bu = max(0.0, (cap_mm - diam_mm) / 2.0) / unit_scale
+
+    dist = getattr(settings, "connector_distribution", "CENTER")
+    markers = []  # list of tuples: (center_pos, yaw_rad, is_valid, is_sel)
+
+    if dist == 'MANUAL':
+        active_idx = getattr(settings, "manual_connector_index", 0)
+        for i, item in enumerate(settings.manual_connectors):
+            if prep is not None:
+                pos = prep.uv_mm_to_world(item.u_mm, item.v_mm) + disp_offset
+            else:
+                pos = origin + (item.u_mm / unit_scale) * u_axis + (item.v_mm / unit_scale) * v_axis
+            yaw_rad = math.radians(getattr(item, "yaw_deg", 0.0))
+            is_valid = getattr(item, "is_valid", True)
+            is_sel = (i == active_idx)
+            markers.append((pos, yaw_rad, is_valid, is_sel))
+    else:
+        try:
+            from .geometry_connectors import compute_connector_layout
+            layout = compute_connector_layout(
+                target_mesh=target.data,
+                matrix_world=target.matrix_world,
+                plane_origin=origin,
+                plane_normal=normal,
+                distribution=dist,
+                edge_margin_mm=settings.connector_edge_margin_mm,
+                unit_scale=unit_scale,
+                diameter_mm=settings.connector_diameter_mm,
+                clearance_per_side_mm=settings.clearance_per_side_mm,
+                interface=prep.interface if prep else None,
+                connector_type=conn_type,
+                capsule_length_mm=settings.connector_capsule_length_mm,
+                adjust_to_valid_area=getattr(settings, "adjust_to_valid_area", False),
+            )
+            is_valid = layout.get("valid", True)
+            for pos in layout.get("positions", []):
+                markers.append((pos + disp_offset, 0.0, is_valid, False))
+        except Exception:
+            pass
+
+    editor_state = get_editor_interaction_state()
+    has_ghost = editor_state.get("is_active") and (editor_state.get("hover_world") is not None)
+
+    if not markers and not has_ghost:
+        return
+
+    # Categoriza linhas por estilo/cor:
+    lines_valid = []
+    lines_valid_clearance = []
+    lines_invalid = []
+    lines_selected = []
+    lines_ghost = []
+
+    for pos, yaw_rad, is_valid, is_sel in markers:
+        pin_lines = _generate_marker_lines(pos, u_axis, v_axis, yaw_rad, radius_bu, half_len_bu)
+        socket_lines = _generate_marker_lines(pos, u_axis, v_axis, yaw_rad, radius_bu + clearance_bu, half_len_bu)
+
+        if is_valid:
+            lines_valid.extend(pin_lines)
+            lines_valid_clearance.extend(socket_lines)
+        else:
+            lines_invalid.extend(pin_lines)
+            lines_invalid.extend(socket_lines)
+
+        if is_sel:
+            # Destaque de seleção em anel externo laranja, preservando cor de validade do pino (T20)
+            sel_ring = _generate_marker_lines(pos, u_axis, v_axis, yaw_rad, radius_bu + clearance_bu * 1.6, half_len_bu)
+            lines_selected.extend(sel_ring)
+
+    if has_ghost:
+        ghost_pos = editor_state["hover_world"]
+        ghost_pin = _generate_marker_lines(ghost_pos, u_axis, v_axis, 0.0, radius_bu, half_len_bu)
+        lines_ghost.extend(ghost_pin)
+
+    try:
+        import gpu
+        from gpu_extras.batch import batch_for_shader
+
+        try:
+            shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+        except Exception:
+            shader = gpu.shader.from_builtin('POLYLINE_UNIFORM_COLOR')
+
+        prev_line_width = gpu.state.line_width_get() if hasattr(gpu.state, 'line_width_get') else None
+        prev_depth_test = gpu.state.depth_test_get() if hasattr(gpu.state, 'depth_test_get') else None
+        prev_blend = gpu.state.blend_get() if hasattr(gpu.state, 'blend_get') else None
+
+        try:
+            if hasattr(gpu.state, 'blend_set'):
+                try:
+                    gpu.state.blend_set('ALPHA')
+                except Exception:
+                    pass
+            if hasattr(gpu.state, 'depth_test_set'):
+                try:
+                    gpu.state.depth_test_set('ALWAYS')
+                except Exception:
+                    pass
+
+            # 1. Pinos Válidos (Verde vivo)
+            if lines_valid:
+                if hasattr(gpu.state, 'line_width_set'):
+                    try:
+                        gpu.state.line_width_set(2.5)
+                    except Exception:
+                        pass
+                shader.bind()
+                shader.uniform_float("color", (0.1, 0.95, 0.25, 0.95))
+                batch = batch_for_shader(shader, 'LINES', {"pos": lines_valid})
+                batch.draw(shader)
+
+            # 2. Folgas / Cavidades (Verde translúcido)
+            if lines_valid_clearance:
+                if hasattr(gpu.state, 'line_width_set'):
+                    try:
+                        gpu.state.line_width_set(1.5)
+                    except Exception:
+                        pass
+                shader.bind()
+                shader.uniform_float("color", (0.1, 0.95, 0.25, 0.45))
+                batch = batch_for_shader(shader, 'LINES', {"pos": lines_valid_clearance})
+                batch.draw(shader)
+
+            # 3. Pinos Inválidos (Vermelho vibrante)
+            if lines_invalid:
+                if hasattr(gpu.state, 'line_width_set'):
+                    try:
+                        gpu.state.line_width_set(2.5)
+                    except Exception:
+                        pass
+                shader.bind()
+                shader.uniform_float("color", (0.95, 0.15, 0.15, 0.95))
+                batch = batch_for_shader(shader, 'LINES', {"pos": lines_invalid})
+                batch.draw(shader)
+
+            # 4. Pino Selecionado / Ativo (Anel Laranja de destaque)
+            if lines_selected:
+                if hasattr(gpu.state, 'line_width_set'):
+                    try:
+                        gpu.state.line_width_set(3.5)
+                    except Exception:
+                        pass
+                shader.bind()
+                shader.uniform_float("color", (1.0, 0.55, 0.05, 1.0))
+                batch = batch_for_shader(shader, 'LINES', {"pos": lines_selected})
+                batch.draw(shader)
+
+            # 5. Pino Fantasma do Cursor (Azul ciano translúcido)
+            if lines_ghost:
+                if hasattr(gpu.state, 'line_width_set'):
+                    try:
+                        gpu.state.line_width_set(2.0)
+                    except Exception:
+                        pass
+                shader.bind()
+                shader.uniform_float("color", (0.2, 0.8, 1.0, 0.85))
+                batch = batch_for_shader(shader, 'LINES', {"pos": lines_ghost})
+                batch.draw(shader)
+
+        finally:
+            if hasattr(gpu.state, 'line_width_set') and prev_line_width is not None:
+                try:
+                    gpu.state.line_width_set(prev_line_width)
+                except Exception:
+                    pass
+            if hasattr(gpu.state, 'depth_test_set') and prev_depth_test is not None:
+                try:
+                    gpu.state.depth_test_set(prev_depth_test)
+                except Exception:
+                    pass
+            if hasattr(gpu.state, 'blend_set') and prev_blend is not None:
+                try:
+                    gpu.state.blend_set(prev_blend)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
 def _draw_overlay_callback():
     """Callback mestre executado no espaço 3D (SpaceView3D)."""
     context = bpy.context
@@ -520,6 +802,9 @@ def _draw_overlay_callback():
         _draw_plane_overlay(context, settings)
     elif mode == 'SOLID':
         _draw_solid_overlay(context, settings)
+
+    # Conectores overlay (A05)
+    _draw_connector_markers_overlay(context, settings)
 
 
 def register_overlay():

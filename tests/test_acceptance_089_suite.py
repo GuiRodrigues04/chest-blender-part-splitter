@@ -88,13 +88,13 @@ class TestAcceptance089Suite(unittest.TestCase):
     # -------------------------------------------------------------------------
     def test_t01_base_version_and_identity(self):
         """T01: Versão do add-on é pelo menos 0.8.9 e referências estão remapeadas."""
-        self.assertIn(ADDON_VERSION, ((0, 8, 9), (0, 8, 10)))
-        self.assertIn(src.constants.ADDON_VERSION_STR, ("0.8.9", "0.8.10"))
+        self.assertIn(ADDON_VERSION, ((0, 8, 9), (0, 8, 10), (0, 8, 11)))
+        self.assertIn(src.constants.ADDON_VERSION_STR, ("0.8.9", "0.8.10", "0.8.11"))
         # Manifest
         import tomllib
         with open("blender_manifest.toml", "rb") as f:
             manifest = tomllib.load(f)
-        self.assertIn(manifest.get("version"), ("0.8.9", "0.8.10"))
+        self.assertIn(manifest.get("version"), ("0.8.9", "0.8.10", "0.8.11"))
 
     # -------------------------------------------------------------------------
     # STAGE 1: INV-014 (T02 - T07)

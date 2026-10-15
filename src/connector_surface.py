@@ -76,6 +76,12 @@ def compute_cut_signature(settings: Any, target: bpy.types.Object) -> str:
         h.update(str(getattr(settings, "loop_base_thick_mm", 0.0)).encode('utf-8'))
         h.update(str(getattr(settings, "loop_bridge_enable", False)).encode('utf-8'))
         h.update(str(getattr(settings, "loop_subdivide_edges", False)).encode('utf-8'))
+        h.update(str(getattr(settings, "loop_behavior", "AUTO")).encode('utf-8'))
+        h.update(str(getattr(settings, "loop_through_cut", False)).encode('utf-8'))
+        h.update(str(getattr(settings, "loop_detach_add_base", False)).encode('utf-8'))
+        h.update(str(getattr(settings, "loop_detach_base_depth_mm", 0.0)).encode('utf-8'))
+        h.update(str(getattr(settings, "loop_vertex_indices", "")).encode('utf-8'))
+        h.update(str(getattr(settings, "loop_seed_face_index", -1)).encode('utf-8'))
     elif mode == 'MATERIAL':
         h.update(str(getattr(settings, "material_split_index", 0)).encode('utf-8'))
         h.update(str(getattr(settings, "material_extrude_depth_mm", 5.0)).encode('utf-8'))
@@ -193,6 +199,15 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             raise RuntimeError("Nenhum contorno (loop) capturado no modo Loop.")
 
         behavior = settings.loop_behavior
+        if behavior == 'AUTO':
+            # Mesma resolução usada em splitter_generate_preview, para que a interface do
+            # editor coincida com a interface real de contato (origem, normal e profundidade).
+            from .geometry_loop import analyze_loop_region
+            try:
+                analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, context.scene)
+                behavior = analysis["detected_mode"]
+            except Exception:
+                behavior = 'DETACH'
         if behavior == 'EXTRUDE':
             loop_res = slice_mesh_by_loop_extrude(
                 target,

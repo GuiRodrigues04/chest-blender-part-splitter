@@ -156,7 +156,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         context.window_manager.modal_handler_add(self)
         self.report(
             {'INFO'},
-            "Editor de Pinos Ativo: Clique para adicionar. Arraste para mover. R: girar cápsula. X: apagar. Enter: confirmar."
+            "Editor de Pinos: Clique para adicionar | G: mover | R: girar | X/Del: remover pino | Shift+X: limpar todos | Enter: confirmar | Esc: sair."
         )
         self._area.tag_redraw()
         return {'RUNNING_MODAL'}
@@ -322,8 +322,14 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                 self._rotating = True
                 self._rotate_start_mouse_x = event.mouse_x
                 self._rotate_start_yaw = settings.manual_connectors[idx].yaw_deg
-                self.report({'INFO'}, "Mova o mouse para girar o pino. Clique ou Enter para confirmar. Esc para cancelar.")
-                return {'RUNNING_MODAL'}
+        elif event.type in {'X', 'DEL'} and event.shift and event.value == 'PRESS':
+            # Limpa todos os pinos no editor
+            settings.manual_connectors.clear()
+            settings.manual_connector_index = 0
+            _EDITOR_STATE["is_dragging"] = False
+            _EDITOR_STATE["drag_idx"] = -1
+            self.report({'INFO'}, "Todos os pinos foram limpos.")
+            return {'RUNNING_MODAL'}
 
         elif event.type in {'X', 'DEL'} and event.value == 'PRESS':
             # Remove o pino selecionado
@@ -331,6 +337,8 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
             if 0 <= idx < len(settings.manual_connectors):
                 settings.manual_connectors.remove(idx)
                 settings.manual_connector_index = max(0, min(idx, len(settings.manual_connectors) - 1))
+                _EDITOR_STATE["is_dragging"] = False
+                _EDITOR_STATE["drag_idx"] = -1
                 evaluate_connector_specs(self._prepared, settings)
                 self.report({'INFO'}, "Pino removido.")
                 return {'RUNNING_MODAL'}

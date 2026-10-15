@@ -2317,8 +2317,13 @@ class CHEST_OT_splitter_remove_manual_connector(bpy.types.Operator):
 
     def execute(self, context):
         settings = context.scene.chest_splitter
+        n = len(settings.manual_connectors)
+        if n == 0:
+            self.report({'INFO'}, "Nenhum conector manual para remover.")
+            return {'CANCELLED'}
+
         idx = settings.manual_connector_index
-        if 0 <= idx < len(settings.manual_connectors):
+        if 0 <= idx < n:
             settings.manual_connectors.remove(idx)
             settings.manual_connector_index = max(0, min(idx, len(settings.manual_connectors) - 1))
             settings.session_status = 'PREVIEW_STALE'
@@ -2332,10 +2337,28 @@ class CHEST_OT_splitter_remove_manual_connector(bpy.types.Operator):
             if prep:
                 evaluate_connector_specs(prep, settings)
 
+        # Se o editor interativo estiver ativo, reseta o estado de arraste
+        try:
+            from .connector_editor import get_editor_interaction_state
+            ed_st = get_editor_interaction_state()
+            ed_st["is_dragging"] = False
+            ed_st["drag_idx"] = -1
+        except Exception:
+            pass
+
+        # Se houver prévia ativa na cena, regenera-a imediatamente para refletir a remoção no modelo 3D
+        parts = get_current_session_parts(context.scene)
+        if parts:
+            try:
+                bpy.ops.chest.splitter_generate_preview()
+            except Exception:
+                pass
+
         for window in context.window_manager.windows:
             for area in window.screen.areas:
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
+        self.report({'INFO'}, "Pino removido.")
         return {'FINISHED'}
 
 
@@ -2350,10 +2373,30 @@ class CHEST_OT_splitter_clear_manual_connectors(bpy.types.Operator):
         settings.manual_connectors.clear()
         settings.manual_connector_index = 0
         settings.session_status = 'PREVIEW_STALE'
+
+        # Se o editor interativo estiver ativo, reseta o estado de arraste
+        try:
+            from .connector_editor import get_editor_interaction_state
+            ed_st = get_editor_interaction_state()
+            ed_st["is_dragging"] = False
+            ed_st["drag_idx"] = -1
+            ed_st["hover_world"] = None
+        except Exception:
+            pass
+
+        # Se houver prévia ativa na cena, regenera-a imediatamente para que as peças fiquem sem pinos
+        parts = get_current_session_parts(context.scene)
+        if parts:
+            try:
+                bpy.ops.chest.splitter_generate_preview()
+            except Exception:
+                pass
+
         for window in context.window_manager.windows:
             for area in window.screen.areas:
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
+        self.report({'INFO'}, "Todos os pinos foram limpos.")
         return {'FINISHED'}
 
 
@@ -2407,6 +2450,19 @@ class CHEST_OT_splitter_convert_pattern_to_manual(bpy.types.Operator):
         settings.manual_connector_index = 0
         settings.session_status = 'PREVIEW_STALE'
         evaluate_connector_specs(prep, settings)
+
+        # Se houver prévia ativa na cena, regenera com os conectores manuais
+        parts = get_current_session_parts(context.scene)
+        if parts:
+            try:
+                bpy.ops.chest.splitter_generate_preview()
+            except Exception:
+                pass
+
+        for window in context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
         self.report({'INFO'}, f"{len(positions)} conector(es) convertidos para edição manual.")
         return {'FINISHED'}
 

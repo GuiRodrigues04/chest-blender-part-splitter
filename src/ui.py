@@ -451,12 +451,16 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     row_sub.operator("chest.splitter_view_cut_face", text="Ver Face de Encaixe", icon='VIEW_CAMERA')
                     row_sub.prop(settings, "manual_editor_submode", expand=True)
 
+                    n_manual = len(settings.manual_connectors)
                     row_actions = box_manual.row(align=True)
                     row_actions.operator("chest.splitter_add_manual_connector", text="Adicionar", icon='ADD')
-                    row_actions.operator("chest.splitter_remove_manual_connector", text="Remover", icon='REMOVE')
-                    row_actions.operator("chest.splitter_clear_manual_connectors", text="Limpar", icon='TRASH')
+                    row_rem = row_actions.row(align=True)
+                    row_rem.enabled = (n_manual > 0)
+                    row_rem.operator("chest.splitter_remove_manual_connector", text="Remover", icon='REMOVE')
+                    row_clr = row_actions.row(align=True)
+                    row_clr.enabled = (n_manual > 0)
+                    row_clr.operator("chest.splitter_clear_manual_connectors", text="Limpar", icon='TRASH')
 
-                    n_manual = len(settings.manual_connectors)
                     if n_manual == 0:
                         box_manual.label(text="Nenhum pino posicionado. Clique em 'Editar Posições' para adicionar.", icon='INFO')
                     else:
@@ -467,6 +471,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                             active_conn = settings.manual_connectors[idx]
                             row_sel = box_edit.row(align=True)
                             row_sel.prop(settings, "manual_connector_index", text=f"Pino #{idx + 1}")
+                            row_sel.operator("chest.splitter_remove_manual_connector", text="", icon='X')
 
                             row_coords = box_edit.row(align=True)
                             row_coords.prop(active_conn, "u_mm", text="U (mm)")

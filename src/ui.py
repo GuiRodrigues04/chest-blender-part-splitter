@@ -447,9 +447,15 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                             icon='EDITMODE_HLT'
                         )
 
-                    row_sub = box_manual.row(align=True)
-                    row_sub.operator("chest.splitter_view_cut_face", text="Ver Face de Encaixe", icon='VIEW_CAMERA')
-                    row_sub.prop(settings, "manual_editor_submode", expand=True)
+                    row_view = box_manual.row(align=True)
+                    row_view.operator("chest.splitter_view_cut_face", text="Ver Face de Encaixe", icon='VIEW_CAMERA')
+
+                    if settings.is_editing_connectors:
+                        box_mode = box_manual.box()
+                        row_mode_head = box_mode.row(align=True)
+                        row_mode_head.label(text="Ação do Clique 3D no Modelo:", icon='CURSOR')
+                        row_sub = box_mode.row(align=True)
+                        row_sub.prop(settings, "manual_editor_submode", expand=True)
 
                     n_manual = len(settings.manual_connectors)
                     row_actions = box_manual.row(align=True)

@@ -334,22 +334,23 @@ def raycast_connector_surface(
 ) -> Optional[Tuple[Vector, float, float]]:
     """Projeta raio na superfície preparada e retorna (ponto_montado, u_mm, v_mm).
     
-    Desfaz qualquer deslocamento explodido para garantir que coordenadas persistidas
-    sejam sempre no espaço montado (Seção 4.1).
+    Retorna None se o raio não interceptar a superfície física útil de contato,
+    evitando posicionamento indevido de pinos no espaço vazio.
     """
     ray_dir = ray_dir.normalized()
 
     # 1. Se houver BVHTree da superfície de contato, testa interseção com malha real
     if prepared.bvh_tree is not None:
-        # Move o raio para o espaço local da superfície exibida
         local_ray_origin = ray_origin - display_offset
         hit_loc, hit_norm, hit_idx, hit_dist = prepared.bvh_tree.ray_cast(local_ray_origin, ray_dir)
         if hit_loc is not None:
             assembled_hit = hit_loc
             u_mm, v_mm = prepared.world_to_uv_mm(assembled_hit)
             return (assembled_hit, u_mm, v_mm)
+        # Se há geometria real de contato e o raio errou a superfície, não há hit válido
+        return None
 
-    # 2. Interseção analítica raio-plano com a interface planar preparada
+    # 2. Interseção analítica raio-plano SOMENTE SE bvh_tree for None
     orig_disp = prepared.surface_origin + display_offset
     denom = ray_dir.dot(prepared.surface_normal)
     if abs(denom) < 1e-5:
@@ -363,6 +364,17 @@ def raycast_connector_surface(
     hit_disp = ray_origin + ray_dir * t
     assembled_hit = hit_disp - display_offset
     u_mm, v_mm = prepared.world_to_uv_mm(assembled_hit)
+
+    # Valida se o ponto no plano cai dentro do contorno 2D útil da interface
+    cut_iface = prepared.interface
+    outer_polys = getattr(cut_iface, "outer_contours_uv", [])
+    if outer_polys:
+        from .geometry_connectors import point_in_polygon_2d
+        u_bu = u_mm / prepared.unit_scale
+        v_bu = v_mm / prepared.unit_scale
+        if not any(point_in_polygon_2d(u_bu, v_bu, poly) for poly in outer_polys):
+            return None
+
     return (assembled_hit, u_mm, v_mm)
 
 

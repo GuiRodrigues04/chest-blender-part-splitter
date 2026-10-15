@@ -2295,17 +2295,26 @@ class CHEST_OT_splitter_add_manual_connector(bpy.types.Operator):
         settings.manual_connector_index = n - 1
         settings.session_status = 'PREVIEW_STALE'
 
-        from .connector_surface import prepare_split_candidates, evaluate_connector_specs
+        from .connector_surface import prepare_split_candidates, evaluate_connector_specs, get_cached_prepared_split
         try:
-            prep = prepare_split_candidates(context)
+            prep = get_cached_prepared_split() or prepare_split_candidates(context)
             evaluate_connector_specs(prep, settings)
         except Exception:
             pass
+
+        # Se houver prévia ativa na cena, regenera-a imediatamente para refletir o novo pino no modelo 3D
+        parts = get_current_session_parts(context.scene)
+        if parts:
+            try:
+                bpy.ops.chest.splitter_generate_preview()
+            except Exception:
+                pass
 
         for window in context.window_manager.windows:
             for area in window.screen.areas:
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
+        self.report({'INFO'}, f"Pino #{n} adicionado.")
         return {'FINISHED'}
 
 

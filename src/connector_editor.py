@@ -48,6 +48,34 @@ def get_editor_interaction_state() -> Dict[str, Any]:
     return _EDITOR_STATE
 
 
+def get_view3d_canvas_region(area: Optional[bpy.types.Area], mouse_x: int, mouse_y: int) -> Optional[bpy.types.Region]:
+    """Retorna a região WINDOW da 3D Viewport apenas se o mouse estiver sobre o canvas 3D.
+    
+    Retorna None se o mouse estiver sobre a barra lateral (N-Panel UI), barra de ferramentas (TOOLS),
+    cabeçalhos (HEADER / TOOL_HEADER) ou fora da área 3D. Isso garante que cliques em botões
+    da extensão nunca sejam interceptados como comandos ou cliques no espaço 3D.
+    """
+    if not area or area.type != 'VIEW_3D':
+        return None
+
+    # Verifica se o cursor está dentro dos limites da área VIEW_3D
+    if not (area.x <= mouse_x < area.x + area.width and area.y <= mouse_y < area.y + area.height):
+        return None
+
+    # Se estiver sobre qualquer região secundária (UI, TOOLS, HEADER, etc.), não é o canvas 3D
+    for r in area.regions:
+        if r.type != 'WINDOW':
+            if (r.x <= mouse_x < r.x + r.width and r.y <= mouse_y < r.y + r.height):
+                return None
+
+    # Encontra a região WINDOW
+    for r in area.regions:
+        if r.type == 'WINDOW':
+            return r
+
+    return None
+
+
 class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
     """Abre o editor visual contínuo de pinos sobre a superfície real de corte (A05 / PM03)"""
     bl_idname = "chest.splitter_edit_manual_connectors"
@@ -172,35 +200,44 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         if self._area:
             self._area.tag_redraw()
 
-        region = self._region
-        # Verifica se evento está dentro dos limites da janela WINDOW
-        in_region = (
-            region.x <= event.mouse_x <= region.x + region.width and
-            region.y <= event.mouse_y <= region.y + region.height
-        )
+        # Verifica se o cursor está estritamente sobre o canvas 3D (excluindo painel N, barra de ferramentas e headers)
+        canvas_region = get_view3d_canvas_region(self._area, event.mouse_x, event.mouse_y)
+        in_canvas = (canvas_region is not None)
+
+        # Se o cursor estiver sobre o painel N (UI), cabeçalho ou outra área do Blender:
+        if not in_canvas:
+            _EDITOR_STATE["hover_world"] = None
+            # Permite que todos os cliques de mouse, arrastes e scrolls passem direto para os botões do Blender
+            if event.type in {'LEFTMOUSE', 'RIGHTMOUSE', 'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE', 'MOUSEMOVE'}:
+                return {'PASS_THROUGH'}
+            # Se for tecla ESC fora do canvas, permite cancelar a edição
+            if event.type == 'ESC' and event.value == 'PRESS':
+                return self._cancel_and_restore(context)
+            # Permite digitação normal em campos de texto/número na interface
+            return {'PASS_THROUGH'}
 
         # 1. Permite navegação padrão do Blender (MMB, Scroll, Numpad) sem interferência (T11)
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE', 'NUMPAD_1', 'NUMPAD_3', 'NUMPAD_7'}:
             return {'PASS_THROUGH'}
 
-        # 2. Converte coordenadas do mouse para raio 3D na região WINDOW (PM05)
-        coord_2d = (event.mouse_x - region.x, event.mouse_y - region.y)
+        # 2. Converte coordenadas do mouse para raio 3D na região canvas WINDOW (PM05)
+        coord_2d = (event.mouse_x - canvas_region.x, event.mouse_y - canvas_region.y)
         rv3d = self._area.spaces.active.region_3d if self._area.spaces.active else None
 
         display_offset = get_explosion_display_offset(settings, self._prepared)
 
         raycast_res = None
-        if in_region and rv3d is not None:
+        if rv3d is not None:
             try:
-                ray_orig = view3d_utils.region_2d_to_origin_3d(region, rv3d, coord_2d)
-                ray_dir = view3d_utils.region_2d_to_vector_3d(region, rv3d, coord_2d)
+                ray_orig = view3d_utils.region_2d_to_origin_3d(canvas_region, rv3d, coord_2d)
+                ray_dir = view3d_utils.region_2d_to_vector_3d(canvas_region, rv3d, coord_2d)
                 raycast_res = raycast_connector_surface(
                     ray_orig, ray_dir, self._prepared, display_offset=display_offset
                 )
             except Exception:
                 raycast_res = None
 
-        # Atualiza hover ghost
+        # Atualiza hover ghost apenas sobre a superfície física útil
         if raycast_res is not None:
             hit_world, hit_u, hit_v = raycast_res
             _EDITOR_STATE["hover_world"] = hit_world + display_offset
@@ -262,8 +299,8 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                 evaluate_connector_specs(self._prepared, settings)
                 return {'RUNNING_MODAL'}
 
-        # 5. Detecção de clique no Viewport
-        if in_region and event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+        # 5. Detecção de clique no Viewport (Canvas 3D)
+        if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
             if raycast_res is not None:
                 hit_world, hit_u, hit_v = raycast_res
                 hit_pos_disp = hit_world + display_offset
@@ -284,7 +321,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                         min_dist_mm = dist
                         clicked_idx = i
 
-                # Se clicou num marcador existente OU está no submodo Mover:
+                # Se clicou num marcador existente:
                 if clicked_idx >= 0:
                     settings.manual_connector_index = clicked_idx
                     _EDITOR_STATE["is_dragging"] = True
@@ -293,7 +330,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                     _EDITOR_STATE["drag_start_v"] = settings.manual_connectors[clicked_idx].v_mm
                     return {'RUNNING_MODAL'}
 
-                # Submodo ADICIONAR: adiciona um novo marcador naquele ponto (sem gerar booleana)
+                # Submodo ADICIONAR: adiciona um novo marcador na superfície útil
                 if settings.manual_editor_submode == 'ADD':
                     item = settings.manual_connectors.add()
                     item.connector_id = f"pin_{len(settings.manual_connectors)}"
@@ -302,10 +339,15 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                     item.yaw_deg = 0.0
                     settings.manual_connector_index = len(settings.manual_connectors) - 1
                     evaluate_connector_specs(self._prepared, settings)
-                    self.report({'INFO'}, f"Pino #{len(settings.manual_connectors)} adicionado em U={hit_u:.1f}, V={hit_v:.1f} mm.")
+                    self.report({'INFO'}, f"Pino #{len(settings.manual_connectors)} posicionado em U={hit_u:.1f}, V={hit_v:.1f} mm.")
                     return {'RUNNING_MODAL'}
 
-                # Se submodo for MOVE e clicou no vazio, não faz nada
+                # Se submodo for MOVE e clicou na superfície sem acertar pino, mantém estado
+                return {'RUNNING_MODAL'}
+            else:
+                # Clicou fora da superfície de corte no canvas 3D: avisa o usuário e não cria pino solto
+                if settings.manual_editor_submode == 'ADD':
+                    self.report({'INFO'}, "Clique sobre a superfície destacada da peça para posicionar o pino.")
                 return {'RUNNING_MODAL'}
 
         # 6. Atalhos de Teclado Operacionais
@@ -443,11 +485,8 @@ class CHEST_OT_splitter_confirm_manual_connectors(bpy.types.Operator):
 
     def execute(self, context):
         settings = context.scene.chest_splitter
-        settings.is_editing_connectors = False
-        _EDITOR_STATE["is_active"] = False
-        _EDITOR_STATE["hover_world"] = None
 
-        # Prepara corte e avalia specs
+        # Prepara corte e avalia specs antes de fechar o editor
         prep = get_cached_prepared_split()
         if prep is None:
             try:
@@ -460,8 +499,12 @@ class CHEST_OT_splitter_confirm_manual_connectors(bpy.types.Operator):
         has_invalid = any(not ev["is_valid"] for ev in eval_res)
         if has_invalid:
             first_err = next(ev["reason"] for ev in eval_res if not ev["is_valid"])
-            self.report({'WARNING'}, f"Não é possível gerar prévia: {first_err}")
+            self.report({'WARNING'}, f"Não é possível gerar prévia: {first_err}. Corrija a posição ou exclua o pino.")
             return {'CANCELLED'}
+
+        settings.is_editing_connectors = False
+        _EDITOR_STATE["is_active"] = False
+        _EDITOR_STATE["hover_world"] = None
 
         settings.session_status = 'PREVIEW_STALE'
         try:
@@ -490,10 +533,13 @@ class CHEST_OT_splitter_view_cut_face(bpy.types.Operator):
                 return {'CANCELLED'}
 
         area_3d = None
-        for a in context.screen.areas:
-            if a.type == 'VIEW_3D':
-                area_3d = a
-                break
+        if context.area and context.area.type == 'VIEW_3D':
+            area_3d = context.area
+        else:
+            for a in context.screen.areas:
+                if a.type == 'VIEW_3D':
+                    area_3d = a
+                    break
 
         if not area_3d or not area_3d.spaces.active:
             return {'CANCELLED'}
@@ -512,8 +558,9 @@ class CHEST_OT_splitter_view_cut_face(bpy.types.Operator):
         cam_x = cam_y.cross(cam_z).normalized()
         cam_rot_mat = Matrix((cam_x, cam_y, cam_z)).transposed()
 
+        display_offset = get_explosion_display_offset(settings, prep)
         rv3d.view_rotation = cam_rot_mat.to_quaternion()
-        rv3d.view_location = prep.surface_origin.copy()
+        rv3d.view_location = prep.surface_origin + display_offset
 
         # Enquadra distância com base na largura/altura útil
         span_max = max(prep.interface.width_mm, prep.interface.height_mm) / prep.unit_scale

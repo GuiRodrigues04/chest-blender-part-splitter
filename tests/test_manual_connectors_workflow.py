@@ -69,6 +69,8 @@ class TestManualConnectorsWorkflow(unittest.TestCase):
 
     def setUp(self):
         bpy.ops.wm.read_factory_settings(use_empty=True)
+        if not hasattr(bpy.types.Scene, "chest_splitter"):
+            addon_package.register()
         if not bpy.context.scene.collection:
             col = bpy.data.collections.new("Scene Collection")
             bpy.context.scene.collection = col

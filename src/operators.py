@@ -2301,6 +2301,11 @@ class CHEST_OT_splitter_add_manual_connector(bpy.types.Operator):
             evaluate_connector_specs(prep, settings)
         except Exception:
             pass
+
+        for window in context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
         return {'FINISHED'}
 
 
@@ -2317,10 +2322,20 @@ class CHEST_OT_splitter_remove_manual_connector(bpy.types.Operator):
             settings.manual_connectors.remove(idx)
             settings.manual_connector_index = max(0, min(idx, len(settings.manual_connectors) - 1))
             settings.session_status = 'PREVIEW_STALE'
-            from .connector_surface import get_cached_prepared_split, evaluate_connector_specs
+            from .connector_surface import get_cached_prepared_split, evaluate_connector_specs, prepare_split_candidates
             prep = get_cached_prepared_split()
+            if not prep:
+                try:
+                    prep = prepare_split_candidates(context)
+                except Exception:
+                    pass
             if prep:
                 evaluate_connector_specs(prep, settings)
+
+        for window in context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
         return {'FINISHED'}
 
 
@@ -2335,6 +2350,10 @@ class CHEST_OT_splitter_clear_manual_connectors(bpy.types.Operator):
         settings.manual_connectors.clear()
         settings.manual_connector_index = 0
         settings.session_status = 'PREVIEW_STALE'
+        for window in context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
         return {'FINISHED'}
 
 

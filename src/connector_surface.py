@@ -112,7 +112,7 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
         raise RuntimeError("Nenhum objeto alvo definido para o corte.")
 
     # Se estiver em Edit Mode, sincroniza dados para leitura sem alternar modo
-    if context.mode == 'EDIT_MESH' and context.active_object == target:
+    if target.mode == 'EDIT':
         target.update_from_editmode()
 
     sig = compute_cut_signature(settings, target)
@@ -181,18 +181,40 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
         )
 
     elif mode == 'LOOP':
-        from .geometry_loop import slice_mesh_by_loop
-        loop_res = slice_mesh_by_loop(
-            target=target,
-            scene=context.scene,
-            cut_mode=getattr(settings, "loop_cut_mode", "KNIFE"),
-            extrude_depth_mm=getattr(settings, "loop_extrude_depth_mm", 0.0),
-            base_thick_mm=getattr(settings, "loop_base_thick_mm", 0.0),
-            bridge_enable=getattr(settings, "loop_bridge_enable", False),
-            subdivide_edges=getattr(settings, "loop_subdivide_edges", False),
-            part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
-            check_manifold=False,
+        from .geometry_loop import (
+            slice_mesh_by_loop,
+            slice_mesh_by_loop_extrude,
         )
+        if target.mode == 'EDIT':
+            target.update_from_editmode()
+
+        indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i.strip()]
+        if not indices or settings.loop_seed_face_index < 0:
+            raise RuntimeError("Nenhum contorno (loop) capturado no modo Loop.")
+
+        behavior = settings.loop_behavior
+        if behavior == 'EXTRUDE':
+            loop_res = slice_mesh_by_loop_extrude(
+                target,
+                target.name,
+                indices,
+                settings.loop_seed_face_index,
+                depth_mm=settings.loop_extrude_depth_mm,
+                through_cut=settings.loop_through_cut,
+                scene=context.scene,
+            )
+        else:
+            loop_res = slice_mesh_by_loop(
+                target,
+                target.name,
+                indices,
+                settings.loop_seed_face_index,
+                context.scene,
+                detach_add_base=settings.loop_detach_add_base,
+                detach_base_depth_mm=settings.loop_detach_base_depth_mm,
+                detach_base_clearance_mm=settings.loop_detach_base_clearance_mm,
+            )
+
         bm_a, bm_b = loop_res[0], loop_res[1]
         bm_a.free()
         bm_b.free()

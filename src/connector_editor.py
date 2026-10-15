@@ -70,12 +70,30 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
             return False
         return settings.split_mode in ('PLANE', 'LOOP', 'MATERIAL')
 
+    def execute(self, context):
+        settings = context.scene.chest_splitter
+        settings.connector_distribution = 'MANUAL'
+        settings.connector_enabled = True
+        try:
+            self._prepared = prepare_split_candidates(context, force_recompute=True)
+            evaluate_connector_specs(self._prepared, settings)
+        except Exception:
+            pass
+        return {'FINISHED'}
+
     def invoke(self, context, event):
         settings = context.scene.chest_splitter
         target = settings.target_object
         if not target:
             self.report({'WARNING'}, "Defina um objeto alvo antes de editar pinos.")
             return {'CANCELLED'}
+
+        # Se estiver em modo de edição, muda para modo Objeto para permitir seleção e cliques
+        if context.mode != 'OBJECT':
+            try:
+                bpy.ops.object.mode_set(mode='OBJECT')
+            except Exception:
+                pass
 
         # Localiza área VIEW_3D e região WINDOW corretas (PM05)
         area_3d = None

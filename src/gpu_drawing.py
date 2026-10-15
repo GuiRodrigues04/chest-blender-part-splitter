@@ -555,6 +555,51 @@ def _generate_marker_lines(center, u_axis, v_axis, yaw_rad, radius, half_len, nu
     return lines
 
 
+# Cache de batch e geometria da grade de posicionamento de 5 mm (Seção 5)
+_GRID_CACHE = {
+    "key": None,
+    "batch": None,
+    "points": None,
+}
+
+
+def clear_grid_cache():
+    """Limpa o cache GPU da grade de posicionamento."""
+    global _GRID_CACHE
+    _GRID_CACHE["key"] = None
+    _GRID_CACHE["batch"] = None
+    _GRID_CACHE["points"] = None
+
+
+def _get_or_create_grid_batch(shader, prep, disp_offset, target_name):
+    """Retorna o batch GPU dos pontos da grade 5 mm em cache ou constrói um novo."""
+    global _GRID_CACHE
+    key = (prep.cut_signature, tuple(disp_offset), round(prep.unit_scale, 4), target_name)
+    if _GRID_CACHE["key"] == key and _GRID_CACHE["batch"] is not None:
+        return _GRID_CACHE["batch"]
+
+    from .connector_surface import generate_positioning_grid_points
+    grid_pts = generate_positioning_grid_points(prep)
+    if not grid_pts:
+        _GRID_CACHE["key"] = key
+        _GRID_CACHE["batch"] = None
+        _GRID_CACHE["points"] = None
+        return None
+
+    # Aplica deslocamento explodido preservando coordenadas físicas
+    pts_3d = [item[2] + disp_offset for item in grid_pts]
+
+    try:
+        from gpu_extras.batch import batch_for_shader
+        batch = batch_for_shader(shader, 'POINTS', {"pos": pts_3d})
+        _GRID_CACHE["key"] = key
+        _GRID_CACHE["batch"] = batch
+        _GRID_CACHE["points"] = pts_3d
+        return batch
+    except Exception:
+        return None
+
+
 def _draw_connector_markers_overlay(context, settings):
     """Desenha os marcadores visuais de conectores na interface de corte (A05)."""
     if not getattr(settings, "connector_enabled", False):
@@ -649,8 +694,13 @@ def _draw_connector_markers_overlay(context, settings):
 
     editor_state = get_editor_interaction_state()
     has_ghost = editor_state.get("is_active") and (editor_state.get("hover_world") is not None)
+    is_manual_editing = (
+        editor_state.get("is_active", False)
+        and getattr(settings, "is_editing_connectors", False)
+        and dist == 'MANUAL'
+    )
 
-    if not markers and not has_ghost:
+    if not markers and not has_ghost and not is_manual_editing:
         return
 
     # Categoriza linhas por estilo/cor:
@@ -705,6 +755,43 @@ def _draw_connector_markers_overlay(context, settings):
                     gpu.state.depth_test_set('ALWAYS')
                 except Exception:
                     pass
+
+            # 0. Grade de pontos 5 mm (visível exclusivamente durante a sessão manual ativa - Seção 1, 4 e 5)
+            # Pinos e marcadores são desenhados DEPOIS para manter prioridade visual sobre os pontos
+            if is_manual_editing and prep is not None and getattr(prep, "is_planar", True):
+                grid_batch = _get_or_create_grid_batch(shader, prep, disp_offset, target.name)
+                if grid_batch is not None:
+                    ui_scale = 1.0
+                    if context and hasattr(context, "preferences") and hasattr(context.preferences, "system"):
+                        ui_scale = getattr(context.preferences.system, "ui_scale", 1.0)
+                    pt_size = max(2.5, min(6.0, 3.2 * ui_scale))
+
+                    if hasattr(gpu.state, 'point_size_set'):
+                        try:
+                            gpu.state.point_size_set(pt_size)
+                        except Exception:
+                            pass
+                    if hasattr(gpu.state, 'depth_test_set'):
+                        try:
+                            gpu.state.depth_test_set('ALWAYS')
+                        except Exception:
+                            pass
+
+                    shader.bind()
+                    # Cor neutra com contraste discreto sobre cinza e verde: cinza claro suave
+                    shader.uniform_float("color", (0.85, 0.88, 0.92, 0.80))
+                    grid_batch.draw(shader)
+
+                    if hasattr(gpu.state, 'point_size_set'):
+                        try:
+                            gpu.state.point_size_set(1.0)
+                        except Exception:
+                            pass
+                    if hasattr(gpu.state, 'depth_test_set'):
+                        try:
+                            gpu.state.depth_test_set('ALWAYS')
+                        except Exception:
+                            pass
 
             # 1. Pinos Válidos (Verde vivo)
             if lines_valid:
@@ -825,6 +912,7 @@ def register_overlay():
 def unregister_overlay():
     """Remove o draw handler da visualização 3D."""
     global _draw_handler
+    clear_grid_cache()
     if _draw_handler is not None and hasattr(bpy.types, "SpaceView3D"):
         try:
             bpy.types.SpaceView3D.draw_handler_remove(_draw_handler, 'WINDOW')

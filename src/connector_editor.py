@@ -428,6 +428,11 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         settings.is_editing_connectors = False
         _EDITOR_STATE["is_active"] = False
         _EDITOR_STATE["hover_world"] = None
+        try:
+            from .gpu_drawing import clear_grid_cache
+            clear_grid_cache()
+        except Exception:
+            pass
 
         # Validação final dos conectores
         eval_res = evaluate_connector_specs(self._prepared, settings)
@@ -452,6 +457,11 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         settings.is_editing_connectors = False
         _EDITOR_STATE["is_active"] = False
         _EDITOR_STATE["hover_world"] = None
+        try:
+            from .gpu_drawing import clear_grid_cache
+            clear_grid_cache()
+        except Exception:
+            pass
 
         # Restaura snapshot de conectores
         settings.manual_connectors.clear()
@@ -472,6 +482,11 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         settings.is_editing_connectors = False
         _EDITOR_STATE["is_active"] = False
         _EDITOR_STATE["hover_world"] = None
+        try:
+            from .gpu_drawing import clear_grid_cache
+            clear_grid_cache()
+        except Exception:
+            pass
         if self._area:
             self._area.tag_redraw()
         return {result_state}
@@ -505,6 +520,11 @@ class CHEST_OT_splitter_confirm_manual_connectors(bpy.types.Operator):
         settings.is_editing_connectors = False
         _EDITOR_STATE["is_active"] = False
         _EDITOR_STATE["hover_world"] = None
+        try:
+            from .gpu_drawing import clear_grid_cache
+            clear_grid_cache()
+        except Exception:
+            pass
 
         settings.session_status = 'PREVIEW_STALE'
         try:

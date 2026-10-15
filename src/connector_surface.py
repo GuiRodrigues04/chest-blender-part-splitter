@@ -100,9 +100,14 @@ def get_cached_prepared_split() -> Optional[PreparedSplit]:
 
 
 def clear_prepared_split_cache():
-    """Invalida o cache de corte preparado."""
+    """Invalida o cache de corte preparado e a grade de posicionamento."""
     global _CACHED_PREPARED_SPLIT, _LAST_KNOWN_AXIS_U, _LAST_KNOWN_AXIS_V
     _CACHED_PREPARED_SPLIT = None
+    try:
+        from .gpu_drawing import clear_grid_cache
+        clear_grid_cache()
+    except Exception:
+        pass
 
 
 def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool = False) -> PreparedSplit:
@@ -476,3 +481,84 @@ def evaluate_connector_specs(prepared: PreparedSplit, settings: Any) -> List[Dic
             item.validation_msg = ev["reason"]
 
     return results
+
+
+def generate_positioning_grid_points(
+    prepared: PreparedSplit,
+    step_mm: float = 5.0,
+    max_points: int = 25000,
+) -> List[Tuple[float, float, Vector]]:
+    """Gera pontos de referência da grade de 5 mm sobre a região útil de contato (Seção 4 e 5).
+    
+    Retorna lista de tuplas (u_mm, v_mm, world_point).
+    - Ancoragem estável em (0, 0) da referência UV: P(i, j) = O + (i * s) * U + (j * s) * V.
+    - Filtra estritamente por pertencimento à interface útil (suporte a formas côncavas, U e furos).
+    - Omite grade se a superfície não for plana ou se exceder o limite defensivo de candidatos.
+    """
+    if prepared is None:
+        return []
+
+    # Se a superfície não for plana, omite a grade para não gerar falsa referência sobre curvatura (Seção 4.4)
+    if not getattr(prepared, "is_planar", True):
+        return []
+
+    cut_iface = getattr(prepared, "interface", None)
+    if cut_iface is None:
+        return []
+
+    outer_polys = getattr(cut_iface, "outer_contours_uv", []) or []
+    hole_polys = getattr(cut_iface, "hole_contours_uv", []) or []
+    if not outer_polys:
+        return []
+
+    unit_scale = prepared.unit_scale
+    if unit_scale <= 0.0:
+        unit_scale = 1000.0
+
+    # Coleta limites envolventes em Blender Units e converte para mm
+    all_u_bu = [pt[0] for poly in outer_polys for pt in poly]
+    all_v_bu = [pt[1] for poly in outer_polys for pt in poly]
+    if not all_u_bu or not all_v_bu:
+        return []
+
+    min_u_mm = min(all_u_bu) * unit_scale
+    max_u_mm = max(all_u_bu) * unit_scale
+    min_v_mm = min(all_v_bu) * unit_scale
+    max_v_mm = max(all_v_bu) * unit_scale
+
+    # Índices inteiros ancorados na origem estável (0, 0) da interface
+    i_min = int(math.floor(min_u_mm / step_mm))
+    i_max = int(math.ceil(max_u_mm / step_mm))
+    j_min = int(math.floor(min_v_mm / step_mm))
+    j_max = int(math.ceil(max_v_mm / step_mm))
+
+    total_candidates = (i_max - i_min + 1) * (j_max - j_min + 1)
+    if total_candidates > max_points:
+        return []
+
+    from .geometry_connectors import point_in_polygon_2d
+
+    grid_points = []
+    step_bu = step_mm / unit_scale
+
+    for i in range(i_min, i_max + 1):
+        u_mm = i * step_mm
+        u_bu = i * step_bu
+        for j in range(j_min, j_max + 1):
+            v_mm = j * step_mm
+            v_bu = j * step_bu
+
+            # 1. Pertencimento ao interior de ao menos um contorno externo
+            in_outer = any(point_in_polygon_2d(u_bu, v_bu, poly) for poly in outer_polys)
+            if not in_outer:
+                continue
+
+            # 2. Exclusão de furos ou recortes internos
+            in_hole = any(point_in_polygon_2d(u_bu, v_bu, h_poly) for h_poly in hole_polys)
+            if in_hole:
+                continue
+
+            world_pos = prepared.uv_mm_to_world(u_mm, v_mm)
+            grid_points.append((u_mm, v_mm, world_pos))
+
+    return grid_points

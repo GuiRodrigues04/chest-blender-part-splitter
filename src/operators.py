@@ -1921,11 +1921,21 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                         norm = -norm_a
 
                     manual_specs = None
+                    layout_interface = report.get("interface")
                     if settings.connector_distribution == 'MANUAL':
                         manual_specs = [
                             {"u_mm": sp.u_mm, "v_mm": sp.v_mm, "yaw_deg": sp.yaw_deg}
                             for sp in settings.manual_connectors
                         ]
+                        # Usa o MESMO referencial U/V (eixos estabilizados) do editor interativo,
+                        # senão o pino aparece espelhado/deslocado em relação ao marcador.
+                        try:
+                            from .connector_surface import prepare_split_candidates as _prep_split
+                            _prep = _prep_split(context)
+                            if _prep is not None and _prep.interface is not None:
+                                layout_interface = _prep.interface
+                        except Exception:
+                            pass
 
                     layout = compute_connector_layout(
                         target_mesh=target.data,
@@ -1937,7 +1947,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                         unit_scale=unit_scale,
                         diameter_mm=settings.connector_diameter_mm,
                         clearance_per_side_mm=settings.clearance_per_side_mm,
-                        interface=report.get("interface"),
+                        interface=layout_interface,
                         connector_type=settings.connector_type,
                         capsule_length_mm=settings.connector_capsule_length_mm,
                         adjust_to_valid_area=getattr(settings, "adjust_to_valid_area", False),

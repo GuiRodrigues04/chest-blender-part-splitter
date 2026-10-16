@@ -48,7 +48,9 @@ def run_loop_tests():
     # Entrar em Edit Mode para selecionar o anel intermediário em Z=0 (local)
     bpy.ops.object.mode_set(mode='EDIT')
     bm = bmesh.from_edit_mesh(paw_model.data)
-    bpy.ops.mesh.select_all(action='DESELECT')
+    
+    for element in list(bm.faces) + list(bm.edges) + list(bm.verts):
+        element.select_set(False)
     mid_edges = [e for e in bm.edges if abs(e.verts[0].co.z) < 0.1 and abs(e.verts[1].co.z) < 0.1]
     for e in mid_edges:
         e.select = True
@@ -66,7 +68,9 @@ def run_loop_tests():
 
     # Definir Face Semente na pata superior (Z > 10 local)
     bm = bmesh.from_edit_mesh(paw_model.data)
-    bpy.ops.mesh.select_all(action='DESELECT')
+    
+    for element in list(bm.faces) + list(bm.edges) + list(bm.verts):
+        element.select_set(False)
     for f in bm.faces:
         if f.calc_center_median().z > 10.0:
             f.select = True
@@ -108,12 +112,15 @@ def run_loop_tests():
     # --- Teste 2: Rejeição de Loop Aberto ---
     print("\n--- Teste 2: Validação e Bloqueio de Loop Aberto ---")
     paw_model.hide_viewport = False
+    paw_model.hide_set(False)
     bpy.context.view_layer.objects.active = paw_model
     bpy.ops.object.mode_set(mode='EDIT')
     bm = bmesh.from_edit_mesh(paw_model.data)
     bm.edges.ensure_lookup_table()
     bm.verts.ensure_lookup_table()
-    bpy.ops.mesh.select_all(action='DESELECT')
+    
+    for element in list(bm.faces) + list(bm.edges) + list(bm.verts):
+        element.select_set(False)
     # Seleciona apenas 2 arestas adjacentes
     bm.edges[0].select = True
     bm.edges[1].select = True
@@ -134,7 +141,9 @@ def run_loop_tests():
     bm = bmesh.from_edit_mesh(paw_model.data)
     bm.edges.ensure_lookup_table()
     bm.verts.ensure_lookup_table()
-    bpy.ops.mesh.select_all(action='DESELECT')
+    
+    for element in list(bm.faces) + list(bm.edges) + list(bm.verts):
+        element.select_set(False)
     v = bm.verts[0]
     for e in v.link_edges[:3]:
         e.select = True
@@ -153,7 +162,9 @@ def run_loop_tests():
     # --- Teste 4: Diagnóstico de Loop Não-Planar ---
     print("\n--- Teste 4: Diagnóstico e Aviso de Não-Planicidade ---")
     bm = bmesh.from_edit_mesh(paw_model.data)
-    bpy.ops.mesh.select_all(action='DESELECT')
+    
+    for element in list(bm.faces) + list(bm.edges) + list(bm.verts):
+        element.select_set(False)
     mid_edges = [e for e in bm.edges if abs(e.verts[0].co.z) < 0.1 and abs(e.verts[1].co.z) < 0.1]
     for e in mid_edges:
         e.select = True

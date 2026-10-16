@@ -8,40 +8,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 
-TESTS = [
-    "tests/test_smoke_phase0.py",
-    "tests/test_smoke_phase1.py",
-    "tests/test_smoke_phase2.py",
-    "tests/test_smoke_phase3.py",
-    "tests/test_stress_phases0_3.py",
-    "tests/test_phase3a_loop.py",
-    "tests/test_multicolor_support.py",
-    "tests/test_capsule_lateral_size.py",
-    "tests/test_acceptance_etapa2.py",
-    "tests/test_acceptance_etapa3.py",
-    "tests/test_acceptance_etapa4.py",
-    "tests/test_verify_bug_and_fix.py",
-    "tests/test_acceptance_etapa5_ui.py",
-    "tests/test_acceptance_etapa6_material.py",
-    "tests/test_material_regions.py",
-    "tests/test_acceptance_etapa7_delivery.py",
-    "tests/test_final_plan_corrections.py",
-    "tests/test_b01_b07.py",
-    "tests/test_plan_086_commercial.py",
-    "tests/test_reversion_086.py",
-    "tests/test_plan_087.py",
-    "tests/test_pos_testes_087.py",
-    "tests/test_plan_088.py",
-    "tests/test_inv_004_explosion.py",
-    "tests/test_inv_005_loop.py",
-    "tests/test_inv_002_material_base.py",
-    "tests/test_inv_001_003_material.py",
-    "tests/test_inv_006_thickness.py",
-    "tests/test_acceptance_089_suite.py",
-    "tests/test_acceptance_0810_suite.py",
-    "tests/test_run_0811_comprehensive.py",
-    "tests/test_manual_connectors_workflow.py",
-]
+TESTS = [str(p.relative_to(ROOT)) for p in sorted((ROOT / 'tests').glob('test_*.py'))]
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

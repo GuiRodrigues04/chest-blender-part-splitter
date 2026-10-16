@@ -10,14 +10,13 @@ Implementa a separação de responsabilidades (Etapa B / Seção 5 do Plano):
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Any, Optional
 import math
-import hashlib
 
 import bpy
 import bmesh
-from mathutils import Vector, Matrix, Euler
+from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
-from .geometry_contract import CutInterface, build_cut_interface
+from .geometry_contract import CutInterface
 from .diagnostic import get_scene_scale_to_mm
 
 
@@ -52,45 +51,13 @@ class PreparedSplit:
 
 # Cache em memória do último corte preparado
 _CACHED_PREPARED_SPLIT: Optional[PreparedSplit] = None
-_LAST_KNOWN_AXIS_U: Optional[Vector] = None
-_LAST_KNOWN_AXIS_V: Optional[Vector] = None
 
 
-def compute_cut_signature(settings: Any, target: bpy.types.Object) -> str:
+def compute_cut_signature(settings: Any, target: bpy.types.Object, scene=None) -> str:
     """Gera hash determinístico dos parâmetros que alteram a geometria do corte sem pinos."""
-    h = hashlib.sha256()
-    h.update(target.name.encode('utf-8'))
-    h.update(str(target.matrix_world).encode('utf-8'))
-    mode = getattr(settings, "split_mode", "PLANE")
-    h.update(mode.encode('utf-8'))
-    h.update(str(getattr(settings, "invert_sides", False)).encode('utf-8'))
-    h.update(str(getattr(settings, "plane_offset_mm", 0.0)).encode('utf-8'))
-    h.update(str(getattr(settings, "part_clearance_mm", 0.0)).encode('utf-8'))
+    from .input_state import cut_signature
+    return cut_signature(settings, target, scene or bpy.context.scene)
 
-    if mode == 'PLANE':
-        h.update(str(getattr(settings, "plane_origin", (0, 0, 0))).encode('utf-8'))
-        h.update(str(getattr(settings, "plane_normal", (0, 0, 1))).encode('utf-8'))
-    elif mode == 'LOOP':
-        h.update(str(getattr(settings, "loop_cut_mode", "KNIFE")).encode('utf-8'))
-        h.update(str(getattr(settings, "loop_extrude_depth_mm", 0.0)).encode('utf-8'))
-        h.update(str(getattr(settings, "loop_base_thick_mm", 0.0)).encode('utf-8'))
-        h.update(str(getattr(settings, "loop_bridge_enable", False)).encode('utf-8'))
-        h.update(str(getattr(settings, "loop_subdivide_edges", False)).encode('utf-8'))
-        h.update(str(getattr(settings, "loop_behavior", "AUTO")).encode('utf-8'))
-        h.update(str(getattr(settings, "loop_through_cut", False)).encode('utf-8'))
-        h.update(str(getattr(settings, "loop_detach_add_base", False)).encode('utf-8'))
-        h.update(str(getattr(settings, "loop_detach_base_depth_mm", 0.0)).encode('utf-8'))
-        h.update(str(getattr(settings, "loop_vertex_indices", "")).encode('utf-8'))
-        h.update(str(getattr(settings, "loop_seed_face_index", -1)).encode('utf-8'))
-    elif mode == 'MATERIAL':
-        h.update(str(getattr(settings, "material_split_index", 0)).encode('utf-8'))
-        h.update(str(getattr(settings, "material_extrude_depth_mm", 5.0)).encode('utf-8'))
-        h.update(str(getattr(settings, "material_region_index", -1)).encode('utf-8'))
-        h.update(str(getattr(settings, "material_extraction_mode", 'EXTRUDE')).encode('utf-8'))
-        h.update(str(getattr(settings, "part_clearance_bottom_mm", 0.0)).encode('utf-8'))
-        h.update(str(getattr(settings, "part_clearance_bottom_enable", False)).encode('utf-8'))
-
-    return h.hexdigest()
 
 
 def get_cached_prepared_split() -> Optional[PreparedSplit]:
@@ -101,7 +68,7 @@ def get_cached_prepared_split() -> Optional[PreparedSplit]:
 
 def clear_prepared_split_cache():
     """Invalida o cache de corte preparado e a grade de posicionamento."""
-    global _CACHED_PREPARED_SPLIT, _LAST_KNOWN_AXIS_U, _LAST_KNOWN_AXIS_V
+    global _CACHED_PREPARED_SPLIT
     _CACHED_PREPARED_SPLIT = None
     try:
         from .gpu_drawing import clear_grid_cache
@@ -116,7 +83,7 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
     Compatível com os três modos (PLANE, LOOP e MATERIAL).
     Preserva a seleção de modo/arestas se o usuário estiver em Edit Mode.
     """
-    global _CACHED_PREPARED_SPLIT, _LAST_KNOWN_AXIS_U, _LAST_KNOWN_AXIS_V
+    global _CACHED_PREPARED_SPLIT
     settings = context.scene.chest_splitter
     target = getattr(settings, "target_object", None)
     if not target or target.name not in bpy.data.objects:
@@ -126,7 +93,17 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
     if target.mode == 'EDIT':
         target.update_from_editmode()
 
-    sig = compute_cut_signature(settings, target)
+    sig = compute_cut_signature(settings, target, context.scene)
+    if mode_has_modifiers := (settings.split_mode == 'PLANE' and any(m.show_viewport for m in target.modifiers)):
+        from .input_state import cut_signature
+        evaluated = target.evaluated_get(context.evaluated_depsgraph_get())
+        try:
+            evaluated_mesh = evaluated.to_mesh()
+            sig = cut_signature(settings, target, context.scene, evaluated_mesh)
+        finally:
+            evaluated.to_mesh_clear()
+    # The male side changes the outward normal used for picking and display.
+    sig += ':' + settings.connector_male_part
     if not force_recompute and _CACHED_PREPARED_SPLIT is not None:
         if _CACHED_PREPARED_SPLIT.cut_signature == sig and _CACHED_PREPARED_SPLIT.target_name == target.name:
             return _CACHED_PREPARED_SPLIT
@@ -144,52 +121,29 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
 
     if mode == 'PLANE':
         from .plane_state import resolve_plane_state
+        from .geometry_plane import slice_mesh_by_plane
         plane_origin, plane_normal = resolve_plane_state(context.scene, settings)
-        norm = plane_normal.normalized()
-        offset_mm = getattr(settings, "plane_offset_mm", 0.0)
-        offset_bu = (offset_mm / unit_scale)
-        eff_origin = plane_origin + norm * offset_bu
-
-        # Executa bisect temporário para extrair loops da interface
-        bm = bmesh.new()
-        bm.from_mesh(target.data)
-        bm.transform(target.matrix_world)
-
-        res = bmesh.ops.bisect_plane(
-            bm,
-            geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
-            plane_co=eff_origin,
-            plane_no=norm,
-            clear_outer=False,
-            clear_inner=False,
-        )
-        cut_edges = [e for e in res.get("geom_cut", []) if isinstance(e, bmesh.types.BMEdge)]
-        from .geometry_plane import reconstruct_boundary_loops
-        interface_loops = reconstruct_boundary_loops(cut_edges)
-        interface_points = [p for loop in interface_loops for p in loop] if interface_loops else [v.co.copy() for e in cut_edges if e.is_valid for v in e.verts]
-
-        # Constrói triângulos de preenchimento para raycast se possível
+        mesh_a = bpy.data.meshes.new('_chest_interface_a')
+        mesh_b = bpy.data.meshes.new('_chest_interface_b')
+        evaluated = None
         try:
-            # Preenche faces temporárias da interface para BVH
-            fill_res = bmesh.ops.edgenet_fill(bm, edges=cut_edges)
-            cap_faces = fill_res.get("faces", [])
-            for f in cap_faces:
-                for tri in f.calc_loop_triangles():
-                    contact_tris.append((tri[0].vert.co.copy(), tri[1].vert.co.copy(), tri[2].vert.co.copy()))
-        except Exception:
-            pass
-
-        bm.free()
-
-        effective_normal_a = -norm if settings.invert_sides else norm
-        cut_iface = build_cut_interface(
-            origin_world=eff_origin,
-            normal_a_to_b=effective_normal_a,
-            boundary_points_world=interface_points,
-            boundary_loops_world=interface_loops,
-            unit_scale=unit_scale,
-            source_mode="PLANE",
-        )
+            source_mesh = target.data
+            if mode_has_modifiers:
+                evaluated = target.evaluated_get(context.evaluated_depsgraph_get())
+                source_mesh = evaluated.to_mesh()
+            report = slice_mesh_by_plane(
+                source_mesh, target.matrix_world, plane_origin, plane_normal,
+                mesh_a, mesh_b, invert_sides=settings.invert_sides,
+                unit_scale=unit_scale, plane_offset_mm=settings.plane_offset_mm,
+                part_clearance_mm=settings.part_clearance_mm,
+                part_clearance_apply_to=settings.part_clearance_apply_to,
+            )
+            cut_iface = report['interface']
+        finally:
+            if evaluated is not None:
+                evaluated.to_mesh_clear()
+            bpy.data.meshes.remove(mesh_a)
+            bpy.data.meshes.remove(mesh_b)
 
     elif mode == 'LOOP':
         from .geometry_loop import (
@@ -200,19 +154,20 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             target.update_from_editmode()
 
         indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i.strip()]
-        if not indices or settings.loop_seed_face_index < 0:
-            raise RuntimeError("Nenhum contorno (loop) capturado no modo Loop.")
+        from .geometry_loop import validate_capture
+        valid, reason = validate_capture(target, settings, context)
+        if not valid:
+            raise RuntimeError(reason)
+        if settings.loop_seed_face_index < 0:
+            raise RuntimeError("Defina a região a separar selecionando uma face semente no modo Loop.")
 
         behavior = settings.loop_behavior
         if behavior == 'AUTO':
             # Mesma resolução usada em splitter_generate_preview, para que a interface do
             # editor coincida com a interface real de contato (origem, normal e profundidade).
             from .geometry_loop import analyze_loop_region
-            try:
-                analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, context.scene)
-                behavior = analysis["detected_mode"]
-            except Exception:
-                behavior = 'DETACH'
+            analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, context.scene)
+            behavior = analysis["detected_mode"]
         if behavior == 'EXTRUDE':
             loop_res = slice_mesh_by_loop_extrude(
                 target,
@@ -279,20 +234,13 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
 
     if cut_iface is None:
         raise RuntimeError("Não foi possível preparar a interface de corte para o modelo.")
+    if not cut_iface.outer_contours_uv:
+        raise RuntimeError("Este corte não possui uma superfície comum para posicionar os pinos.")
 
-    # Estabilização dos eixos U/V contra inversão de sinal (T13 / Seção 5.2)
+    # Use exactly the deterministic basis of the geometry result. Never flip axes
+    # without reprojecting the contours (that reflects asymmetric interfaces).
     axis_u = cut_iface.axis_u_world.copy()
     axis_v = cut_iface.axis_v_world.copy()
-    if _LAST_KNOWN_AXIS_U is not None and _LAST_KNOWN_AXIS_V is not None:
-        if axis_u.dot(_LAST_KNOWN_AXIS_U) < 0.0:
-            axis_u = -axis_u
-            axis_v = -axis_v
-        if axis_v.dot(_LAST_KNOWN_AXIS_V) < 0.0:
-            axis_v = -axis_v
-        cut_iface.axis_u_world = axis_u
-        cut_iface.axis_v_world = axis_v
-    _LAST_KNOWN_AXIS_U = axis_u.copy()
-    _LAST_KNOWN_AXIS_V = axis_v.copy()
 
     # Define a normal na superfície de contato voltada para fora do macho
     if male_side == 'A':
@@ -328,6 +276,12 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
 
 def get_explosion_display_offset(settings: Any, prepared: PreparedSplit) -> Vector:
     """Calcula o vetor de deslocamento da visão explodida para a superfície dos pinos."""
+    # Durante a edição interativa de pinos, o usuário interage diretamente com o objeto alvo
+    # montado em repouso. O deslocamento de explosão deve ser estritamente zero para não afastar
+    # a grade de 5 mm e os marcadores no espaço vazio.
+    if getattr(settings, "is_editing_connectors", False):
+        return Vector((0.0, 0.0, 0.0))
+
     if getattr(settings, "view_mode", "EXPLODED") != 'EXPLODED':
         return Vector((0.0, 0.0, 0.0))
 
@@ -394,6 +348,11 @@ def raycast_connector_surface(
         v_bu = v_mm / prepared.unit_scale
         if not any(point_in_polygon_2d(u_bu, v_bu, poly) for poly in outer_polys):
             return None
+        if any(point_in_polygon_2d(u_bu, v_bu, poly)
+               for poly in cut_iface.hole_contours_uv):
+            return None
+    else:
+        return None
 
     return (assembled_hit, u_mm, v_mm)
 
@@ -450,26 +409,18 @@ def evaluate_connector_specs(prepared: PreparedSplit, settings: Any) -> List[Dic
             "reason": reason,
         })
 
-    # 2. Validação de colisão entre pares de conectores (T19)
-    # Raio de corpo físico do encaixe com folga e margem mínima entre pinos
-    min_dist_centers_mm = diam_mm + 2.0 * clear_side_mm + 1.0
+    # Exact capsule/disk separation; adjacent parallel capsules need not be
+    # separated by their entire LENGTH in every direction.
+    from .geometry_connectors import connector_center_segment, segment_distance_sq
+    physical_half = max(0.0, (cap_len_mm - diam_mm) / 2.0) if conn_type == 'CAPSULE' else 0.0
+    segments = [connector_center_segment(c.u_mm, c.v_mm, physical_half,
+                                         math.radians(c.yaw_deg)) for c in connectors]
+    min_gap_sq = (diam_mm + 2.0 * clear_side_mm + 1.0)**2
     for i in range(n_conns):
-        if not results[i]["is_valid"]:
-            continue
-        c1 = connectors[i]
         for j in range(i + 1, n_conns):
-            c2 = connectors[j]
-            du = c1.u_mm - c2.u_mm
-            dv = c1.v_mm - c2.v_mm
-            dist_sq_mm = du * du + dv * dv
-            # Se cápsula, considera também comprimento
-            req_dist_mm = (cap_len_mm if conn_type == 'CAPSULE' else diam_mm) + 2.0 * clear_side_mm + 1.0
-            if dist_sq_mm < (req_dist_mm * req_dist_mm):
-                results[i]["is_valid"] = False
-                results[i]["reason"] = f"Colisão: muito próximo do pino #{j + 1}"
-                if results[j]["is_valid"]:
-                    results[j]["is_valid"] = False
-                    results[j]["reason"] = f"Colisão: muito próximo do pino #{i + 1}"
+            if segment_distance_sq(*segments[i], *segments[j]) < min_gap_sq:
+                results[i].update(is_valid=False, reason=f"Colisão: muito próximo do pino #{j+1}")
+                results[j].update(is_valid=False, reason=f"Colisão: muito próximo do pino #{i+1}")
 
     # Atualiza as propriedades no PropertyGroup
     for ev in results:
@@ -495,7 +446,7 @@ def generate_positioning_grid_points(
     - Filtra estritamente por pertencimento à interface útil (suporte a formas côncavas, U e furos).
     - Omite grade se a superfície não for plana ou se exceder o limite defensivo de candidatos.
     """
-    if prepared is None:
+    if prepared is None or not math.isfinite(step_mm) or step_mm <= 0 or max_points <= 0:
         return []
 
     # Se a superfície não for plana, omite a grade para não gerar falsa referência sobre curvatura (Seção 4.4)

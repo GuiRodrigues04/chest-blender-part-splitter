@@ -369,6 +369,34 @@ TRANSLATIONS_DICT = {
     },
 }
 
+# Labels of the continuous editor added after the original native catalog.
+TRANSLATIONS_DICT['en_US'].update({
+    ('*', 'Concluir Edição'): 'Finish Editing',
+    ('*', 'Cancelar Edição'): 'Cancel Editing',
+    ('*', 'Confirmar Posições dos Pinos'): 'Confirm Pin Positions',
+    ('*', '1. Objeto Alvo'): '1. Target Model',
+    ('*', '2. Método de Corte'): '2. Cutting Method',
+    ('*', '3. Encaixes e Pinos (Opcional)'): '3. Connectors and Pins (Optional)',
+    ('*', '4. Prévia do Corte'): '4. Cut Preview',
+    ('*', '5. Criar Peças'): '5. Create Parts',
+    ('*', 'Nenhum contorno capturado.'): 'No boundary captured.',
+    ('*', 'Edição manual cancelada. Pinos restaurados.'): 'Manual editing cancelled. Pins restored.',
+    ('*', 'Edição manual de pinos concluída.'): 'Manual pin editing finished.',
+    ('*', 'Há pinos inválidos ou colidindo. Corrija-os ou remova-os.'): 'Some pins are invalid or overlap. Move or remove them.',
+})
+
+
+def localize_text(text):
+    """Resolve explicit panel labels using the addon language, including English.
+
+    Blender's native translation can be disabled independently; the addon's
+    own language preference should still work for these labels.
+    """
+    if get_addon_locale() == 'en_US':
+        return TRANSLATIONS_DICT.get('en_US', {}).get(('*', text), text)
+    return text
+
+
 MESSAGES = {
     "pt_BR": {
         "connectors.enable": "Ativar encaixes",

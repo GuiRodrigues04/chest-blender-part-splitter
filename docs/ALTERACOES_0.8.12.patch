@@ -1,0 +1,2292 @@
+--- a/src/__init__.py
++++ b/src/__init__.py
+@@ -16,6 +16,12 @@
+ 
+ 
+ def unregister():
++    from . import connector_editor, connector_surface
++    connector_editor.stop_connector_editor()
++    connector_surface.clear_prepared_split_cache()
++    for scene in properties.bpy.data.scenes:
++        if hasattr(scene, 'chest_splitter'):
++            scene.chest_splitter.is_editing_connectors = False
+     gpu_drawing.unregister_overlay()
+     ui.unregister()
+     operators.unregister()
+--- a/src/connector_editor.py
++++ b/src/connector_editor.py
+@@ -11,6 +11,7 @@
+ """
+ 
+ import math
++import uuid
+ from typing import Optional, List, Dict, Any, Tuple
+ 
+ import bpy
+@@ -26,10 +27,12 @@
+     get_explosion_display_offset,
+ )
+ from .diagnostic import get_scene_scale_to_mm
++from .translations import localize_text
+ 
+ 
+ # Estado volátil de interação do editor para o drawing overlay
+ _EDITOR_STATE = {
++    "generation": 0,
+     "is_active": False,
+     "hover_world": None,
+     "hover_u_mm": 0.0,
+@@ -54,6 +57,7 @@
+         settings = getattr(scene, "chest_splitter", None)
+         if settings is not None:
+             settings.is_editing_connectors = False
++    _EDITOR_STATE["generation"] += 1
+     _EDITOR_STATE["is_active"] = False
+     _EDITOR_STATE["is_dragging"] = False
+     _EDITOR_STATE["drag_idx"] = -1
+@@ -113,7 +117,7 @@
+     _area = None
+     _prepared: Optional[PreparedSplit] = None
+     _snapshot: List[Dict[str, float]] = []
+-    _last_snapshot: List[Dict[str, float]] = []
++    _last_snapshot: Optional[List[Dict[str, float]]] = None
+     _rotating = False
+     _rotate_start_mouse_x = 0
+     _rotate_start_yaw = 0.0
+@@ -127,28 +131,14 @@
+ 
+     def _prepare_target_and_cleanup_previews(self, context):
+         settings = context.scene.chest_splitter
+-        # Se houver preview existente na cena, remove de forma limpa para revelar o alvo
+-        try:
++        # Remove only this session, never whichever older operation is selected.
++        if settings.session_id and settings.session_status != 'COMMITTED':
+             from .lifecycle import remove_preview
+-            remove_preview(context)
+-        except Exception:
+-            pass
+-
+-        # Limpeza defensiva forçada de qualquer objeto residual em CHEST_SPLITTER_PREVIEWS
+-        try:
+-            from .constants import COLLECTION_PREVIEWS_NAME
+-            from .operators import find_collection
+-            preview_col = find_collection(context.scene, COLLECTION_PREVIEWS_NAME)
+-            if preview_col:
+-                for obj in list(preview_col.objects):
+-                    if obj.type == 'MESH':
+-                        mesh_data = obj.data
+-                        preview_col.objects.unlink(obj)
+-                        bpy.data.objects.remove(obj, do_unlink=True)
+-                        if mesh_data and mesh_data.users == 0:
+-                            bpy.data.meshes.remove(mesh_data, do_unlink=True)
+-        except Exception:
+-            pass
++            ok, reason = remove_preview(context, op_id=settings.session_id)
++            if not ok:
++                raise RuntimeError(reason)
++        if context.mode != 'OBJECT':
++            bpy.ops.object.mode_set(mode='OBJECT')
+ 
+         # Garante que o objeto alvo está visível e ativo no viewport
+         target = settings.target_object
+@@ -162,31 +152,45 @@
+             except Exception:
+                 pass
+ 
++    def _capture_snapshot(self, settings):
++        self._snapshot = [
++            {"connector_id": c.connector_id, "u_mm": c.u_mm,
++             "v_mm": c.v_mm, "yaw_deg": c.yaw_deg}
++            for c in settings.manual_connectors
++        ]
++        type(self)._last_snapshot = list(self._snapshot)
++
+     def execute(self, context):
+-        settings = context.scene.chest_splitter
+-        target = settings.target_object
+-        if not target:
+-            self.report({'WARNING'}, "Defina um objeto alvo antes de editar pinos.")
+-            return {'CANCELLED'}
+-
++        # Script/headless entry point uses the same preparation and rollback rules.
++        settings = context.scene.chest_splitter
++        try:
++            self._prepared = prepare_split_candidates(context, force_recompute=True)
++        except Exception as exc:
++            self.report({'ERROR'}, str(exc))
++            return {'CANCELLED'}
++        self._capture_snapshot(settings)
+         self._prepare_target_and_cleanup_previews(context)
+         settings.connector_distribution = 'MANUAL'
+         settings.connector_enabled = True
+         settings.is_editing_connectors = True
++        evaluate_connector_specs(self._prepared, settings)
++        return {'FINISHED'}
++
++    def invoke(self, context, event):
++        settings = context.scene.chest_splitter
++        target = settings.target_object
++        if not target:
++            self.report({'WARNING'}, localize_text("Defina um objeto alvo antes de editar pinos."))
++            return {'CANCELLED'}
++
++        if settings.is_editing_connectors:
++            self.report({'WARNING'}, localize_text("O editor de pinos já está aberto."))
++            return {'CANCELLED'}
+         try:
+             self._prepared = prepare_split_candidates(context, force_recompute=True)
+-            evaluate_connector_specs(self._prepared, settings)
+-        except Exception:
+-            pass
+-        return {'FINISHED'}
+-
+-    def invoke(self, context, event):
+-        settings = context.scene.chest_splitter
+-        target = settings.target_object
+-        if not target:
+-            self.report({'WARNING'}, "Defina um objeto alvo antes de editar pinos.")
+-            return {'CANCELLED'}
+-
++        except Exception as exc:
++            self.report({'ERROR'}, f"Falha ao preparar superfície de encaixe: {exc}")
++            return {'CANCELLED'}
+         self._prepare_target_and_cleanup_previews(context)
+ 
+         # Se estiver em modo de edição, muda para modo Objeto para permitir seleção e cliques
+@@ -208,7 +212,7 @@
+                     break
+ 
+         if not area_3d:
+-            self.report({'ERROR'}, "Nenhuma área 3D Viewport encontrada.")
++            self.report({'ERROR'}, localize_text("Nenhuma área 3D Viewport encontrada."))
+             return {'CANCELLED'}
+ 
+         for r in area_3d.regions:
+@@ -217,41 +221,27 @@
+                 break
+ 
+         if not region_win:
+-            self.report({'ERROR'}, "Região WINDOW do Viewport não encontrada.")
++            self.report({'ERROR'}, localize_text("Região WINDOW do Viewport não encontrada."))
+             return {'CANCELLED'}
+ 
+         self._area = area_3d
+         self._region = region_win
+-
+-        # Prepara a superfície de contato sem rodar booleanas (Etapa B / C)
+-        try:
+-            self._prepared = prepare_split_candidates(context, force_recompute=True)
+-        except Exception as e:
+-            self.report({'ERROR'}, f"Falha ao preparar superfície de encaixe: {e}")
+-            return {'CANCELLED'}
+ 
+         # Ativa modo Manual e Encaixes
+         settings.connector_distribution = 'MANUAL'
+         settings.connector_enabled = True
+         settings.is_editing_connectors = True
+         self._target = target
+-
+-        # Salva snapshot dos conectores atuais para reversão com Cancelar/Esc
+-        self._snapshot = [
+-            {
+-                "connector_id": getattr(c, "connector_id", "") or f"pin_{idx}",
+-                "u_mm": c.u_mm,
+-                "v_mm": c.v_mm,
+-                "yaw_deg": c.yaw_deg,
+-            }
+-            for idx, c in enumerate(settings.manual_connectors)
+-        ]
+-        CHEST_OT_splitter_edit_manual_connectors._last_snapshot = list(self._snapshot)
++        from .input_state import editor_configuration
++        self._configuration = editor_configuration(settings, context.scene)
++
++        self._capture_snapshot(settings)
+ 
+         # Avalia estado inicial
+         evaluate_connector_specs(self._prepared, settings)
+ 
+         _EDITOR_STATE["is_active"] = True
++        self._generation = _EDITOR_STATE["generation"]
+         _EDITOR_STATE["is_dragging"] = False
+         _EDITOR_STATE["drag_idx"] = -1
+         _EDITOR_STATE["hover_world"] = None
+@@ -263,6 +253,9 @@
+         )
+         self._area.tag_redraw()
+         return {'RUNNING_MODAL'}
++
++    def cancel(self, context):
++        self._cancel_and_restore(context)
+ 
+     def modal(self, context, event):
+         try:
+@@ -274,6 +267,12 @@
+             return self._finish_cleanup(context, 'CANCELLED')
+ 
+     def _modal_impl(self, context, event):
++        # A button can finish and reopen editing before the old modal gets its
++        # next event. Retire that old instance without stopping the new editor.
++        if hasattr(self, '_generation') and self._generation != _EDITOR_STATE['generation']:
++            return {'FINISHED', 'PASS_THROUGH'}
++        if not hasattr(context.scene, 'chest_splitter'):
++            return {'CANCELLED'}
+         settings = context.scene.chest_splitter
+ 
+         # Encerra imediatamente se:
+@@ -285,6 +284,7 @@
+         # 6. Conectores manuais foram desativados
+         should_exit = (
+             not getattr(settings, "is_editing_connectors", False)
++            or (self._prepared and settings.split_mode != self._prepared.split_mode)
+             or not self._prepared
+             or getattr(settings, "session_status", "") == 'COMMITTED'
+             or context.mode != 'OBJECT'
+@@ -300,6 +300,11 @@
+             res_state = 'FINISHED' if getattr(settings, "session_status", "") == 'COMMITTED' else 'CANCELLED'
+             return self._finish_cleanup(context, res_state, pass_through=True)
+ 
++        from .input_state import editor_configuration
++        if editor_configuration(settings, context.scene) != self._configuration:
++            self.report({'INFO'}, localize_text("O corte mudou. Abra novamente o editor de pinos para atualizar a superfície."))
++            return self._finish_cleanup(context, 'FINISHED')
++
+         # Redesenha a área do viewport para feedback responsivo
+         if self._area:
+             self._area.tag_redraw()
+@@ -307,6 +312,16 @@
+         # Verifica se o cursor está estritamente sobre o canvas 3D (excluindo painel N, barra de ferramentas e headers)
+         canvas_region = get_view3d_canvas_region(self._area, event.mouse_x, event.mouse_y)
+         in_canvas = (canvas_region is not None)
++
++        # Mouse release belongs to the drag even outside the WINDOW region.
++        if (_EDITOR_STATE['is_dragging'] and event.type == 'LEFTMOUSE'
++                and event.value == 'RELEASE'):
++            _EDITOR_STATE['is_dragging'] = False
++            _EDITOR_STATE['drag_idx'] = -1
++            evaluate_connector_specs(self._prepared, settings)
++            return {'RUNNING_MODAL'}
++        if event.alt and event.type in {'LEFTMOUSE', 'MIDDLEMOUSE'}:
++            return {'PASS_THROUGH'}
+ 
+         # Se o cursor estiver sobre o painel N (UI), cabeçalho ou outra área do Blender:
+         if not in_canvas:
+@@ -467,7 +482,7 @@
+                 if raycast_res is not None:
+                     hit_world, hit_u, hit_v = raycast_res
+                     item = settings.manual_connectors.add()
+-                    item.connector_id = f"pin_{len(settings.manual_connectors)}"
++                    item.connector_id = "pin_" + uuid.uuid4().hex[:12]
+                     item.u_mm = round(hit_u, 2)
+                     item.v_mm = round(hit_v, 2)
+                     item.yaw_deg = 0.0
+@@ -477,7 +492,7 @@
+                     return {'RUNNING_MODAL'}
+                 else:
+                     # Clicou fora da superfície de corte no canvas 3D: avisa o usuário e não cria pino solto
+-                    self.report({'INFO'}, "Clique sobre a superfície destacada da peça para posicionar o pino.")
++                    self.report({'INFO'}, localize_text("Clique sobre a superfície destacada da peça para posicionar o pino."))
+                     return {'RUNNING_MODAL'}
+ 
+             # Submodo MOVE e clicou fora de qualquer pino: mantém seleção
+@@ -503,7 +518,7 @@
+             settings.manual_connector_index = 0
+             _EDITOR_STATE["is_dragging"] = False
+             _EDITOR_STATE["drag_idx"] = -1
+-            self.report({'INFO'}, "Todos os pinos foram limpos.")
++            self.report({'INFO'}, localize_text("Todos os pinos foram limpos."))
+             return {'RUNNING_MODAL'}
+ 
+         elif event.type in {'X', 'DEL'} and event.value == 'PRESS':
+@@ -515,7 +530,7 @@
+                 _EDITOR_STATE["is_dragging"] = False
+                 _EDITOR_STATE["drag_idx"] = -1
+                 evaluate_connector_specs(self._prepared, settings)
+-                self.report({'INFO'}, "Pino removido.")
++                self.report({'INFO'}, localize_text("Pino removido."))
+                 return {'RUNNING_MODAL'}
+ 
+         elif event.type == 'D' and event.value == 'PRESS' and event.shift:
+@@ -525,7 +540,7 @@
+                 orig_pin = settings.manual_connectors[idx]
+                 hit_world, hit_u, hit_v = raycast_res
+                 item = settings.manual_connectors.add()
+-                item.connector_id = f"pin_{len(settings.manual_connectors)}"
++                item.connector_id = "pin_" + uuid.uuid4().hex[:12]
+                 item.u_mm = round(hit_u, 2)
+                 item.v_mm = round(hit_v, 2)
+                 item.yaw_deg = orig_pin.yaw_deg
+@@ -557,24 +572,27 @@
+ 
+     def _confirm_and_generate(self, context):
+         """Conclui a edição e gera a prévia com os pinos e cavidades."""
++        settings = context.scene.chest_splitter
++        try:
++            self._prepared = prepare_split_candidates(context)
++            eval_res = evaluate_connector_specs(self._prepared, settings)
++        except Exception as exc:
++            self.report({'ERROR'}, str(exc))
++            return {'RUNNING_MODAL'}
++        if any(not ev["is_valid"] for ev in eval_res):
++            self.report({'WARNING'}, localize_text("Há pinos inválidos ou colidindo. Corrija-os ou remova-os."))
++            return {'RUNNING_MODAL'}
+         stop_connector_editor(context.scene)
+-        settings = context.scene.chest_splitter
+-
+-        # Validação final dos conectores
+-        eval_res = evaluate_connector_specs(self._prepared, settings)
+-        has_invalid = any(not ev["is_valid"] for ev in eval_res)
+-        if has_invalid:
+-            self.report({'WARNING'}, "Atenção: há pinos inválidos ou colidindo. Corrija-os ou remova-os.")
+-
+         settings.session_status = 'PREVIEW_STALE'
+         try:
+-            bpy.ops.chest.splitter_generate_preview()
+-            self.report({'INFO'}, "Posições confirmadas! Prévia gerada com sucesso.")
+-        except Exception as e:
+-            self.report({'ERROR'}, f"Erro ao gerar prévia com os encaixes: {e}")
+-
++            result = bpy.ops.chest.splitter_generate_preview()
++            if 'FINISHED' in result:
++                self.report({'INFO'}, localize_text("Posições confirmadas! Prévia gerada com sucesso."))
++        except RuntimeError as exc:
++            self.report({'ERROR'}, str(exc))
+         if self._area:
+             self._area.tag_redraw()
++        # Keep placed markers on boolean failure; they can be edited again.
+         return {'FINISHED'}
+ 
+     def _cancel_and_restore(self, context):
+@@ -593,7 +611,7 @@
+ 
+         if self._area:
+             self._area.tag_redraw()
+-        self.report({'INFO'}, "Edição de posições cancelada. Marcadores restaurados.")
++        self.report({'INFO'}, localize_text("Edição de posições cancelada. Marcadores restaurados."))
+         return {'CANCELLED'}
+ 
+     def _finish_cleanup(self, context, result_state, pass_through=False):
+@@ -625,7 +643,7 @@
+         stop_connector_editor(context.scene)
+         settings = context.scene.chest_splitter
+         settings.session_status = 'PREVIEW_STALE'
+-        self.report({'INFO'}, "Edição manual de pinos concluída.")
++        self.report({'INFO'}, localize_text("Edição manual de pinos concluída."))
+         for area in context.screen.areas:
+             if area.type == 'VIEW_3D':
+                 area.tag_redraw()
+@@ -639,10 +657,12 @@
+     bl_options = {'REGISTER', 'UNDO'}
+ 
+     def execute(self, context):
++        settings = context.scene.chest_splitter
++        if not settings.is_editing_connectors:
++            return {'CANCELLED'}
+         stop_connector_editor(context.scene)
+-        settings = context.scene.chest_splitter
+-
+-        if hasattr(CHEST_OT_splitter_edit_manual_connectors, "_last_snapshot") and CHEST_OT_splitter_edit_manual_connectors._last_snapshot:
++
++        if CHEST_OT_splitter_edit_manual_connectors._last_snapshot is not None:
+             settings.manual_connectors.clear()
+             for sp in CHEST_OT_splitter_edit_manual_connectors._last_snapshot:
+                 item = settings.manual_connectors.add()
+@@ -651,7 +671,7 @@
+                 item.v_mm = sp.get("v_mm", 0.0)
+                 item.yaw_deg = sp.get("yaw_deg", 0.0)
+ 
+-        self.report({'INFO'}, "Edição manual cancelada. Pinos restaurados.")
++        self.report({'INFO'}, localize_text("Edição manual cancelada. Pinos restaurados."))
+         for area in context.screen.areas:
+             if area.type == 'VIEW_3D':
+                 area.tag_redraw()
+@@ -668,13 +688,11 @@
+         settings = context.scene.chest_splitter
+ 
+         # Prepara corte e avalia specs antes de fechar o editor
+-        prep = get_cached_prepared_split()
+-        if prep is None:
+-            try:
+-                prep = prepare_split_candidates(context)
+-            except Exception as e:
+-                self.report({'ERROR'}, f"Não foi possível preparar o corte: {e}")
+-                return {'CANCELLED'}
++        try:
++            prep = prepare_split_candidates(context)
++        except Exception as e:
++            self.report({'ERROR'}, f"Não foi possível preparar o corte: {e}")
++            return {'CANCELLED'}
+ 
+         eval_res = evaluate_connector_specs(prep, settings)
+         has_invalid = any(not ev["is_valid"] for ev in eval_res)
+@@ -687,8 +705,10 @@
+ 
+         settings.session_status = 'PREVIEW_STALE'
+         try:
+-            bpy.ops.chest.splitter_generate_preview()
+-            self.report({'INFO'}, "Prévia com conectores gerada com sucesso.")
++            result = bpy.ops.chest.splitter_generate_preview()
++            if 'FINISHED' not in result:
++                return {'CANCELLED'}
++            self.report({'INFO'}, localize_text("Prévia com conectores gerada com sucesso."))
+             return {'FINISHED'}
+         except Exception as e:
+             self.report({'ERROR'}, f"Erro na geração da prévia: {e}")
+@@ -748,5 +768,5 @@
+         rv3d.view_distance = span_max * 1.8
+ 
+         area_3d.tag_redraw()
+-        self.report({'INFO'}, "Câmera alinhada à face de contato.")
++        self.report({'INFO'}, localize_text("Câmera alinhada à face de contato."))
+         return {'FINISHED'}
+--- a/src/connector_surface.py
++++ b/src/connector_surface.py
+@@ -10,14 +10,13 @@
+ from dataclasses import dataclass, field
+ from typing import List, Tuple, Dict, Any, Optional
+ import math
+-import hashlib
+ 
+ import bpy
+ import bmesh
+-from mathutils import Vector, Matrix, Euler
++from mathutils import Vector
+ from mathutils.bvhtree import BVHTree
+ 
+-from .geometry_contract import CutInterface, build_cut_interface
++from .geometry_contract import CutInterface
+ from .diagnostic import get_scene_scale_to_mm
+ 
+ 
+@@ -52,45 +51,13 @@
+ 
+ # Cache em memória do último corte preparado
+ _CACHED_PREPARED_SPLIT: Optional[PreparedSplit] = None
+-_LAST_KNOWN_AXIS_U: Optional[Vector] = None
+-_LAST_KNOWN_AXIS_V: Optional[Vector] = None
+-
+-
+-def compute_cut_signature(settings: Any, target: bpy.types.Object) -> str:
++
++
++def compute_cut_signature(settings: Any, target: bpy.types.Object, scene=None) -> str:
+     """Gera hash determinístico dos parâmetros que alteram a geometria do corte sem pinos."""
+-    h = hashlib.sha256()
+-    h.update(target.name.encode('utf-8'))
+-    h.update(str(target.matrix_world).encode('utf-8'))
+-    mode = getattr(settings, "split_mode", "PLANE")
+-    h.update(mode.encode('utf-8'))
+-    h.update(str(getattr(settings, "invert_sides", False)).encode('utf-8'))
+-    h.update(str(getattr(settings, "plane_offset_mm", 0.0)).encode('utf-8'))
+-    h.update(str(getattr(settings, "part_clearance_mm", 0.0)).encode('utf-8'))
+-
+-    if mode == 'PLANE':
+-        h.update(str(getattr(settings, "plane_origin", (0, 0, 0))).encode('utf-8'))
+-        h.update(str(getattr(settings, "plane_normal", (0, 0, 1))).encode('utf-8'))
+-    elif mode == 'LOOP':
+-        h.update(str(getattr(settings, "loop_cut_mode", "KNIFE")).encode('utf-8'))
+-        h.update(str(getattr(settings, "loop_extrude_depth_mm", 0.0)).encode('utf-8'))
+-        h.update(str(getattr(settings, "loop_base_thick_mm", 0.0)).encode('utf-8'))
+-        h.update(str(getattr(settings, "loop_bridge_enable", False)).encode('utf-8'))
+-        h.update(str(getattr(settings, "loop_subdivide_edges", False)).encode('utf-8'))
+-        h.update(str(getattr(settings, "loop_behavior", "AUTO")).encode('utf-8'))
+-        h.update(str(getattr(settings, "loop_through_cut", False)).encode('utf-8'))
+-        h.update(str(getattr(settings, "loop_detach_add_base", False)).encode('utf-8'))
+-        h.update(str(getattr(settings, "loop_detach_base_depth_mm", 0.0)).encode('utf-8'))
+-        h.update(str(getattr(settings, "loop_vertex_indices", "")).encode('utf-8'))
+-        h.update(str(getattr(settings, "loop_seed_face_index", -1)).encode('utf-8'))
+-    elif mode == 'MATERIAL':
+-        h.update(str(getattr(settings, "material_split_index", 0)).encode('utf-8'))
+-        h.update(str(getattr(settings, "material_extrude_depth_mm", 5.0)).encode('utf-8'))
+-        h.update(str(getattr(settings, "material_region_index", -1)).encode('utf-8'))
+-        h.update(str(getattr(settings, "material_extraction_mode", 'EXTRUDE')).encode('utf-8'))
+-        h.update(str(getattr(settings, "part_clearance_bottom_mm", 0.0)).encode('utf-8'))
+-        h.update(str(getattr(settings, "part_clearance_bottom_enable", False)).encode('utf-8'))
+-
+-    return h.hexdigest()
++    from .input_state import cut_signature
++    return cut_signature(settings, target, scene or bpy.context.scene)
++
+ 
+ 
+ def get_cached_prepared_split() -> Optional[PreparedSplit]:
+@@ -101,7 +68,7 @@
+ 
+ def clear_prepared_split_cache():
+     """Invalida o cache de corte preparado e a grade de posicionamento."""
+-    global _CACHED_PREPARED_SPLIT, _LAST_KNOWN_AXIS_U, _LAST_KNOWN_AXIS_V
++    global _CACHED_PREPARED_SPLIT
+     _CACHED_PREPARED_SPLIT = None
+     try:
+         from .gpu_drawing import clear_grid_cache
+@@ -116,7 +83,7 @@
+     Compatível com os três modos (PLANE, LOOP e MATERIAL).
+     Preserva a seleção de modo/arestas se o usuário estiver em Edit Mode.
+     """
+-    global _CACHED_PREPARED_SPLIT, _LAST_KNOWN_AXIS_U, _LAST_KNOWN_AXIS_V
++    global _CACHED_PREPARED_SPLIT
+     settings = context.scene.chest_splitter
+     target = getattr(settings, "target_object", None)
+     if not target or target.name not in bpy.data.objects:
+@@ -126,7 +93,17 @@
+     if target.mode == 'EDIT':
+         target.update_from_editmode()
+ 
+-    sig = compute_cut_signature(settings, target)
++    sig = compute_cut_signature(settings, target, context.scene)
++    if mode_has_modifiers := (settings.split_mode == 'PLANE' and any(m.show_viewport for m in target.modifiers)):
++        from .input_state import cut_signature
++        evaluated = target.evaluated_get(context.evaluated_depsgraph_get())
++        try:
++            evaluated_mesh = evaluated.to_mesh()
++            sig = cut_signature(settings, target, context.scene, evaluated_mesh)
++        finally:
++            evaluated.to_mesh_clear()
++    # The male side changes the outward normal used for picking and display.
++    sig += ':' + settings.connector_male_part
+     if not force_recompute and _CACHED_PREPARED_SPLIT is not None:
+         if _CACHED_PREPARED_SPLIT.cut_signature == sig and _CACHED_PREPARED_SPLIT.target_name == target.name:
+             return _CACHED_PREPARED_SPLIT
+@@ -144,52 +121,29 @@
+ 
+     if mode == 'PLANE':
+         from .plane_state import resolve_plane_state
++        from .geometry_plane import slice_mesh_by_plane
+         plane_origin, plane_normal = resolve_plane_state(context.scene, settings)
+-        norm = plane_normal.normalized()
+-        offset_mm = getattr(settings, "plane_offset_mm", 0.0)
+-        offset_bu = (offset_mm / unit_scale)
+-        eff_origin = plane_origin + norm * offset_bu
+-
+-        # Executa bisect temporário para extrair loops da interface
+-        bm = bmesh.new()
+-        bm.from_mesh(target.data)
+-        bm.transform(target.matrix_world)
+-
+-        res = bmesh.ops.bisect_plane(
+-            bm,
+-            geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
+-            plane_co=eff_origin,
+-            plane_no=norm,
+-            clear_outer=False,
+-            clear_inner=False,
+-        )
+-        cut_edges = [e for e in res.get("geom_cut", []) if isinstance(e, bmesh.types.BMEdge)]
+-        from .geometry_plane import reconstruct_boundary_loops
+-        interface_loops = reconstruct_boundary_loops(cut_edges)
+-        interface_points = [p for loop in interface_loops for p in loop] if interface_loops else [v.co.copy() for e in cut_edges if e.is_valid for v in e.verts]
+-
+-        # Constrói triângulos de preenchimento para raycast se possível
++        mesh_a = bpy.data.meshes.new('_chest_interface_a')
++        mesh_b = bpy.data.meshes.new('_chest_interface_b')
++        evaluated = None
+         try:
+-            # Preenche faces temporárias da interface para BVH
+-            fill_res = bmesh.ops.edgenet_fill(bm, edges=cut_edges)
+-            cap_faces = fill_res.get("faces", [])
+-            for f in cap_faces:
+-                for tri in f.calc_loop_triangles():
+-                    contact_tris.append((tri[0].vert.co.copy(), tri[1].vert.co.copy(), tri[2].vert.co.copy()))
+-        except Exception:
+-            pass
+-
+-        bm.free()
+-
+-        effective_normal_a = -norm if settings.invert_sides else norm
+-        cut_iface = build_cut_interface(
+-            origin_world=eff_origin,
+-            normal_a_to_b=effective_normal_a,
+-            boundary_points_world=interface_points,
+-            boundary_loops_world=interface_loops,
+-            unit_scale=unit_scale,
+-            source_mode="PLANE",
+-        )
++            source_mesh = target.data
++            if mode_has_modifiers:
++                evaluated = target.evaluated_get(context.evaluated_depsgraph_get())
++                source_mesh = evaluated.to_mesh()
++            report = slice_mesh_by_plane(
++                source_mesh, target.matrix_world, plane_origin, plane_normal,
++                mesh_a, mesh_b, invert_sides=settings.invert_sides,
++                unit_scale=unit_scale, plane_offset_mm=settings.plane_offset_mm,
++                part_clearance_mm=settings.part_clearance_mm,
++                part_clearance_apply_to=settings.part_clearance_apply_to,
++            )
++            cut_iface = report['interface']
++        finally:
++            if evaluated is not None:
++                evaluated.to_mesh_clear()
++            bpy.data.meshes.remove(mesh_a)
++            bpy.data.meshes.remove(mesh_b)
+ 
+     elif mode == 'LOOP':
+         from .geometry_loop import (
+@@ -200,19 +154,20 @@
+             target.update_from_editmode()
+ 
+         indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i.strip()]
+-        if not indices or settings.loop_seed_face_index < 0:
+-            raise RuntimeError("Nenhum contorno (loop) capturado no modo Loop.")
++        from .geometry_loop import validate_capture
++        valid, reason = validate_capture(target, settings, context)
++        if not valid:
++            raise RuntimeError(reason)
++        if settings.loop_seed_face_index < 0:
++            raise RuntimeError("Defina a região a separar selecionando uma face semente no modo Loop.")
+ 
+         behavior = settings.loop_behavior
+         if behavior == 'AUTO':
+             # Mesma resolução usada em splitter_generate_preview, para que a interface do
+             # editor coincida com a interface real de contato (origem, normal e profundidade).
+             from .geometry_loop import analyze_loop_region
+-            try:
+-                analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, context.scene)
+-                behavior = analysis["detected_mode"]
+-            except Exception:
+-                behavior = 'DETACH'
++            analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, context.scene)
++            behavior = analysis["detected_mode"]
+         if behavior == 'EXTRUDE':
+             loop_res = slice_mesh_by_loop_extrude(
+                 target,
+@@ -279,20 +234,13 @@
+ 
+     if cut_iface is None:
+         raise RuntimeError("Não foi possível preparar a interface de corte para o modelo.")
+-
+-    # Estabilização dos eixos U/V contra inversão de sinal (T13 / Seção 5.2)
++    if not cut_iface.outer_contours_uv:
++        raise RuntimeError("Este corte não possui uma superfície comum para posicionar os pinos.")
++
++    # Use exactly the deterministic basis of the geometry result. Never flip axes
++    # without reprojecting the contours (that reflects asymmetric interfaces).
+     axis_u = cut_iface.axis_u_world.copy()
+     axis_v = cut_iface.axis_v_world.copy()
+-    if _LAST_KNOWN_AXIS_U is not None and _LAST_KNOWN_AXIS_V is not None:
+-        if axis_u.dot(_LAST_KNOWN_AXIS_U) < 0.0:
+-            axis_u = -axis_u
+-            axis_v = -axis_v
+-        if axis_v.dot(_LAST_KNOWN_AXIS_V) < 0.0:
+-            axis_v = -axis_v
+-        cut_iface.axis_u_world = axis_u
+-        cut_iface.axis_v_world = axis_v
+-    _LAST_KNOWN_AXIS_U = axis_u.copy()
+-    _LAST_KNOWN_AXIS_V = axis_v.copy()
+ 
+     # Define a normal na superfície de contato voltada para fora do macho
+     if male_side == 'A':
+@@ -400,6 +348,11 @@
+         v_bu = v_mm / prepared.unit_scale
+         if not any(point_in_polygon_2d(u_bu, v_bu, poly) for poly in outer_polys):
+             return None
++        if any(point_in_polygon_2d(u_bu, v_bu, poly)
++               for poly in cut_iface.hole_contours_uv):
++            return None
++    else:
++        return None
+ 
+     return (assembled_hit, u_mm, v_mm)
+ 
+@@ -456,26 +409,18 @@
+             "reason": reason,
+         })
+ 
+-    # 2. Validação de colisão entre pares de conectores (T19)
+-    # Raio de corpo físico do encaixe com folga e margem mínima entre pinos
+-    min_dist_centers_mm = diam_mm + 2.0 * clear_side_mm + 1.0
++    # Exact capsule/disk separation; adjacent parallel capsules need not be
++    # separated by their entire LENGTH in every direction.
++    from .geometry_connectors import connector_center_segment, segment_distance_sq
++    physical_half = max(0.0, (cap_len_mm - diam_mm) / 2.0) if conn_type == 'CAPSULE' else 0.0
++    segments = [connector_center_segment(c.u_mm, c.v_mm, physical_half,
++                                         math.radians(c.yaw_deg)) for c in connectors]
++    min_gap_sq = (diam_mm + 2.0 * clear_side_mm + 1.0)**2
+     for i in range(n_conns):
+-        if not results[i]["is_valid"]:
+-            continue
+-        c1 = connectors[i]
+         for j in range(i + 1, n_conns):
+-            c2 = connectors[j]
+-            du = c1.u_mm - c2.u_mm
+-            dv = c1.v_mm - c2.v_mm
+-            dist_sq_mm = du * du + dv * dv
+-            # Se cápsula, considera também comprimento
+-            req_dist_mm = (cap_len_mm if conn_type == 'CAPSULE' else diam_mm) + 2.0 * clear_side_mm + 1.0
+-            if dist_sq_mm < (req_dist_mm * req_dist_mm):
+-                results[i]["is_valid"] = False
+-                results[i]["reason"] = f"Colisão: muito próximo do pino #{j + 1}"
+-                if results[j]["is_valid"]:
+-                    results[j]["is_valid"] = False
+-                    results[j]["reason"] = f"Colisão: muito próximo do pino #{i + 1}"
++            if segment_distance_sq(*segments[i], *segments[j]) < min_gap_sq:
++                results[i].update(is_valid=False, reason=f"Colisão: muito próximo do pino #{j+1}")
++                results[j].update(is_valid=False, reason=f"Colisão: muito próximo do pino #{i+1}")
+ 
+     # Atualiza as propriedades no PropertyGroup
+     for ev in results:
+@@ -501,7 +446,7 @@
+     - Filtra estritamente por pertencimento à interface útil (suporte a formas côncavas, U e furos).
+     - Omite grade se a superfície não for plana ou se exceder o limite defensivo de candidatos.
+     """
+-    if prepared is None:
++    if prepared is None or not math.isfinite(step_mm) or step_mm <= 0 or max_points <= 0:
+         return []
+ 
+     # Se a superfície não for plana, omite a grade para não gerar falsa referência sobre curvatura (Seção 4.4)
+--- a/src/constants.py
++++ b/src/constants.py
+@@ -1,8 +1,8 @@
+ """Constantes e definições padrão para o Chest Part Splitter."""
+ 
+ # Identificação e versão do Addon
+-ADDON_VERSION = (0, 8, 11)
+-ADDON_VERSION_STR = "0.8.11"
++ADDON_VERSION = (0, 8, 12)
++ADDON_VERSION_STR = "0.8.12"
+ PANEL_TITLE = f"Part Splitter {ADDON_VERSION_STR}"
+ 
+ # Coleções de organização no Blender
+--- a/src/geometry_connectors.py
++++ b/src/geometry_connectors.py
+@@ -348,6 +348,26 @@
+     return valid
+ 
+ 
++def segment_distance_sq(a, b, c, d):
++    """Squared distance between closed 2D segments, including crossings/degeneracy."""
++    def cross(p, q, r):
++        return (q[0]-p[0])*(r[1]-p[1]) - (q[1]-p[1])*(r[0]-p[0])
++    if (max(min(a[0], b[0]), min(c[0], d[0])) <= min(max(a[0], b[0]), max(c[0], d[0]))
++            and max(min(a[1], b[1]), min(c[1], d[1])) <= min(max(a[1], b[1]), max(c[1], d[1]))
++            and cross(a, b, c)*cross(a, b, d) <= 0
++            and cross(c, d, a)*cross(c, d, b) <= 0):
++        return 0.0
++    return min(point_to_segment_dist_sq(*a, *c, *d),
++               point_to_segment_dist_sq(*b, *c, *d),
++               point_to_segment_dist_sq(*c, *a, *b),
++               point_to_segment_dist_sq(*d, *a, *b))
++
++
++def connector_center_segment(u, v, half_len=0.0, yaw_rad=0.0):
++    du, dv = half_len*math.cos(yaw_rad), half_len*math.sin(yaw_rad)
++    return (u-du, v-dv), (u+du, v+dv)
++
++
+ def validate_connector_footprint(
+     u_p: float,
+     v_p: float,
+@@ -361,28 +381,24 @@
+ ) -> Tuple[bool, str]:
+     """Valida se o footprint completo de um encaixe cabe no domínio sólido sem cruzar furos ou bordas."""
+     if not outer_polys:
+-        return True, "OK"
+-    test_pts = [(u_p, v_p)]
+-    if connector_type == 'CAPSULE' and half_len > 0.0:
+-        cos_rot = math.cos(yaw_rad)
+-        sin_rot = math.sin(yaw_rad)
+-        prof = create_capsule_2d_profile(w=check_r, half_len=half_len, segments=24)
+-        for lx, ly in prof:
+-            test_pts.append((
+-                u_p + ly * cos_rot - lx * sin_rot,
+-                v_p + ly * sin_rot + lx * cos_rot,
+-            ))
+-    else:
+-        for ang_idx in range(16):
+-            ang = 2.0 * math.pi * ang_idx / 16.0
+-            test_pts.append((u_p + check_r * math.cos(ang), v_p + check_r * math.sin(ang)))
+-
+-    for tp in test_pts:
+-        if not any(point_in_polygon_2d(tp[0], tp[1], poly) for poly in outer_polys):
+-            return False, f"Ultrapassa margem ({edge_margin_mm:.1f} mm) ou cai fora da peça"
+-        for hole_poly in hole_polys:
+-            if point_in_polygon_2d(tp[0], tp[1], hole_poly):
+-                return False, "Invade furo ou vazio interno da interface"
++        return False, "Interface de contato não preparada"
++    a, b = connector_center_segment(u_p, v_p,
++        half_len if connector_type == 'CAPSULE' else 0.0, yaw_rad)
++    radius_sq = max(0.0, check_r - 1e-9)**2
++    def distance_to_edges(poly):
++        return min(segment_distance_sq(a, b, poly[i], poly[(i+1) % len(poly)])
++                   for i in range(len(poly)))
++    # An exact disk/capsule test also detects a tiny hole wholly inside the
++    # footprint, which checking 16 perimeter samples misses.
++    fits_outer = any(
++        point_in_polygon_2d(*a, poly) and point_in_polygon_2d(*b, poly)
++        and distance_to_edges(poly) >= radius_sq for poly in outer_polys if len(poly) >= 3)
++    if not fits_outer:
++        return False, f"Ultrapassa margem ({edge_margin_mm:.1f} mm) ou cai fora da peça"
++    for poly in hole_polys:
++        if (point_in_polygon_2d(*a, poly) or point_in_polygon_2d(*b, poly)
++                or distance_to_edges(poly) < radius_sq):
++            return False, "Invade furo ou vazio interno da interface"
+     return True, "OK"
+ 
+ def compute_connector_layout(
+@@ -407,7 +423,7 @@
+ 
+     if interface is not None and getattr(interface, "outer_contours_uv", None) and interface.outer_contours_uv:
+         plane_origin = interface.origin_world
+-        norm = interface.normal_a_to_b_world.normalized()
++        norm = plane_normal.normalized()
+         u_axis = interface.axis_u_world
+         v_axis = interface.axis_v_world
+         outer_polys = interface.outer_contours_uv
+@@ -475,7 +491,8 @@
+     cavity_diam_mm = diameter_mm + 2.0 * clearance_per_side_mm
+     req_min_span_mm = cavity_diam_mm + 2.0 * edge_margin_mm
+ 
+-    if span_minor_mm < req_min_span_mm - 1e-3 or span_major_mm < req_min_span_mm - 1e-3:
++    if not (distribution == 'MANUAL' and not manual_specs) and (
++            span_minor_mm < req_min_span_mm - 1e-3 or span_major_mm < req_min_span_mm - 1e-3):
+         raise ConnectorValidationError(
+             f"Falta de espaço: a interface ({span_major_mm:.1f}x{span_minor_mm:.1f} mm) não comporta o encaixe "
+             f"com margem de {edge_margin_mm:.1f} mm (necessário ao menos {req_min_span_mm:.1f}x{req_min_span_mm:.1f} mm)."
+@@ -488,7 +505,7 @@
+     positions = []
+ 
+     check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
+-    valid_domain_points = sample_domain_valid_points(outer_polys, hole_polys, min_u, max_u, min_v, max_v, check_r, steps=35) if outer_polys else []
++    valid_domain_points = sample_domain_valid_points(outer_polys, hole_polys, min_u, max_u, min_v, max_v, check_r, steps=35) if outer_polys and distribution != 'MANUAL' else []
+ 
+     # Validação de distribuições múltiplas e Modo Manual (A05 / A07)
+     manual_eval_results = []
+@@ -750,7 +767,7 @@
+ 
+     adjusted_cap_len_mm = capsule_length_mm
+     capsule_was_adjusted = False
+-    if connector_type == 'CAPSULE' and len(positions) > 0:
++    if connector_type == 'CAPSULE' and len(positions) > 0 and distribution != 'MANUAL':
+         if capsule_length_mm <= 0.0 or capsule_length_mm > max_safe_lateral_mm:
+             adjusted_cap_len_mm = max_safe_lateral_mm
+             capsule_was_adjusted = (capsule_length_mm > 0.0 and adjusted_cap_len_mm != capsule_length_mm)
+@@ -763,48 +780,18 @@
+                 f"com margem de {edge_margin_mm:.1f} mm (necessário ao menos {req_major_mm:.1f} mm)."
+             )
+ 
+-    # Validação rigorosa de inclusão do perfil completo no domínio sólido da interface (B04/B05)
++    # The same exact footprint test is used in the editor and at generation.
+     if outer_polys and distribution != 'MANUAL':
+         check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
+-        u_proj = major_axis.dot(u_axis)
+-        v_proj = major_axis.dot(v_axis)
+-        rot_ang = math.atan2(v_proj, u_proj)
+-        cos_rot = math.cos(rot_ang)
+-        sin_rot = math.sin(rot_ang)
+-
++        yaw = math.atan2(major_axis.dot(v_axis), major_axis.dot(u_axis))
++        half_len = max(0.0, (adjusted_cap_len_mm - diameter_mm) / 2.0) / unit_scale
+         for idx, pos in enumerate(positions):
+-            u_p = (pos - plane_origin).dot(u_axis)
+-            v_p = (pos - plane_origin).dot(v_axis)
+-
+-            test_pts = [(u_p, v_p)]
+-            if connector_type == 'CAPSULE':
+-                eff_cap = max(diameter_mm, adjusted_cap_len_mm) if adjusted_cap_len_mm > 0.0 else (diameter_mm * 2.4)
+-                half_len = max(0.0, (eff_cap - diameter_mm) / 2.0) / unit_scale
+-                prof = create_capsule_2d_profile(w=check_r, half_len=half_len, segments=24)
+-                # No perfil da cápsula: Y (ly) é o eixo de alongamento (major_axis) e X (lx) é a largura (minor_axis)
+-                # major_axis no plano UV é (cos_rot, sin_rot), minor_axis é (-sin_rot, cos_rot)
+-                for lx, ly in prof:
+-                    test_pts.append((
+-                        u_p + ly * cos_rot - lx * sin_rot,
+-                        v_p + ly * sin_rot + lx * cos_rot,
+-                    ))
+-            else:
+-                for ang_idx in range(16):
+-                    ang = 2.0 * math.pi * ang_idx / 16.0
+-                    test_pts.append((u_p + check_r * math.cos(ang), v_p + check_r * math.sin(ang)))
+-
+-            for tp in test_pts:
+-                in_any_outer = any(point_in_polygon_2d(tp[0], tp[1], poly) for poly in outer_polys)
+-                if not in_any_outer:
+-                    raise ConnectorValidationError(
+-                        f"O encaixe #{idx+1} ultrapassa a margem de segurança de {edge_margin_mm:.1f} mm "
+-                        f"ou cai fora do domínio sólido da peça."
+-                    )
+-                for hole_poly in hole_polys:
+-                    if point_in_polygon_2d(tp[0], tp[1], hole_poly):
+-                        raise ConnectorValidationError(
+-                            f"O encaixe #{idx+1} invade um furo/vazio interno da interface."
+-                        )
++            uv = ((pos-plane_origin).dot(u_axis), (pos-plane_origin).dot(v_axis))
++            valid, reason = validate_connector_footprint(
++                *uv, check_r, outer_polys, hole_polys, edge_margin_mm,
++                connector_type, half_len, yaw)
++            if not valid:
++                raise ConnectorValidationError(f"O encaixe #{idx+1}: {reason}.")
+ 
+     # Constrói rotações individuais precisas por pino (PM11)
+     pin_rotations = []
+@@ -877,6 +864,7 @@
+     normal: Optional[Vector] = None,
+     length_mm: float = 0.0,
+     end_clearance_mm: float = 0.0,
++    pin_rotations: Optional[List[Euler]] = None,
+ ):
+     """Valida distâncias entre encaixes e espessura de parede remanescente na peça receptora."""
+     eff_length = capsule_length_mm if (connector_type == 'CAPSULE' and capsule_length_mm > diameter_mm) else diameter_mm
+@@ -884,6 +872,21 @@
+ 
+     for i in range(len(positions)):
+         for j in range(i + 1, len(positions)):
++            if connector_type == 'CAPSULE' and pin_rotations:
++                half = max(0.0, capsule_length_mm - diameter_mm) / (2.0 * unit_scale)
++                yi = pin_rotations[i].to_matrix() @ Vector((0, 1, 0))
++                yj = pin_rotations[j].to_matrix() @ Vector((0, 1, 0))
++                # mathutils computes closest points on infinite lines; use a
++                # shared 2D frame instead for closed line segment distance.
++                z = pin_rotations[i].to_matrix() @ Vector((0, 0, 1))
++                x = yi.cross(z).normalized()
++                project = lambda p: (p.dot(x), p.dot(yi))
++                dist_sq = segment_distance_sq(
++                    project(positions[i]-yi*half), project(positions[i]+yi*half),
++                    project(positions[j]-yj*half), project(positions[j]+yj*half))
++                if dist_sq >= ((diameter_mm+2*clearance_per_side_mm)/unit_scale)**2:
++                    continue
++                raise ConnectorValidationError("Sobreposição entre encaixes detectada.")
+             dist = (positions[i] - positions[j]).length
+             if dist < min_dist_bu:
+                 dist_mm = dist * unit_scale
+@@ -1018,6 +1021,7 @@
+         normal=norm,
+         length_mm=length_mm,
+         end_clearance_mm=end_clearance_mm,
++        pin_rotations=pin_rotations,
+     )
+ 
+     # Determina o eixo maior (direção de alinhamento das cápsulas no plano de corte)
+--- a/src/geometry_contract.py
++++ b/src/geometry_contract.py
+@@ -9,6 +9,32 @@
+ from typing import List, Tuple, Dict, Any, Optional
+ import math
+ from mathutils import Vector, Matrix
++
++
++def boundary_normal(points):
++    """Newell normal with double-precision accumulation about a local origin.
++
++    Accumulating into Vector.x/y/z rounds every partial sum to float32. On
++    nominally axial support planes this can create tiny false tilt and crack
++    EXACT boolean output along a coplanar boundary.
++    """
++    if len(points) < 3:
++        return Vector((0.0, 0.0, 0.0))
++    origin = points[0]
++    p = [tuple(float(v[j])-float(origin[j]) for j in range(3)) for v in points]
++    components = []
++    for axis in range(3):
++        a, b = (axis+1) % 3, (axis+2) % 3
++        components.append(math.fsum(
++            (p[i][a]-p[(i+1) % len(p)][a]) * (p[i][b]+p[(i+1) % len(p)][b])
++            for i in range(len(p))))
++    n = Vector(components)
++    if n.length:
++        n.normalize()
++        # Remove cancellation residue far below float32 angular resolution.
++        # This preserves axial coplanarity without applying any physical offset.
++        n = Vector(tuple(0.0 if abs(x) < 1e-12 else x for x in n)).normalized()
++    return n
+ 
+ 
+ @dataclass
+--- a/src/geometry_loop.py
++++ b/src/geometry_loop.py
+@@ -45,25 +45,26 @@
+         return ""
+     import array
+     
+-    mesh = obj.data
+-    v_count = len(mesh.vertices)
+-    e_count = len(mesh.edges)
+-    f_count = len(mesh.polygons)
+-    
++    # Draw handlers call validation too: never update Mesh datablocks here.
++    # In Edit Mode read the live BMesh without switching mode or freeing it.
++    if obj.mode == 'EDIT':
++        bm = bmesh.from_edit_mesh(obj.data)
++        v_count, e_count, f_count = len(bm.verts), len(bm.edges), len(bm.faces)
++        edges = array.array('i', (v.index for e in bm.edges for v in e.verts))
++        loops = array.array('i', (v.index for f in bm.faces for v in f.verts))
++    else:
++        mesh = obj.data
++        v_count, e_count, f_count = len(mesh.vertices), len(mesh.edges), len(mesh.polygons)
++        edges = array.array('i', [0]) * (e_count * 2)
++        mesh.edges.foreach_get('vertices', edges)
++        loops = array.array('i', [0]) * len(mesh.loops)
++        mesh.loops.foreach_get('vertex_index', loops)
+     h = hashlib.sha256()
+     h.update(f"V{v_count}E{e_count}F{f_count}".encode('utf-8'))
+-    
+-    if e_count > 0:
+-        edges = array.array('i', [0] * (e_count * 2))
+-        mesh.edges.foreach_get("vertices", edges)
+-        h.update(edges.tobytes())
+-        
+-    if len(mesh.loops) > 0:
+-        loops = array.array('i', [0] * len(mesh.loops))
+-        mesh.loops.foreach_get("vertex_index", loops)
+-        h.update(loops.tobytes())
+-        
++    h.update(edges.tobytes())
++    h.update(loops.tobytes())
+     return f"V{v_count}E{e_count}F{f_count}H{h.hexdigest()[:8]}"
++
+ 
+ 
+ def clear_capture(settings: Any, reason: str = ""):
+@@ -149,6 +150,10 @@
+ 
+     bm = bmesh.from_edit_mesh(obj.data)
+ 
++    bm.verts.index_update()
++    bm.edges.index_update()
++    bm.faces.index_update()
++
+     selected_edges = [e for e in bm.edges if e.select]
+     if not selected_edges:
+         return False, [], False, 0.0, "Nenhuma aresta selecionada."
+@@ -239,6 +244,9 @@
+     bm.faces.ensure_lookup_table()
+     bm.edges.ensure_lookup_table()
+     bm.verts.ensure_lookup_table()
++    bm.verts.index_update()
++    bm.edges.index_update()
++    bm.faces.index_update()
+ 
+     selected_faces = set(f for f in bm.faces if f.select)
+     if not selected_faces:
+@@ -344,6 +352,7 @@
+         return -1
+ 
+     bm = bmesh.from_edit_mesh(obj.data)
++    bm.faces.index_update()
+     active_face = bm.faces.active
+     if active_face and active_face.select:
+         return active_face.index
+@@ -470,17 +479,9 @@
+     bm.free()
+ 
+     centroid_world = sum(loop_coords_world, Vector()) / len(loop_coords_world)
+-    n = Vector((0.0, 0.0, 0.0))
+-    n_pts = len(loop_coords_world)
+-    for i in range(n_pts):
+-        v1 = loop_coords_world[i]
+-        v2 = loop_coords_world[(i + 1) % n_pts]
+-        n.x += (v1.y - v2.y) * (v1.z + v2.z)
+-        n.y += (v1.z - v2.z) * (v1.x + v2.x)
+-        n.z += (v1.x - v2.x) * (v1.y + v2.y)
+-    if n.length > 1e-7:
+-        n.normalize()
+-    else:
++    from .geometry_contract import boundary_normal
++    n = boundary_normal(loop_coords_world)
++    if n.length < 1e-12:
+         n = Vector((0.0, 0.0, 1.0))
+ 
+     max_dev_bu = max(abs((v - centroid_world).dot(n)) for v in loop_coords_world)
+@@ -792,18 +793,9 @@
+     loop_coords_world = [matrix_world @ v.co for v in loop_verts_local]
+     centroid = sum(loop_coords_world, Vector()) / len(loop_coords_world)
+ 
+-    # Normal média do loop via Newell
+-    n = Vector((0.0, 0.0, 0.0))
+-    n_pts = len(loop_coords_world)
+-    for i in range(n_pts):
+-        v1 = loop_coords_world[i]
+-        v2 = loop_coords_world[(i + 1) % n_pts]
+-        n.x += (v1.y - v2.y) * (v1.z + v2.z)
+-        n.y += (v1.z - v2.z) * (v1.x + v2.x)
+-        n.z += (v1.x - v2.x) * (v1.y + v2.y)
+-    if n.length > 1e-6:
+-        n.normalize()
+-    else:
++    from .geometry_contract import boundary_normal
++    n = boundary_normal(loop_coords_world)
++    if n.length < 1e-12:
+         n = Vector((0.0, 0.0, 1.0))
+ 
+     # Determina a direção para dentro do sólido
+@@ -815,20 +807,13 @@
+     bm_bvh.transform(matrix_world)
+     bvh = BVHTree.FromBMesh(bm_bvh)
+ 
+-    # Inward candidato primário: o oposto da normal externa da face semente
+-    cand_inward = -seed_norm_world
+-    hit_c1, _, _, _ = bvh.ray_cast(centroid + cand_inward * 1e-4, cand_inward)
+-    hit_c2, _, _, _ = bvh.ray_cast(centroid - cand_inward * 1e-4, -cand_inward)
+-
+-    if hit_c1 is not None and hit_c2 is None:
+-        inward_dir = cand_inward
+-    elif hit_c2 is not None and hit_c1 is None:
+-        inward_dir = -cand_inward
+-    elif hit_c1 is not None and hit_c2 is not None:
+-        # Ambos intersectam: escolhe o que penetra no sólido a partir da face semente
+-        inward_dir = cand_inward
+-    else:
+-        inward_dir = cand_inward
++    # Use the boundary support normal, oriented by the region's area-weighted
++    # outward normal. A sloping seed face must not tilt an otherwise planar base.
++    bm_bvh.faces.ensure_lookup_table()
++    outward = sum((bm_bvh.faces[f.index].normal * bm_bvh.faces[f.index].calc_area()
++                   for f in faces_a), Vector())
++    reference = outward if outward.length > 1e-12 else seed_norm_world
++    inward_dir = -n if n.dot(reference) >= 0.0 else n
+ 
+     # Analisa relevo (altura) dos vértices da região A em relação ao plano do loop
+     verts_a = set(v for f in faces_a for v in f.verts)
+@@ -1220,6 +1205,14 @@
+ 
+     analysis = analyze_loop_region(obj, indices, seed_face_idx, scene=actual_scene)
+     max_avail_mm = analysis["max_avail_depth_mm"]
++    coords = analysis['coords_world']
++    center = analysis['centroid_world']
++    loop_normal = analysis['loop_normal_world']
++    if max(abs((p - center).dot(loop_normal)) for p in coords) * scale_to_mm > 0.1:
++        raise ValueError(
++            "Extração com profundidade requer um contorno de apoio planar. "
++            "Use Destacar Volume para contornos não planos."
++        )
+ 
+     # Validação de espessura (T09)
+     if not analysis.get("thickness_determined", True) and not through_cut:
+--- a/src/geometry_material.py
++++ b/src/geometry_material.py
+@@ -187,7 +187,7 @@
+     return (mat_idx, -1)
+ 
+ 
+-def analyze_material_structure(obj: bpy.types.Object, material_index: int, region_index: int = 0) -> Dict[str, Any]:
++def analyze_material_structure(obj: bpy.types.Object, material_index: int, region_index: int = 0, _precise_normals: bool = False) -> Dict[str, Any]:
+     """Analisa a topologia de UMA região conectada (ilha) de faces de um material.
+ 
+     Um mesmo material pode aparecer em várias áreas separadas do modelo (ex: dois quadrados
+@@ -277,18 +277,20 @@
+     coords_world = [v.co.copy() for v in ordered_verts]
+     centroid = sum(coords_world, Vector()) / len(coords_world)
+ 
+-    # Normal média do contorno via Newell
+-    n = Vector((0.0, 0.0, 0.0))
+-    n_pts = len(coords_world)
+-    for i in range(n_pts):
+-        v1 = coords_world[i]
+-        v2 = coords_world[(i + 1) % n_pts]
+-        n.x += (v1.y - v2.y) * (v1.z + v2.z)
+-        n.y += (v1.z - v2.z) * (v1.x + v2.x)
+-        n.z += (v1.x - v2.x) * (v1.y + v2.y)
+-    if n.length > 1e-6:
++    # Preserve the established frame first. A bounded retry uses double
++    # accumulation if EXACT produces a non-manifold result from cancellation.
++    if _precise_normals:
++        from .geometry_contract import boundary_normal
++        n = boundary_normal(coords_world)
++    else:
++        n = Vector((0.0, 0.0, 0.0))
++        for i in range(len(coords_world)):
++            a, b = coords_world[i], coords_world[(i+1) % len(coords_world)]
++            n.x += (a.y-b.y)*(a.z+b.z)
++            n.y += (a.z-b.z)*(a.x+b.x)
++            n.z += (a.x-b.x)*(a.y+b.y)
+         n.normalize()
+-    else:
++    if n.length < 1e-12:
+         n = Vector((0.0, 0.0, 1.0))
+ 
+     # Direção para dentro a partir da média ponderada por área em espaço de mundo
+@@ -614,7 +616,33 @@
+     return centroid + q.x * u_vec + q.y * v_vec
+ 
+ 
++class MaterialBooleanError(RuntimeError):
++    """EXACT produced a non-manifold result; no candidates may be published."""
++
++
+ def slice_mesh_by_material(
++    obj, material_index, depth_mm=5.0, scene=None, through_cut=False,
++    region_index=0, extraction_mode='EXTRUDE', interface_mat_mode='SOURCE',
++    part_clearance_mm=0.0, part_clearance_apply_to='PART', part_clearance_bottom_mm=None,
++):
++    """Transactional material cut, retaining the original API and frame.
++
++    Retry only numerical boolean failure, using a mathematically equivalent
++    double-precision support normal. No tolerance offsets, hole filling, solver
++    substitution or relaxed manifold checks are used.
++    """
++    args = dict(obj=obj, material_index=material_index, depth_mm=depth_mm, scene=scene,
++                through_cut=through_cut, region_index=region_index,
++                extraction_mode=extraction_mode, interface_mat_mode=interface_mat_mode,
++                part_clearance_mm=part_clearance_mm, part_clearance_apply_to=part_clearance_apply_to,
++                part_clearance_bottom_mm=part_clearance_bottom_mm)
++    try:
++        return _slice_mesh_by_material(**args)
++    except MaterialBooleanError:
++        return _slice_mesh_by_material(**args, _precise_normals=True)
++
++
++def _slice_mesh_by_material(
+     obj: bpy.types.Object,
+     material_index: int,
+     depth_mm: float = 5.0,
+@@ -626,6 +654,7 @@
+     part_clearance_mm: float = 0.0,
+     part_clearance_apply_to: str = 'PART',
+     part_clearance_bottom_mm: Optional[float] = None,
++    _precise_normals: bool = False,
+ ) -> LoopSliceResult:
+     """Realiza a separação da malha com base em uma região do material selecionado.
+     
+@@ -637,7 +666,7 @@
+     actual_scene = scene if scene else bpy.context.scene
+     scale_to_mm = get_scene_scale_to_mm(actual_scene)
+ 
+-    analysis = analyze_material_structure(obj, material_index, region_index)
++    analysis = analyze_material_structure(obj, material_index, region_index, _precise_normals)
+     if not analysis["valid"]:
+         raise ValueError(analysis.get("error", "Estrutura de material não suportada."))
+ 
+@@ -907,6 +936,11 @@
+ 
+     else:
+         # Extração superficial com profundidade (M03)
++        if not analysis.get('is_planar_base', False):
++            raise ValueError(
++                "A região não possui um contorno de apoio planar confiável para extração com profundidade. "
++                "Selecione uma região com base plana ou use o corte por Loop para destacar o volume."
++            )
+         if part_clearance_mm > 0.0:
+             if part_clearance_mm >= depth_mm - 0.1:
+                 raise ValueError(
+@@ -959,6 +993,8 @@
+         mesh_a = None
+         mesh_b = None
+ 
++        bm_a = bm_b = None
++        result_ready = False
+         try:
+             body_mat_idx = analysis.get("body_mat_index", 0)
+             depth_mm_eff = depth_mm
+@@ -1118,7 +1154,7 @@
+             if metrics_a["volume_mm3"] <= 1e-4 or metrics_b["volume_mm3"] <= 1e-4:
+                 raise RuntimeError("O corte por material gerou uma peça com volume nulo ou desprezível.")
+             if not metrics_a["is_manifold"] or not metrics_b["is_manifold"]:
+-                raise RuntimeError(
++                raise MaterialBooleanError(
+                     f"O corte por material gerou peça não-manifold "
+                     f"(arestas abertas: Parte A={metrics_a['non_manifold_edges']}, Parte B={metrics_b['non_manifold_edges']})."
+                 )
+@@ -1134,9 +1170,14 @@
+                 },
+                 success=True,
+             )
++            result_ready = True
+             return LoopSliceResult(bm_a, bm_b, split_res)
+ 
+         finally:
++            if not result_ready:
++                for bm in (bm_a, bm_b):
++                    if bm is not None and bm.is_valid:
++                        bm.free()
+             # Liberação estrita no mesmo objeto avaliado (B03)
+             if eval_a and mesh_a:
+                 try:
+--- a/src/gpu_drawing.py
++++ b/src/gpu_drawing.py
+@@ -575,7 +575,7 @@
+     """Retorna o batch GPU dos pontos da grade 5 mm em cache ou constrói um novo."""
+     global _GRID_CACHE
+     key = (prep.cut_signature, tuple(disp_offset), round(prep.unit_scale, 4), target_name)
+-    if _GRID_CACHE["key"] == key and _GRID_CACHE["batch"] is not None:
++    if _GRID_CACHE["key"] == key:
+         return _GRID_CACHE["batch"]
+ 
+     from .connector_surface import generate_positioning_grid_points
+--- a/src/input_state.py
++++ b/src/input_state.py
+@@ -0,0 +1,57 @@
++"""Deterministic input fingerprints. No scene mutation or viewport drawing."""
++import array
++import hashlib
++
++from .diagnostic import get_scene_scale_to_mm
++
++
++CUT_PROPERTIES = (
++    'split_mode', 'invert_sides', 'plane_offset_mm',
++    'part_clearance_mm', 'part_clearance_apply_to',
++    'part_clearance_bottom_enable', 'part_clearance_bottom_mm',
++    'loop_vertex_indices', 'loop_seed_face_index', 'loop_behavior',
++    'loop_extrude_depth_mm', 'loop_through_cut', 'loop_detach_add_base',
++    'loop_detach_base_depth_mm', 'loop_detach_base_clearance_mm',
++    'material_split_index', 'material_region_index', 'material_extraction_mode',
++    'material_extrude_depth_mm', 'material_interface_mat_mode',
++)
++
++
++def update_mesh_hash(digest, mesh):
++    """Hash geometry, face boundaries and materials in bulk (including same-count edits)."""
++    digest.update(repr((len(mesh.vertices), len(mesh.edges), len(mesh.polygons))).encode())
++    for elements, attribute, kind, width in (
++        (mesh.vertices, 'co', 'f', 3), (mesh.edges, 'vertices', 'i', 2),
++        (mesh.loops, 'vertex_index', 'i', 1),
++        (mesh.polygons, 'loop_total', 'i', 1),
++        (mesh.polygons, 'material_index', 'i', 1),
++    ):
++        values = array.array(kind, [0]) * (len(elements) * width)
++        elements.foreach_get(attribute, values)
++        digest.update(values.tobytes())
++    digest.update(repr([m.name_full if m else None for m in mesh.materials]).encode())
++
++
++def cut_signature(settings, target, scene, mesh=None):
++    digest = hashlib.sha256()
++    digest.update(repr((target.name_full, tuple(tuple(r) for r in target.matrix_world),
++                        get_scene_scale_to_mm(scene))).encode())
++    update_mesh_hash(digest, mesh if mesh is not None else target.data)
++    digest.update(repr([(p, getattr(settings, p, None)) for p in CUT_PROPERTIES]).encode())
++    if settings.split_mode == 'PLANE':
++        from .plane_state import resolve_plane_state
++        origin, normal = resolve_plane_state(scene, settings)
++        digest.update(repr((tuple(origin), tuple(normal))).encode())
++    return digest.hexdigest()
++
++
++def editor_configuration(settings, scene):
++    target = settings.target_object
++    key = (tuple(getattr(settings, p, None) for p in CUT_PROPERTIES),
++           settings.connector_male_part, get_scene_scale_to_mm(scene),
++           tuple(tuple(r) for r in target.matrix_world) if target else None)
++    if settings.split_mode == 'PLANE':
++        from .plane_state import resolve_plane_state
++        origin, normal = resolve_plane_state(scene, settings)
++        key += (tuple(origin), tuple(normal))
++    return key
+--- a/src/lifecycle.py
++++ b/src/lifecycle.py
+@@ -378,7 +378,7 @@
+             o_role = o.get("chest_role")
+             if curr_op_id and (o_op == curr_op_id or o_sid == curr_op_id):
+                 objs_to_remove.add(o)
+-            elif o_role in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL):
++            elif not o_op and not o_sid and o_role in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL):
+                 objs_to_remove.add(o)
+ 
+     if op_record:
+@@ -413,7 +413,8 @@
+         except Exception:
+             pass
+ 
+-        settings.target_object = target
++        if settings.target_object != target:
++            settings.target_object = target
+ 
+     # Descarta snapshot de prévia apenas se a operação estiver em status PREVIEW
+     if op_record and op_record.status == 'PREVIEW':
+--- a/src/operators.py
++++ b/src/operators.py
+@@ -415,10 +415,12 @@
+         tokens.append(f"conn_dist:{settings.connector_distribution}")
+         if settings.connector_distribution == 'MANUAL':
+             for sp in settings.manual_connectors:
+-                tokens.append(f"man:{sp.u_mm:.2f}:{sp.v_mm:.2f}:{sp.yaw_deg:.1f}")
++                tokens.append(f"man:{sp.u_mm!r}:{sp.v_mm!r}:{sp.yaw_deg!r}")
+         tokens.append(f"conn_margin:{settings.connector_edge_margin_mm:.4f}")
+         tokens.append(f"conn_male:{settings.connector_male_part}")
+ 
++    from .input_state import cut_signature
++    tokens.append(cut_signature(settings, target, context.scene))
+     if tokens:
+         h.update("|".join(tokens).encode("utf-8"))
+     return h.hexdigest()[:16]
+@@ -1913,10 +1915,7 @@
+                 if settings.split_mode == 'SOLID':
+                     self.report({'INFO'}, "Encaixes automáticos não são suportados no modo Cortador Sólido.")
+                 else:
+-                    if settings.split_mode == 'LOOP':
+-                        norm_a = plane_normal
+-                    else:
+-                        norm_a = -plane_normal if settings.invert_sides else plane_normal
++                    norm_a = report['interface'].normal_a_to_b_world
+ 
+                     if settings.connector_male_part == 'A':
+                         male_obj = candidate_obj_a
+@@ -1934,21 +1933,11 @@
+                             {"u_mm": sp.u_mm, "v_mm": sp.v_mm, "yaw_deg": sp.yaw_deg}
+                             for sp in settings.manual_connectors
+                         ]
+-                        # Usa o MESMO referencial U/V (eixos estabilizados) do editor interativo,
+-                        # senão o pino aparece espelhado/deslocado em relação ao marcador.
+-                        try:
+-                            from .connector_surface import prepare_split_candidates as _prep_split
+-                            _prep = _prep_split(context)
+-                            if _prep is not None and _prep.interface is not None:
+-                                layout_interface = _prep.interface
+-                        except Exception:
+-                            pass
+-
+                     layout = compute_connector_layout(
+                         target_mesh=target.data,
+                         matrix_world=target.matrix_world,
+                         plane_origin=plane_origin,
+-                        plane_normal=plane_normal,
++                        plane_normal=norm,
+                         distribution=settings.connector_distribution,
+                         edge_margin_mm=settings.connector_edge_margin_mm,
+                         unit_scale=unit_scale,
+@@ -1994,6 +1983,7 @@
+                             unit_scale=unit_scale,
+                             connector_type=settings.connector_type,
+                             capsule_length_mm=cap_len,
++                            pin_rotations=layout.get("pin_rotations"),
+                         )
+                         apply_connectors_boolean(
+                             obj_male=male_obj,
+@@ -2066,11 +2056,18 @@
+             # Snapshot de estado montado e direção efetiva da interface (INV-004)
+             normal_a_to_b = Vector((0.0, 0.0, 1.0))
+             if settings.split_mode == 'PLANE':
+-                p_norm = Vector(settings.plane_normal).normalized()
++                p_norm = plane_normal.normalized()
+                 normal_a_to_b = -p_norm if settings.invert_sides else p_norm
+             elif settings.split_mode in ('LOOP', 'MATERIAL'):
+                 if Vector(settings.loop_interface_normal).length > 1e-6:
+                     normal_a_to_b = Vector(settings.loop_interface_normal).normalized()
++
++            if settings.split_mode == 'SOLID':
++                offset_a, offset_b = compute_solid_explosion_offsets(
++                    candidate_obj_a, candidate_obj_b, 2.0, unit_scale=unit_scale)
++                direction = offset_b - offset_a
++                if direction.length > 1e-12:
++                    normal_a_to_b = direction.normalized()
+ 
+             candidate_obj_a["chest_assembled_loc"] = list(candidate_obj_a.location)
+             candidate_obj_b["chest_assembled_loc"] = list(candidate_obj_b.location)
+@@ -2177,6 +2174,7 @@
+             else:
+                 # Se não havia prévia, garante que o alvo continue visível e acessível
+                 target.hide_viewport = False
++                target.hide_set(False)
+                 settings.session_status = 'PREVIEW_INVALID'
+                 msg = (
+                     f"Erro na geração da prévia: {str(e)}"
+@@ -3728,6 +3726,9 @@
+     if not scene or not hasattr(scene, "chest_splitter"):
+         return
+     settings = scene.chest_splitter
++    from .connector_surface import clear_prepared_split_cache
++    clear_prepared_split_cache()
++    stop_connector_editor(scene)
+     try:
+         target = getattr(settings, "target_object", None)
+         if target and target.name not in bpy.data.objects:
+@@ -3746,6 +3747,9 @@
+     if not scene or not hasattr(scene, "chest_splitter"):
+         return
+     settings = scene.chest_splitter
++    from .connector_surface import clear_prepared_split_cache
++    clear_prepared_split_cache()
++    stop_connector_editor(scene)
+     try:
+         target = getattr(settings, "target_object", None)
+         if target and target.name not in bpy.data.objects:
+@@ -3757,12 +3761,24 @@
+         pass
+ 
+ 
++@persistent
++def on_load_post(_unused):
++    from .connector_surface import clear_prepared_split_cache
++    clear_prepared_split_cache()
++    for scene in bpy.data.scenes:
++        if hasattr(scene, 'chest_splitter'):
++            scene.chest_splitter.previous_target_object = scene.chest_splitter.target_object
++            stop_connector_editor(scene)
++
++
+ def register_handlers():
+     """Registra handlers de depsgraph e undo/redo no Blender."""
+     if on_depsgraph_update_post not in bpy.app.handlers.depsgraph_update_post:
+         bpy.app.handlers.depsgraph_update_post.append(on_depsgraph_update_post)
+     if on_undo_post not in bpy.app.handlers.undo_post:
+         bpy.app.handlers.undo_post.append(on_undo_post)
++    if on_load_post not in bpy.app.handlers.load_post:
++        bpy.app.handlers.load_post.append(on_load_post)
+     if on_redo_post not in bpy.app.handlers.redo_post:
+         bpy.app.handlers.redo_post.append(on_redo_post)
+ 
+@@ -3773,6 +3789,8 @@
+         bpy.app.handlers.depsgraph_update_post.remove(on_depsgraph_update_post)
+     if on_undo_post in bpy.app.handlers.undo_post:
+         bpy.app.handlers.undo_post.remove(on_undo_post)
++    if on_load_post in bpy.app.handlers.load_post:
++        bpy.app.handlers.load_post.remove(on_load_post)
+     if on_redo_post in bpy.app.handlers.redo_post:
+         bpy.app.handlers.redo_post.remove(on_redo_post)
+ 
+--- a/src/properties.py
++++ b/src/properties.py
+@@ -1,6 +1,7 @@
+ """Propriedades de configuração e estado persistente do Chest Part Splitter."""
+ 
+ import bpy
++from mathutils import Vector
+ from bpy.props import (
+     PointerProperty,
+     StringProperty,
+@@ -166,9 +167,25 @@
+ 
+ def _on_target_object_update(self, context):
+     """Callback ao alterar ou limpar o objeto alvo."""
++    # RNA callbacks also run when assigning the SAME pointer (e.g. remove_preview).
++    # Keep a persistent pointer, rather than a name/address, to survive rename/load.
++    if self.previous_target_object == self.target_object:
++        return
++    self.previous_target_object = self.target_object
+     from .geometry_loop import clear_capture
+     clear_capture(self, reason="target_change")
++    from .connector_surface import clear_prepared_split_cache
++    from .connector_editor import stop_connector_editor
++    clear_prepared_split_cache()
++    if context and context.scene:
++        stop_connector_editor(context.scene)
+     _on_param_change_mark_stale(self, context)
++
++
++def _on_status_update(self, context):
++    # A direct error/status must replace a previous localized status code too.
++    self.last_status_code = ""
++    self.last_status_params = ""
+ 
+ 
+ class ChestObjectRef(bpy.types.PropertyGroup):
+@@ -252,6 +269,8 @@
+ class ChestSplitterSettings(bpy.types.PropertyGroup):
+     """Estado persistente da sessão do Part Splitter na cena."""
+ 
++    previous_target_object: PointerProperty(type=bpy.types.Object, options={'HIDDEN'})
++
+     session_id: StringProperty(
+         name="ID da Sessão",
+         default="",
+@@ -969,6 +988,7 @@
+     last_status: StringProperty(
+         name="Mensagem de Status",
+         default="",
++        update=_on_status_update,
+     )
+ 
+     last_status_code: StringProperty(
+@@ -996,9 +1016,9 @@
+         """Define o status usando código do catálogo e parâmetros nomeados (LANG-01)."""
+         import json
+         from .translations import tr
++        self.last_status = tr(code, **params)
+         self.last_status_code = code
+         self.last_status_params = json.dumps(params)
+-        self.last_status = tr(code, **params)
+         self.last_status_level = level
+ 
+     def get_localized_status(self) -> str:
+@@ -1057,7 +1077,8 @@
+ 
+ class ChestSplitterAddonPreferences(bpy.types.AddonPreferences):
+     """Preferências globais da extensão Chest Part Splitter (LANG-01)."""
+-    bl_idname = __package__ if __package__ else "chest_part_splitter"
++    # Preferences belong to the installed extension, not its internal .src package.
++    bl_idname = __package__.removesuffix('.src') if __package__ else "chest_part_splitter"
+ 
+     language: EnumProperty(
+         name="Idioma / Language",
+--- a/src/translations.py
++++ b/src/translations.py
+@@ -369,6 +369,34 @@
+     },
+ }
+ 
++# Labels of the continuous editor added after the original native catalog.
++TRANSLATIONS_DICT['en_US'].update({
++    ('*', 'Concluir Edição'): 'Finish Editing',
++    ('*', 'Cancelar Edição'): 'Cancel Editing',
++    ('*', 'Confirmar Posições dos Pinos'): 'Confirm Pin Positions',
++    ('*', '1. Objeto Alvo'): '1. Target Model',
++    ('*', '2. Método de Corte'): '2. Cutting Method',
++    ('*', '3. Encaixes e Pinos (Opcional)'): '3. Connectors and Pins (Optional)',
++    ('*', '4. Prévia do Corte'): '4. Cut Preview',
++    ('*', '5. Criar Peças'): '5. Create Parts',
++    ('*', 'Nenhum contorno capturado.'): 'No boundary captured.',
++    ('*', 'Edição manual cancelada. Pinos restaurados.'): 'Manual editing cancelled. Pins restored.',
++    ('*', 'Edição manual de pinos concluída.'): 'Manual pin editing finished.',
++    ('*', 'Há pinos inválidos ou colidindo. Corrija-os ou remova-os.'): 'Some pins are invalid or overlap. Move or remove them.',
++})
++
++
++def localize_text(text):
++    """Resolve explicit panel labels using the addon language, including English.
++
++    Blender's native translation can be disabled independently; the addon's
++    own language preference should still work for these labels.
++    """
++    if get_addon_locale() == 'en_US':
++        return TRANSLATIONS_DICT.get('en_US', {}).get(('*', text), text)
++    return text
++
++
+ MESSAGES = {
+     "pt_BR": {
+         "connectors.enable": "Ativar encaixes",
+--- a/src/ui.py
++++ b/src/ui.py
+@@ -2,12 +2,13 @@
+ 
+ import bpy
+ from .constants import PANEL_TITLE
++from .translations import localize_text
+ 
+ 
+ def draw_help_button(layout, topic: str):
+     """Desenha botão compacto com ícone INFO para exibir ajuda e popup dinâmico."""
+     row = layout.row(align=True)
+-    op = row.operator("chest.splitter_help", text="", icon='INFO', emboss=False)
++    op = row.operator("chest.splitter_help", text=localize_text(""), icon='INFO', emboss=False)
+     op.topic = topic
+ 
+ 
+@@ -28,17 +29,17 @@
+         # --- SEÇÃO 1: OBJETO ALVO ---
+         box_target = layout.box()
+         row_target_head = box_target.row(align=True)
+-        row_target_head.label(text="1. Objeto Alvo", icon='OBJECT_DATA')
++        row_target_head.label(text=localize_text("1. Objeto Alvo"), icon='OBJECT_DATA')
+         draw_help_button(row_target_head, "target_model")
+ 
+         row_set = box_target.row(align=True)
+-        row_set.operator("chest.splitter_set_target", text="Usar selecionado como alvo", icon='EYEDROPPER')
++        row_set.operator("chest.splitter_set_target", text=localize_text("Usar selecionado como alvo"), icon='EYEDROPPER')
+ 
+         if obj:
+             row_target_info = box_target.row(align=True)
+             row_target_info.label(text=f"Alvo: {obj.name}", icon='CHECKMARK')
+-            row_target_info.operator("chest.splitter_edit_target", text="Editar Alvo", icon='EDITMODE_HLT')
+-            row_target_info.operator("chest.splitter_clear_target", text="", icon='X')
++            row_target_info.operator("chest.splitter_edit_target", text=localize_text("Editar Alvo"), icon='EDITMODE_HLT')
++            row_target_info.operator("chest.splitter_clear_target", text=localize_text(""), icon='X')
+ 
+             # Métricas físicas e topológicas
+             col_metrics = box_target.column(align=True)
+@@ -60,11 +61,11 @@
+             if settings.diag_has_unapplied_scale:
+                 box_warn = box_target.box()
+                 box_warn.alert = True
+-                box_warn.label(text="Aviso: Escala não aplicada!", icon='ERROR')
+-                box_warn.label(text="Cortes e folgas podem ser distorcidos.")
++                box_warn.label(text=localize_text("Aviso: Escala não aplicada!"), icon='ERROR')
++                box_warn.label(text=localize_text("Cortes e folgas podem ser distorcidos."))
+                 box_warn.operator(
+                     "chest.splitter_create_work_copy",
+-                    text="Criar cópia com escala aplicada",
++                    text=localize_text("Criar cópia com escala aplicada"),
+                     icon='DUPLICATE'
+                 )
+ 
+@@ -82,65 +83,65 @@
+                     icon='INFO'
+                 )
+         else:
+-            box_target.label(text="Nenhum alvo selecionado. Selecione um objeto malha.", icon='INFO')
++            box_target.label(text=localize_text("Nenhum alvo selecionado. Selecione um objeto malha."), icon='INFO')
+ 
+         layout.separator()
+ 
+         # --- SEÇÃO 2: MÉTODO DE CORTE ---
+         box_split = layout.box()
+-        box_split.label(text="2. Método de Corte", icon='MOD_BOOLEAN')
++        box_split.label(text=localize_text("2. Método de Corte"), icon='MOD_BOOLEAN')
+ 
+         col_mode = box_split.column()
+         col_mode.prop(settings, "split_mode", expand=True)
+ 
+         if not obj:
+-            box_split.label(text="Defina um objeto alvo primeiro.", icon='INFO')
++            box_split.label(text=localize_text("Defina um objeto alvo primeiro."), icon='INFO')
+         elif settings.split_mode == 'PLANE':
+             # --- Guia de Corte e Alinhamentos ---
+             box_guide = box_split.box()
+             row_guide_head = box_guide.row(align=True)
+-            row_guide_head.label(text="Posicionamento do Plano", icon='ORIENTATION_LOCAL')
++            row_guide_head.label(text=localize_text("Posicionamento do Plano"), icon='ORIENTATION_LOCAL')
+             draw_help_button(row_guide_head, "split_plane")
+ 
+             row_guide_btn = box_guide.row(align=True)
+-            row_guide_btn.operator("chest.splitter_create_or_focus_guide", text="Focar Guia 3D", icon='GIZMO')
+-
+-            box_guide.label(text="Alinhamentos Rápidos:")
++            row_guide_btn.operator("chest.splitter_create_or_focus_guide", text=localize_text("Focar Guia 3D"), icon='GIZMO')
++
++            box_guide.label(text=localize_text("Alinhamentos Rápidos:"))
+             row_align_view = box_guide.row(align=True)
+-            op_v = row_align_view.operator("chest.splitter_align_plane", text="Vista", icon='VIEW_CAMERA')
++            op_v = row_align_view.operator("chest.splitter_align_plane", text=localize_text("Vista"), icon='VIEW_CAMERA')
+             op_v.align_mode = 'VIEW'
+-            op_c = row_align_view.operator("chest.splitter_align_plane", text="Cursor", icon='PIVOT_CURSOR')
++            op_c = row_align_view.operator("chest.splitter_align_plane", text=localize_text("Cursor"), icon='PIVOT_CURSOR')
+             op_c.align_mode = 'CURSOR'
+-            op_f = row_align_view.operator("chest.splitter_align_plane", text="Face", icon='FACESEL')
++            op_f = row_align_view.operator("chest.splitter_align_plane", text=localize_text("Face"), icon='FACESEL')
+             op_f.align_mode = 'FACE'
+ 
+             row_align_axes = box_guide.row(align=True)
+-            op_x = row_align_axes.operator("chest.splitter_align_plane", text="Eixo X")
++            op_x = row_align_axes.operator("chest.splitter_align_plane", text=localize_text("Eixo X"))
+             op_x.align_mode = 'X'
+-            op_y = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Y")
++            op_y = row_align_axes.operator("chest.splitter_align_plane", text=localize_text("Eixo Y"))
+             op_y.align_mode = 'Y'
+-            op_z = row_align_axes.operator("chest.splitter_align_plane", text="Eixo Z")
++            op_z = row_align_axes.operator("chest.splitter_align_plane", text=localize_text("Eixo Z"))
+             op_z.align_mode = 'Z'
+ 
+             # Visualização do Plano (F02)
+             col_plane_vis = box_guide.column(align=True)
+             row_pvis = col_plane_vis.row(align=True)
+-            row_pvis.prop(settings, "show_plane_preview", text="Mostrar Plano")
+-            row_pvis.prop(settings, "show_plane_cut_line", text="Linha de Corte")
++            row_pvis.prop(settings, "show_plane_preview", text=localize_text("Mostrar Plano"))
++            row_pvis.prop(settings, "show_plane_cut_line", text=localize_text("Linha de Corte"))
+             if settings.show_plane_preview:
+-                col_plane_vis.prop(settings, "plane_preview_opacity", text="Opacidade (%)", slider=True)
+-            col_plane_vis.prop(settings, "plane_offset_mm", text="Deslocamento (mm)")
++                col_plane_vis.prop(settings, "plane_preview_opacity", text=localize_text("Opacidade (%)"), slider=True)
++            col_plane_vis.prop(settings, "plane_offset_mm", text=localize_text("Deslocamento (mm)"))
+ 
+         elif settings.split_mode == 'LOOP':
+             box_loop = box_split.box()
+             row_loop_head = box_loop.row(align=True)
+-            row_loop_head.label(text="Corte por Contorno (Loop)", icon='MOD_EDGESPLIT')
++            row_loop_head.label(text=localize_text("Corte por Contorno (Loop)"), icon='MOD_EDGESPLIT')
+             draw_help_button(row_loop_head, "split_loop")
+ 
+             row_cap = box_loop.row(align=True)
+             row_cap.scale_y = 1.2
+-            row_cap.operator("chest.splitter_capture_loop", text="Capturar Contorno", icon='VIEW_ORTHO')
+-            row_cap.operator("chest.splitter_capture_face_boundary", text="Capturar das Faces", icon='FACESEL')
++            row_cap.operator("chest.splitter_capture_loop", text=localize_text("Capturar Contorno"), icon='VIEW_ORTHO')
++            row_cap.operator("chest.splitter_capture_face_boundary", text=localize_text("Capturar das Faces"), icon='FACESEL')
+ 
+             if settings.loop_is_captured:
+                 box_loop.label(text=f"Vértices no contorno: {settings.loop_vertex_count}", icon='VERTEXSEL')
+@@ -152,25 +153,25 @@
+                 box_loop.prop(
+                     settings, 
+                     "show_loop_highlight", 
+-                    text="Destacar Contorno no Viewport", 
++                    text=localize_text("Destacar Contorno no Viewport"), 
+                     icon='RESTRICT_VIEW_OFF' if settings.show_loop_highlight else 'RESTRICT_VIEW_ON'
+                 )
+ 
+             row_seed = box_loop.row(align=True)
+             row_seed.scale_y = 1.2
+-            row_seed.operator("chest.splitter_define_seed_face", text="Escolher Região", icon='FACESEL')
++            row_seed.operator("chest.splitter_define_seed_face", text=localize_text("Escolher Região"), icon='FACESEL')
+             draw_help_button(row_seed, "loop_region")
+ 
+             col_seed_hint = box_loop.column()
+             col_seed_hint.scale_y = 0.8
+-            col_seed_hint.label(text="Dica: Selecione apenas 1 face dentro da região desejada.", icon='INFO')
++            col_seed_hint.label(text=localize_text("Dica: Selecione apenas 1 face dentro da região desejada."), icon='INFO')
+ 
+             if settings.loop_seed_face_index >= 0:
+                 box_loop.label(text=f"Região de Referência: Face #{settings.loop_seed_face_index}", icon='CHECKMARK')
+ 
+             # Comportamento de corte por contorno
+             box_behavior = box_loop.box()
+-            box_behavior.prop(settings, "loop_behavior", text="Comportamento")
++            box_behavior.prop(settings, "loop_behavior", text=localize_text("Comportamento"))
+ 
+             if settings.loop_behavior == 'AUTO' and settings.loop_auto_reason:
+                 box_dec = box_behavior.box()
+@@ -186,60 +187,60 @@
+             if show_depth:
+                 box_depth = box_behavior.box()
+                 row_depth_head = box_depth.row(align=True)
+-                row_depth_head.label(text="Extração com Profundidade", icon='CON_SIZELIMIT')
++                row_depth_head.label(text=localize_text("Extração com Profundidade"), icon='CON_SIZELIMIT')
+                 draw_help_button(row_depth_head, "loop_extrude")
+-                box_depth.prop(settings, "loop_extrude_depth_mm", text="Profundidade (mm)")
+-                box_depth.prop(settings, "loop_through_cut", text="Corte Passante")
++                box_depth.prop(settings, "loop_extrude_depth_mm", text=localize_text("Profundidade (mm)"))
++                box_depth.prop(settings, "loop_through_cut", text=localize_text("Corte Passante"))
+ 
+             show_detach_base = (settings.loop_behavior == 'DETACH') or (
+                 settings.loop_behavior == 'AUTO' and settings.loop_detected_mode == 'DETACH'
+             )
+             if show_detach_base:
+                 box_base = box_behavior.box()
+-                box_base.prop(settings, "loop_detach_add_base", text="Adicionar base para encaixe")
++                box_base.prop(settings, "loop_detach_add_base", text=localize_text("Adicionar base para encaixe"))
+                 if settings.loop_detach_add_base:
+-                    box_base.prop(settings, "loop_detach_base_depth_mm", text="Profundidade da base (mm)")
+-                    box_base.prop(settings, "loop_detach_base_clearance_mm", text="Folga lateral (mm)")
++                    box_base.prop(settings, "loop_detach_base_depth_mm", text=localize_text("Profundidade da base (mm)"))
++                    box_base.prop(settings, "loop_detach_base_clearance_mm", text=localize_text("Folga lateral (mm)"))
+ 
+             if settings.loop_is_captured and settings.loop_is_planar:
+                 row_solid_loop = box_loop.row(align=True)
+-                row_solid_loop.operator("chest.splitter_create_cutter_from_selection", text="Criar Cortador desta Seleção", icon='MOD_SOLIDIFY')
++                row_solid_loop.operator("chest.splitter_create_cutter_from_selection", text=localize_text("Criar Cortador desta Seleção"), icon='MOD_SOLIDIFY')
+ 
+ 
+         elif settings.split_mode == 'SOLID':
+             box_solid = box_split.box()
+-            box_solid.label(text="Configuração do Cortador Sólido", icon='MESH_UVSPHERE')
++            box_solid.label(text=localize_text("Configuração do Cortador Sólido"), icon='MESH_UVSPHERE')
+ 
+             col_src = box_solid.column(align=True)
+             col_src.prop(settings, "solid_source", expand=True)
+ 
+             if settings.solid_source == 'PRIMITIVE':
+                 col_prim = box_solid.column(align=True)
+-                col_prim.prop(settings, "solid_primitive_type", text="Formato")
++                col_prim.prop(settings, "solid_primitive_type", text=localize_text("Formato"))
+                 row_prim_btn = box_solid.row(align=True)
+                 row_prim_btn.scale_y = 1.1
+-                row_prim_btn.operator("chest.splitter_create_solid_cutter", text="Criar", icon='ADD')
+-                row_prim_btn.operator("chest.splitter_focus_solid_cutter", text="Focar", icon='VIEW_ZOOM')
+-                row_prim_btn.operator("chest.splitter_reset_solid_cutter", text="Reiniciar", icon='FILE_REFRESH')
++                row_prim_btn.operator("chest.splitter_create_solid_cutter", text=localize_text("Criar"), icon='ADD')
++                row_prim_btn.operator("chest.splitter_focus_solid_cutter", text=localize_text("Focar"), icon='VIEW_ZOOM')
++                row_prim_btn.operator("chest.splitter_reset_solid_cutter", text=localize_text("Reiniciar"), icon='FILE_REFRESH')
+             else:
+                 col_exist = box_solid.column(align=True)
+-                col_exist.prop(settings, "solid_cutter_object", text="Cortador")
++                col_exist.prop(settings, "solid_cutter_object", text=localize_text("Cortador"))
+                 row_pick = box_solid.row(align=True)
+-                row_pick.operator("chest.splitter_select_existing_cutter", text="Usar Selecionado", icon='EYEDROPPER')
+-                row_pick.operator("chest.splitter_copy_selected_as_cutter", text="Copiar Selecionado", icon='DUPLICATE')
++                row_pick.operator("chest.splitter_select_existing_cutter", text=localize_text("Usar Selecionado"), icon='EYEDROPPER')
++                row_pick.operator("chest.splitter_copy_selected_as_cutter", text=localize_text("Copiar Selecionado"), icon='DUPLICATE')
+ 
+             # Ações e Alinhamento do Cortador
+             cutter = settings.solid_cutter_object
+             if cutter and cutter.name in bpy.data.objects:
+                 row_actions = box_solid.row(align=True)
+-                row_actions.operator("chest.splitter_duplicate_solid_cutter", text="Duplicar Cortador", icon='DUPLICATE')
+-                op_align = row_actions.operator("chest.splitter_align_solid_cutter", text="Alinhar à Face", icon='SNAP_FACE')
++                row_actions.operator("chest.splitter_duplicate_solid_cutter", text=localize_text("Duplicar Cortador"), icon='DUPLICATE')
++                op_align = row_actions.operator("chest.splitter_align_solid_cutter", text=localize_text("Alinhar à Face"), icon='SNAP_FACE')
+                 op_align.align_mode = 'ACTIVE_FACE'
+                 op_align.anchor = 'SUPPORT_FACE'
+ 
+                 # Dimensões físicas locais (mm)
+                 box_dims = box_solid.box()
+-                box_dims.label(text="Dimensões Físicas Locais (mm):", icon='CON_SIZELIMIT')
++                box_dims.label(text=localize_text("Dimensões Físicas Locais (mm):"), icon='CON_SIZELIMIT')
+                 col_dims = box_dims.column(align=True)
+                 col_dims.prop(settings, "solid_cutter_width_mm")
+                 col_dims.prop(settings, "solid_cutter_height_mm")
+@@ -255,22 +256,22 @@
+                     box_cutter_warn = box_cutter_diag.box()
+                     box_cutter_warn.alert = True
+                     box_cutter_warn.label(text=f"Erro: {settings.solid_cutter_non_manifold_edges} aresta(s) abertas!", icon='ERROR')
+-                    box_cutter_warn.label(text="Cortador precisa ser um sólido 3D estanque.")
++                    box_cutter_warn.label(text=localize_text("Cortador precisa ser um sólido 3D estanque."))
+ 
+ 
+         elif settings.split_mode == 'MATERIAL':
+             box_mat = box_split.box()
+             row_mat_head = box_mat.row(align=True)
+-            row_mat_head.label(text="Divisão por Material (Fase 4)", icon='MATERIAL')
++            row_mat_head.label(text=localize_text("Divisão por Material (Fase 4)"), icon='MATERIAL')
+             draw_help_button(row_mat_head, "split_material")
+ 
+             mats = obj.data.materials if (obj and obj.data) else []
+             if not mats:
+-                box_mat.label(text="O modelo não possui materiais atribuídos.", icon='ERROR')
+-                box_mat.label(text="Adicione slots de materiais na aba Material.")
++                box_mat.label(text=localize_text("O modelo não possui materiais atribuídos."), icon='ERROR')
++                box_mat.label(text=localize_text("Adicione slots de materiais na aba Material."))
+             else:
+                 col_mat_list = box_mat.column(align=True)
+-                col_mat_list.label(text="Escolha a cor/área a extrair (Parte A):")
++                col_mat_list.label(text=localize_text("Escolha a cor/área a extrair (Parte A):"))
+                 for idx, m in enumerate(mats):
+                     mat_name = m.name if m else f"Material #{idx}"
+                     is_active = (settings.material_split_index == idx)
+@@ -282,7 +283,7 @@
+ 
+                 # Atalho: escolher pela face selecionada no Modo de Edição
+                 row_pick = box_mat.row(align=True)
+-                row_pick.operator("chest.splitter_pick_material_region", text="Usar Face Selecionada (Edit Mode)", icon='RESTRICT_SELECT_OFF')
++                row_pick.operator("chest.splitter_pick_material_region", text=localize_text("Usar Face Selecionada (Edit Mode)"), icon='RESTRICT_SELECT_OFF')
+ 
+                 # Diagnóstico dinâmico do material selecionado
+                 from .geometry_material import analyze_material_structure, list_material_regions
+@@ -308,24 +309,24 @@
+                 if analysis.get("valid"):
+                     mat_type = analysis.get("type")
+                     if mat_type == "CLOSED_COMPONENT":
+-                        box_diag_mat.label(text="Tipo: Componente 3D Fechado (Sólido)", icon='CHECKMARK')
++                        box_diag_mat.label(text=localize_text("Tipo: Componente 3D Fechado (Sólido)"), icon='CHECKMARK')
+                         box_diag_mat.label(text=f"Faces: {analysis['face_count']:,} | Malha estanque para fatiador.")
+                     else:
+-                        box_diag_mat.label(text="Tipo: Região Superficial (Com Profundidade)", icon='INFO')
++                        box_diag_mat.label(text=localize_text("Tipo: Região Superficial (Com Profundidade)"), icon='INFO')
+                         box_diag_mat.label(text=f"Faces: {analysis['face_count']:,} | Fronteira contínua.")
+                         box_mat_depth = box_mat.box()
+-                        box_mat_depth.label(text="Opções de Extração (C02/C03):", icon='PREFERENCES')
+-                        box_mat_depth.prop(settings, "material_extraction_mode", text="Modo")
++                        box_mat_depth.label(text=localize_text("Opções de Extração (C02/C03):"), icon='PREFERENCES')
++                        box_mat_depth.prop(settings, "material_extraction_mode", text=localize_text("Modo"))
+                         if settings.material_extraction_mode == 'EXTRUDE':
+-                            box_mat_depth.prop(settings, "material_extrude_depth_mm", text="Profundidade (mm)")
+-                        box_mat_depth.prop(settings, "material_interface_mat_mode", text="Interface")
++                            box_mat_depth.prop(settings, "material_extrude_depth_mm", text=localize_text("Profundidade (mm)"))
++                        box_mat_depth.prop(settings, "material_interface_mat_mode", text=localize_text("Interface"))
+                 else:
+                     box_diag_mat.alert = True
+                     box_diag_mat.label(text=f"Aviso: {analysis.get('error', 'Estrutura inválida')}", icon='ERROR')
+ 
+                 row_sol_tools = box_mat.row(align=True)
+-                row_sol_tools.operator("chest.splitter_create_cutter_from_selection", text="Criar Cortador Desta Seleção", icon='MOD_SOLIDIFY')
+-                row_sol_tools.operator("chest.splitter_create_corner_box_cutter", text="Caixa para Quina", icon='MESH_CUBE')
++                row_sol_tools.operator("chest.splitter_create_cutter_from_selection", text=localize_text("Criar Cortador Desta Seleção"), icon='MOD_SOLIDIFY')
++                row_sol_tools.operator("chest.splitter_create_corner_box_cutter", text=localize_text("Caixa para Quina"), icon='MESH_CUBE')
+ 
+ 
+         layout.separator()
+@@ -333,44 +334,44 @@
+         # --- SEÇÃO 3: ENCAIXES E FOLGAS (Antes da Prévia!) ---
+         box_conn = layout.box()
+         row_conn_head = box_conn.row(align=True)
+-        row_conn_head.label(text="3. Encaixes & Folgas", icon='SNAP_VERTEX')
++        row_conn_head.label(text=localize_text("3. Encaixes & Folgas"), icon='SNAP_VERTEX')
+         draw_help_button(row_conn_head, "connectors")
+ 
+         # Folga Física entre Peças (E01)
+         box_part_clearance = box_conn.box()
+-        box_part_clearance.label(text="Folga da Interface entre Peças:", icon='DRIVER_DISTANCE')
++        box_part_clearance.label(text=localize_text("Folga da Interface entre Peças:"), icon='DRIVER_DISTANCE')
+         if settings.split_mode in ('PLANE', 'MATERIAL'):
+-            box_part_clearance.prop(settings, "part_clearance_mm", text="Folga (mm)", slider=True)
++            box_part_clearance.prop(settings, "part_clearance_mm", text=localize_text("Folga (mm)"), slider=True)
+             if settings.part_clearance_mm > 0.0:
+-                box_part_clearance.prop(settings, "part_clearance_apply_to", text="Aplicar em")
++                box_part_clearance.prop(settings, "part_clearance_apply_to", text=localize_text("Aplicar em"))
+             if settings.split_mode == 'MATERIAL':
+-                box_part_clearance.prop(settings, "part_clearance_bottom_enable", text="Folga de fundo separada")
++                box_part_clearance.prop(settings, "part_clearance_bottom_enable", text=localize_text("Folga de fundo separada"))
+                 if settings.part_clearance_bottom_enable:
+-                    box_part_clearance.prop(settings, "part_clearance_bottom_mm", text="Folga de fundo (mm)")
++                    box_part_clearance.prop(settings, "part_clearance_bottom_mm", text=localize_text("Folga de fundo (mm)"))
+         else:
+             col_disabled = box_part_clearance.column()
+             col_disabled.enabled = False
+-            col_disabled.prop(settings, "part_clearance_mm", text="Folga (mm)", slider=True)
++            col_disabled.prop(settings, "part_clearance_mm", text=localize_text("Folga (mm)"), slider=True)
+             box_part_clearance.label(
+-                text="Folga de interface disponível apenas nos modos Plano e Material.", 
++                text=localize_text("Folga de interface disponível apenas nos modos Plano e Material."), 
+                 icon='INFO'
+             )
+ 
+         if settings.split_mode == 'SOLID':
+-            box_conn.label(text="Encaixes de pinos não são suportados no modo Cortador Sólido.", icon='INFO')
++            box_conn.label(text=localize_text("Encaixes de pinos não são suportados no modo Cortador Sólido."), icon='INFO')
+         else:
+             row_enable = box_conn.row(align=True)
+-            row_enable.prop(settings, "connector_enabled", text="Ativar Encaixes", toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')
++            row_enable.prop(settings, "connector_enabled", text=localize_text("Ativar Encaixes"), toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')
+ 
+             if settings.connector_enabled:
+                 # Formato do Encaixe
+                 col_shape = box_conn.column(align=True)
+-                col_shape.label(text="Formato do Encaixe:")
++                col_shape.label(text=localize_text("Formato do Encaixe:"))
+                 col_shape.prop(settings, "connector_type", expand=True)
+ 
+                 # Lado do Macho / Fêmea
+                 box_male = box_conn.box()
+-                box_male.label(text="Posição dos Pinos (Macho):", icon='SNAP_NORMAL')
++                box_male.label(text=localize_text("Posição dos Pinos (Macho):"), icon='SNAP_NORMAL')
+ 
+                 top_part = 'A' if settings.part_a_is_superior else 'B'
+                 is_top = (settings.connector_male_part == top_part)
+@@ -389,10 +390,10 @@
+ 
+                 # Dimensões Nominais do Macho
+                 box_dims = box_conn.box()
+-                box_dims.label(text="Dimensões Nominais:", icon='CON_SIZELIMIT')
++                box_dims.label(text=localize_text("Dimensões Nominais:"), icon='CON_SIZELIMIT')
+                 if settings.connector_type == 'CAPSULE':
+-                    box_dims.prop(settings, "connector_diameter_mm", text="Espessura / Diâmetro (mm)", slider=True)
+-                    box_dims.prop(settings, "connector_capsule_length_mm", text="Comprimento Lateral (mm)", slider=True)
++                    box_dims.prop(settings, "connector_diameter_mm", text=localize_text("Espessura / Diâmetro (mm)"), slider=True)
++                    box_dims.prop(settings, "connector_capsule_length_mm", text=localize_text("Comprimento Lateral (mm)"), slider=True)
+                     if settings.connector_max_safe_lateral_mm > 0:
+                         box_dims.label(
+                             text=f"Limite Seguro Máx: {settings.connector_max_safe_lateral_mm:.1f} mm (anti-colisão)",
+@@ -400,18 +401,18 @@
+                         )
+                 else:
+                     box_dims.prop(settings, "connector_diameter_mm", slider=True)
+-                box_dims.prop(settings, "connector_length_mm", text="Profundidade de Inserção (mm)", slider=True)
++                box_dims.prop(settings, "connector_length_mm", text=localize_text("Profundidade de Inserção (mm)"), slider=True)
+                 box_dims.prop(settings, "connector_chamfer_mm", slider=True)
+ 
+                 # Folgas de Encaixe Físico
+                 box_clear = box_conn.box()
+                 row_clear_head = box_clear.row(align=True)
+-                row_clear_head.label(text="Folgas Físicas de Montagem (FDM):", icon='DRIVER')
++                row_clear_head.label(text=localize_text("Folgas Físicas de Montagem (FDM):"), icon='DRIVER')
+                 draw_help_button(row_clear_head, "clearance")
+ 
+                 # Botões rápidos de preset
+                 row_presets = box_clear.row(align=True)
+-                row_presets.label(text="Presets:")
++                row_presets.label(text=localize_text("Presets:"))
+                 for p_code, p_lbl in [('TIGHT', "0.10"), ('NORMAL', "0.15"), ('EASY', "0.20"), ('LOOSE', "0.25")]:
+                     op_p = row_presets.operator("chest.splitter_apply_connector_preset", text=p_lbl)
+                     op_p.preset = p_code
+@@ -422,7 +423,7 @@
+ 
+                 # Distribuição
+                 box_dist = box_conn.box()
+-                box_dist.label(text="Distribuição no Corte:", icon='PARTICLE_DATA')
++                box_dist.label(text=localize_text("Distribuição no Corte:"), icon='PARTICLE_DATA')
+                 box_dist.prop(settings, "connector_distribution", expand=True)
+                 box_dist.prop(settings, "connector_edge_margin_mm", slider=True)
+                 box_dist.prop(settings, "adjust_to_valid_area")
+@@ -430,7 +431,7 @@
+                 if settings.connector_distribution == 'MANUAL':
+                     box_manual = box_conn.box()
+                     row_man_head = box_manual.row(align=True)
+-                    row_man_head.label(text="Posicionamento Manual:", icon='RESTRICT_SELECT_OFF')
++                    row_man_head.label(text=localize_text("Posicionamento Manual:"), icon='RESTRICT_SELECT_OFF')
+ 
+                     from .connector_editor import get_editor_interaction_state
+                     ed_state = get_editor_interaction_state()
+@@ -438,23 +439,23 @@
+ 
+                     if is_editing:
+                         box_active = box_manual.box()
+-                        box_active.label(text="Modo de Edição 3D Ativo", icon='EDITMODE_HLT')
++                        box_active.label(text=localize_text("Modo de Edição 3D Ativo"), icon='EDITMODE_HLT')
+                         row_confirm = box_active.row(align=True)
+                         row_confirm.scale_y = 1.35
+                         row_confirm.operator(
+                             "chest.splitter_confirm_manual_connectors",
+-                            text="Confirmar Posições e Gerar Prévia",
++                            text=localize_text("Confirmar Posições e Gerar Prévia"),
+                             icon='CHECKMARK'
+                         )
+                         row_exit = box_active.row(align=True)
+                         row_exit.operator(
+                             "chest.splitter_finish_manual_connectors",
+-                            text="Concluir Edição",
++                            text=localize_text("Concluir Edição"),
+                             icon='FILE_TICK'
+                         )
+                         row_exit.operator(
+                             "chest.splitter_cancel_manual_connectors",
+-                            text="Cancelar",
++                            text=localize_text("Cancelar"),
+                             icon='CANCEL'
+                         )
+                     else:
+@@ -469,27 +470,27 @@
+                         )
+ 
+                     row_view = box_manual.row(align=True)
+-                    row_view.operator("chest.splitter_view_cut_face", text="Ver Face de Encaixe", icon='VIEW_CAMERA')
++                    row_view.operator("chest.splitter_view_cut_face", text=localize_text("Ver Face de Encaixe"), icon='VIEW_CAMERA')
+ 
+                     if is_editing:
+                         box_mode = box_manual.box()
+                         row_mode_head = box_mode.row(align=True)
+-                        row_mode_head.label(text="Ação do Clique 3D no Modelo:", icon='CURSOR')
++                        row_mode_head.label(text=localize_text("Ação do Clique 3D no Modelo:"), icon='CURSOR')
+                         row_sub = box_mode.row(align=True)
+                         row_sub.prop(settings, "manual_editor_submode", expand=True)
+ 
+                     n_manual = len(settings.manual_connectors)
+                     row_actions = box_manual.row(align=True)
+-                    row_actions.operator("chest.splitter_add_manual_connector", text="Adicionar", icon='ADD')
++                    row_actions.operator("chest.splitter_add_manual_connector", text=localize_text("Adicionar"), icon='ADD')
+                     row_rem = row_actions.row(align=True)
+                     row_rem.enabled = (n_manual > 0)
+-                    row_rem.operator("chest.splitter_remove_manual_connector", text="Remover", icon='REMOVE')
++                    row_rem.operator("chest.splitter_remove_manual_connector", text=localize_text("Remover"), icon='REMOVE')
+                     row_clr = row_actions.row(align=True)
+                     row_clr.enabled = (n_manual > 0)
+-                    row_clr.operator("chest.splitter_clear_manual_connectors", text="Limpar", icon='TRASH')
++                    row_clr.operator("chest.splitter_clear_manual_connectors", text=localize_text("Limpar"), icon='TRASH')
+ 
+                     if n_manual == 0:
+-                        box_manual.label(text="Nenhum pino posicionado. Clique em 'Editar Posições' para adicionar.", icon='INFO')
++                        box_manual.label(text=localize_text("Nenhum pino posicionado. Clique em 'Editar Posições' para adicionar."), icon='INFO')
+                     else:
+                         box_manual.label(text=f"Total de Pinos: {n_manual}", icon='LAYER_ACTIVE')
+                         box_edit = box_manual.box()
+@@ -498,13 +499,13 @@
+                             active_conn = settings.manual_connectors[idx]
+                             row_sel = box_edit.row(align=True)
+                             row_sel.prop(settings, "manual_connector_index", text=f"Pino #{idx + 1}")
+-                            row_sel.operator("chest.splitter_remove_manual_connector", text="", icon='X')
++                            row_sel.operator("chest.splitter_remove_manual_connector", text=localize_text(""), icon='X')
+ 
+                             row_coords = box_edit.row(align=True)
+-                            row_coords.prop(active_conn, "u_mm", text="U (mm)")
+-                            row_coords.prop(active_conn, "v_mm", text="V (mm)")
++                            row_coords.prop(active_conn, "u_mm", text=localize_text("U (mm)"))
++                            row_coords.prop(active_conn, "v_mm", text=localize_text("V (mm)"))
+                             if settings.connector_type == 'CAPSULE':
+-                                box_edit.prop(active_conn, "yaw_deg", text="Rotação Yaw (°)", slider=True)
++                                box_edit.prop(active_conn, "yaw_deg", text=localize_text("Rotação Yaw (°)"), slider=True)
+ 
+                             if not getattr(active_conn, "is_valid", True):
+                                 row_err = box_edit.row(align=True)
+@@ -515,13 +516,13 @@
+                                     icon='CANCEL'
+                                 )
+                             else:
+-                                box_edit.label(text="Posição Válida", icon='CHECKMARK')
++                                box_edit.label(text=localize_text("Posição Válida"), icon='CHECKMARK')
+                         else:
+-                            box_edit.prop(settings, "manual_connector_index", text="Pino Ativo")
++                            box_edit.prop(settings, "manual_connector_index", text=localize_text("Pino Ativo"))
+                 else:
+                     box_dist.operator(
+                         "chest.splitter_convert_pattern_to_manual",
+-                        text="Converter Padrão para Manual",
++                        text=localize_text("Converter Padrão para Manual"),
+                         icon='GREASEPENCIL'
+                     )
+ 
+@@ -530,21 +531,21 @@
+         # --- SEÇÃO 4: PRÉVIA E VISUALIZAÇÃO ---
+         if obj and settings.split_mode in ('PLANE', 'SOLID', 'LOOP', 'MATERIAL'):
+             box_preview = layout.box()
+-            box_preview.label(text="4. Prévia do Corte", icon='RESTRICT_VIEW_OFF')
++            box_preview.label(text=localize_text("4. Prévia do Corte"), icon='RESTRICT_VIEW_OFF')
+ 
+             # Alerta de preview desatualizado (Critério U2)
+             if settings.session_status == 'PREVIEW_STALE':
+                 box_stale = box_preview.box()
+                 box_stale.alert = True
+                 box_stale.label(
+-                    text="Os ajustes mudaram. Atualize a prévia antes de criar as peças.",
++                    text=localize_text("Os ajustes mudaram. Atualize a prévia antes de criar as peças."),
+                     icon='ERROR'
+                 )
+ 
+             row_preview = box_preview.row(align=True)
+             row_preview.scale_y = 1.3
+-            row_preview.operator("chest.splitter_generate_preview", text="Gerar / Atualizar Preview", icon='PLAY')
+-            row_preview.operator("chest.splitter_remove_preview", text="Remover Prévia", icon='X')
++            row_preview.operator("chest.splitter_generate_preview", text=localize_text("Gerar / Atualizar Preview"), icon='PLAY')
++            row_preview.operator("chest.splitter_remove_preview", text=localize_text("Remover Prévia"), icon='X')
+ 
+             if settings.connector_enabled and settings.connector_distribution == 'MANUAL':
+                 row_reedit = box_preview.row(align=True)
+@@ -553,13 +554,13 @@
+                 if not is_ed_active:
+                     row_reedit.operator(
+                         "chest.splitter_edit_manual_connectors",
+-                        text="Editar Posições Novamente",
++                        text=localize_text("Editar Posições Novamente"),
+                         icon='EDITMODE_HLT'
+                     )
+                 else:
+                     row_reedit.operator(
+                         "chest.splitter_confirm_manual_connectors",
+-                        text="Confirmar Posições dos Pinos",
++                        text=localize_text("Confirmar Posições dos Pinos"),
+                         icon='CHECKMARK'
+                     )
+ 
+@@ -575,7 +576,7 @@
+             if settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE', 'COMMITTED'):
+                 box_view = box_preview.box()
+                 row_view_head = box_view.row(align=True)
+-                row_view_head.label(text="Visualização & Cores:", icon='VIEW3D')
++                row_view_head.label(text=localize_text("Visualização & Cores:"), icon='VIEW3D')
+                 draw_help_button(row_view_head, "explosion")
+ 
+                 box_view.prop(settings, "view_mode", expand=True)
+@@ -584,11 +585,11 @@
+                     box_view.prop(settings, "explosion_distance_mm", slider=True)
+                     box_view.prop(settings, "invert_explosion", toggle=True, icon='ARROW_LEFTRIGHT')
+ 
+-                box_view.prop(settings, "preview_color_mode", text="")
++                box_view.prop(settings, "preview_color_mode", text=localize_text(""))
+ 
+                 # Diagnósticos de Partes A e B
+                 box_diag_parts = box_preview.box()
+-                box_diag_parts.label(text="Resultados do Corte", icon='CHECKMARK')
++                box_diag_parts.label(text=localize_text("Resultados do Corte"), icon='CHECKMARK')
+ 
+                 lbl_tag_a = " (Superior)" if settings.part_a_is_superior else " (Inferior)"
+                 lbl_tag_b = " (Inferior)" if settings.part_a_is_superior else " (Superior)"
+@@ -622,37 +623,37 @@
+ 
+                 # Ação rápida de separação por material/cor
+                 row_sep = box_diag_parts.row()
+-                row_sep.operator("chest.splitter_separate_by_material", text="Separar por Cores / Materiais", icon='COLOR')
++                row_sep.operator("chest.splitter_separate_by_material", text=localize_text("Separar por Cores / Materiais"), icon='COLOR')
+ 
+             layout.separator()
+ 
+             # --- SEÇÃO 5: CRIAR PEÇAS (CONFIRMAÇÃO) ---
+             box_commit = layout.box()
+-            box_commit.label(text="5. Criar Peças", icon='MOD_SOLIDIFY')
++            box_commit.label(text=localize_text("5. Criar Peças"), icon='MOD_SOLIDIFY')
+ 
+             if settings.session_status == 'PREVIEW_VALID':
+                 row_commit = box_commit.row()
+                 row_commit.scale_y = 1.4
+-                row_commit.operator("chest.splitter_commit_parts", text="Confirmar Divisão", icon='CHECKMARK')
++                row_commit.operator("chest.splitter_commit_parts", text=localize_text("Confirmar Divisão"), icon='CHECKMARK')
+ 
+                 row_rest = box_commit.row()
+-                row_rest.operator("chest.splitter_remove_preview", text="Remover Prévia", icon='X')
++                row_rest.operator("chest.splitter_remove_preview", text=localize_text("Remover Prévia"), icon='X')
+ 
+             elif settings.session_status == 'PREVIEW_STALE':
+                 box_warn_commit = box_commit.box()
+-                box_warn_commit.label(text="Atualize a prévia antes de confirmar as peças.", icon='INFO')
++                box_warn_commit.label(text=localize_text("Atualize a prévia antes de confirmar as peças."), icon='INFO')
+                 row_rest = box_commit.row()
+-                row_rest.operator("chest.splitter_remove_preview", text="Remover Prévia", icon='X')
++                row_rest.operator("chest.splitter_remove_preview", text=localize_text("Remover Prévia"), icon='X')
+ 
+             elif settings.session_status == 'COMMITTED':
+-                box_commit.label(text="Peças finais geradas na coleção CHEST_SPLITTER_PARTS.", icon='CHECKMARK')
++                box_commit.label(text=localize_text("Peças finais geradas na coleção CHEST_SPLITTER_PARTS."), icon='CHECKMARK')
+                 row_cont = box_commit.row()
+                 row_cont.scale_y = 1.3
+-                row_cont.operator("chest.splitter_continue_on_receiver", text="Continuar no corpo remanescente", icon='FORWARD')
++                row_cont.operator("chest.splitter_continue_on_receiver", text=localize_text("Continuar no corpo remanescente"), icon='FORWARD')
+                 row_revert = box_commit.row()
+                 row_revert.scale_y = 1.1
+-                row_revert.operator("chest.splitter_revert_cut", text="Reverter este corte", icon='LOOP_BACK')
+-                box_commit.operator("chest.splitter_redo_session", text="Refazer / Novo Corte", icon='FILE_REFRESH')
++                row_revert.operator("chest.splitter_revert_cut", text=localize_text("Reverter este corte"), icon='LOOP_BACK')
++                box_commit.operator("chest.splitter_redo_session", text=localize_text("Refazer / Novo Corte"), icon='FILE_REFRESH')
+ 
+             elif settings.session_status == 'CONFIGURED':
+                 hint_text = "Posicione o cortador e clique em 'Gerar / Atualizar Preview'." if settings.split_mode == 'SOLID' else "Posicione o plano ou contorno e clique em 'Gerar / Atualizar Preview'."
+@@ -662,7 +663,7 @@
+         if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):
+             layout.separator()
+             box_exp = layout.box()
+-            box_exp.label(text="6. Exportação para Fatiador (Bambu / Orca / Prusa)", icon='EXPORT')
++            box_exp.label(text=localize_text("6. Exportação para Fatiador (Bambu / Orca / Prusa)"), icon='EXPORT')
+ 
+             col_exp_cfg = box_exp.column(align=True)
+             col_exp_cfg.prop(settings, "export_format")
+@@ -670,7 +671,7 @@
+ 
+             row_exp_act = box_exp.row()
+             row_exp_act.scale_y = 1.3
+-            row_exp_act.operator("chest.splitter_export_parts", text="Exportar Peças Selecionadas", icon='EXPORT')
++            row_exp_act.operator("chest.splitter_export_parts", text=localize_text("Exportar Peças Selecionadas"), icon='EXPORT')
+ 
+         # --- FEEDBACK DE STATUS ---
+         status_text = settings.get_localized_status() if hasattr(settings, "get_localized_status") else settings.last_status

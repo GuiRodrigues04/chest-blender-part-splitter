@@ -5,13 +5,13 @@ import zipfile
 repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 dist_dir = os.path.join(repo_root, "dist")
 os.makedirs(dist_dir, exist_ok=True)
-zip_path = os.path.join(dist_dir, "chest_part_splitter-0.8.11.zip")
+zip_path = os.path.join(dist_dir, "chest_part_splitter-0.8.12.zip")
 target_install_dir = os.path.expanduser(
     r"~\AppData\Roaming\Blender Foundation\Blender\5.2\extensions\user_default\chest_part_splitter"
 )
 downloads_dir = os.path.expanduser(r"~\Downloads")
 
-print("--- BUILDING CHEST PART SPLITTER 0.8.11 ZIP ---")
+print("--- BUILDING CHEST PART SPLITTER 0.8.12 ZIP ---")
 
 # Files to pack
 files_to_pack = [
@@ -50,7 +50,7 @@ with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
 print(f"ZIP package created: {zip_path} ({os.path.getsize(zip_path)} bytes)")
 
 # Copy to Downloads
-for dl_name in ["chest_part_splitter-0.8.11.zip", "chest-blender-part-splitter-0.8.11.zip"]:
+for dl_name in ["chest_part_splitter-0.8.12.zip", "chest-blender-part-splitter-0.8.12.zip"]:
     dest = os.path.join(downloads_dir, dl_name)
     shutil.copy2(zip_path, dest)
     print(f"Copied to: {dest}")

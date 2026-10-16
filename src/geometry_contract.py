@@ -11,6 +11,32 @@ import math
 from mathutils import Vector, Matrix
 
 
+def boundary_normal(points):
+    """Newell normal with double-precision accumulation about a local origin.
+
+    Accumulating into Vector.x/y/z rounds every partial sum to float32. On
+    nominally axial support planes this can create tiny false tilt and crack
+    EXACT boolean output along a coplanar boundary.
+    """
+    if len(points) < 3:
+        return Vector((0.0, 0.0, 0.0))
+    origin = points[0]
+    p = [tuple(float(v[j])-float(origin[j]) for j in range(3)) for v in points]
+    components = []
+    for axis in range(3):
+        a, b = (axis+1) % 3, (axis+2) % 3
+        components.append(math.fsum(
+            (p[i][a]-p[(i+1) % len(p)][a]) * (p[i][b]+p[(i+1) % len(p)][b])
+            for i in range(len(p))))
+    n = Vector(components)
+    if n.length:
+        n.normalize()
+        # Remove cancellation residue far below float32 angular resolution.
+        # This preserves axial coplanarity without applying any physical offset.
+        n = Vector(tuple(0.0 if abs(x) < 1e-12 else x for x in n)).normalized()
+    return n
+
+
 @dataclass
 class CutInterface:
     """Representa a interface geométrica compartilhada gerada pelo corte."""

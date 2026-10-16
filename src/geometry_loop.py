@@ -45,25 +45,26 @@ def get_topology_signature(obj) -> str:
         return ""
     import array
     
-    mesh = obj.data
-    v_count = len(mesh.vertices)
-    e_count = len(mesh.edges)
-    f_count = len(mesh.polygons)
-    
+    # Draw handlers call validation too: never update Mesh datablocks here.
+    # In Edit Mode read the live BMesh without switching mode or freeing it.
+    if obj.mode == 'EDIT':
+        bm = bmesh.from_edit_mesh(obj.data)
+        v_count, e_count, f_count = len(bm.verts), len(bm.edges), len(bm.faces)
+        edges = array.array('i', (v.index for e in bm.edges for v in e.verts))
+        loops = array.array('i', (v.index for f in bm.faces for v in f.verts))
+    else:
+        mesh = obj.data
+        v_count, e_count, f_count = len(mesh.vertices), len(mesh.edges), len(mesh.polygons)
+        edges = array.array('i', [0]) * (e_count * 2)
+        mesh.edges.foreach_get('vertices', edges)
+        loops = array.array('i', [0]) * len(mesh.loops)
+        mesh.loops.foreach_get('vertex_index', loops)
     h = hashlib.sha256()
     h.update(f"V{v_count}E{e_count}F{f_count}".encode('utf-8'))
-    
-    if e_count > 0:
-        edges = array.array('i', [0] * (e_count * 2))
-        mesh.edges.foreach_get("vertices", edges)
-        h.update(edges.tobytes())
-        
-    if len(mesh.loops) > 0:
-        loops = array.array('i', [0] * len(mesh.loops))
-        mesh.loops.foreach_get("vertex_index", loops)
-        h.update(loops.tobytes())
-        
+    h.update(edges.tobytes())
+    h.update(loops.tobytes())
     return f"V{v_count}E{e_count}F{f_count}H{h.hexdigest()[:8]}"
+
 
 
 def clear_capture(settings: Any, reason: str = ""):
@@ -148,6 +149,10 @@ def capture_edge_loop(obj: bpy.types.Object, scene: Optional[bpy.types.Scene] = 
         return False, [], False, 0.0, "O objeto precisa estar em Edit Mode."
 
     bm = bmesh.from_edit_mesh(obj.data)
+
+    bm.verts.index_update()
+    bm.edges.index_update()
+    bm.faces.index_update()
 
     selected_edges = [e for e in bm.edges if e.select]
     if not selected_edges:
@@ -239,6 +244,9 @@ def capture_face_boundary_loop(obj: bpy.types.Object, scene: Optional[bpy.types.
     bm.faces.ensure_lookup_table()
     bm.edges.ensure_lookup_table()
     bm.verts.ensure_lookup_table()
+    bm.verts.index_update()
+    bm.edges.index_update()
+    bm.faces.index_update()
 
     selected_faces = set(f for f in bm.faces if f.select)
     if not selected_faces:
@@ -344,6 +352,7 @@ def get_selected_seed_face(obj: bpy.types.Object) -> int:
         return -1
 
     bm = bmesh.from_edit_mesh(obj.data)
+    bm.faces.index_update()
     active_face = bm.faces.active
     if active_face and active_face.select:
         return active_face.index
@@ -470,17 +479,9 @@ def slice_mesh_by_loop(
     bm.free()
 
     centroid_world = sum(loop_coords_world, Vector()) / len(loop_coords_world)
-    n = Vector((0.0, 0.0, 0.0))
-    n_pts = len(loop_coords_world)
-    for i in range(n_pts):
-        v1 = loop_coords_world[i]
-        v2 = loop_coords_world[(i + 1) % n_pts]
-        n.x += (v1.y - v2.y) * (v1.z + v2.z)
-        n.y += (v1.z - v2.z) * (v1.x + v2.x)
-        n.z += (v1.x - v2.x) * (v1.y + v2.y)
-    if n.length > 1e-7:
-        n.normalize()
-    else:
+    from .geometry_contract import boundary_normal
+    n = boundary_normal(loop_coords_world)
+    if n.length < 1e-12:
         n = Vector((0.0, 0.0, 1.0))
 
     max_dev_bu = max(abs((v - centroid_world).dot(n)) for v in loop_coords_world)
@@ -792,18 +793,9 @@ def analyze_loop_region(
     loop_coords_world = [matrix_world @ v.co for v in loop_verts_local]
     centroid = sum(loop_coords_world, Vector()) / len(loop_coords_world)
 
-    # Normal média do loop via Newell
-    n = Vector((0.0, 0.0, 0.0))
-    n_pts = len(loop_coords_world)
-    for i in range(n_pts):
-        v1 = loop_coords_world[i]
-        v2 = loop_coords_world[(i + 1) % n_pts]
-        n.x += (v1.y - v2.y) * (v1.z + v2.z)
-        n.y += (v1.z - v2.z) * (v1.x + v2.x)
-        n.z += (v1.x - v2.x) * (v1.y + v2.y)
-    if n.length > 1e-6:
-        n.normalize()
-    else:
+    from .geometry_contract import boundary_normal
+    n = boundary_normal(loop_coords_world)
+    if n.length < 1e-12:
         n = Vector((0.0, 0.0, 1.0))
 
     # Determina a direção para dentro do sólido
@@ -815,20 +807,13 @@ def analyze_loop_region(
     bm_bvh.transform(matrix_world)
     bvh = BVHTree.FromBMesh(bm_bvh)
 
-    # Inward candidato primário: o oposto da normal externa da face semente
-    cand_inward = -seed_norm_world
-    hit_c1, _, _, _ = bvh.ray_cast(centroid + cand_inward * 1e-4, cand_inward)
-    hit_c2, _, _, _ = bvh.ray_cast(centroid - cand_inward * 1e-4, -cand_inward)
-
-    if hit_c1 is not None and hit_c2 is None:
-        inward_dir = cand_inward
-    elif hit_c2 is not None and hit_c1 is None:
-        inward_dir = -cand_inward
-    elif hit_c1 is not None and hit_c2 is not None:
-        # Ambos intersectam: escolhe o que penetra no sólido a partir da face semente
-        inward_dir = cand_inward
-    else:
-        inward_dir = cand_inward
+    # Use the boundary support normal, oriented by the region's area-weighted
+    # outward normal. A sloping seed face must not tilt an otherwise planar base.
+    bm_bvh.faces.ensure_lookup_table()
+    outward = sum((bm_bvh.faces[f.index].normal * bm_bvh.faces[f.index].calc_area()
+                   for f in faces_a), Vector())
+    reference = outward if outward.length > 1e-12 else seed_norm_world
+    inward_dir = -n if n.dot(reference) >= 0.0 else n
 
     # Analisa relevo (altura) dos vértices da região A em relação ao plano do loop
     verts_a = set(v for f in faces_a for v in f.verts)
@@ -1220,6 +1205,14 @@ def slice_mesh_by_loop_extrude(
 
     analysis = analyze_loop_region(obj, indices, seed_face_idx, scene=actual_scene)
     max_avail_mm = analysis["max_avail_depth_mm"]
+    coords = analysis['coords_world']
+    center = analysis['centroid_world']
+    loop_normal = analysis['loop_normal_world']
+    if max(abs((p - center).dot(loop_normal)) for p in coords) * scale_to_mm > 0.1:
+        raise ValueError(
+            "Extração com profundidade requer um contorno de apoio planar. "
+            "Use Destacar Volume para contornos não planos."
+        )
 
     # Validação de espessura (T09)
     if not analysis.get("thickness_determined", True) and not through_cut:

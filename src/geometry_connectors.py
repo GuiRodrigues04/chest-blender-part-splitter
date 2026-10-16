@@ -348,6 +348,26 @@ def sample_domain_valid_points(
     return valid
 
 
+def segment_distance_sq(a, b, c, d):
+    """Squared distance between closed 2D segments, including crossings/degeneracy."""
+    def cross(p, q, r):
+        return (q[0]-p[0])*(r[1]-p[1]) - (q[1]-p[1])*(r[0]-p[0])
+    if (max(min(a[0], b[0]), min(c[0], d[0])) <= min(max(a[0], b[0]), max(c[0], d[0]))
+            and max(min(a[1], b[1]), min(c[1], d[1])) <= min(max(a[1], b[1]), max(c[1], d[1]))
+            and cross(a, b, c)*cross(a, b, d) <= 0
+            and cross(c, d, a)*cross(c, d, b) <= 0):
+        return 0.0
+    return min(point_to_segment_dist_sq(*a, *c, *d),
+               point_to_segment_dist_sq(*b, *c, *d),
+               point_to_segment_dist_sq(*c, *a, *b),
+               point_to_segment_dist_sq(*d, *a, *b))
+
+
+def connector_center_segment(u, v, half_len=0.0, yaw_rad=0.0):
+    du, dv = half_len*math.cos(yaw_rad), half_len*math.sin(yaw_rad)
+    return (u-du, v-dv), (u+du, v+dv)
+
+
 def validate_connector_footprint(
     u_p: float,
     v_p: float,
@@ -361,28 +381,24 @@ def validate_connector_footprint(
 ) -> Tuple[bool, str]:
     """Valida se o footprint completo de um encaixe cabe no domínio sólido sem cruzar furos ou bordas."""
     if not outer_polys:
-        return True, "OK"
-    test_pts = [(u_p, v_p)]
-    if connector_type == 'CAPSULE' and half_len > 0.0:
-        cos_rot = math.cos(yaw_rad)
-        sin_rot = math.sin(yaw_rad)
-        prof = create_capsule_2d_profile(w=check_r, half_len=half_len, segments=24)
-        for lx, ly in prof:
-            test_pts.append((
-                u_p + ly * cos_rot - lx * sin_rot,
-                v_p + ly * sin_rot + lx * cos_rot,
-            ))
-    else:
-        for ang_idx in range(16):
-            ang = 2.0 * math.pi * ang_idx / 16.0
-            test_pts.append((u_p + check_r * math.cos(ang), v_p + check_r * math.sin(ang)))
-
-    for tp in test_pts:
-        if not any(point_in_polygon_2d(tp[0], tp[1], poly) for poly in outer_polys):
-            return False, f"Ultrapassa margem ({edge_margin_mm:.1f} mm) ou cai fora da peça"
-        for hole_poly in hole_polys:
-            if point_in_polygon_2d(tp[0], tp[1], hole_poly):
-                return False, "Invade furo ou vazio interno da interface"
+        return False, "Interface de contato não preparada"
+    a, b = connector_center_segment(u_p, v_p,
+        half_len if connector_type == 'CAPSULE' else 0.0, yaw_rad)
+    radius_sq = max(0.0, check_r - 1e-9)**2
+    def distance_to_edges(poly):
+        return min(segment_distance_sq(a, b, poly[i], poly[(i+1) % len(poly)])
+                   for i in range(len(poly)))
+    # An exact disk/capsule test also detects a tiny hole wholly inside the
+    # footprint, which checking 16 perimeter samples misses.
+    fits_outer = any(
+        point_in_polygon_2d(*a, poly) and point_in_polygon_2d(*b, poly)
+        and distance_to_edges(poly) >= radius_sq for poly in outer_polys if len(poly) >= 3)
+    if not fits_outer:
+        return False, f"Ultrapassa margem ({edge_margin_mm:.1f} mm) ou cai fora da peça"
+    for poly in hole_polys:
+        if (point_in_polygon_2d(*a, poly) or point_in_polygon_2d(*b, poly)
+                or distance_to_edges(poly) < radius_sq):
+            return False, "Invade furo ou vazio interno da interface"
     return True, "OK"
 
 def compute_connector_layout(
@@ -407,7 +423,7 @@ def compute_connector_layout(
 
     if interface is not None and getattr(interface, "outer_contours_uv", None) and interface.outer_contours_uv:
         plane_origin = interface.origin_world
-        norm = interface.normal_a_to_b_world.normalized()
+        norm = plane_normal.normalized()
         u_axis = interface.axis_u_world
         v_axis = interface.axis_v_world
         outer_polys = interface.outer_contours_uv
@@ -475,7 +491,8 @@ def compute_connector_layout(
     cavity_diam_mm = diameter_mm + 2.0 * clearance_per_side_mm
     req_min_span_mm = cavity_diam_mm + 2.0 * edge_margin_mm
 
-    if span_minor_mm < req_min_span_mm - 1e-3 or span_major_mm < req_min_span_mm - 1e-3:
+    if not (distribution == 'MANUAL' and not manual_specs) and (
+            span_minor_mm < req_min_span_mm - 1e-3 or span_major_mm < req_min_span_mm - 1e-3):
         raise ConnectorValidationError(
             f"Falta de espaço: a interface ({span_major_mm:.1f}x{span_minor_mm:.1f} mm) não comporta o encaixe "
             f"com margem de {edge_margin_mm:.1f} mm (necessário ao menos {req_min_span_mm:.1f}x{req_min_span_mm:.1f} mm)."
@@ -488,7 +505,7 @@ def compute_connector_layout(
     positions = []
 
     check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
-    valid_domain_points = sample_domain_valid_points(outer_polys, hole_polys, min_u, max_u, min_v, max_v, check_r, steps=35) if outer_polys else []
+    valid_domain_points = sample_domain_valid_points(outer_polys, hole_polys, min_u, max_u, min_v, max_v, check_r, steps=35) if outer_polys and distribution != 'MANUAL' else []
 
     # Validação de distribuições múltiplas e Modo Manual (A05 / A07)
     manual_eval_results = []
@@ -750,7 +767,7 @@ def compute_connector_layout(
 
     adjusted_cap_len_mm = capsule_length_mm
     capsule_was_adjusted = False
-    if connector_type == 'CAPSULE' and len(positions) > 0:
+    if connector_type == 'CAPSULE' and len(positions) > 0 and distribution != 'MANUAL':
         if capsule_length_mm <= 0.0 or capsule_length_mm > max_safe_lateral_mm:
             adjusted_cap_len_mm = max_safe_lateral_mm
             capsule_was_adjusted = (capsule_length_mm > 0.0 and adjusted_cap_len_mm != capsule_length_mm)
@@ -763,48 +780,18 @@ def compute_connector_layout(
                 f"com margem de {edge_margin_mm:.1f} mm (necessário ao menos {req_major_mm:.1f} mm)."
             )
 
-    # Validação rigorosa de inclusão do perfil completo no domínio sólido da interface (B04/B05)
+    # The same exact footprint test is used in the editor and at generation.
     if outer_polys and distribution != 'MANUAL':
         check_r = (diameter_mm / 2.0 + clearance_per_side_mm + edge_margin_mm) / unit_scale
-        u_proj = major_axis.dot(u_axis)
-        v_proj = major_axis.dot(v_axis)
-        rot_ang = math.atan2(v_proj, u_proj)
-        cos_rot = math.cos(rot_ang)
-        sin_rot = math.sin(rot_ang)
-
+        yaw = math.atan2(major_axis.dot(v_axis), major_axis.dot(u_axis))
+        half_len = max(0.0, (adjusted_cap_len_mm - diameter_mm) / 2.0) / unit_scale
         for idx, pos in enumerate(positions):
-            u_p = (pos - plane_origin).dot(u_axis)
-            v_p = (pos - plane_origin).dot(v_axis)
-
-            test_pts = [(u_p, v_p)]
-            if connector_type == 'CAPSULE':
-                eff_cap = max(diameter_mm, adjusted_cap_len_mm) if adjusted_cap_len_mm > 0.0 else (diameter_mm * 2.4)
-                half_len = max(0.0, (eff_cap - diameter_mm) / 2.0) / unit_scale
-                prof = create_capsule_2d_profile(w=check_r, half_len=half_len, segments=24)
-                # No perfil da cápsula: Y (ly) é o eixo de alongamento (major_axis) e X (lx) é a largura (minor_axis)
-                # major_axis no plano UV é (cos_rot, sin_rot), minor_axis é (-sin_rot, cos_rot)
-                for lx, ly in prof:
-                    test_pts.append((
-                        u_p + ly * cos_rot - lx * sin_rot,
-                        v_p + ly * sin_rot + lx * cos_rot,
-                    ))
-            else:
-                for ang_idx in range(16):
-                    ang = 2.0 * math.pi * ang_idx / 16.0
-                    test_pts.append((u_p + check_r * math.cos(ang), v_p + check_r * math.sin(ang)))
-
-            for tp in test_pts:
-                in_any_outer = any(point_in_polygon_2d(tp[0], tp[1], poly) for poly in outer_polys)
-                if not in_any_outer:
-                    raise ConnectorValidationError(
-                        f"O encaixe #{idx+1} ultrapassa a margem de segurança de {edge_margin_mm:.1f} mm "
-                        f"ou cai fora do domínio sólido da peça."
-                    )
-                for hole_poly in hole_polys:
-                    if point_in_polygon_2d(tp[0], tp[1], hole_poly):
-                        raise ConnectorValidationError(
-                            f"O encaixe #{idx+1} invade um furo/vazio interno da interface."
-                        )
+            uv = ((pos-plane_origin).dot(u_axis), (pos-plane_origin).dot(v_axis))
+            valid, reason = validate_connector_footprint(
+                *uv, check_r, outer_polys, hole_polys, edge_margin_mm,
+                connector_type, half_len, yaw)
+            if not valid:
+                raise ConnectorValidationError(f"O encaixe #{idx+1}: {reason}.")
 
     # Constrói rotações individuais precisas por pino (PM11)
     pin_rotations = []
@@ -877,6 +864,7 @@ def validate_connectors(
     normal: Optional[Vector] = None,
     length_mm: float = 0.0,
     end_clearance_mm: float = 0.0,
+    pin_rotations: Optional[List[Euler]] = None,
 ):
     """Valida distâncias entre encaixes e espessura de parede remanescente na peça receptora."""
     eff_length = capsule_length_mm if (connector_type == 'CAPSULE' and capsule_length_mm > diameter_mm) else diameter_mm
@@ -884,6 +872,21 @@ def validate_connectors(
 
     for i in range(len(positions)):
         for j in range(i + 1, len(positions)):
+            if connector_type == 'CAPSULE' and pin_rotations:
+                half = max(0.0, capsule_length_mm - diameter_mm) / (2.0 * unit_scale)
+                yi = pin_rotations[i].to_matrix() @ Vector((0, 1, 0))
+                yj = pin_rotations[j].to_matrix() @ Vector((0, 1, 0))
+                # mathutils computes closest points on infinite lines; use a
+                # shared 2D frame instead for closed line segment distance.
+                z = pin_rotations[i].to_matrix() @ Vector((0, 0, 1))
+                x = yi.cross(z).normalized()
+                project = lambda p: (p.dot(x), p.dot(yi))
+                dist_sq = segment_distance_sq(
+                    project(positions[i]-yi*half), project(positions[i]+yi*half),
+                    project(positions[j]-yj*half), project(positions[j]+yj*half))
+                if dist_sq >= ((diameter_mm+2*clearance_per_side_mm)/unit_scale)**2:
+                    continue
+                raise ConnectorValidationError("Sobreposição entre encaixes detectada.")
             dist = (positions[i] - positions[j]).length
             if dist < min_dist_bu:
                 dist_mm = dist * unit_scale
@@ -1018,6 +1021,7 @@ def apply_connectors_boolean(
         normal=norm,
         length_mm=length_mm,
         end_clearance_mm=end_clearance_mm,
+        pin_rotations=pin_rotations,
     )
 
     # Determina o eixo maior (direção de alinhamento das cápsulas no plano de corte)

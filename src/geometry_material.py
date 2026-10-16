@@ -187,7 +187,7 @@ def find_region_of_face(obj: bpy.types.Object, face_index: int) -> Tuple[int, in
     return (mat_idx, -1)
 
 
-def analyze_material_structure(obj: bpy.types.Object, material_index: int, region_index: int = 0) -> Dict[str, Any]:
+def analyze_material_structure(obj: bpy.types.Object, material_index: int, region_index: int = 0, _precise_normals: bool = False) -> Dict[str, Any]:
     """Analisa a topologia de UMA região conectada (ilha) de faces de um material.
 
     Um mesmo material pode aparecer em várias áreas separadas do modelo (ex: dois quadrados
@@ -277,18 +277,20 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
     coords_world = [v.co.copy() for v in ordered_verts]
     centroid = sum(coords_world, Vector()) / len(coords_world)
 
-    # Normal média do contorno via Newell
-    n = Vector((0.0, 0.0, 0.0))
-    n_pts = len(coords_world)
-    for i in range(n_pts):
-        v1 = coords_world[i]
-        v2 = coords_world[(i + 1) % n_pts]
-        n.x += (v1.y - v2.y) * (v1.z + v2.z)
-        n.y += (v1.z - v2.z) * (v1.x + v2.x)
-        n.z += (v1.x - v2.x) * (v1.y + v2.y)
-    if n.length > 1e-6:
-        n.normalize()
+    # Preserve the established frame first. A bounded retry uses double
+    # accumulation if EXACT produces a non-manifold result from cancellation.
+    if _precise_normals:
+        from .geometry_contract import boundary_normal
+        n = boundary_normal(coords_world)
     else:
+        n = Vector((0.0, 0.0, 0.0))
+        for i in range(len(coords_world)):
+            a, b = coords_world[i], coords_world[(i+1) % len(coords_world)]
+            n.x += (a.y-b.y)*(a.z+b.z)
+            n.y += (a.z-b.z)*(a.x+b.x)
+            n.z += (a.x-b.x)*(a.y+b.y)
+        n.normalize()
+    if n.length < 1e-12:
         n = Vector((0.0, 0.0, 1.0))
 
     # Direção para dentro a partir da média ponderada por área em espaço de mundo
@@ -614,7 +616,33 @@ def pts_2d_to_world(pts_2d, idx, centroid, u_vec, v_vec):
     return centroid + q.x * u_vec + q.y * v_vec
 
 
+class MaterialBooleanError(RuntimeError):
+    """EXACT produced a non-manifold result; no candidates may be published."""
+
+
 def slice_mesh_by_material(
+    obj, material_index, depth_mm=5.0, scene=None, through_cut=False,
+    region_index=0, extraction_mode='EXTRUDE', interface_mat_mode='SOURCE',
+    part_clearance_mm=0.0, part_clearance_apply_to='PART', part_clearance_bottom_mm=None,
+):
+    """Transactional material cut, retaining the original API and frame.
+
+    Retry only numerical boolean failure, using a mathematically equivalent
+    double-precision support normal. No tolerance offsets, hole filling, solver
+    substitution or relaxed manifold checks are used.
+    """
+    args = dict(obj=obj, material_index=material_index, depth_mm=depth_mm, scene=scene,
+                through_cut=through_cut, region_index=region_index,
+                extraction_mode=extraction_mode, interface_mat_mode=interface_mat_mode,
+                part_clearance_mm=part_clearance_mm, part_clearance_apply_to=part_clearance_apply_to,
+                part_clearance_bottom_mm=part_clearance_bottom_mm)
+    try:
+        return _slice_mesh_by_material(**args)
+    except MaterialBooleanError:
+        return _slice_mesh_by_material(**args, _precise_normals=True)
+
+
+def _slice_mesh_by_material(
     obj: bpy.types.Object,
     material_index: int,
     depth_mm: float = 5.0,
@@ -626,6 +654,7 @@ def slice_mesh_by_material(
     part_clearance_mm: float = 0.0,
     part_clearance_apply_to: str = 'PART',
     part_clearance_bottom_mm: Optional[float] = None,
+    _precise_normals: bool = False,
 ) -> LoopSliceResult:
     """Realiza a separação da malha com base em uma região do material selecionado.
     
@@ -637,7 +666,7 @@ def slice_mesh_by_material(
     actual_scene = scene if scene else bpy.context.scene
     scale_to_mm = get_scene_scale_to_mm(actual_scene)
 
-    analysis = analyze_material_structure(obj, material_index, region_index)
+    analysis = analyze_material_structure(obj, material_index, region_index, _precise_normals)
     if not analysis["valid"]:
         raise ValueError(analysis.get("error", "Estrutura de material não suportada."))
 
@@ -907,6 +936,11 @@ def slice_mesh_by_material(
 
     else:
         # Extração superficial com profundidade (M03)
+        if not analysis.get('is_planar_base', False):
+            raise ValueError(
+                "A região não possui um contorno de apoio planar confiável para extração com profundidade. "
+                "Selecione uma região com base plana ou use o corte por Loop para destacar o volume."
+            )
         if part_clearance_mm > 0.0:
             if part_clearance_mm >= depth_mm - 0.1:
                 raise ValueError(
@@ -959,6 +993,8 @@ def slice_mesh_by_material(
         mesh_a = None
         mesh_b = None
 
+        bm_a = bm_b = None
+        result_ready = False
         try:
             body_mat_idx = analysis.get("body_mat_index", 0)
             depth_mm_eff = depth_mm
@@ -1036,6 +1072,20 @@ def slice_mesh_by_material(
                     lateral_offset_bu=lat_off_b,
                 )
 
+                if iface_tris_world is None and analysis.get("is_planar_base", False):
+                    coords = [Vector(c) for c in analysis.get("coords_world", [])]
+                    if coords and len(coords) >= 3:
+                        n_norm = inward_dir.normalized()
+                        u_i, v_i = _get_orthonormal_basis(n_norm)
+                        c_ref = Vector(analysis["centroid_world"])
+                        pts_i = [Vector(((c - c_ref).dot(u_i), (c - c_ref).dot(v_i))) for c in coords]
+                        tri_i = triangulate_polygon_2d(pts_i)
+                        shift_i = n_norm * depth_bu
+                        iface_tris_world = [
+                            tuple(c_ref + pts_i[x].x * u_i + pts_i[x].y * v_i + shift_i for x in t)
+                            for t in tri_i
+                        ]
+
             bpy.context.view_layer.update()
 
             temp_obj_a = obj.copy()
@@ -1104,7 +1154,7 @@ def slice_mesh_by_material(
             if metrics_a["volume_mm3"] <= 1e-4 or metrics_b["volume_mm3"] <= 1e-4:
                 raise RuntimeError("O corte por material gerou uma peça com volume nulo ou desprezível.")
             if not metrics_a["is_manifold"] or not metrics_b["is_manifold"]:
-                raise RuntimeError(
+                raise MaterialBooleanError(
                     f"O corte por material gerou peça não-manifold "
                     f"(arestas abertas: Parte A={metrics_a['non_manifold_edges']}, Parte B={metrics_b['non_manifold_edges']})."
                 )
@@ -1120,9 +1170,14 @@ def slice_mesh_by_material(
                 },
                 success=True,
             )
+            result_ready = True
             return LoopSliceResult(bm_a, bm_b, split_res)
 
         finally:
+            if not result_ready:
+                for bm in (bm_a, bm_b):
+                    if bm is not None and bm.is_valid:
+                        bm.free()
             # Liberação estrita no mesmo objeto avaliado (B03)
             if eval_a and mesh_a:
                 try:

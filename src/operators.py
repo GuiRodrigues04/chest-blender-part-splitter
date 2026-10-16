@@ -77,7 +77,10 @@ from .translations import _get_current_locale
 from .connector_editor import (
     CHEST_OT_splitter_edit_manual_connectors,
     CHEST_OT_splitter_confirm_manual_connectors,
+    CHEST_OT_splitter_finish_manual_connectors,
+    CHEST_OT_splitter_cancel_manual_connectors,
     CHEST_OT_splitter_view_cut_face,
+    stop_connector_editor,
 )
 
 
@@ -412,10 +415,12 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
         tokens.append(f"conn_dist:{settings.connector_distribution}")
         if settings.connector_distribution == 'MANUAL':
             for sp in settings.manual_connectors:
-                tokens.append(f"man:{sp.u_mm:.2f}:{sp.v_mm:.2f}:{sp.yaw_deg:.1f}")
+                tokens.append(f"man:{sp.u_mm!r}:{sp.v_mm!r}:{sp.yaw_deg!r}")
         tokens.append(f"conn_margin:{settings.connector_edge_margin_mm:.4f}")
         tokens.append(f"conn_male:{settings.connector_male_part}")
 
+    from .input_state import cut_signature
+    tokens.append(cut_signature(settings, target, context.scene))
     if tokens:
         h.update("|".join(tokens).encode("utf-8"))
     return h.hexdigest()[:16]
@@ -670,6 +675,7 @@ class CHEST_OT_splitter_set_target(bpy.types.Operator):
         return context.active_object and context.active_object.type == 'MESH'
 
     def execute(self, context):
+        stop_connector_editor(context.scene)
         settings = context.scene.chest_splitter
         obj = context.active_object
 
@@ -1613,6 +1619,9 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             self.report({'ERROR'}, "Objeto alvo inválido ou não encontrado.")
             return {'CANCELLED'}
 
+        # Encerra qualquer sessão modal ativa de edição de pinos
+        stop_connector_editor(context.scene)
+
         # Sincroniza malha de edição se o alvo estiver em Edit Mode
         if target.mode == 'EDIT':
             target.update_from_editmode()
@@ -1906,10 +1915,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 if settings.split_mode == 'SOLID':
                     self.report({'INFO'}, "Encaixes automáticos não são suportados no modo Cortador Sólido.")
                 else:
-                    if settings.split_mode == 'LOOP':
-                        norm_a = plane_normal
-                    else:
-                        norm_a = -plane_normal if settings.invert_sides else plane_normal
+                    norm_a = report['interface'].normal_a_to_b_world
 
                     if settings.connector_male_part == 'A':
                         male_obj = candidate_obj_a
@@ -1927,21 +1933,11 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                             {"u_mm": sp.u_mm, "v_mm": sp.v_mm, "yaw_deg": sp.yaw_deg}
                             for sp in settings.manual_connectors
                         ]
-                        # Usa o MESMO referencial U/V (eixos estabilizados) do editor interativo,
-                        # senão o pino aparece espelhado/deslocado em relação ao marcador.
-                        try:
-                            from .connector_surface import prepare_split_candidates as _prep_split
-                            _prep = _prep_split(context)
-                            if _prep is not None and _prep.interface is not None:
-                                layout_interface = _prep.interface
-                        except Exception:
-                            pass
-
                     layout = compute_connector_layout(
                         target_mesh=target.data,
                         matrix_world=target.matrix_world,
                         plane_origin=plane_origin,
-                        plane_normal=plane_normal,
+                        plane_normal=norm,
                         distribution=settings.connector_distribution,
                         edge_margin_mm=settings.connector_edge_margin_mm,
                         unit_scale=unit_scale,
@@ -1987,6 +1983,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                             unit_scale=unit_scale,
                             connector_type=settings.connector_type,
                             capsule_length_mm=cap_len,
+                            pin_rotations=layout.get("pin_rotations"),
                         )
                         apply_connectors_boolean(
                             obj_male=male_obj,
@@ -2059,11 +2056,18 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             # Snapshot de estado montado e direção efetiva da interface (INV-004)
             normal_a_to_b = Vector((0.0, 0.0, 1.0))
             if settings.split_mode == 'PLANE':
-                p_norm = Vector(settings.plane_normal).normalized()
+                p_norm = plane_normal.normalized()
                 normal_a_to_b = -p_norm if settings.invert_sides else p_norm
             elif settings.split_mode in ('LOOP', 'MATERIAL'):
                 if Vector(settings.loop_interface_normal).length > 1e-6:
                     normal_a_to_b = Vector(settings.loop_interface_normal).normalized()
+
+            if settings.split_mode == 'SOLID':
+                offset_a, offset_b = compute_solid_explosion_offsets(
+                    candidate_obj_a, candidate_obj_b, 2.0, unit_scale=unit_scale)
+                direction = offset_b - offset_a
+                if direction.length > 1e-12:
+                    normal_a_to_b = direction.normalized()
 
             candidate_obj_a["chest_assembled_loc"] = list(candidate_obj_a.location)
             candidate_obj_b["chest_assembled_loc"] = list(candidate_obj_b.location)
@@ -2109,6 +2113,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
             update_preview_positions(context.scene)
             target.hide_viewport = True
+            target.hide_set(True)
 
             conn_info = f" (+{settings.connector_distribution} encaixes)" if (settings.connector_enabled and settings.split_mode != 'SOLID') else ""
             msg = (
@@ -2169,6 +2174,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             else:
                 # Se não havia prévia, garante que o alvo continue visível e acessível
                 target.hide_viewport = False
+                target.hide_set(False)
                 settings.session_status = 'PREVIEW_INVALID'
                 msg = (
                     f"Erro na geração da prévia: {str(e)}"
@@ -2510,6 +2516,7 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
         return settings.session_status == 'PREVIEW_VALID'
 
     def execute(self, context):
+        stop_connector_editor(context.scene)
         settings = context.scene.chest_splitter
         target = settings.target_object
 
@@ -2618,6 +2625,23 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
         except Exception:
             pass
 
+        # Garante que as partes finais estejam plenamente visíveis e selecionáveis
+        obj_a.hide_viewport = False
+        obj_a.hide_set(False)
+        obj_b.hide_viewport = False
+        obj_b.hide_set(False)
+        if hasattr(obj_a, "hide_select"):
+            obj_a.hide_select = False
+        if hasattr(obj_b, "hide_select"):
+            obj_b.hide_select = False
+        if hasattr(parts_col, "hide_select"):
+            parts_col.hide_select = False
+
+        # Oculta o objeto alvo pré-corte no Viewport e Outliner para evitar colisão visual
+        if target and target.name in bpy.data.objects:
+            target.hide_viewport = True
+            target.hide_set(True)
+
         # Seleciona EXCLUSIVAMENTE a peça extraída por papel semântico (DEV-08)
         extracted_obj = obj_b if getattr(settings, "invert_sides", False) else obj_a
         try:
@@ -2644,6 +2668,7 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
                     guide_obj.hide_viewport = True
 
         settings.session_status = 'COMMITTED'
+        stop_connector_editor(context.scene)
         msg = f"Corte confirmado! Peças finais: '{final_name_a}' e '{final_name_b}'. Peça extraída selecionada. Use G para mover.{prop_warning}"
         settings.last_status = msg
         settings.last_status_level = 'SUCCESS' if not prop_warning else 'WARNING'
@@ -2672,6 +2697,7 @@ class CHEST_OT_splitter_continue_on_receiver(bpy.types.Operator):
         return False
 
     def execute(self, context):
+        stop_connector_editor(context.scene)
         from .lifecycle import resolve_receiver_object, find_operation_record
         from .geometry_loop import clear_capture
 
@@ -2784,6 +2810,7 @@ class CHEST_OT_splitter_remove_preview(bpy.types.Operator):
         return has_preview_objs or settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE', 'PREVIEW_INVALID')
 
     def execute(self, context):
+        stop_connector_editor(context.scene)
         success, msg = remove_preview(context)
         if success:
             self.report({'INFO'}, msg)
@@ -2852,6 +2879,7 @@ class CHEST_OT_splitter_revert_cut(bpy.types.Operator):
             col.label(text="The target model will return to its pre-cut state.")
 
     def execute(self, context):
+        stop_connector_editor(context.scene)
         success, msg = revert_committed_operation(context, op_id=self.operation_id if self.operation_id else None)
         if success:
             self.report({'INFO'}, msg)
@@ -2873,6 +2901,7 @@ class CHEST_OT_splitter_restore_original(bpy.types.Operator):
         return settings and settings.target_object is not None
 
     def execute(self, context):
+        stop_connector_editor(context.scene)
         settings = context.scene.chest_splitter
         target = settings.target_object
 
@@ -2890,6 +2919,7 @@ class CHEST_OT_splitter_restore_original(bpy.types.Operator):
 
             if orig_obj:
                 orig_obj.hide_viewport = False
+                orig_obj.hide_set(False)
                 settings.target_object = orig_obj
                 try:
                     context.view_layer.objects.active = orig_obj
@@ -2912,6 +2942,7 @@ class CHEST_OT_splitter_redo_session(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        stop_connector_editor(context.scene)
         settings = context.scene.chest_splitter
         guides_col = find_collection(context.scene, COLLECTION_GUIDES_NAME)
         if guides_col:
@@ -2923,6 +2954,7 @@ class CHEST_OT_splitter_redo_session(bpy.types.Operator):
         target = settings.target_object
         if target and target.name in bpy.data.objects:
             target.hide_viewport = False
+            target.hide_set(False)
 
         settings.session_status = 'CONFIGURED'
         settings.session_id = ""  # Força geração de novo ID no próximo preview
@@ -3606,6 +3638,8 @@ classes = (
     CHEST_OT_splitter_pick_material_region,
     CHEST_OT_splitter_edit_manual_connectors,
     CHEST_OT_splitter_confirm_manual_connectors,
+    CHEST_OT_splitter_finish_manual_connectors,
+    CHEST_OT_splitter_cancel_manual_connectors,
     CHEST_OT_splitter_view_cut_face,
 )
 
@@ -3692,6 +3726,9 @@ def on_undo_post(scene):
     if not scene or not hasattr(scene, "chest_splitter"):
         return
     settings = scene.chest_splitter
+    from .connector_surface import clear_prepared_split_cache
+    clear_prepared_split_cache()
+    stop_connector_editor(scene)
     try:
         target = getattr(settings, "target_object", None)
         if target and target.name not in bpy.data.objects:
@@ -3710,6 +3747,9 @@ def on_redo_post(scene):
     if not scene or not hasattr(scene, "chest_splitter"):
         return
     settings = scene.chest_splitter
+    from .connector_surface import clear_prepared_split_cache
+    clear_prepared_split_cache()
+    stop_connector_editor(scene)
     try:
         target = getattr(settings, "target_object", None)
         if target and target.name not in bpy.data.objects:
@@ -3721,12 +3761,24 @@ def on_redo_post(scene):
         pass
 
 
+@persistent
+def on_load_post(_unused):
+    from .connector_surface import clear_prepared_split_cache
+    clear_prepared_split_cache()
+    for scene in bpy.data.scenes:
+        if hasattr(scene, 'chest_splitter'):
+            scene.chest_splitter.previous_target_object = scene.chest_splitter.target_object
+            stop_connector_editor(scene)
+
+
 def register_handlers():
     """Registra handlers de depsgraph e undo/redo no Blender."""
     if on_depsgraph_update_post not in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.append(on_depsgraph_update_post)
     if on_undo_post not in bpy.app.handlers.undo_post:
         bpy.app.handlers.undo_post.append(on_undo_post)
+    if on_load_post not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(on_load_post)
     if on_redo_post not in bpy.app.handlers.redo_post:
         bpy.app.handlers.redo_post.append(on_redo_post)
 
@@ -3737,6 +3789,8 @@ def unregister_handlers():
         bpy.app.handlers.depsgraph_update_post.remove(on_depsgraph_update_post)
     if on_undo_post in bpy.app.handlers.undo_post:
         bpy.app.handlers.undo_post.remove(on_undo_post)
+    if on_load_post in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(on_load_post)
     if on_redo_post in bpy.app.handlers.redo_post:
         bpy.app.handlers.redo_post.remove(on_redo_post)
 

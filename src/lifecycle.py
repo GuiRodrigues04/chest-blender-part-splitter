@@ -376,12 +376,10 @@ def remove_preview(context: bpy.types.Context, op_id: Optional[str] = None) -> T
             o_op = o.get("chest_operation_id")
             o_sid = o.get("chest_session_id")
             o_role = o.get("chest_role")
-            if curr_op_id:
-                if o_op == curr_op_id or o_sid == curr_op_id:
-                    objs_to_remove.add(o)
-            elif not hasattr(scene, "chest_operations") or len(scene.chest_operations) <= 1:
-                if o_role in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL):
-                    objs_to_remove.add(o)
+            if curr_op_id and (o_op == curr_op_id or o_sid == curr_op_id):
+                objs_to_remove.add(o)
+            elif not o_op and not o_sid and o_role in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL):
+                objs_to_remove.add(o)
 
     if op_record:
         for ref in op_record.created_objects:
@@ -415,7 +413,8 @@ def remove_preview(context: bpy.types.Context, op_id: Optional[str] = None) -> T
         except Exception:
             pass
 
-        settings.target_object = target
+        if settings.target_object != target:
+            settings.target_object = target
 
     # Descarta snapshot de prévia apenas se a operação estiver em status PREVIEW
     if op_record and op_record.status == 'PREVIEW':

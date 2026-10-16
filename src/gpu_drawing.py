@@ -575,7 +575,7 @@ def _get_or_create_grid_batch(shader, prep, disp_offset, target_name):
     """Retorna o batch GPU dos pontos da grade 5 mm em cache ou constrói um novo."""
     global _GRID_CACHE
     key = (prep.cut_signature, tuple(disp_offset), round(prep.unit_scale, 4), target_name)
-    if _GRID_CACHE["key"] == key and _GRID_CACHE["batch"] is not None:
+    if _GRID_CACHE["key"] == key:
         return _GRID_CACHE["batch"]
 
     from .connector_surface import generate_positioning_grid_points

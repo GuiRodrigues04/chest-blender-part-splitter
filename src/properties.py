@@ -1,6 +1,7 @@
 """Propriedades de configuração e estado persistente do Chest Part Splitter."""
 
 import bpy
+from mathutils import Vector
 from bpy.props import (
     PointerProperty,
     StringProperty,
@@ -166,9 +167,25 @@ def _on_cutter_object_update(self, context):
 
 def _on_target_object_update(self, context):
     """Callback ao alterar ou limpar o objeto alvo."""
+    # RNA callbacks also run when assigning the SAME pointer (e.g. remove_preview).
+    # Keep a persistent pointer, rather than a name/address, to survive rename/load.
+    if self.previous_target_object == self.target_object:
+        return
+    self.previous_target_object = self.target_object
     from .geometry_loop import clear_capture
     clear_capture(self, reason="target_change")
+    from .connector_surface import clear_prepared_split_cache
+    from .connector_editor import stop_connector_editor
+    clear_prepared_split_cache()
+    if context and context.scene:
+        stop_connector_editor(context.scene)
     _on_param_change_mark_stale(self, context)
+
+
+def _on_status_update(self, context):
+    # A direct error/status must replace a previous localized status code too.
+    self.last_status_code = ""
+    self.last_status_params = ""
 
 
 class ChestObjectRef(bpy.types.PropertyGroup):
@@ -251,6 +268,8 @@ class ChestManualConnector(bpy.types.PropertyGroup):
 
 class ChestSplitterSettings(bpy.types.PropertyGroup):
     """Estado persistente da sessão do Part Splitter na cena."""
+
+    previous_target_object: PointerProperty(type=bpy.types.Object, options={'HIDDEN'})
 
     session_id: StringProperty(
         name="ID da Sessão",
@@ -969,6 +988,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     last_status: StringProperty(
         name="Mensagem de Status",
         default="",
+        update=_on_status_update,
     )
 
     last_status_code: StringProperty(
@@ -996,9 +1016,9 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         """Define o status usando código do catálogo e parâmetros nomeados (LANG-01)."""
         import json
         from .translations import tr
+        self.last_status = tr(code, **params)
         self.last_status_code = code
         self.last_status_params = json.dumps(params)
-        self.last_status = tr(code, **params)
         self.last_status_level = level
 
     def get_localized_status(self) -> str:
@@ -1057,7 +1077,8 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
 
 class ChestSplitterAddonPreferences(bpy.types.AddonPreferences):
     """Preferências globais da extensão Chest Part Splitter (LANG-01)."""
-    bl_idname = __package__ if __package__ else "chest_part_splitter"
+    # Preferences belong to the installed extension, not its internal .src package.
+    bl_idname = __package__.removesuffix('.src') if __package__ else "chest_part_splitter"
 
     language: EnumProperty(
         name="Idioma / Language",

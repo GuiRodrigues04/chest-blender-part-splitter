@@ -1,11 +1,11 @@
 """Chest Part Splitter Addon."""
 
 bl_info = {
-    "name": "Part Splitter 0.8.11",
+    "name": "Part Splitter 0.8.12",
     "author": "Chest Team",
-    "version": (0, 8, 11),
+    "version": (0, 8, 12),
     "blender": (4, 2, 0),
-    "location": "View3D > Sidebar (N) > Chest > Part Splitter 0.8.11",
+    "location": "View3D > Sidebar (N) > Chest > Part Splitter 0.8.12",
     "description": "Splits models into parts for 3D printing",
     "category": "3D View",
 }

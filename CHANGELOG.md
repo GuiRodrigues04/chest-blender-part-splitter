@@ -1,3 +1,25 @@
+# 0.8.12 — 2026-10-15
+
+- Preserva o contorno ao remover prévia ou reabrir o editor: reatribuir o mesmo alvo não limpa a captura.
+- Invalida captura/cache ao trocar realmente de alvo; valida índices vivos em Edit Mode sem atualizar datablocks no desenho.
+- Encerra arrastes soltos fora do viewport e desativa instâncias modais antigas ao reabrir a edição.
+- Cancela corretamente rascunhos vazios; não anuncia sucesso se a geração retornar CANCELLED.
+- Prepara a superfície antes de remover a prévia; limita a remoção à operação atual.
+- Reutiliza a referência geométrica determinística do corte, sem refletir eixos isoladamente dos contornos.
+- Corrige a direção das rotações dos pinos quando o macho está na Parte B.
+- Atualiza cache por geometria, transformação, guia vivo, unidades e parâmetros completos de base/folga.
+- Usa a malha avaliada com modificadores na preparação do plano e a normal real do guia na explosão.
+- Usa a direção própria do corte sólido na explosão, sem impor o eixo Z.
+- Detecta furos internos completamente cobertos por um pino e colisões reais entre cápsulas.
+- Mantém grade visual de 5 mm, movimento livre e nenhum controle novo; memoriza também grades vazias.
+- Limpa caches e edição volátil ao carregar, desfazer/refazer e desativar a extensão.
+- Corrige import de Vector ausente no redimensionamento de cortador ancorado.
+- Mantém o referencial anterior de extração por material; se a booleana gera resultado não-manifold, tenta uma vez a normal acumulada em precisão dupla. Mantém o solver EXACT e todas as validações.
+- Bloqueia extração com profundidade sem apoio planar; mantém o destaque de volume por contorno.
+- Corrige o namespace das preferências na extensão instalada, permitindo resolver a seleção PT/EN.
+- Corrige precedência de mensagens de status e centraliza rótulos do painel no idioma da extensão.
+- Acrescenta regressões de integração e fixture geométrica do arquivo de teste do usuário. Corrige inicialização/seleção de duas suítes antigas e atualiza a identificação da versão.
+
 # Changelog
 
 Todas as mudanças relevantes deste projeto serão documentadas neste arquivo.

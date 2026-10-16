@@ -385,6 +385,19 @@ TRANSLATIONS_DICT['en_US'].update({
     ('*', 'Há pinos inválidos ou colidindo. Corrija-os ou remova-os.'): 'Some pins are invalid or overlap. Move or remove them.',
 })
 
+TRANSLATIONS_DICT['en_US'].update({
+    ('*', 'Alinhar por Vértices'): 'Align by Vertices',
+    ('*', 'Escolher Face Automaticamente'): 'Choose Mating Face Automatically',
+    ('*', 'Capturar Face de Encaixe'): 'Capture Mating Face',
+    ('*', 'Face de encaixe'): 'Mating face',
+    ('*', 'Clique em um vértice do cortador. Esc cancela.'): 'Click a cutter vertex. Esc cancels.',
+    ('*', 'Agora clique em um vértice da peça. Esc cancela.'): 'Now click a target vertex. Esc cancels.',
+    ('*', 'Selecione um cortador existente na cena.'): 'Select a cutter present in the scene.',
+    ('*', 'Entre em Edit Mode no cortador e selecione uma única face.'): 'Enter Edit Mode on the cutter and select one face.',
+    ('*', 'Selecione exatamente uma face no cortador.'): 'Select exactly one cutter face.',
+    ('*', 'Face capturada. Volte ao modo Objeto para editar os pinos.'): 'Face captured. Return to Object Mode to edit pins.',
+})
+
 
 def localize_text(text):
     """Resolve explicit panel labels using the addon language, including English.

@@ -1,0 +1,8 @@
+{
+  "marker_offset_without_preview_BU": 49.99999511718726,
+  "deleted_cutter_accepted": true,
+  "loop_nonplanar_depth": "Extração com profundidade requer um contorno de apoio planar. Use Destacar Volume para contornos não planos.",
+  "material_nonplanar_depth": "A região não possui um contorno de apoio planar confiável para extração com profundidade. Selecione uma região com base plana ou use o corte por Loop para destacar o volume.",
+  "base_has_wrong_material": false,
+  "two_pins_concave": "accepted"
+}

@@ -1,3 +1,15 @@
+# 0.8.13
+
+- Marcadores vinculados à interface atual e ao deslocamento real da prévia; descartado o fallback que desenhava sobre uma origem antiga.
+- Normais atualizadas após transformações, frame estável em superfícies simétricas e posições levantadas sobre tampas trianguladas não planas.
+- Profundidade de Loop/Material com apoio projetado abaixo do contorno e amostras interiores de espessura.
+- Cores determinísticas nas faces novas do Loop, com material da peça extraída em A e do corpo na cavidade.
+- Busca de dois pinos em toda a área útil, com validação de perfil e separação.
+- Cortador excluído da cena rejeitado mesmo quando seu datablock permanece referenciado.
+- Modo Sólido: folga física por offset de faces, escolha/captura da face de encaixe, pinos manuais e alinhamento por vértices.
+- Preservados os quatro modos, formatos de encaixe, prévias, confirmação, reversão e exportações.
+- 49 regressões em bpy 4.2.23, 4.5.3 e 5.0.1; interface gráfica Windows/Blender 5.2 ainda requer validação manual.
+
 # 0.8.12 — 2026-10-15
 
 - Preserva o contorno ao remover prévia ou reabrir o editor: reatribuir o mesmo alvo não limpa a captura.

@@ -1,8 +1,8 @@
 """Constantes e definições padrão para o Chest Part Splitter."""
 
 # Identificação e versão do Addon
-ADDON_VERSION = (0, 8, 12)
-ADDON_VERSION_STR = "0.8.12"
+ADDON_VERSION = (0, 8, 13)
+ADDON_VERSION_STR = "0.8.13"
 PANEL_TITLE = f"Part Splitter {ADDON_VERSION_STR}"
 
 # Coleções de organização no Blender

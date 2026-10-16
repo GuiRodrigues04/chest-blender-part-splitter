@@ -405,7 +405,8 @@ def _draw_plane_overlay(context, settings):
 def _draw_solid_overlay(context, settings):
     """Desenha as arestas reais do cortador sólido ativo em ciano na Viewport 3D (DEV-09)."""
     cutter = getattr(settings, "solid_cutter_object", None)
-    if not cutter or cutter.name not in bpy.data.objects or cutter.type != 'MESH':
+    from .scene_state import object_in_scene
+    if not object_in_scene(cutter, context.scene, mesh=True):
         return
 
     # Respeita visibilidade do cortador e modo
@@ -442,7 +443,7 @@ def _draw_solid_overlay(context, settings):
     try:
         z_dir = (mw.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()
         cen = mw.translation
-        arrow_len = max(0.02, cutter.dimensions.z * 0.4)
+        arrow_len = cutter.dimensions.z * 0.15
         arrow_tip = cen + z_dir * arrow_len
         pairs.append(cen)
         pairs.append(arrow_tip)
@@ -606,7 +607,7 @@ def _draw_connector_markers_overlay(context, settings):
         return
 
     mode = getattr(settings, "split_mode", "PLANE")
-    if mode not in ('PLANE', 'LOOP', 'MATERIAL'):
+    if mode not in ('PLANE', 'LOOP', 'MATERIAL', 'SOLID'):
         return
 
     if getattr(settings, "session_status", "") == 'COMMITTED':
@@ -621,6 +622,10 @@ def _draw_connector_markers_overlay(context, settings):
     from .connector_editor import get_editor_interaction_state
 
     prep = get_cached_prepared_split()
+    from .input_state import editor_configuration
+    if (prep is None or prep.target_name != target.name or prep.split_mode != mode
+            or prep.configuration != editor_configuration(settings, context.scene)):
+        return
     unit_scale = get_scene_scale_to_mm(context.scene)
     if unit_scale <= 0.0:
         unit_scale = 1000.0
@@ -670,25 +675,17 @@ def _draw_connector_markers_overlay(context, settings):
             markers.append((pos, yaw_rad, is_valid, is_sel))
     else:
         try:
-            from .geometry_connectors import compute_connector_layout
-            layout = compute_connector_layout(
-                target_mesh=target.data,
-                matrix_world=target.matrix_world,
-                plane_origin=origin,
-                plane_normal=normal,
-                distribution=dist,
-                edge_margin_mm=settings.connector_edge_margin_mm,
-                unit_scale=unit_scale,
-                diameter_mm=settings.connector_diameter_mm,
-                clearance_per_side_mm=settings.clearance_per_side_mm,
-                interface=prep.interface if prep else None,
-                connector_type=conn_type,
-                capsule_length_mm=settings.connector_capsule_length_mm,
-                adjust_to_valid_area=getattr(settings, "adjust_to_valid_area", False),
-            )
+            from .connector_surface import prepared_connector_layout
+            layout = prepared_connector_layout(prep, settings, target)
             is_valid = layout.get("valid", True)
-            for pos in layout.get("positions", []):
-                markers.append((pos + disp_offset, 0.0, is_valid, False))
+            rotations = layout.get("pin_rotations", [])
+            for i, pos in enumerate(layout.get("positions", [])):
+                if rotations:
+                    direction = rotations[i].to_matrix() @ Vector((0,1,0))
+                    yaw = math.atan2(direction.dot(v_axis), direction.dot(u_axis))
+                else:
+                    yaw = 0.0
+                markers.append((pos + disp_offset, yaw, is_valid, False))
         except Exception:
             pass
 

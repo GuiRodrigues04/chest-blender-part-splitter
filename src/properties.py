@@ -42,6 +42,12 @@ def _on_param_change_mark_stale(self, context):
     elif hasattr(bpy, "context") and bpy.context and hasattr(bpy.context, "scene") and hasattr(bpy.context.scene, "chest_splitter"):
         settings = bpy.context.scene.chest_splitter
 
+    if settings and context and context.scene:
+        from .connector_surface import get_cached_prepared_split, clear_prepared_split_cache
+        from .input_state import editor_configuration
+        prep = get_cached_prepared_split()
+        if prep is not None and prep.configuration != editor_configuration(settings, context.scene):
+            clear_prepared_split_cache()
     if settings and getattr(settings, "session_status", "") == 'PREVIEW_VALID':
         settings.session_status = 'PREVIEW_STALE'
         settings.last_status = "Os ajustes mudaram. Atualize a prévia antes de criar as peças."
@@ -270,6 +276,12 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     """Estado persistente da sessão do Part Splitter na cena."""
 
     previous_target_object: PointerProperty(type=bpy.types.Object, options={'HIDDEN'})
+    manual_binding: StringProperty(default="", options={'HIDDEN'})
+    solid_interface_face_index: IntProperty(
+        name="Face de encaixe", default=-1, min=-1, options={'HIDDEN'},
+        description="-1 escolhe a maior face de contato plana; use Capturar Face para escolher outra",
+        update=_on_param_change_mark_stale,
+    )
 
     session_id: StringProperty(
         name="ID da Sessão",

@@ -71,6 +71,46 @@ class CutInterface:
         )
 
 
+def interface_point(interface, u, v):
+    """Lift projected UV onto the actual shared cap, preserving one insertion axis."""
+    point = interface.uv_to_world(u, v)
+    if interface.is_planar or not interface.interface_triangles_world:
+        return point
+    n = interface.normal_a_to_b_world
+    for a, b, c in interface.interface_triangles_world:
+        pa, pb, pc = (interface.world_to_uv(p) for p in (a, b, c))
+        den = (pb[1]-pc[1])*(pa[0]-pc[0]) + (pc[0]-pb[0])*(pa[1]-pc[1])
+        if abs(den) < 1e-16:
+            continue
+        wa = ((pb[1]-pc[1])*(u-pc[0]) + (pc[0]-pb[0])*(v-pc[1])) / den
+        wb = ((pc[1]-pa[1])*(u-pc[0]) + (pa[0]-pc[0])*(v-pc[1])) / den
+        wc = 1-wa-wb
+        if min(wa, wb, wc) >= -1e-6:
+            hit = a*wa + b*wb + c*wc
+            return point + n * (hit-point).dot(n)
+    return point
+
+
+def orient_interface(interface, axis_u):
+    """Reproject loops when a caller supplies a persistent geometric reference axis."""
+    from dataclasses import replace
+    normal = interface.normal_a_to_b_world
+    u = (axis_u - normal*axis_u.dot(normal)).normalized()
+    if u.length < 1e-9:
+        return interface
+    v = normal.cross(u).normalized()
+    def remap(polys):
+        result = []
+        for poly in polys:
+            points = [interface.uv_to_world(*uv)-interface.origin_world for uv in poly]
+            result.append([(p.dot(u),p.dot(v)) for p in points])
+        return result
+    outer = remap(interface.outer_contours_uv)
+    holes = remap(interface.hole_contours_uv)
+    return replace(interface, axis_u_world=u, axis_v_world=v,
+                   outer_contours_uv=outer, hole_contours_uv=holes)
+
+
 def build_cut_interface(
     origin_world: Vector,
     normal_a_to_b: Vector,
@@ -124,7 +164,9 @@ def build_cut_interface(
     c_xy = sum(x * y for x, y in pts_2d)
 
     # Direção principal (ângulo theta no plano UV inicial)
-    theta = 0.5 * math.atan2(2.0 * c_xy, c_xx - c_yy)
+    anisotropy = math.hypot(c_xx-c_yy, 2*c_xy)
+    theta = (0.0 if anisotropy <= max(c_xx+c_yy, 1e-30)*1e-6
+             else 0.5 * math.atan2(2.0 * c_xy, c_xx - c_yy))
     cos_t = math.cos(theta)
     sin_t = math.sin(theta)
 

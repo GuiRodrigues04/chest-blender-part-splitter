@@ -24,6 +24,9 @@ from .diagnostic import get_scene_scale_to_mm
 class PreparedSplit:
     """Dados preparados do corte sem pinos para edição e geração."""
     cut_signature: str
+    configuration: tuple
+    layout_key: tuple = field(default=None, init=False)
+    layout: dict = field(default=None, init=False)
     target_name: str
     split_mode: str
     interface: CutInterface
@@ -46,7 +49,8 @@ class PreparedSplit:
         """Converte UV da interface em milímetros para ponto montado 3D."""
         u_bu = u_mm / self.unit_scale
         v_bu = v_mm / self.unit_scale
-        return self.interface.uv_to_world(u_bu, v_bu)
+        from .geometry_contract import interface_point
+        return interface_point(self.interface, u_bu, v_bu)
 
 
 # Cache em memória do último corte preparado
@@ -58,6 +62,11 @@ def compute_cut_signature(settings: Any, target: bpy.types.Object, scene=None) -
     from .input_state import cut_signature
     return cut_signature(settings, target, scene or bpy.context.scene)
 
+
+
+def set_cached_prepared_split(prepared):
+    global _CACHED_PREPARED_SPLIT
+    _CACHED_PREPARED_SPLIT = prepared
 
 
 def get_cached_prepared_split() -> Optional[PreparedSplit]:
@@ -80,13 +89,14 @@ def clear_prepared_split_cache():
 def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool = False) -> PreparedSplit:
     """Prepara o corte sem encaixes, garantindo uma única CutInterface e superfície útil de contato.
     
-    Compatível com os três modos (PLANE, LOOP e MATERIAL).
+    Compatível com PLANE, LOOP, MATERIAL e SOLID.
     Preserva a seleção de modo/arestas se o usuário estiver em Edit Mode.
     """
     global _CACHED_PREPARED_SPLIT
     settings = context.scene.chest_splitter
     target = getattr(settings, "target_object", None)
-    if not target or target.name not in bpy.data.objects:
+    from .scene_state import object_in_scene
+    if not object_in_scene(target, context.scene, mesh=True):
         raise RuntimeError("Nenhum objeto alvo definido para o corte.")
 
     # Se estiver em Edit Mode, sincroniza dados para leitura sem alternar modo
@@ -116,9 +126,6 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
     male_side = getattr(settings, "connector_male_part", "A")
 
     cut_iface: Optional[CutInterface] = None
-    contact_tris: List[Tuple[Vector, Vector, Vector]] = []
-    bvh_tree: Optional[BVHTree] = None
-
     if mode == 'PLANE':
         from .plane_state import resolve_plane_state
         from .geometry_plane import slice_mesh_by_plane
@@ -145,6 +152,33 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             bpy.data.meshes.remove(mesh_a)
             bpy.data.meshes.remove(mesh_b)
 
+    elif mode == 'SOLID':
+        from .geometry_solid import slice_mesh_by_solid, validate_solid_cutter
+        cutter = settings.solid_cutter_object
+        validate_solid_cutter(cutter, target, unit_scale)
+        mesh_a = bpy.data.meshes.new('_solid_interface_a')
+        mesh_b = bpy.data.meshes.new('_solid_interface_b')
+        evaluated = None
+        try:
+            source = target.data
+            if any(m.show_viewport for m in target.modifiers):
+                evaluated = target.evaluated_get(context.evaluated_depsgraph_get())
+                source = evaluated.to_mesh()
+            report = slice_mesh_by_solid(source, target.matrix_world, cutter, mesh_a, mesh_b,
+                                        invert_sides=settings.invert_sides, unit_scale=unit_scale,
+                                        part_clearance_mm=settings.part_clearance_mm,
+                                        part_clearance_apply_to=settings.part_clearance_apply_to,
+                                        interface_face_index=settings.solid_interface_face_index)
+            cut_iface = report['interfaces'].get(male_side)
+            if cut_iface is not None and settings.solid_interface_face_index < 0:
+                settings.solid_interface_face_index = report['interface_face_index']
+                from .input_state import cut_signature
+                sig = cut_signature(settings, target, context.scene) + ':' + male_side
+        finally:
+            if evaluated is not None:
+                evaluated.to_mesh_clear()
+            bpy.data.meshes.remove(mesh_a)
+            bpy.data.meshes.remove(mesh_b)
     elif mode == 'LOOP':
         from .geometry_loop import (
             slice_mesh_by_loop,
@@ -232,10 +266,52 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             if getattr(cut_iface, "interface_triangles_world", None):
                 contact_tris = list(cut_iface.interface_triangles_world)
 
+    return cache_prepared_interface(context, cut_iface, sig)
+
+
+def cache_prepared_interface(context, cut_iface, sig=None):
+    """Publish the same physical interface consumed by preview generation."""
+    global _CACHED_PREPARED_SPLIT
+    settings = context.scene.chest_splitter
+    target = settings.target_object
+    mode = settings.split_mode
+    male_side = settings.connector_male_part
+    unit_scale = get_scene_scale_to_mm(context.scene)
+    sig = sig or compute_cut_signature(settings, target, context.scene) + ':' + male_side
+    contact_tris = list(cut_iface.interface_triangles_world) if cut_iface else []
+    bvh_tree = None
     if cut_iface is None:
         raise RuntimeError("Não foi possível preparar a interface de corte para o modelo.")
     if not cut_iface.outer_contours_uv:
         raise RuntimeError("Este corte não possui uma superfície comum para posicionar os pinos.")
+
+    if mode == 'PLANE':
+        from dataclasses import replace
+        distance = max(0.0, settings.part_clearance_mm)/unit_scale
+        fraction = (1.0 if settings.part_clearance_apply_to == ('PART' if male_side == 'A' else 'CAVITY')
+                    else 0.5 if settings.part_clearance_apply_to == 'BOTH' else 0.0)
+        shift = cut_iface.normal_a_to_b_world * distance*fraction * (-1 if male_side == 'A' else 1)
+        cut_iface = replace(cut_iface, origin_world=cut_iface.origin_world+shift)
+    elif mode == 'MATERIAL' and settings.material_extraction_mode == 'EXTRUDE':
+        from dataclasses import replace
+        bottom = settings.part_clearance_bottom_mm if settings.part_clearance_bottom_enable else settings.part_clearance_mm
+        fraction = (1.0 if settings.part_clearance_apply_to == ('PART' if male_side == 'A' else 'CAVITY')
+                    else 0.5 if settings.part_clearance_apply_to == 'BOTH' else 0.0)
+        shift = cut_iface.normal_a_to_b_world * (bottom/unit_scale)*fraction*(-1 if male_side == 'A' else 1)
+        cut_iface = replace(cut_iface, origin_world=cut_iface.origin_world+shift,
+                            interface_triangles_world=[tuple(p+shift for p in tri) for tri in cut_iface.interface_triangles_world])
+        contact_tris = cut_iface.interface_triangles_world
+
+    # Pin UVs belong to a selected region, never to whichever loop was used before.
+    binding = repr((target.name_full, mode,
+                    settings.loop_vertex_indices if mode == 'LOOP' else None,
+                    settings.loop_seed_face_index if mode == 'LOOP' else None,
+                    (settings.material_split_index, settings.material_region_index) if mode == 'MATERIAL' else None,
+                    (settings.solid_cutter_object.name_full, settings.solid_interface_face_index)
+                    if mode == 'SOLID' else None))
+    if settings.manual_binding and settings.manual_binding != binding:
+        settings.manual_connectors.clear()
+    settings.manual_binding = binding
 
     # Use exactly the deterministic basis of the geometry result. Never flip axes
     # without reprojecting the contours (that reflects asymmetric interfaces).
@@ -255,8 +331,10 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             [(i * 3, i * 3 + 1, i * 3 + 2) for i in range(len(contact_tris))]
         )
 
+    from .input_state import editor_configuration
     prepared = PreparedSplit(
         cut_signature=sig,
+        configuration=editor_configuration(settings, context.scene),
         target_name=target.name,
         split_mode=mode,
         interface=cut_iface,
@@ -274,6 +352,28 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
     return prepared
 
 
+def prepared_connector_layout(prepared, settings, target):
+    """Cache placement work independently of GPU redraw frequency."""
+    names = ('connector_distribution', 'connector_edge_margin_mm', 'connector_diameter_mm',
+             'clearance_per_side_mm', 'connector_type', 'connector_capsule_length_mm',
+             'adjust_to_valid_area')
+    key = tuple(getattr(settings, name) for name in names)
+    specs = None
+    if settings.connector_distribution == 'MANUAL':
+        specs = [dict(u_mm=c.u_mm, v_mm=c.v_mm, yaw_deg=c.yaw_deg) for c in settings.manual_connectors]
+        key += tuple((c['u_mm'], c['v_mm'], c['yaw_deg']) for c in specs)
+    if prepared.layout_key != key:
+        from .geometry_connectors import compute_connector_layout
+        prepared.layout = compute_connector_layout(
+            target.data, target.matrix_world, prepared.surface_origin, prepared.surface_normal,
+            settings.connector_distribution, settings.connector_edge_margin_mm, prepared.unit_scale,
+            settings.connector_diameter_mm, settings.clearance_per_side_mm, prepared.interface,
+            settings.connector_type, settings.connector_capsule_length_mm,
+            settings.adjust_to_valid_area, specs)
+        prepared.layout_key = key
+    return prepared.layout
+
+
 def get_explosion_display_offset(settings: Any, prepared: PreparedSplit) -> Vector:
     """Calcula o vetor de deslocamento da visão explodida para a superfície dos pinos."""
     # Durante a edição interativa de pinos, o usuário interage diretamente com o objeto alvo
@@ -282,22 +382,17 @@ def get_explosion_display_offset(settings: Any, prepared: PreparedSplit) -> Vect
     if getattr(settings, "is_editing_connectors", False):
         return Vector((0.0, 0.0, 0.0))
 
-    if getattr(settings, "view_mode", "EXPLODED") != 'EXPLODED':
-        return Vector((0.0, 0.0, 0.0))
-
-    dist_mm = getattr(settings, "explosion_distance_mm", 0.0)
-    if abs(dist_mm) < 1e-6:
-        return Vector((0.0, 0.0, 0.0))
-
-    from .geometry_plane import compute_explosion_offsets
-    invert = getattr(settings, "invert_explosion", False)
-    offset_a, offset_b = compute_explosion_offsets(
-        plane_normal=prepared.interface.normal_a_to_b_world,
-        explosion_distance_mm=dist_mm,
-        unit_scale=prepared.unit_scale,
-        invert_direction=invert,
-    )
-    return offset_a if prepared.male_side == 'A' else offset_b
+    # No preview means the assembled target is displayed, regardless of slider value.
+    from .constants import ROLE_PREVIEW_A, ROLE_PREVIEW_B
+    role = ROLE_PREVIEW_A if prepared.male_side == 'A' else ROLE_PREVIEW_B
+    scene = bpy.context.scene
+    for obj in scene.objects:
+        if (obj.get("chest_role") == role
+                and obj.get("chest_session_id") == settings.session_id
+                and obj.visible_get()):
+            assembled = Vector(obj.get("chest_assembled_loc", (0, 0, 0)))
+            return obj.matrix_world.translation - assembled
+    return Vector((0.0, 0.0, 0.0))
 
 
 def raycast_connector_surface(

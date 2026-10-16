@@ -200,6 +200,7 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     bm.transform(obj.matrix_world)
+    bm.normal_update()
     bm.verts.ensure_lookup_table()
     bm.edges.ensure_lookup_table()
     bm.faces.ensure_lookup_table()
@@ -299,7 +300,7 @@ def analyze_material_structure(obj: bpy.types.Object, material_index: int, regio
         avg_norm.normalize()
     else:
         avg_norm = n
-    inward_dir = -avg_norm
+    inward_dir = -n if n.dot(avg_norm) >= 0.0 else n
 
     # Material adjacente predominante fora da região (corpo receptor)
     adj_outside_mats = []
@@ -368,6 +369,7 @@ def create_material_patch_prism_cutter(
     bm_src = bmesh.new()
     bm_src.from_mesh(obj.data)
     bm_src.transform(obj.matrix_world)
+    bm_src.normal_update()
     bm_src.verts.ensure_lookup_table()
     bm_src.edges.ensure_lookup_table()
     bm_src.faces.ensure_lookup_table()
@@ -489,6 +491,7 @@ def _material_support_frame(obj, analysis, scale_to_mm):
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     bm.transform(obj.matrix_world)
+    bm.normal_update()
     bm.faces.ensure_lookup_table()
     heights = []
     for i in analysis["region_face_indices"]:
@@ -515,6 +518,7 @@ def _check_wall_thickness(obj, sample_points_world, inward_dir, depth_mm, scale_
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     bm.transform(obj.matrix_world)
+    bm.normal_update()
     tree = BVHTree.FromBMesh(bm)
     bm.free()
     d = inward_dir.normalized()
@@ -678,6 +682,7 @@ def _slice_mesh_by_material(
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bm.transform(obj.matrix_world)
+        bm.normal_update()
 
         bm_a = bm.copy()
         bm_a.faces.ensure_lookup_table()
@@ -751,6 +756,7 @@ def _slice_mesh_by_material(
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bm.transform(obj.matrix_world)
+        bm.normal_update()
         bm.verts.ensure_lookup_table()
         bm.edges.ensure_lookup_table()
         bm.faces.ensure_lookup_table()
@@ -937,10 +943,15 @@ def _slice_mesh_by_material(
     else:
         # Extração superficial com profundidade (M03)
         if not analysis.get('is_planar_base', False):
-            raise ValueError(
-                "A região não possui um contorno de apoio planar confiável para extração com profundidade. "
-                "Selecione uma região com base plana ou use o corte por Loop para destacar o volume."
-            )
+            n = -analysis["inward_dir_world"]
+            c = analysis["centroid_world"]
+            boundary = analysis["coords_world"]
+            support = c + n * min((p-c).dot(n) for p in boundary)
+            analysis["coords_world"] = [p - n*(p-support).dot(n) for p in boundary]
+            analysis["centroid_world"] = support
+            analysis["normal_world"] = n
+            analysis["is_planar_base"] = True
+            analysis["protrusion_face_indices"] = analysis["region_face_indices"]
         if part_clearance_mm > 0.0:
             if part_clearance_mm >= depth_mm - 0.1:
                 raise ValueError(
@@ -1040,6 +1051,7 @@ def _slice_mesh_by_material(
                     sample_bm = bmesh.new()
                     sample_bm.from_mesh(obj.data)
                     sample_bm.transform(obj.matrix_world)
+                    sample_bm.normal_update()
                     sample_bm.faces.ensure_lookup_table()
                     samples = [sample_bm.faces[i].calc_center_median() for i in analysis["region_face_indices"]
                                if i < len(sample_bm.faces)]
@@ -1123,7 +1135,9 @@ def _slice_mesh_by_material(
 
             # Transforma para World Space
             bm_a.transform(obj.matrix_world)
+            bm_a.normal_update()
             bm_b.transform(obj.matrix_world)
+            bm_b.normal_update()
 
             # Preserva materiais exteriores originais em A e B (INV-012)
             # A interface gerada pelo prism_obj_a já herdou material_index, enquanto prism_obj_b gerou a cavidade com body_mat_idx

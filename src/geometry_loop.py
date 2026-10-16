@@ -380,7 +380,7 @@ def slice_mesh_by_loop(
     Garante malhas manifold em Parte A e Parte B com interface compartilhada idêntica.
     Retorna LoopSliceResult(bm_a, bm_b, split_result).
     """
-    scale_to_mm = get_scene_scale_to_mm(scene) if scene else 1000.0
+    scale_to_mm = get_scene_scale_to_mm(scene if scene is not None else bpy.context.scene)
 
     matrix_world = obj.matrix_world.copy()
     det = matrix_world.determinant()
@@ -455,6 +455,7 @@ def slice_mesh_by_loop(
 
     # Transforma o snapshot para World Space uma única vez
     bm.transform(matrix_world)
+    bm.normal_update()
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     bm.verts.ensure_lookup_table()
     bm.edges.ensure_lookup_table()
@@ -653,33 +654,16 @@ def slice_mesh_by_loop(
 
     # Herança de materiais (A10): faces novas sem vizinho antigo herdam por propagação
     # a partir das faces novas já resolvidas, evitando ficar no índice inicial.
-    def _inherit_cap_materials(created):
-        created = [f for f in created if f.is_valid]
-        if not created:
-            return
+    from collections import Counter
+    def inherit_generated(bm_part, created):
         created_set = set(created)
-        resolved = set()
+        old = [f.material_index for f in bm_part.faces if f not in created_set]
+        mat = Counter(old).most_common(1)[0][0] if old else 0
         for f in created:
-            adj = [lf.material_index for e in f.edges for lf in e.link_faces if lf not in created_set]
-            if adj:
-                f.material_index = max(set(adj), key=adj.count)
-                resolved.add(f)
-        pending = [f for f in created if f not in resolved]
-        while pending and resolved:
-            progressed = False
-            for f in list(pending):
-                adj = [lf.material_index for e in f.edges for lf in e.link_faces
-                       if lf in resolved]
-                if adj:
-                    f.material_index = max(set(adj), key=adj.count)
-                    resolved.add(f)
-                    pending.remove(f)
-                    progressed = True
-            if not progressed:
-                break
-
-    _inherit_cap_materials(created_faces_a)
-    _inherit_cap_materials(created_faces_b)
+            if f.is_valid:
+                f.material_index = mat
+    inherit_generated(bm_a, created_faces_a)
+    inherit_generated(bm_b, created_faces_b)
 
     # Recalcula normais da Parte A e Parte B (garante orientação externa no sólido manifold)
     bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
@@ -691,9 +675,9 @@ def slice_mesh_by_loop(
     elif created_faces_a:
         valid_caps = [f for f in created_faces_a if f.is_valid]
         if valid_caps:
-            avg_cap_norm = sum((f.normal for f in valid_caps), Vector()) / len(valid_caps)
+            avg_cap_norm = sum((f.normal * f.calc_area() for f in valid_caps), Vector())
             if avg_cap_norm.length > 1e-5:
-                normal_a_to_b = avg_cap_norm.normalized()
+                normal_a_to_b = n if n.dot(avg_cap_norm) >= 0 else -n
             else:
                 normal_a_to_b = n
         else:
@@ -750,7 +734,7 @@ def analyze_loop_region(
     scene: Optional[bpy.types.Scene] = None,
 ) -> Dict[str, Any]:
     """Analisa a região delimitada pelo loop para decisão automática entre DETACH e EXTRUDE."""
-    scale_to_mm = get_scene_scale_to_mm(scene) if scene else 1000.0
+    scale_to_mm = get_scene_scale_to_mm(scene if scene is not None else bpy.context.scene)
     matrix_world = obj.matrix_world.copy()
 
     bm = bmesh.new()
@@ -805,6 +789,7 @@ def analyze_loop_region(
     # Prepara BVHTree no espaço de mundo para testar direção e espessura da parede
     bm_bvh = bm.copy()
     bm_bvh.transform(matrix_world)
+    bm_bvh.normal_update()
     bvh = BVHTree.FromBMesh(bm_bvh)
 
     # Use the boundary support normal, oriented by the region's area-weighted
@@ -829,15 +814,23 @@ def analyze_loop_region(
     offset_bu = max(1e-7, 0.01 / scale_to_mm)
     min_wall_depth_bu = 1e9
     sampled_hits = 0
-    test_points = [centroid] + loop_coords_world
+    u_test, v_test = _get_orthonormal_basis(n)
+    projected = [Vector(((p-centroid).dot(u_test), (p-centroid).dot(v_test)))
+                 for p in loop_coords_world]
+    triangles = triangulate_polygon_2d(projected)
+    n_out = -inward_dir
+    # Depth is below the lowest boundary support, including a nonplanar contour.
+    support = centroid + n_out * min((p-centroid).dot(n_out) for p in loop_coords_world)
+    test_points = []
+    for i, j, k in triangles:
+        q = (projected[i] + projected[j] + projected[k]) / 3.0
+        test_points.append(support + q.x*u_test + q.y*v_test)
     for pt in test_points:
-        ray_start = pt + inward_dir * offset_bu
-        hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(ray_start, inward_dir)
-        if hit_loc is not None:
+        hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(pt + inward_dir*offset_bu, inward_dir)
+        if hit_loc is not None and hit_norm.dot(inward_dir) > 0.0:
             dist = (hit_loc - pt).length
             sampled_hits += 1
-            if dist < min_wall_depth_bu:
-                min_wall_depth_bu = dist
+            min_wall_depth_bu = min(min_wall_depth_bu, dist)
 
     bm_bvh.free()
     bm.free()
@@ -1207,13 +1200,11 @@ def slice_mesh_by_loop_extrude(
     max_avail_mm = analysis["max_avail_depth_mm"]
     coords = analysis['coords_world']
     center = analysis['centroid_world']
-    loop_normal = analysis['loop_normal_world']
-    if max(abs((p - center).dot(loop_normal)) for p in coords) * scale_to_mm > 0.1:
-        raise ValueError(
-            "Extração com profundidade requer um contorno de apoio planar. "
-            "Use Destacar Volume para contornos não planos."
-        )
-
+    inward_dir = analysis["inward_dir_world"]
+    n_out = -inward_dir
+    support = center + n_out * min((p-center).dot(n_out) for p in coords)
+    # A planar support below the complete boundary produces a flat mating base.
+    footprint = [p - n_out*(p-support).dot(n_out) for p in coords]
     # Validação de espessura (T09)
     if not analysis.get("thickness_determined", True) and not through_cut:
         raise ValueError(
@@ -1227,17 +1218,18 @@ def slice_mesh_by_loop_extrude(
             f"({max_avail_mm:.1f} mm). Reduza a profundidade ou ative a opção 'Corte Passante'."
         )
 
-    coords_world = analysis["coords_world"]
+    coords_world = footprint
     inward_dir = analysis["inward_dir_world"]
     depth_bu = depth_mm / scale_to_mm
 
     protrusion_h_bu = analysis["protrusion_height_mm"] / scale_to_mm
-    outward_ext_bu = max(0.5 / scale_to_mm, protrusion_h_bu + 0.5 / scale_to_mm)
+    outward_ext_bu = max(0.5 / scale_to_mm, protrusion_h_bu + (center-support).length + 0.5 / scale_to_mm)
 
     if through_cut and depth_mm >= max_avail_mm:
         depth_bu = max(depth_bu, (max_avail_mm / scale_to_mm) + (1.0 / scale_to_mm))
 
     prism_obj = None
+    prism_b = None
     temp_obj_a = None
     temp_obj_b = None
     eval_obj_a = None
@@ -1254,6 +1246,11 @@ def slice_mesh_by_loop_extrude(
             name=f"{target_name}_loop_prism",
         )
 
+        for mat in obj.data.materials:
+            prism_obj.data.materials.append(mat)
+        source_mat = obj.data.polygons[seed_face_idx].material_index
+        for face in prism_obj.data.polygons:
+            face.material_index = source_mat
         bpy.context.view_layer.update()
 
         temp_obj_a = obj.copy()
@@ -1266,6 +1263,15 @@ def slice_mesh_by_loop_extrude(
         mod_a.solver = 'EXACT'
         mod_a.object = prism_obj
 
+        # Independent operand to preserve receiver color on the cavity.
+        prism_b = prism_obj.copy()
+        prism_b.data = prism_obj.data.copy()
+        actual_scene.collection.objects.link(prism_b)
+        from collections import Counter
+        body_mats = [f.material_index for f in obj.data.polygons if f.index != seed_face_idx]
+        body_mat = Counter(body_mats).most_common(1)[0][0] if body_mats else source_mat
+        for face in prism_b.data.polygons:
+            face.material_index = body_mat
         temp_obj_b = obj.copy()
         temp_obj_b.data = obj.data.copy()
         temp_obj_b.hide_viewport = False
@@ -1274,7 +1280,7 @@ def slice_mesh_by_loop_extrude(
         mod_b = temp_obj_b.modifiers.new(name="Extrude_Difference", type='BOOLEAN')
         mod_b.operation = 'DIFFERENCE'
         mod_b.solver = 'EXACT'
-        mod_b.object = prism_obj
+        mod_b.object = prism_b
 
         bpy.context.view_layer.update()
         dg = bpy.context.evaluated_depsgraph_get()
@@ -1288,10 +1294,12 @@ def slice_mesh_by_loop_extrude(
         bm_a = bmesh.new()
         bm_a.from_mesh(eval_a)
         bm_a.transform(temp_obj_a.matrix_world)
+        bm_a.normal_update()
 
         bm_b = bmesh.new()
         bm_b.from_mesh(eval_b)
         bm_b.transform(temp_obj_b.matrix_world)
+        bm_b.normal_update()
 
         if len(bm_a.verts) == 0 or len(bm_b.verts) == 0:
             bm_a.free()
@@ -1302,10 +1310,10 @@ def slice_mesh_by_loop_extrude(
         bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
 
         if through_cut:
-            interface_origin = analysis["centroid_world"]
+            interface_origin = support
             interface_boundary = coords_world
         else:
-            interface_origin = analysis["centroid_world"] + (depth_mm / scale_to_mm) * inward_dir
+            interface_origin = support + (depth_mm / scale_to_mm) * inward_dir
             interface_boundary = [p + (depth_mm / scale_to_mm) * inward_dir for p in coords_world]
         cut_interface = build_cut_interface(
             origin_world=interface_origin,
@@ -1347,7 +1355,7 @@ def slice_mesh_by_loop_extrude(
             except Exception:
                 pass
 
-        for temp_o in (temp_obj_a, temp_obj_b):
+        for temp_o in (temp_obj_a, temp_obj_b, prism_b):
             if temp_o:
                 m_data = temp_o.data
                 if temp_o.name in actual_scene.collection.objects:

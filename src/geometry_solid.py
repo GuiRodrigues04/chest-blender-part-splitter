@@ -194,7 +194,8 @@ def validate_solid_cutter(
         except Exception:
             pass
 
-    if not cutter_obj or cutter_obj.name not in bpy.data.objects:
+    from .scene_state import object_in_scene
+    if not object_in_scene(cutter_obj, bpy.context.scene, mesh=True):
         raise SolidCutterValidationError("Nenhum objeto cortador sólido foi especificado ou o objeto foi excluído.")
 
     if cutter_obj.type != 'MESH':
@@ -267,118 +268,184 @@ def validate_solid_cutter(
     }
 
 
-def slice_mesh_by_solid(
-    source_mesh: bpy.types.Mesh,
-    matrix_world: Matrix,
-    cutter_obj: bpy.types.Object,
-    target_mesh_a: bpy.types.Mesh,
-    target_mesh_b: bpy.types.Mesh,
-    invert_sides: bool = False,
-    unit_scale: float = 1000.0,
-) -> Dict[str, Any]:
-    """Corta uma malha pelo cortador sólido gerando Parte A e Parte B fechadas.
-
-    Convenção:
-    - Normal (invert_sides=False):
-        Parte A = Interseção (Target ∩ Cutter)  [Região interna ao cortador]
-        Parte B = Diferença (Target \\ Cutter)  [Região externa ao cortador]
-    - Invertido (invert_sides=True):
-        Parte A = Diferença (Target \\ Cutter)
-        Parte B = Interseção (Target ∩ Cutter)
-    """
-    if bpy.context and hasattr(bpy.context, "view_layer") and bpy.context.view_layer:
-        try:
-            bpy.context.view_layer.update()
-        except Exception:
-            pass
-
-    scene = bpy.context.scene
-    temp_col = scene.collection
-
-    # 1. Cria objeto de trabalho temporário para a operação de INTERSECT
-    work_mesh_intersect = source_mesh.copy()
-    work_obj_intersect = bpy.data.objects.new("temp_work_intersect", work_mesh_intersect)
-    work_obj_intersect.matrix_world = matrix_world.copy()
-    work_obj_intersect.hide_viewport = False
-    work_obj_intersect.hide_render = False
-    temp_col.objects.link(work_obj_intersect)
-
-    mod_intersect = work_obj_intersect.modifiers.new(name="Mod_Intersect", type='BOOLEAN')
-    mod_intersect.operation = 'INTERSECT'
-    mod_intersect.solver = 'EXACT'
-    mod_intersect.object = cutter_obj
-
-    # 2. Cria objeto de trabalho temporário para a operação de DIFFERENCE
-    work_mesh_diff = source_mesh.copy()
-    work_obj_diff = bpy.data.objects.new("temp_work_diff", work_mesh_diff)
-    work_obj_diff.matrix_world = matrix_world.copy()
-    work_obj_diff.hide_viewport = False
-    work_obj_diff.hide_render = False
-    temp_col.objects.link(work_obj_diff)
-
-    mod_diff = work_obj_diff.modifiers.new(name="Mod_Difference", type='BOOLEAN')
-    mod_diff.operation = 'DIFFERENCE'
-    mod_diff.solver = 'EXACT'
-    mod_diff.object = cutter_obj
-
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-
+def _cutter_snapshot(cutter, offset_bu, scene):
+    """World-space miter offset in physical units; never scale about object origin."""
+    import numpy as np
+    evaluated = cutter.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    mesh = evaluated.to_mesh()
+    bm = bmesh.new()
     try:
-        eval_intersect = work_obj_intersect.evaluated_get(depsgraph)
-        eval_mesh_intersect = eval_intersect.to_mesh()
-
-        eval_diff = work_obj_diff.evaluated_get(depsgraph)
-        eval_mesh_diff = eval_diff.to_mesh()
-
-        # Atribuição conforme invert_sides
-        mesh_part_a = eval_mesh_diff if invert_sides else eval_mesh_intersect
-        mesh_part_b = eval_mesh_intersect if invert_sides else eval_mesh_diff
-
-        results = {}
-
-        for side_key, eval_m in [("A", mesh_part_a), ("B", mesh_part_b)]:
-            bm = bmesh.new()
-            bm.from_mesh(eval_m)
-            bm.transform(matrix_world)
-
-            if len(bm.verts) == 0:
-                bm.free()
-                raise NoIntersectionError(
-                    f"O corte sólido não produziu geometria válida para a Parte {side_key}. "
-                    "Certifique-se de que o cortador intersecta o modelo adequadamente."
-                )
-
-            metrics = evaluate_bmesh_metrics(bm, unit_scale=unit_scale)
-            results[side_key] = metrics
-
-            # Garante que faces geradas pela casca do cortador herdam o material base do modelo
-            for f in bm.faces:
-                if f.material_index >= len(source_mesh.materials):
-                    f.material_index = 0
-
-            dest_mesh = target_mesh_a if side_key == "A" else target_mesh_b
-            dest_mesh.clear_geometry()
-            # Sincroniza materiais da malha fonte ANTES do to_mesh para preservar atribuição de cores
-            dest_mesh.materials.clear()
-            for mat in source_mesh.materials:
-                dest_mesh.materials.append(mat)
-            bm.to_mesh(dest_mesh)
-            dest_mesh.update()
-            bm.free()
-
-        eval_intersect.to_mesh_clear()
-        eval_diff.to_mesh_clear()
-
-        results["sum_volume_mm3"] = results["A"]["volume_mm3"] + results["B"]["volume_mm3"]
-        return results
-
+        bm.from_mesh(mesh)
+        bm.transform(cutter.matrix_world)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        if not bm.faces or not all(e.is_manifold for e in bm.edges) or abs(bm.calc_volume()) < 1e-18:
+            raise SolidCutterValidationError("A malha avaliada do cortador deve ser um sólido fechado.")
+        planes = [(f.index, f.verts[0].co.copy(), f.normal.copy(), (f.verts[1].co-f.verts[0].co).normalized()) for f in bm.faces]
+        if abs(offset_bu) > 1e-12:
+            changes = []
+            for vert in bm.verts:
+                normals = np.array([tuple(f.normal) for f in vert.link_faces], dtype=float)
+                delta, *_ = np.linalg.lstsq(normals, np.full(len(normals), offset_bu), rcond=None)
+                error = np.max(np.abs(normals @ delta - offset_bu))
+                if error > max(1e-8, abs(offset_bu)*0.01):
+                    raise SolidSliceError("A folga não mantém as faces deste cortador. Use uma folga menor ou um cortador mais simples.")
+                if Vector(delta).length > min(e.calc_length() for e in vert.link_edges)*0.45:
+                    raise SolidSliceError("A folga é grande demais para os detalhes do cortador.")
+                changes.append((vert, Vector(delta)))
+            for vert, delta in changes:
+                vert.co += delta
+            bm.normal_update()
+            if any(abs((v.co-p).dot(n)-offset_bu) > max(1e-7, abs(offset_bu)*0.02)
+                   for (idx,p,n,u), f in zip(planes, bm.faces) for v in f.verts):
+                raise SolidSliceError("A folga deformaria uma face do cortador.")
+        data = bpy.data.meshes.new('_solid_operand_mesh')
+        bm.to_mesh(data)
+        for mat in cutter.data.materials:
+            data.materials.append(mat)
+        obj = bpy.data.objects.new('_solid_operand', data)
+        scene.collection.objects.link(obj)
+        return obj, planes
     finally:
-        for temp_obj in (work_obj_intersect, work_obj_diff):
-            t_mesh = temp_obj.data
-            temp_col.objects.unlink(temp_obj)
-            bpy.data.objects.remove(temp_obj, do_unlink=True)
-            if t_mesh and t_mesh.users == 0:
-                bpy.data.meshes.remove(t_mesh, do_unlink=True)
+        bm.free()
+        evaluated.to_mesh_clear()
+
+
+def _solid_contact_interface(mesh, planes, offset_bu, inside, unit_scale, face_index=-1):
+    """Extract only the actual coplanar contact patch, with holes and concavities."""
+    from .geometry_material import _order_boundary_loops
+    from .geometry_contract import build_cut_interface
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(mesh)
+        bm.normal_update()
+        tolerance = max(1e-7, 0.002/unit_scale)
+        best, best_area, best_index = None, -1, -1
+        for index, p, n, axis_u in planes:
+            if face_index >= 0 and index != face_index:
+                continue
+            point = p + n*offset_bu
+            normal = n if inside else -n
+            faces = {f for f in bm.faces if f.normal.dot(normal) > 0.9999
+                     and all(abs((v.co-point).dot(n)) < tolerance for v in f.verts)}
+            if not faces:
+                continue
+            area = sum(f.calc_area() for f in faces)
+            edges = {e for f in faces for e in f.edges
+                     if sum(g in faces for g in e.link_faces) == 1}
+            loops = _order_boundary_loops(list(edges))
+            if not loops or area <= best_area:
+                continue
+            coords = [[v.co.copy() for v in loop] for loop in loops]
+            origin = sum((v.co*f.calc_area()/len(f.verts) for f in faces for v in f.verts), Vector()) / area
+            # Keep the winding axis A->B even when this patch is taken from B.
+            normal_a_to_b = n
+            iface = build_cut_interface(origin, normal_a_to_b, [], unit_scale=unit_scale,
+                                        source_mode='SOLID', boundary_loops_world=coords)
+            from .geometry_contract import orient_interface
+            iface = orient_interface(iface, axis_u)
+            best, best_area, best_index = iface, area, index
+        return best, best_index
+    finally:
+        bm.free()
+
+
+def slice_mesh_by_solid(
+    source_mesh, matrix_world, cutter_obj, target_mesh_a, target_mesh_b,
+    invert_sides=False, unit_scale=1000.0, part_clearance_mm=0.0,
+    part_clearance_apply_to='PART', interface_face_index=-1,
+):
+    """Exact transactional booleans with independent physical A/B clearance operands."""
+    from .scene_state import object_in_scene
+    if not object_in_scene(cutter_obj, bpy.context.scene, mesh=True):
+        raise SolidCutterValidationError("O cortador foi excluído da cena.")
+    scene = bpy.context.scene
+    amount = max(0.0, part_clearance_mm)/unit_scale
+    gap_a = amount if part_clearance_apply_to == 'PART' else amount/2 if part_clearance_apply_to == 'BOTH' else 0.0
+    gap_b = amount if part_clearance_apply_to == 'CAVITY' else amount/2 if part_clearance_apply_to == 'BOTH' else 0.0
+    offsets = ((gap_a, -gap_b) if invert_sides else (-gap_a, gap_b))
+    created, evaluated_objects = [], []
+    results = {}
+    interfaces = {}
+    chosen_face = interface_face_index
+    try:
+        for side, destination, offset in (('A',target_mesh_a,offsets[0]),('B',target_mesh_b,offsets[1])):
+            operand, planes = _cutter_snapshot(cutter_obj, offset, scene)
+            created.append(operand)
+            data = source_mesh.copy()
+            work = bpy.data.objects.new('_solid_work', data)
+            created.append(work)
+            scene.collection.objects.link(work)
+            work.matrix_world = matrix_world
+            mod = work.modifiers.new('Solid boolean', 'BOOLEAN')
+            inside = (side == 'A') != invert_sides
+            mod.operation = 'INTERSECT' if inside else 'DIFFERENCE'
+            mod.solver = 'EXACT'
+            mod.material_mode = 'INDEX'
+            mod.object = operand
+            bpy.context.view_layer.update()
+            evaluated = work.evaluated_get(bpy.context.evaluated_depsgraph_get())
+            evaluated_objects.append(evaluated)
+            result_mesh = evaluated.to_mesh()
+            bm = bmesh.new()
+            try:
+                bm.from_mesh(result_mesh)
+                bm.transform(matrix_world)
+                bm.normal_update()
+                metrics = evaluate_bmesh_metrics(bm, unit_scale)
+                if not metrics['is_manifold'] or metrics['volume_mm3'] <= 1e-4:
+                    raise SolidSliceError("O cortador/folga não produziu duas partes fechadas com volume. Ajuste a interseção ou a folga.")
+                destination.materials.clear()
+                for mat in source_mesh.materials:
+                    destination.materials.append(mat)
+                for f in bm.faces:
+                    if f.material_index >= len(source_mesh.materials):
+                        f.material_index = 0
+                destination.clear_geometry()
+                bm.to_mesh(destination)
+                destination.update()
+                results[side] = metrics
+            finally:
+                bm.free()
+            iface, selected = _solid_contact_interface(destination, planes, offset, inside,
+                                                       unit_scale, chosen_face)
+            if iface:
+                # Its normal always points from A to B, independent of male selection.
+                if invert_sides:
+                    # Rebuild preserves a right handed UV frame.
+                    from .geometry_contract import build_cut_interface, orient_interface
+                    fixed_u = iface.axis_u_world.copy()
+                    loops = [[iface.uv_to_world(*uv) for uv in poly]
+                             for poly in iface.outer_contours_uv + iface.hole_contours_uv]
+                    iface = build_cut_interface(iface.origin_world, -iface.normal_a_to_b_world, [],
+                                                unit_scale=unit_scale, source_mode='SOLID', boundary_loops_world=loops)
+                    iface = orient_interface(iface, fixed_u)
+                interfaces[side] = iface
+                if side == 'A':
+                    chosen_face = selected
+        results['interface'] = interfaces.get('A')
+        results['interfaces'] = interfaces
+        results['interface_face_index'] = chosen_face
+        results['sum_volume_mm3'] = results['A']['volume_mm3'] + results['B']['volume_mm3']
+        return results
+    finally:
+        for evaluated in evaluated_objects:
+            evaluated.to_mesh_clear()
+        for obj in reversed(created):
+            mesh = obj.data
+            bpy.data.objects.remove(obj, do_unlink=True)
+            if mesh.users == 0:
+                bpy.data.meshes.remove(mesh)
+
+
+def align_vertices(cutter, target, cutter_index, target_index):
+    """World translation only; also works with parent transforms and unapplied scale."""
+    if not (0 <= cutter_index < len(cutter.data.vertices) and 0 <= target_index < len(target.data.vertices)):
+        raise ValueError("Selecione um vértice válido em cada objeto.")
+    source = cutter.matrix_world @ cutter.data.vertices[cutter_index].co
+    destination = target.matrix_world @ target.data.vertices[target_index].co
+    matrix = cutter.matrix_world.copy()
+    matrix.translation += destination-source
+    cutter.matrix_world = matrix
 
 
 def compute_solid_explosion_offsets(

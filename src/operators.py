@@ -404,7 +404,7 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
 
     # 3. Encaixes (apenas se ativos e suportados no modo)
     tokens.append(f"conn_enabled:{settings.connector_enabled}")
-    if settings.connector_enabled and settings.split_mode != 'SOLID':
+    if settings.connector_enabled:
         tokens.append(f"conn_type:{settings.connector_type}")
         tokens.append(f"conn_diam:{settings.connector_diameter_mm:.4f}")
         tokens.append(f"conn_len:{settings.connector_length_mm:.4f}")
@@ -1699,15 +1699,9 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
             if settings.split_mode == 'SOLID':
                 cutter = settings.solid_cutter_object
-                if not cutter or cutter.name not in bpy.data.objects:
-                    col = find_collection(context.scene, COLLECTION_GUIDES_NAME)
-                    if col:
-                        cutter = col.objects.get(SOLID_CUTTER_NAME)
-                        if cutter:
-                            settings.solid_cutter_object = cutter
-
-                if not cutter or cutter.name not in bpy.data.objects:
-                    raise RuntimeError("Nenhum cortador sólido selecionado. Crie uma primitiva ou escolha um objeto existente.")
+                from .scene_state import object_in_scene
+                if not object_in_scene(cutter, context.scene, mesh=True):
+                    raise RuntimeError("O cortador foi excluído da cena. Selecione ou crie outro sólido.")
 
                 cutter_diag = validate_solid_cutter(cutter, target, unit_scale=unit_scale)
                 settings.solid_cutter_is_manifold = cutter_diag["is_manifold"]
@@ -1722,7 +1716,12 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     target_mesh_b=candidate_mesh_b,
                     invert_sides=settings.invert_sides,
                     unit_scale=unit_scale,
+                    part_clearance_mm=settings.part_clearance_mm,
+                    part_clearance_apply_to=settings.part_clearance_apply_to,
+                    interface_face_index=settings.solid_interface_face_index,
                 )
+                if report.get('interface') is not None and settings.solid_interface_face_index < 0:
+                    settings.solid_interface_face_index = report['interface_face_index']
 
             elif settings.split_mode == 'LOOP':
                 from .geometry_loop import (
@@ -1912,95 +1911,97 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
             # Aplica encaixes (macho e cavidade) se ativados na sessão
             if settings.connector_enabled:
-                if settings.split_mode == 'SOLID':
-                    self.report({'INFO'}, "Encaixes automáticos não são suportados no modo Cortador Sólido.")
+                from .connector_surface import cache_prepared_interface
+                raw_iface = (report.get('interfaces', {}).get(settings.connector_male_part)
+                             if settings.split_mode == 'SOLID' else report.get('interface'))
+                prep = cache_prepared_interface(context, raw_iface)
+                norm_a = prep.interface.normal_a_to_b_world
+
+                if settings.connector_male_part == 'A':
+                    male_obj = candidate_obj_a
+                    female_obj = candidate_obj_b
+                    norm = norm_a
                 else:
-                    norm_a = report['interface'].normal_a_to_b_world
+                    male_obj = candidate_obj_b
+                    female_obj = candidate_obj_a
+                    norm = -norm_a
 
-                    if settings.connector_male_part == 'A':
-                        male_obj = candidate_obj_a
-                        female_obj = candidate_obj_b
-                        norm = norm_a
-                    else:
-                        male_obj = candidate_obj_b
-                        female_obj = candidate_obj_a
-                        norm = -norm_a
+                manual_specs = None
+                layout_interface = prep.interface
+                if settings.connector_distribution == 'MANUAL':
+                    manual_specs = [
+                        {"u_mm": sp.u_mm, "v_mm": sp.v_mm, "yaw_deg": sp.yaw_deg}
+                        for sp in settings.manual_connectors
+                    ]
+                layout = compute_connector_layout(
+                    target_mesh=target.data,
+                    matrix_world=target.matrix_world,
+                    plane_origin=prep.surface_origin,
+                    plane_normal=norm,
+                    distribution=settings.connector_distribution,
+                    edge_margin_mm=settings.connector_edge_margin_mm,
+                    unit_scale=unit_scale,
+                    diameter_mm=settings.connector_diameter_mm,
+                    clearance_per_side_mm=settings.clearance_per_side_mm,
+                    interface=layout_interface,
+                    connector_type=settings.connector_type,
+                    capsule_length_mm=settings.connector_capsule_length_mm,
+                    adjust_to_valid_area=getattr(settings, "adjust_to_valid_area", False),
+                    manual_specs=manual_specs,
+                )
+                if settings.connector_distribution == 'MANUAL':
+                    eval_res = layout.get("manual_eval_results", [])
+                    for ev in eval_res:
+                        idx = ev.get("index", 0)
+                        if idx < len(settings.manual_connectors):
+                            settings.manual_connectors[idx].is_valid = ev.get("is_valid", True)
+                            settings.manual_connectors[idx].status_reason = ev.get("reason", "OK")
+                            settings.manual_connectors[idx].validation_msg = ev.get("reason", "OK")
 
-                    manual_specs = None
-                    layout_interface = report.get("interface")
-                    if settings.connector_distribution == 'MANUAL':
-                        manual_specs = [
-                            {"u_mm": sp.u_mm, "v_mm": sp.v_mm, "yaw_deg": sp.yaw_deg}
-                            for sp in settings.manual_connectors
-                        ]
-                    layout = compute_connector_layout(
-                        target_mesh=target.data,
-                        matrix_world=target.matrix_world,
-                        plane_origin=plane_origin,
-                        plane_normal=norm,
-                        distribution=settings.connector_distribution,
-                        edge_margin_mm=settings.connector_edge_margin_mm,
-                        unit_scale=unit_scale,
+                    has_invalid = any(not ev.get("is_valid", True) for ev in eval_res)
+                    if has_invalid:
+                        first_reason = next(ev.get("reason", "Posição inválida") for ev in eval_res if not ev.get("is_valid", True))
+                        raise RuntimeError(f"Posicionamento manual inválido: {first_reason}. Corrija a posição antes de aplicar.")
+
+                positions = layout["positions"]
+                major_axis = layout["major_axis"]
+                max_safe_lateral_mm = layout["max_safe_lateral_mm"]
+                settings.connector_max_safe_lateral_mm = max_safe_lateral_mm
+
+                if len(positions) == 0:
+                    self.report({'INFO'}, "Nenhum conector posicionado na interface. Corte gerado sem pinos.")
+                else:
+                    cap_len = layout.get("adjusted_capsule_length_mm", settings.connector_capsule_length_mm)
+                    if layout.get("capsule_was_adjusted", False):
+                        self.report({'WARNING'}, f"Comprimento lateral ({settings.connector_capsule_length_mm:.1f} mm) ajustado para limite seguro: {cap_len:.1f} mm.")
+                        settings.connector_capsule_length_mm = cap_len
+
+                    validate_connectors(
+                        positions=positions,
                         diameter_mm=settings.connector_diameter_mm,
                         clearance_per_side_mm=settings.clearance_per_side_mm,
-                        interface=layout_interface,
+                        unit_scale=unit_scale,
                         connector_type=settings.connector_type,
-                        capsule_length_mm=settings.connector_capsule_length_mm,
-                        adjust_to_valid_area=getattr(settings, "adjust_to_valid_area", False),
-                        manual_specs=manual_specs,
+                        capsule_length_mm=cap_len,
+                        pin_rotations=layout.get("pin_rotations"),
                     )
-                    if settings.connector_distribution == 'MANUAL':
-                        eval_res = layout.get("manual_eval_results", [])
-                        for ev in eval_res:
-                            idx = ev.get("index", 0)
-                            if idx < len(settings.manual_connectors):
-                                settings.manual_connectors[idx].is_valid = ev.get("is_valid", True)
-                                settings.manual_connectors[idx].status_reason = ev.get("reason", "OK")
-                                settings.manual_connectors[idx].validation_msg = ev.get("reason", "OK")
+                    apply_connectors_boolean(
+                        obj_male=male_obj,
+                        obj_female=female_obj,
+                        plane_normal=norm,
+                        positions=positions,
+                        connector_type=settings.connector_type,
+                        diameter_mm=settings.connector_diameter_mm,
+                        length_mm=settings.connector_length_mm,
+                        chamfer_mm=settings.connector_chamfer_mm,
+                        clearance_side_mm=settings.clearance_per_side_mm,
+                        end_clearance_mm=settings.end_clearance_mm,
+                        unit_scale=unit_scale,
+                        capsule_length_mm=cap_len,
+                        major_axis=major_axis,
+                        pin_rotations=layout.get("pin_rotations"),
+                    )
 
-                        has_invalid = any(not ev.get("is_valid", True) for ev in eval_res)
-                        if has_invalid:
-                            first_reason = next(ev.get("reason", "Posição inválida") for ev in eval_res if not ev.get("is_valid", True))
-                            raise RuntimeError(f"Posicionamento manual inválido: {first_reason}. Corrija a posição antes de aplicar.")
-
-                    positions = layout["positions"]
-                    major_axis = layout["major_axis"]
-                    max_safe_lateral_mm = layout["max_safe_lateral_mm"]
-                    settings.connector_max_safe_lateral_mm = max_safe_lateral_mm
-
-                    if len(positions) == 0:
-                        self.report({'INFO'}, "Nenhum conector posicionado na interface. Corte gerado sem pinos.")
-                    else:
-                        cap_len = layout.get("adjusted_capsule_length_mm", settings.connector_capsule_length_mm)
-                        if layout.get("capsule_was_adjusted", False):
-                            self.report({'WARNING'}, f"Comprimento lateral ({settings.connector_capsule_length_mm:.1f} mm) ajustado para limite seguro: {cap_len:.1f} mm.")
-                            settings.connector_capsule_length_mm = cap_len
-
-                        validate_connectors(
-                            positions=positions,
-                            diameter_mm=settings.connector_diameter_mm,
-                            clearance_per_side_mm=settings.clearance_per_side_mm,
-                            unit_scale=unit_scale,
-                            connector_type=settings.connector_type,
-                            capsule_length_mm=cap_len,
-                            pin_rotations=layout.get("pin_rotations"),
-                        )
-                        apply_connectors_boolean(
-                            obj_male=male_obj,
-                            obj_female=female_obj,
-                            plane_normal=norm,
-                            positions=positions,
-                            connector_type=settings.connector_type,
-                            diameter_mm=settings.connector_diameter_mm,
-                            length_mm=settings.connector_length_mm,
-                            chamfer_mm=settings.connector_chamfer_mm,
-                            clearance_side_mm=settings.clearance_per_side_mm,
-                            end_clearance_mm=settings.end_clearance_mm,
-                            unit_scale=unit_scale,
-                            capsule_length_mm=cap_len,
-                            major_axis=major_axis,
-                            pin_rotations=layout.get("pin_rotations"),
-                        )
 
             # Re-avalia diagnósticos atualizados e validação final nos candidatos
             metrics_final = {}
@@ -2018,7 +2019,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             orig_vol = settings.diag_volume_mm3
             vol_diff = (abs(sum_vol - orig_vol) / orig_vol * 100.0) if orig_vol > 0 else 0.0
 
-            if settings.connector_enabled and settings.split_mode != 'SOLID':
+            if settings.connector_enabled:
                 min_explosion_needed = settings.connector_length_mm + settings.end_clearance_mm + 15.0
                 if settings.explosion_distance_mm < min_explosion_needed:
                     settings.explosion_distance_mm = round(min_explosion_needed, 1)
@@ -2115,7 +2116,12 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             target.hide_viewport = True
             target.hide_set(True)
 
-            conn_info = f" (+{settings.connector_distribution} encaixes)" if (settings.connector_enabled and settings.split_mode != 'SOLID') else ""
+            if settings.connector_enabled:
+                from .connector_surface import cache_prepared_interface
+                raw_iface = (report.get('interfaces', {}).get(settings.connector_male_part)
+                             if settings.split_mode == 'SOLID' else report.get('interface'))
+                cache_prepared_interface(context, raw_iface)
+            conn_info = f" (+{settings.connector_distribution} encaixes)" if (settings.connector_enabled) else ""
             msg = (
                 f"Preview gerado com sucesso{conn_info}! "
                 f"Parte A: {settings.part_a_volume_mm3:,.0f} mm³ | "
@@ -3596,7 +3602,12 @@ class CHEST_OT_splitter_pick_material_region(bpy.types.Operator):
         return {'FINISHED'}
 
 
+from .solid_tools import (CHEST_OT_splitter_align_solid_vertices, CHEST_OT_splitter_capture_solid_face,
+                          CHEST_OT_splitter_auto_solid_face)
+
 classes = (
+    CHEST_OT_splitter_align_solid_vertices, CHEST_OT_splitter_capture_solid_face,
+    CHEST_OT_splitter_auto_solid_face,
     CHEST_OT_splitter_set_target,
     CHEST_OT_splitter_clear_target,
     CHEST_OT_splitter_create_work_copy,
@@ -3657,65 +3668,46 @@ def on_depsgraph_update_post(scene, depsgraph):
     if not scene or not hasattr(scene, "chest_splitter"):
         return
     settings = scene.chest_splitter
-    if settings.session_status != 'PREVIEW_VALID':
-        return
-
-    target = getattr(settings, "target_object", None)
-    cutter = None
-    if settings.split_mode == 'SOLID':
-        cutter = getattr(settings, "solid_cutter_object", None)
-    elif settings.split_mode == 'PLANE':
-        col = find_collection(scene, COLLECTION_GUIDES_NAME)
-        cutter = col.objects.get(PLANE_GUIDE_NAME) if col else None
-
-    target_mesh = target.data if (target and target.type == 'MESH') else None
-    cutter_mesh = cutter.data if (cutter and cutter.type == 'MESH') else None
-
-    relevant_ids = {o for o in (target, target_mesh, cutter, cutter_mesh) if o is not None}
-    if not relevant_ids:
-        return
-
-    updated = False
-    for update in depsgraph.updates:
-        if update.id in relevant_ids or update.id == scene:
-            updated = True
-            break
-
-    if not updated:
-        return
-
+    from .scene_state import object_in_scene
+    from .connector_surface import get_cached_prepared_split, clear_prepared_split_cache
+    from .input_state import cut_signature, editor_configuration
+    target = settings.target_object
+    cutter = settings.solid_cutter_object if settings.split_mode == 'SOLID' else None
     _in_depsgraph_handler = True
     try:
-        if not target or target.name not in bpy.data.objects:
-            settings.session_status = 'PREVIEW_STALE'
+        missing = not object_in_scene(target, scene, mesh=True)
+        if settings.split_mode == 'SOLID' and not object_in_scene(cutter, scene, mesh=True):
+            missing = True
+        if missing:
+            clear_prepared_split_cache()
+            if settings.session_status == 'PREVIEW_VALID':
+                settings.session_status = 'PREVIEW_STALE'
+                settings.last_status = "O alvo ou cortador foi excluído da cena. Selecione objetos válidos."
             return
-
-        # Rastreia estado do alvo (World Space e contagens)
-        mw = target.matrix_world
-        loc_str = f"{mw.translation.x:.4f},{mw.translation.y:.4f},{mw.translation.z:.4f}"
-        rot_str = f"{target.rotation_euler.x:.4f},{target.rotation_euler.y:.4f},{target.rotation_euler.z:.4f}"
-        scale_str = f"{target.scale.x:.4f},{target.scale.y:.4f},{target.scale.z:.4f}"
-        base_vert_count = len(target.data.vertices) if target.data else 0
-        base_poly_count = len(target.data.polygons) if target.data else 0
-        mod_count = len(target.modifiers)
-
-        # Rastreia estado do cortador (B04 / T23)
-        cutter_state = "NONE"
-        if cutter and cutter.name in bpy.data.objects:
-            c_mw = cutter.matrix_world
-            cutter_state = f"{c_mw.translation.x:.4f},{c_mw.translation.y:.4f},{c_mw.translation.z:.4f}|{cutter.rotation_euler.x:.4f},{cutter.rotation_euler.y:.4f},{cutter.rotation_euler.z:.4f}|{cutter.scale.x:.4f},{cutter.scale.y:.4f},{cutter.scale.z:.4f}"
-
-        state_key = f"{loc_str}|{rot_str}|{scale_str}|{base_vert_count}|{base_poly_count}|{mod_count}|{cutter_state}"
-        prev_key = target.get("_chest_last_known_state")
-        if prev_key and prev_key != state_key:
+        prep = get_cached_prepared_split()
+        relevant = {target, target.data}
+        if cutter:
+            relevant.update((cutter, cutter.data))
+        if settings.split_mode == 'PLANE':
+            col = find_collection(scene, COLLECTION_GUIDES_NAME)
+            guide = col.objects.get(PLANE_GUIDE_NAME) if col else None
+            if guide:
+                relevant.add(guide)
+        updated = any(update.id in relevant and
+                      (update.is_updated_geometry or update.is_updated_transform)
+                      for update in depsgraph.updates)
+        if prep is not None:
+            changed = prep.configuration != editor_configuration(settings, scene)
+            if updated and not any(m.show_viewport for m in target.modifiers):
+                changed = changed or prep.cut_signature != cut_signature(settings, target, scene)+':'+settings.connector_male_part
+            if changed:
+                clear_prepared_split_cache()
+                if settings.session_status == 'PREVIEW_VALID':
+                    settings.session_status = 'PREVIEW_STALE'
+        elif updated and settings.session_status == 'PREVIEW_VALID':
             settings.session_status = 'PREVIEW_STALE'
-            settings.last_status = "O modelo alvo ou cortador foi modificado. Atualize a prévia antes de continuar."
-            settings.last_status_level = 'WARNING'
-        target["_chest_last_known_state"] = state_key
     except ReferenceError:
-        pass
-    except Exception:
-        pass
+        clear_prepared_split_cache()
     finally:
         _in_depsgraph_handler = False
 

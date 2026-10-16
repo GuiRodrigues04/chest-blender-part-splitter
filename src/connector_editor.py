@@ -127,7 +127,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         settings = getattr(context.scene, "chest_splitter", None)
         if not settings or not settings.target_object:
             return False
-        return settings.split_mode in ('PLANE', 'LOOP', 'MATERIAL')
+        return settings.split_mode in ('PLANE', 'LOOP', 'MATERIAL', 'SOLID')
 
     def _prepare_target_and_cleanup_previews(self, context):
         settings = context.scene.chest_splitter
@@ -170,6 +170,8 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
             return {'CANCELLED'}
         self._capture_snapshot(settings)
         self._prepare_target_and_cleanup_previews(context)
+        from .connector_surface import set_cached_prepared_split
+        set_cached_prepared_split(self._prepared)
         settings.connector_distribution = 'MANUAL'
         settings.connector_enabled = True
         settings.is_editing_connectors = True
@@ -192,6 +194,8 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
             self.report({'ERROR'}, f"Falha ao preparar superfície de encaixe: {exc}")
             return {'CANCELLED'}
         self._prepare_target_and_cleanup_previews(context)
+        from .connector_surface import set_cached_prepared_split
+        set_cached_prepared_split(self._prepared)
 
         # Se estiver em modo de edição, muda para modo Objeto para permitir seleção e cliques
         if context.mode != 'OBJECT':
@@ -236,6 +240,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         self._configuration = editor_configuration(settings, context.scene)
 
         self._capture_snapshot(settings)
+        self._binding = settings.manual_binding
 
         # Avalia estado inicial
         evaluate_connector_specs(self._prepared, settings)
@@ -270,6 +275,9 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         # A button can finish and reopen editing before the old modal gets its
         # next event. Retire that old instance without stopping the new editor.
         if hasattr(self, '_generation') and self._generation != _EDITOR_STATE['generation']:
+            if self._timer is not None:
+                context.window_manager.event_timer_remove(self._timer)
+                self._timer = None
             return {'FINISHED', 'PASS_THROUGH'}
         if not hasattr(context.scene, 'chest_splitter'):
             return {'CANCELLED'}
@@ -301,9 +309,20 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
             return self._finish_cleanup(context, res_state, pass_through=True)
 
         from .input_state import editor_configuration
-        if editor_configuration(settings, context.scene) != self._configuration:
-            self.report({'INFO'}, localize_text("O corte mudou. Abra novamente o editor de pinos para atualizar a superfície."))
-            return self._finish_cleanup(context, 'FINISHED')
+        if (editor_configuration(settings, context.scene) != self._configuration
+                or get_cached_prepared_split() is None):
+            try:
+                self._prepared = prepare_split_candidates(context, force_recompute=True)
+                self._configuration = editor_configuration(settings, context.scene)
+                if getattr(self, '_binding', settings.manual_binding) != settings.manual_binding:
+                    self._capture_snapshot(settings)
+                    self._binding = settings.manual_binding
+                _EDITOR_STATE["hover_world"] = None
+                _EDITOR_STATE["is_dragging"] = False
+                evaluate_connector_specs(self._prepared, settings)
+            except Exception as exc:
+                self.report({'WARNING'}, str(exc))
+                return self._finish_cleanup(context, 'FINISHED')
 
         # Redesenha a área do viewport para feedback responsivo
         if self._area:

@@ -14,6 +14,7 @@ CUT_PROPERTIES = (
     'loop_detach_base_depth_mm', 'loop_detach_base_clearance_mm',
     'material_split_index', 'material_region_index', 'material_extraction_mode',
     'material_extrude_depth_mm', 'material_interface_mat_mode',
+    'solid_interface_face_index',
 )
 
 
@@ -42,6 +43,14 @@ def cut_signature(settings, target, scene, mesh=None):
         from .plane_state import resolve_plane_state
         origin, normal = resolve_plane_state(scene, settings)
         digest.update(repr((tuple(origin), tuple(normal))).encode())
+    if settings.split_mode == 'SOLID':
+        cutter = settings.solid_cutter_object
+        from .scene_state import object_in_scene
+        if object_in_scene(cutter, scene, mesh=True):
+            digest.update(repr(tuple(tuple(r) for r in cutter.matrix_world)).encode())
+            update_mesh_hash(digest, cutter.data)
+        else:
+            digest.update(b'MISSING_CUTTER')
     return digest.hexdigest()
 
 
@@ -54,4 +63,9 @@ def editor_configuration(settings, scene):
         from .plane_state import resolve_plane_state
         origin, normal = resolve_plane_state(scene, settings)
         key += (tuple(origin), tuple(normal))
+    if settings.split_mode == 'SOLID':
+        cutter = settings.solid_cutter_object
+        from .scene_state import object_in_scene
+        key += ((cutter.as_pointer(), tuple(tuple(r) for r in cutter.matrix_world))
+                if object_in_scene(cutter, scene, mesh=True) else (None,))
     return key

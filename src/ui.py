@@ -231,7 +231,8 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
             # Ações e Alinhamento do Cortador
             cutter = settings.solid_cutter_object
-            if cutter and cutter.name in bpy.data.objects:
+            from .scene_state import object_in_scene
+            if object_in_scene(cutter, context.scene, mesh=True):
                 row_actions = box_solid.row(align=True)
                 row_actions.operator("chest.splitter_duplicate_solid_cutter", text=localize_text("Duplicar Cortador"), icon='DUPLICATE')
                 op_align = row_actions.operator("chest.splitter_align_solid_cutter", text=localize_text("Alinhar à Face"), icon='SNAP_FACE')
@@ -239,6 +240,9 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 op_align.anchor = 'SUPPORT_FACE'
 
                 # Dimensões físicas locais (mm)
+                box_solid.operator("chest.splitter_align_solid_vertices", text=localize_text("Alinhar por Vértices"), icon='SNAP_VERTEX')
+                box_solid.operator("chest.splitter_auto_solid_face", text=localize_text("Escolher Face Automaticamente"), icon='FACESEL')
+                box_solid.operator("chest.splitter_capture_solid_face", text=localize_text("Capturar Face de Encaixe"), icon='FACESEL')
                 box_dims = box_solid.box()
                 box_dims.label(text=localize_text("Dimensões Físicas Locais (mm):"), icon='CON_SIZELIMIT')
                 col_dims = box_dims.column(align=True)
@@ -340,7 +344,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
         # Folga Física entre Peças (E01)
         box_part_clearance = box_conn.box()
         box_part_clearance.label(text=localize_text("Folga da Interface entre Peças:"), icon='DRIVER_DISTANCE')
-        if settings.split_mode in ('PLANE', 'MATERIAL'):
+        if settings.split_mode in ('PLANE', 'MATERIAL', 'SOLID'):
             box_part_clearance.prop(settings, "part_clearance_mm", text=localize_text("Folga (mm)"), slider=True)
             if settings.part_clearance_mm > 0.0:
                 box_part_clearance.prop(settings, "part_clearance_apply_to", text=localize_text("Aplicar em"))
@@ -357,175 +361,171 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 icon='INFO'
             )
 
-        if settings.split_mode == 'SOLID':
-            box_conn.label(text=localize_text("Encaixes de pinos não são suportados no modo Cortador Sólido."), icon='INFO')
-        else:
-            row_enable = box_conn.row(align=True)
-            row_enable.prop(settings, "connector_enabled", text=localize_text("Ativar Encaixes"), toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')
+        row_enable = box_conn.row(align=True)
+        row_enable.prop(settings, "connector_enabled", text=localize_text("Ativar Encaixes"), toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')
 
-            if settings.connector_enabled:
-                # Formato do Encaixe
-                col_shape = box_conn.column(align=True)
-                col_shape.label(text=localize_text("Formato do Encaixe:"))
-                col_shape.prop(settings, "connector_type", expand=True)
+        if settings.connector_enabled:
+            # Formato do Encaixe
+            col_shape = box_conn.column(align=True)
+            col_shape.label(text=localize_text("Formato do Encaixe:"))
+            col_shape.prop(settings, "connector_type", expand=True)
 
-                # Lado do Macho / Fêmea
-                box_male = box_conn.box()
-                box_male.label(text=localize_text("Posição dos Pinos (Macho):"), icon='SNAP_NORMAL')
+            # Lado do Macho / Fêmea
+            box_male = box_conn.box()
+            box_male.label(text=localize_text("Posição dos Pinos (Macho):"), icon='SNAP_NORMAL')
 
-                top_part = 'A' if settings.part_a_is_superior else 'B'
-                is_top = (settings.connector_male_part == top_part)
-                cur_desc = "Parte Superior" if is_top else "Parte Inferior"
+            top_part = 'A' if settings.part_a_is_superior else 'B'
+            is_top = (settings.connector_male_part == top_part)
+            cur_desc = "Parte Superior" if is_top else "Parte Inferior"
 
-                row_male_pick = box_male.row(align=True)
-                row_male_pick.prop(settings, "connector_male_part", expand=True)
+            row_male_pick = box_male.row(align=True)
+            row_male_pick.prop(settings, "connector_male_part", expand=True)
 
-                row_male_btn = box_male.row(align=True)
-                row_male_btn.scale_y = 1.2
-                row_male_btn.operator(
-                    "chest.splitter_invert_male_female",
-                    text=f"Inverter: Pinos na {cur_desc}",
-                    icon='ARROW_LEFTRIGHT'
-                )
+            row_male_btn = box_male.row(align=True)
+            row_male_btn.scale_y = 1.2
+            row_male_btn.operator(
+                "chest.splitter_invert_male_female",
+                text=f"Inverter: Pinos na {cur_desc}",
+                icon='ARROW_LEFTRIGHT'
+            )
 
-                # Dimensões Nominais do Macho
-                box_dims = box_conn.box()
-                box_dims.label(text=localize_text("Dimensões Nominais:"), icon='CON_SIZELIMIT')
-                if settings.connector_type == 'CAPSULE':
-                    box_dims.prop(settings, "connector_diameter_mm", text=localize_text("Espessura / Diâmetro (mm)"), slider=True)
-                    box_dims.prop(settings, "connector_capsule_length_mm", text=localize_text("Comprimento Lateral (mm)"), slider=True)
-                    if settings.connector_max_safe_lateral_mm > 0:
-                        box_dims.label(
-                            text=f"Limite Seguro Máx: {settings.connector_max_safe_lateral_mm:.1f} mm (anti-colisão)",
-                            icon='INFO',
-                        )
+            # Dimensões Nominais do Macho
+            box_dims = box_conn.box()
+            box_dims.label(text=localize_text("Dimensões Nominais:"), icon='CON_SIZELIMIT')
+            if settings.connector_type == 'CAPSULE':
+                box_dims.prop(settings, "connector_diameter_mm", text=localize_text("Espessura / Diâmetro (mm)"), slider=True)
+                box_dims.prop(settings, "connector_capsule_length_mm", text=localize_text("Comprimento Lateral (mm)"), slider=True)
+                if settings.connector_max_safe_lateral_mm > 0:
+                    box_dims.label(
+                        text=f"Limite Seguro Máx: {settings.connector_max_safe_lateral_mm:.1f} mm (anti-colisão)",
+                        icon='INFO',
+                    )
+            else:
+                box_dims.prop(settings, "connector_diameter_mm", slider=True)
+            box_dims.prop(settings, "connector_length_mm", text=localize_text("Profundidade de Inserção (mm)"), slider=True)
+            box_dims.prop(settings, "connector_chamfer_mm", slider=True)
+
+            # Folgas de Encaixe Físico
+            box_clear = box_conn.box()
+            row_clear_head = box_clear.row(align=True)
+            row_clear_head.label(text=localize_text("Folgas Físicas de Montagem (FDM):"), icon='DRIVER')
+            draw_help_button(row_clear_head, "clearance")
+
+            # Botões rápidos de preset
+            row_presets = box_clear.row(align=True)
+            row_presets.label(text=localize_text("Presets:"))
+            for p_code, p_lbl in [('TIGHT', "0.10"), ('NORMAL', "0.15"), ('EASY', "0.20"), ('LOOSE', "0.25")]:
+                op_p = row_presets.operator("chest.splitter_apply_connector_preset", text=p_lbl)
+                op_p.preset = p_code
+
+            box_clear.prop(settings, "clearance_per_side_mm", slider=True)
+            box_clear.label(text=f"Folga total no diâmetro: {settings.clearance_per_side_mm * 2:.2f} mm", icon='INFO')
+            box_clear.prop(settings, "end_clearance_mm", slider=True)
+
+            # Distribuição
+            box_dist = box_conn.box()
+            box_dist.label(text=localize_text("Distribuição no Corte:"), icon='PARTICLE_DATA')
+            box_dist.prop(settings, "connector_distribution", expand=True)
+            box_dist.prop(settings, "connector_edge_margin_mm", slider=True)
+            box_dist.prop(settings, "adjust_to_valid_area")
+
+            if settings.connector_distribution == 'MANUAL':
+                box_manual = box_conn.box()
+                row_man_head = box_manual.row(align=True)
+                row_man_head.label(text=localize_text("Posicionamento Manual:"), icon='RESTRICT_SELECT_OFF')
+
+                from .connector_editor import get_editor_interaction_state
+                ed_state = get_editor_interaction_state()
+                is_editing = settings.is_editing_connectors and ed_state.get("is_active", False)
+
+                if is_editing:
+                    box_active = box_manual.box()
+                    box_active.label(text=localize_text("Modo de Edição 3D Ativo"), icon='EDITMODE_HLT')
+                    row_confirm = box_active.row(align=True)
+                    row_confirm.scale_y = 1.35
+                    row_confirm.operator(
+                        "chest.splitter_confirm_manual_connectors",
+                        text=localize_text("Confirmar Posições e Gerar Prévia"),
+                        icon='CHECKMARK'
+                    )
+                    row_exit = box_active.row(align=True)
+                    row_exit.operator(
+                        "chest.splitter_finish_manual_connectors",
+                        text=localize_text("Concluir Edição"),
+                        icon='FILE_TICK'
+                    )
+                    row_exit.operator(
+                        "chest.splitter_cancel_manual_connectors",
+                        text=localize_text("Cancelar"),
+                        icon='CANCEL'
+                    )
                 else:
-                    box_dims.prop(settings, "connector_diameter_mm", slider=True)
-                box_dims.prop(settings, "connector_length_mm", text=localize_text("Profundidade de Inserção (mm)"), slider=True)
-                box_dims.prop(settings, "connector_chamfer_mm", slider=True)
-
-                # Folgas de Encaixe Físico
-                box_clear = box_conn.box()
-                row_clear_head = box_clear.row(align=True)
-                row_clear_head.label(text=localize_text("Folgas Físicas de Montagem (FDM):"), icon='DRIVER')
-                draw_help_button(row_clear_head, "clearance")
-
-                # Botões rápidos de preset
-                row_presets = box_clear.row(align=True)
-                row_presets.label(text=localize_text("Presets:"))
-                for p_code, p_lbl in [('TIGHT', "0.10"), ('NORMAL', "0.15"), ('EASY', "0.20"), ('LOOSE', "0.25")]:
-                    op_p = row_presets.operator("chest.splitter_apply_connector_preset", text=p_lbl)
-                    op_p.preset = p_code
-
-                box_clear.prop(settings, "clearance_per_side_mm", slider=True)
-                box_clear.label(text=f"Folga total no diâmetro: {settings.clearance_per_side_mm * 2:.2f} mm", icon='INFO')
-                box_clear.prop(settings, "end_clearance_mm", slider=True)
-
-                # Distribuição
-                box_dist = box_conn.box()
-                box_dist.label(text=localize_text("Distribuição no Corte:"), icon='PARTICLE_DATA')
-                box_dist.prop(settings, "connector_distribution", expand=True)
-                box_dist.prop(settings, "connector_edge_margin_mm", slider=True)
-                box_dist.prop(settings, "adjust_to_valid_area")
-
-                if settings.connector_distribution == 'MANUAL':
-                    box_manual = box_conn.box()
-                    row_man_head = box_manual.row(align=True)
-                    row_man_head.label(text=localize_text("Posicionamento Manual:"), icon='RESTRICT_SELECT_OFF')
-
-                    from .connector_editor import get_editor_interaction_state
-                    ed_state = get_editor_interaction_state()
-                    is_editing = settings.is_editing_connectors and ed_state.get("is_active", False)
-
-                    if is_editing:
-                        box_active = box_manual.box()
-                        box_active.label(text=localize_text("Modo de Edição 3D Ativo"), icon='EDITMODE_HLT')
-                        row_confirm = box_active.row(align=True)
-                        row_confirm.scale_y = 1.35
-                        row_confirm.operator(
-                            "chest.splitter_confirm_manual_connectors",
-                            text=localize_text("Confirmar Posições e Gerar Prévia"),
-                            icon='CHECKMARK'
-                        )
-                        row_exit = box_active.row(align=True)
-                        row_exit.operator(
-                            "chest.splitter_finish_manual_connectors",
-                            text=localize_text("Concluir Edição"),
-                            icon='FILE_TICK'
-                        )
-                        row_exit.operator(
-                            "chest.splitter_cancel_manual_connectors",
-                            text=localize_text("Cancelar"),
-                            icon='CANCEL'
-                        )
-                    else:
-                        has_preview = (settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE'))
-                        lbl_edit = "Editar Posições Novamente" if has_preview else "Editar Posições dos Pinos"
-                        row_click = box_manual.row(align=True)
-                        row_click.scale_y = 1.35
-                        row_click.operator(
-                            "chest.splitter_edit_manual_connectors",
-                            text=lbl_edit,
-                            icon='EDITMODE_HLT'
-                        )
-
-                    row_view = box_manual.row(align=True)
-                    row_view.operator("chest.splitter_view_cut_face", text=localize_text("Ver Face de Encaixe"), icon='VIEW_CAMERA')
-
-                    if is_editing:
-                        box_mode = box_manual.box()
-                        row_mode_head = box_mode.row(align=True)
-                        row_mode_head.label(text=localize_text("Ação do Clique 3D no Modelo:"), icon='CURSOR')
-                        row_sub = box_mode.row(align=True)
-                        row_sub.prop(settings, "manual_editor_submode", expand=True)
-
-                    n_manual = len(settings.manual_connectors)
-                    row_actions = box_manual.row(align=True)
-                    row_actions.operator("chest.splitter_add_manual_connector", text=localize_text("Adicionar"), icon='ADD')
-                    row_rem = row_actions.row(align=True)
-                    row_rem.enabled = (n_manual > 0)
-                    row_rem.operator("chest.splitter_remove_manual_connector", text=localize_text("Remover"), icon='REMOVE')
-                    row_clr = row_actions.row(align=True)
-                    row_clr.enabled = (n_manual > 0)
-                    row_clr.operator("chest.splitter_clear_manual_connectors", text=localize_text("Limpar"), icon='TRASH')
-
-                    if n_manual == 0:
-                        box_manual.label(text=localize_text("Nenhum pino posicionado. Clique em 'Editar Posições' para adicionar."), icon='INFO')
-                    else:
-                        box_manual.label(text=f"Total de Pinos: {n_manual}", icon='LAYER_ACTIVE')
-                        box_edit = box_manual.box()
-                        idx = settings.manual_connector_index
-                        if 0 <= idx < n_manual:
-                            active_conn = settings.manual_connectors[idx]
-                            row_sel = box_edit.row(align=True)
-                            row_sel.prop(settings, "manual_connector_index", text=f"Pino #{idx + 1}")
-                            row_sel.operator("chest.splitter_remove_manual_connector", text=localize_text(""), icon='X')
-
-                            row_coords = box_edit.row(align=True)
-                            row_coords.prop(active_conn, "u_mm", text=localize_text("U (mm)"))
-                            row_coords.prop(active_conn, "v_mm", text=localize_text("V (mm)"))
-                            if settings.connector_type == 'CAPSULE':
-                                box_edit.prop(active_conn, "yaw_deg", text=localize_text("Rotação Yaw (°)"), slider=True)
-
-                            if not getattr(active_conn, "is_valid", True):
-                                row_err = box_edit.row(align=True)
-                                row_err.alert = True
-                                reason = getattr(active_conn, "status_reason", "") or getattr(active_conn, "validation_msg", "") or "Posição fora do domínio / margem violada"
-                                row_err.label(
-                                    text=reason,
-                                    icon='CANCEL'
-                                )
-                            else:
-                                box_edit.label(text=localize_text("Posição Válida"), icon='CHECKMARK')
-                        else:
-                            box_edit.prop(settings, "manual_connector_index", text=localize_text("Pino Ativo"))
-                else:
-                    box_dist.operator(
-                        "chest.splitter_convert_pattern_to_manual",
-                        text=localize_text("Converter Padrão para Manual"),
-                        icon='GREASEPENCIL'
+                    has_preview = (settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE'))
+                    lbl_edit = "Editar Posições Novamente" if has_preview else "Editar Posições dos Pinos"
+                    row_click = box_manual.row(align=True)
+                    row_click.scale_y = 1.35
+                    row_click.operator(
+                        "chest.splitter_edit_manual_connectors",
+                        text=lbl_edit,
+                        icon='EDITMODE_HLT'
                     )
 
+                row_view = box_manual.row(align=True)
+                row_view.operator("chest.splitter_view_cut_face", text=localize_text("Ver Face de Encaixe"), icon='VIEW_CAMERA')
+
+                if is_editing:
+                    box_mode = box_manual.box()
+                    row_mode_head = box_mode.row(align=True)
+                    row_mode_head.label(text=localize_text("Ação do Clique 3D no Modelo:"), icon='CURSOR')
+                    row_sub = box_mode.row(align=True)
+                    row_sub.prop(settings, "manual_editor_submode", expand=True)
+
+                n_manual = len(settings.manual_connectors)
+                row_actions = box_manual.row(align=True)
+                row_actions.operator("chest.splitter_add_manual_connector", text=localize_text("Adicionar"), icon='ADD')
+                row_rem = row_actions.row(align=True)
+                row_rem.enabled = (n_manual > 0)
+                row_rem.operator("chest.splitter_remove_manual_connector", text=localize_text("Remover"), icon='REMOVE')
+                row_clr = row_actions.row(align=True)
+                row_clr.enabled = (n_manual > 0)
+                row_clr.operator("chest.splitter_clear_manual_connectors", text=localize_text("Limpar"), icon='TRASH')
+
+                if n_manual == 0:
+                    box_manual.label(text=localize_text("Nenhum pino posicionado. Clique em 'Editar Posições' para adicionar."), icon='INFO')
+                else:
+                    box_manual.label(text=f"Total de Pinos: {n_manual}", icon='LAYER_ACTIVE')
+                    box_edit = box_manual.box()
+                    idx = settings.manual_connector_index
+                    if 0 <= idx < n_manual:
+                        active_conn = settings.manual_connectors[idx]
+                        row_sel = box_edit.row(align=True)
+                        row_sel.prop(settings, "manual_connector_index", text=f"Pino #{idx + 1}")
+                        row_sel.operator("chest.splitter_remove_manual_connector", text=localize_text(""), icon='X')
+
+                        row_coords = box_edit.row(align=True)
+                        row_coords.prop(active_conn, "u_mm", text=localize_text("U (mm)"))
+                        row_coords.prop(active_conn, "v_mm", text=localize_text("V (mm)"))
+                        if settings.connector_type == 'CAPSULE':
+                            box_edit.prop(active_conn, "yaw_deg", text=localize_text("Rotação Yaw (°)"), slider=True)
+
+                        if not getattr(active_conn, "is_valid", True):
+                            row_err = box_edit.row(align=True)
+                            row_err.alert = True
+                            reason = getattr(active_conn, "status_reason", "") or getattr(active_conn, "validation_msg", "") or "Posição fora do domínio / margem violada"
+                            row_err.label(
+                                text=reason,
+                                icon='CANCEL'
+                            )
+                        else:
+                            box_edit.label(text=localize_text("Posição Válida"), icon='CHECKMARK')
+                    else:
+                        box_edit.prop(settings, "manual_connector_index", text=localize_text("Pino Ativo"))
+            else:
+                box_dist.operator(
+                    "chest.splitter_convert_pattern_to_manual",
+                    text=localize_text("Converter Padrão para Manual"),
+                    icon='GREASEPENCIL'
+                )
         layout.separator()
 
         # --- SEÇÃO 4: PRÉVIA E VISUALIZAÇÃO ---

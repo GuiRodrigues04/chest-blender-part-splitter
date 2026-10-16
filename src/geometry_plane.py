@@ -295,6 +295,7 @@ def slice_mesh_by_plane(
         bm = bmesh.new()
         bm.from_mesh(source_mesh)
         bm.transform(matrix_world)
+        bm.normal_update()
 
         # 1. Classificação pré-corte de faces coplanares para eliminar lâminas (B11 / P02 / P03)
         # Identifica se o plano de corte coincide com alguma face planar real do modelo

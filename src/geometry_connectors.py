@@ -269,6 +269,7 @@ def check_receiving_wall_thickness(
         bm = bmesh.new()
         bm.from_mesh(eval_mesh)
         bm.transform(obj_female.matrix_world)
+        bm.normal_update()
         bvh = BVHTree.FromBMesh(bm)
         norm = normal.normalized()
 
@@ -301,6 +302,18 @@ def check_receiving_wall_thickness(
                     bm.free()
                     return False, 0.0
 
+                # With interface clearance the ray first ENTERS the receiver.
+                # Measure the far wall after that entry, not the air gap as thickness.
+                if hit_norm.dot(norm) < -1e-6:
+                    entry_depth = (hit_loc-sample_p).length
+                    if entry_depth >= required_depth_bu:
+                        bm.free()
+                        return False, 0.0
+                    eps = max(1e-8, required_depth_bu*1e-5)
+                    hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(hit_loc+norm*eps, norm)
+                    if hit_loc is None or hit_norm.dot(norm) <= 0:
+                        bm.free()
+                        return False, 0.0
                 avail_depth = (hit_loc - sample_p).length
                 if avail_depth < min_found_depth:
                     min_found_depth = avail_depth
@@ -435,6 +448,7 @@ def compute_connector_layout(
         bm = bmesh.new()
         bm.from_mesh(target_mesh)
         bm.transform(matrix_world)
+        bm.normal_update()
 
         norm = plane_normal.normalized()
 
@@ -545,65 +559,37 @@ def compute_connector_layout(
         positions.append(p)
 
     elif distribution == 'LINEAR_2':
-        min_span_linear2 = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
-        if span_major_mm < min_span_linear2:
-            raise ConnectorValidationError(
-                f"Falta de espaço: a distribuição LINEAR_2 requer vão de ao menos {min_span_linear2:.1f} mm "
-                f"(disponível: {span_major_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes."
-            )
-        d_major = avail_major * 0.6
-        if outer_polys and adjust_to_valid_area:
-            best_d = d_major
-            best_min_dist = -1.0
-            for factor in [0.6, 0.5, 0.45, 0.4, 0.35, 0.3, 0.7, 0.25]:
-                dt = avail_major * factor
-                test_p1 = plane_origin + (major_axis * (center_major - dt)) + (minor_axis * center_minor)
-                test_p2 = plane_origin + (major_axis * (center_major + dt)) + (minor_axis * center_minor)
-                rel1 = test_p1 - plane_origin
-                rel2 = test_p2 - plane_origin
-                u1, v1 = rel1.dot(u_axis), rel1.dot(v_axis)
-                u2, v2 = rel2.dot(u_axis), rel2.dot(v_axis)
-                if any(point_in_polygon_2d(u1, v1, poly) for poly in outer_polys) and not any(point_in_polygon_2d(u1, v1, h) for h in hole_polys):
-                    if any(point_in_polygon_2d(u2, v2, poly) for poly in outer_polys) and not any(point_in_polygon_2d(u2, v2, h) for h in hole_polys):
-                        dist1 = min_distance_to_polygon_boundaries(u1, v1, outer_polys, hole_polys)
-                        dist2 = min_distance_to_polygon_boundaries(u2, v2, outer_polys, hole_polys)
-                        min_d = min(dist1, dist2)
-                        if min_d > best_min_dist:
-                            best_min_dist = min_d
-                            best_d = dt
-            d_major = best_d
-
-        # Testa validade dos pontos colineares nominais
-        p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
-        p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
-        u1, v1 = (p1 - plane_origin).dot(u_axis), (p1 - plane_origin).dot(v_axis)
-        u2, v2 = (p2 - plane_origin).dot(u_axis), (p2 - plane_origin).dot(v_axis)
-        is_l2_valid = True
-        if outer_polys:
-            is_l2_valid = (
-                any(point_in_polygon_2d(u1, v1, p) for p in outer_polys) and not any(point_in_polygon_2d(u1, v1, h) for h in hole_polys) and
-                any(point_in_polygon_2d(u2, v2, p) for p in outer_polys) and not any(point_in_polygon_2d(u2, v2, h) for h in hole_polys) and
-                min_distance_to_polygon_boundaries(u1, v1, outer_polys, hole_polys) >= check_r - 1e-6 and
-                min_distance_to_polygon_boundaries(u2, v2, outer_polys, hole_polys) >= check_r - 1e-6
-            )
-        if not is_l2_valid and valid_domain_points and len(valid_domain_points) >= 2:
-            # Busca melhor par no domínio válido (ex: hastes de U ou L)
-            min_sep_bu = (cavity_diam_mm + 2.0 * edge_margin_mm) / unit_scale
-            best_pair = None
-            best_sep = -1.0
-            for i in range(min(15, len(valid_domain_points))):
-                for j in range(i + 1, min(25, len(valid_domain_points))):
-                    q1 = valid_domain_points[i]
-                    q2 = valid_domain_points[j]
-                    sep = math.hypot(q1[0] - q2[0], q1[1] - q2[1])
-                    if sep >= min_sep_bu and sep > best_sep:
-                        best_sep = sep
-                        best_pair = (q1, q2)
-            if best_pair is not None:
-                p1 = plane_origin + (u_axis * best_pair[0][0]) + (v_axis * best_pair[0][1])
-                p2 = plane_origin + (u_axis * best_pair[1][0]) + (v_axis * best_pair[1][1])
-
-        positions.extend([p1, p2])
+        d_major = avail_major * 0.55
+        p1 = plane_origin + major_axis*(center_major-d_major) + minor_axis*center_minor
+        p2 = plane_origin + major_axis*(center_major+d_major) + minor_axis*center_minor
+        half = max(0.0, capsule_length_mm-diameter_mm)/(2*unit_scale) if connector_type == 'CAPSULE' else 0.0
+        yaw = math.atan2(major_axis.dot(v_axis), major_axis.dot(u_axis))
+        def valid_position(p):
+            uv = ((p-plane_origin).dot(u_axis), (p-plane_origin).dot(v_axis))
+            return validate_connector_footprint(*uv, check_r, outer_polys, hole_polys,
+                                                edge_margin_mm, connector_type, half, yaw)[0]
+        min_sep = (diameter_mm+2*clearance_per_side_mm+1.0)/unit_scale
+        def separated(a, b):
+            ua, va = (a-plane_origin).dot(u_axis), (a-plane_origin).dot(v_axis)
+            ub, vb = (b-plane_origin).dot(u_axis), (b-plane_origin).dot(v_axis)
+            return segment_distance_sq(*connector_center_segment(ua,va,half,yaw),
+                                       *connector_center_segment(ub,vb,half,yaw)) >= min_sep**2
+        if not (valid_position(p1) and valid_position(p2) and separated(p1,p2)):
+            candidates = [plane_origin+u_axis*u+v_axis*v for u,v,_ in valid_domain_points]
+            candidates = [p for p in candidates if valid_position(p)]
+            # Sample the whole domain, including both arms of a concavity.
+            candidates = candidates[::max(1, len(candidates)//256)]
+            best = None
+            best_distance = -1.0
+            for i, a in enumerate(candidates):
+                for b in candidates[i+1:]:
+                    distance = (a-b).length_squared
+                    if distance > best_distance and separated(a,b):
+                        best, best_distance = (a,b), distance
+            if best is None:
+                raise ConnectorValidationError("Não há espaço útil para dois pinos com essas dimensões e margem.")
+            p1, p2 = best
+        positions.extend([p1,p2])
 
     elif distribution == 'LINEAR_3':
         min_span_linear3 = 3.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 4.0
@@ -792,6 +778,10 @@ def compute_connector_layout(
                 connector_type, half_len, yaw)
             if not valid:
                 raise ConnectorValidationError(f"O encaixe #{idx+1}: {reason}.")
+
+    if interface is not None:
+        from .geometry_contract import interface_point
+        positions = [interface_point(interface, *(interface.world_to_uv(p))) for p in positions]
 
     # Constrói rotações individuais precisas por pino (PM11)
     pin_rotations = []

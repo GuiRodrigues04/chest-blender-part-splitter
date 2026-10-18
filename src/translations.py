@@ -300,6 +300,16 @@ TRANSLATIONS_DICT = {
         ("*", "Nenhum conector adicionado. Clique na peça ou adicione."): "Nenhum conector adicionado. Clique na peça ou adicione.",
         ("*", "Os ajustes mudaram. Atualize a prévia antes de criar as peças."): "Os ajustes mudaram. Atualize a prévia antes de criar as peças.",
         ("*", "The visible preview is the previous valid one"): "A prévia visível é a anterior válida",
+        ("*", "Tipo de Corte:"): "Tipo de Corte:",
+        ("*", "Tipo de Corte da Região:"): "Tipo de Corte da Região:",
+        ("*", "Pela Base"): "Pela Base",
+        ("*", "Profundidade"): "Profundidade",
+        ("*", "Pela Base (Saliência)"): "Pela Base (Saliência)",
+        ("*", "Por Profundidade"): "Por Profundidade",
+        ("*", "Parâmetros de Profundidade:"): "Parâmetros de Profundidade:",
+        ("*", "Parâmetros do Corte pela Base:"): "Parâmetros do Corte pela Base:",
+        ("*", "Ajustes de Profundidade"): "Ajustes de Profundidade",
+        ("*", "Ajustes de Corte pela Base"): "Ajustes de Corte pela Base",
     },
     "en_US": {
         ("*", "Part Splitter"): "Part Splitter",
@@ -396,6 +406,16 @@ TRANSLATIONS_DICT['en_US'].update({
     ('*', 'Entre em Edit Mode no cortador e selecione uma única face.'): 'Enter Edit Mode on the cutter and select one face.',
     ('*', 'Selecione exatamente uma face no cortador.'): 'Select exactly one cutter face.',
     ('*', 'Face capturada. Volte ao modo Objeto para editar os pinos.'): 'Face captured. Return to Object Mode to edit pins.',
+    ('*', 'Tipo de Corte:'): 'Cut Type:',
+    ('*', 'Tipo de Corte da Região:'): 'Region Cut Type:',
+    ('*', 'Pela Base'): 'At Base',
+    ('*', 'Profundidade'): 'Depth',
+    ('*', 'Pela Base (Saliência)'): 'At Base (Protrusion)',
+    ('*', 'Por Profundidade'): 'By Depth',
+    ('*', 'Parâmetros de Profundidade:'): 'Depth Parameters:',
+    ('*', 'Parâmetros do Corte pela Base:'): 'Base Cut Parameters:',
+    ('*', 'Ajustes de Profundidade'): 'Depth Settings',
+    ('*', 'Ajustes de Corte pela Base'): 'Base Cut Settings',
 })
 
 

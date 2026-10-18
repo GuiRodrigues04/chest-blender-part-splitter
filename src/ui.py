@@ -169,17 +169,25 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             if settings.loop_seed_face_index >= 0:
                 box_loop.label(text=f"Região de Referência: Face #{settings.loop_seed_face_index}", icon='CHECKMARK')
 
-            # Comportamento de corte por contorno
+            # --- TIPO DE CORTE (PELA BASE vs POR PROFUNDIDADE) ---
             box_behavior = box_loop.box()
-            box_behavior.prop(settings, "loop_behavior", text=localize_text("Comportamento"))
+            row_bh_title = box_behavior.row(align=True)
+            row_bh_title.label(text=localize_text("Tipo de Corte:"), icon='MOD_SOLIDIFY')
+            draw_help_button(row_bh_title, "loop_extrude")
 
-            if settings.loop_behavior == 'AUTO' and settings.loop_auto_reason:
+            row_mode = box_behavior.row(align=True)
+            row_mode.scale_y = 1.3
+            row_mode.prop(settings, "loop_behavior", expand=True)
+
+            if settings.loop_behavior == 'AUTO':
                 box_dec = box_behavior.box()
-                lbl_mode = "Destacar Saliência" if settings.loop_detected_mode == 'DETACH' else "Extrair com Profundidade"
-                box_dec.label(text=f"Decisão: {lbl_mode}", icon='INFO')
-                col_r = box_dec.column()
-                col_r.scale_y = 0.8
-                col_r.label(text=settings.loop_auto_reason)
+                lbl_mode = localize_text("Pela Base") if settings.loop_detected_mode == 'DETACH' else localize_text("Profundidade")
+                icon_mode = 'SNAP_FACE' if settings.loop_detected_mode == 'DETACH' else 'CON_SIZELIMIT'
+                box_dec.label(text=f"Auto Detectado: {lbl_mode}", icon=icon_mode)
+                if settings.loop_auto_reason:
+                    col_r = box_dec.column()
+                    col_r.scale_y = 0.8
+                    col_r.label(text=settings.loop_auto_reason)
 
             show_depth = (settings.loop_behavior == 'EXTRUDE') or (
                 settings.loop_behavior == 'AUTO' and settings.loop_detected_mode == 'EXTRUDE'
@@ -187,8 +195,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             if show_depth:
                 box_depth = box_behavior.box()
                 row_depth_head = box_depth.row(align=True)
-                row_depth_head.label(text=localize_text("Extração com Profundidade"), icon='CON_SIZELIMIT')
-                draw_help_button(row_depth_head, "loop_extrude")
+                row_depth_head.label(text=localize_text("Parâmetros de Profundidade:"), icon='CON_SIZELIMIT')
                 box_depth.prop(settings, "loop_extrude_depth_mm", text=localize_text("Profundidade (mm)"))
                 box_depth.prop(settings, "loop_through_cut", text=localize_text("Corte Passante"))
 
@@ -197,6 +204,8 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             )
             if show_detach_base:
                 box_base = box_behavior.box()
+                row_base_head = box_base.row(align=True)
+                row_base_head.label(text=localize_text("Parâmetros do Corte pela Base:"), icon='SNAP_FACE')
                 box_base.prop(settings, "loop_detach_add_base", text=localize_text("Adicionar base para encaixe"))
                 if settings.loop_detach_add_base:
                     box_base.prop(settings, "loop_detach_base_depth_mm", text=localize_text("Profundidade da base (mm)"))
@@ -319,11 +328,16 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                         box_diag_mat.label(text=localize_text("Tipo: Região Superficial (Com Profundidade)"), icon='INFO')
                         box_diag_mat.label(text=f"Faces: {analysis['face_count']:,} | Fronteira contínua.")
                         box_mat_depth = box_mat.box()
-                        box_mat_depth.label(text=localize_text("Opções de Extração (C02/C03):"), icon='PREFERENCES')
-                        box_mat_depth.prop(settings, "material_extraction_mode", text=localize_text("Modo"))
+                        row_md_head = box_mat_depth.row(align=True)
+                        row_md_head.label(text=localize_text("Tipo de Corte da Região:"), icon='MOD_SOLIDIFY')
+
+                        row_m_mode = box_mat_depth.row(align=True)
+                        row_m_mode.scale_y = 1.3
+                        row_m_mode.prop(settings, "material_extraction_mode", expand=True)
+
                         if settings.material_extraction_mode == 'EXTRUDE':
                             box_mat_depth.prop(settings, "material_extrude_depth_mm", text=localize_text("Profundidade (mm)"))
-                        box_mat_depth.prop(settings, "material_interface_mat_mode", text=localize_text("Interface"))
+                        box_mat_depth.prop(settings, "material_interface_mat_mode", text=localize_text("Material da Interface"))
                 else:
                     box_diag_mat.alert = True
                     box_diag_mat.label(text=f"Aviso: {analysis.get('error', 'Estrutura inválida')}", icon='ERROR')

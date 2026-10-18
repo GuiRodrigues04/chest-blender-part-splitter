@@ -482,14 +482,14 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         description="Centro da interface do loop em coordenadas de mundo",
     )
     loop_behavior: EnumProperty(
-        name="Comportamento do Loop",
+        name="Tipo de Corte",
         items=[
-            ('AUTO', "Automático", "Detecta automaticamente entre destacar saliência ou extrair com profundidade"),
-            ('DETACH', "Destacar Parte", "Destaca a região fechada pelo loop criando uma tampa na base"),
-            ('EXTRUDE', "Extrair com Profundidade", "Projeta o contorno para dentro do sólido até a profundidade especificada"),
+            ('AUTO', "Automático", "Detecta automaticamente entre destacar saliência pela base ou extrair com profundidade"),
+            ('DETACH', "Pela Base", "Destaca a região fechada pelo loop cortando na base"),
+            ('EXTRUDE', "Profundidade", "Projeta o contorno para dentro do sólido até a profundidade especificada"),
         ],
         default='AUTO',
-        description="Comportamento do corte por contorno: automático, destacar parte ou extrair com profundidade",
+        description="Tipo de corte do contorno: automático, pela base ou por profundidade",
         update=_on_param_change_mark_stale,
     )
     loop_extrude_depth_mm: FloatProperty(
@@ -573,13 +573,13 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         default="",
     )
     material_extraction_mode: EnumProperty(
-        name="Modo de Extração",
+        name="Tipo de Corte",
         items=[
-            ('EXTRUDE', "Extrair com Profundidade", "Extrai a região superficial projetando um prisma com a profundidade indicada"),
-            ('BASE', "Destacar Saliência pela Base", "Localiza a base planar da saliência e separa o volume inteiro acima dela"),
+            ('BASE', "Pela Base", "Localiza a base planar da saliência e separa o volume inteiro acima dela"),
+            ('EXTRUDE', "Profundidade", "Extrai a região superficial projetando um prisma com a profundidade indicada"),
         ],
         default='EXTRUDE',
-        description="Comportamento da extração da região por material (C02)",
+        description="Tipo de corte da região por material: pela base ou por profundidade (C02)",
         update=_on_param_change_mark_stale,
     )
     material_interface_mat_mode: EnumProperty(

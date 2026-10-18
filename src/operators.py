@@ -2332,6 +2332,20 @@ class CHEST_OT_splitter_add_manual_connector(bpy.types.Operator):
             except Exception:
                 pass
 
+        # Alinha a visão da Viewport 3D à superfície de corte para facilitar visualização e edição
+        try:
+            from .connector_editor import align_viewport_to_cut_surface
+            area_3d = context.area if (context.area and context.area.type == 'VIEW_3D') else None
+            if not area_3d:
+                for a in context.screen.areas:
+                    if a.type == 'VIEW_3D':
+                        area_3d = a
+                        break
+            if area_3d and prep:
+                align_viewport_to_cut_surface(area_3d, prep, settings, settings.target_object)
+        except Exception:
+            pass
+
         for window in context.window_manager.windows:
             for area in window.screen.areas:
                 if area.type == 'VIEW_3D':

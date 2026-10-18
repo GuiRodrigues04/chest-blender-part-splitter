@@ -485,7 +485,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     )
 
                 row_view = box_manual.row(align=True)
-                row_view.operator("chest.splitter_view_cut_face", text=localize_text("Ver Face de Encaixe"), icon='VIEW_CAMERA')
+                row_view.operator("chest.splitter_view_cut_face", text=localize_text("Alinhar Vista ao Corte (V)"), icon='VIEW_CAMERA')
 
                 if is_editing:
                     box_mode = box_manual.box()

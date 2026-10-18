@@ -251,10 +251,13 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         _EDITOR_STATE["drag_idx"] = -1
         _EDITOR_STATE["hover_world"] = None
 
+        # Alinha automaticamente a visão da Viewport 3D à superfície de corte
+        align_viewport_to_cut_surface(self._area, self._prepared, settings, target)
+
         context.window_manager.modal_handler_add(self)
         self.report(
             {'INFO'},
-            "Editor de Pinos: Clique para adicionar/mover | G: mover | R: girar | X/Del: remover pino | Shift+X: limpar todos | Enter: confirmar | Esc: sair."
+            "Editor de Pinos: Clique para adicionar/mover | G: mover | R: girar | V: alinhar vista | X/Del: remover pino | Shift+X: limpar todos | Enter: confirmar | Esc: sair."
         )
         self._area.tag_redraw()
         return {'RUNNING_MODAL'}
@@ -578,6 +581,13 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                 _EDITOR_STATE["drag_start_v"] = settings.manual_connectors[idx].v_mm
                 return {'RUNNING_MODAL'}
 
+        elif event.type == 'V' and event.value == 'PRESS':
+            # Re-alinha a visualização 3D perpendicularmente ao corte
+            if align_viewport_to_cut_surface(self._area, self._prepared, settings, self._target):
+                self.report({'INFO'}, localize_text("Visão alinhada à face de corte."))
+                self._area.tag_redraw()
+            return {'RUNNING_MODAL'}
+
         elif event.type in {'RET', 'NUMPAD_ENTER'} and event.value == 'PRESS':
             # Confirma posições e dispara geração da prévia
             return self._confirm_and_generate(context)
@@ -734,6 +744,55 @@ class CHEST_OT_splitter_confirm_manual_connectors(bpy.types.Operator):
             return {'CANCELLED'}
 
 
+def align_viewport_to_cut_surface(area, prepared, settings=None, target=None) -> bool:
+    """Orienta a câmera da Viewport 3D perpendicularmente à superfície de corte e enquadra o modelo."""
+    if not area or not prepared:
+        return False
+    if not hasattr(area, "spaces") or not area.spaces.active:
+        return False
+    space = area.spaces.active
+    if space.type != 'VIEW_3D':
+        return False
+    rv3d = getattr(space, "region_3d", None)
+    if not rv3d:
+        return False
+
+    norm = getattr(prepared, "surface_normal", None)
+    if not norm or norm.length < 1e-6:
+        return False
+    norm = norm.normalized()
+
+    v_axis = getattr(prepared, "axis_v", None)
+    if v_axis and v_axis.length > 1e-5 and abs(v_axis.normalized().dot(norm)) < 0.95:
+        up_ref = v_axis.normalized()
+    else:
+        up_ref = Vector((0, 0, 1)) if abs(norm.z) < 0.95 else Vector((0, 1, 0))
+
+    cam_z = norm
+    cam_x = up_ref.cross(norm).normalized()
+    cam_y = cam_z.cross(cam_x).normalized()
+    cam_rot_mat = Matrix((cam_x, cam_y, cam_z)).transposed()
+
+    display_offset = get_explosion_display_offset(settings, prepared) if settings else Vector((0.0, 0.0, 0.0))
+    rv3d.view_rotation = cam_rot_mat.to_quaternion()
+    rv3d.view_location = prepared.surface_origin + display_offset
+
+    span_max = 0.0
+    if getattr(prepared, "interface", None):
+        span_max = max(
+            getattr(prepared.interface, "width_mm", 0.0),
+            getattr(prepared.interface, "height_mm", 0.0)
+        ) / getattr(prepared, "unit_scale", 1000.0)
+    if span_max < 1e-4 and target and hasattr(target, "dimensions"):
+        span_max = max(target.dimensions.x, target.dimensions.y, target.dimensions.z)
+    if span_max < 1e-4:
+        span_max = 0.1
+
+    rv3d.view_distance = max(span_max * 1.6, 0.05)
+    area.tag_redraw()
+    return True
+
+
 class CHEST_OT_splitter_view_cut_face(bpy.types.Operator):
     """Orienta a câmera perpendicularmente à superfície de encaixe e enquadra a área útil (Seção 4.1)"""
     bl_idname = "chest.splitter_view_cut_face"
@@ -759,33 +818,10 @@ class CHEST_OT_splitter_view_cut_face(bpy.types.Operator):
                     area_3d = a
                     break
 
-        if not area_3d or not area_3d.spaces.active:
+        if not area_3d:
             return {'CANCELLED'}
 
-        rv3d = area_3d.spaces.active.region_3d
-        if not rv3d:
-            return {'CANCELLED'}
-
-        norm = prep.surface_normal.normalized()
-        u_axis = prep.axis_u.normalized()
-        v_axis = prep.axis_v.normalized()
-
-        # Matriz de visualização alinhando Z da câmera oposto à normal e Y da câmera alinhado a V
-        cam_z = norm
-        cam_y = v_axis
-        cam_x = cam_y.cross(cam_z).normalized()
-        cam_rot_mat = Matrix((cam_x, cam_y, cam_z)).transposed()
-
-        display_offset = get_explosion_display_offset(settings, prep)
-        rv3d.view_rotation = cam_rot_mat.to_quaternion()
-        rv3d.view_location = prep.surface_origin + display_offset
-
-        # Enquadra distância com base na largura/altura útil
-        span_max = max(prep.interface.width_mm, prep.interface.height_mm) / prep.unit_scale
-        if span_max < 1e-4:
-            span_max = 0.1
-        rv3d.view_distance = span_max * 1.8
-
-        area_3d.tag_redraw()
-        self.report({'INFO'}, localize_text("Câmera alinhada à face de contato."))
-        return {'FINISHED'}
+        if align_viewport_to_cut_surface(area_3d, prep, settings, settings.target_object):
+            self.report({'INFO'}, localize_text("Câmera alinhada à face de contato."))
+            return {'FINISHED'}
+        return {'CANCELLED'}

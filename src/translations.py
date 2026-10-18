@@ -310,6 +310,8 @@ TRANSLATIONS_DICT = {
         ("*", "Parâmetros do Corte pela Base:"): "Parâmetros do Corte pela Base:",
         ("*", "Ajustes de Profundidade"): "Ajustes de Profundidade",
         ("*", "Ajustes de Corte pela Base"): "Ajustes de Corte pela Base",
+        ("*", "Alinhar Vista ao Corte (V)"): "Alinhar Vista ao Corte (V)",
+        ("*", "Visão alinhada à face de corte."): "Visão alinhada à face de corte.",
     },
     "en_US": {
         ("*", "Part Splitter"): "Part Splitter",
@@ -416,6 +418,8 @@ TRANSLATIONS_DICT['en_US'].update({
     ('*', 'Parâmetros do Corte pela Base:'): 'Base Cut Parameters:',
     ('*', 'Ajustes de Profundidade'): 'Depth Settings',
     ('*', 'Ajustes de Corte pela Base'): 'Base Cut Settings',
+    ('*', 'Alinhar Vista ao Corte (V)'): 'Align View to Cut (V)',
+    ('*', 'Visão alinhada à face de corte.'): 'View aligned to cut surface.',
 })
 
 

@@ -745,7 +745,7 @@ class CHEST_OT_splitter_confirm_manual_connectors(bpy.types.Operator):
 
 
 def align_viewport_to_cut_surface(area, prepared, settings=None, target=None) -> bool:
-    """Orienta a câmera da Viewport 3D perpendicularmente à superfície de corte e enquadra o modelo."""
+    """Orienta a câmera da Viewport 3D perpendicularmente à superfície de corte mantendo o horizonte nivelado (sem roll/inclinação)."""
     if not area or not prepared:
         return False
     if not hasattr(area, "spaces") or not area.spaces.active:
@@ -762,15 +762,25 @@ def align_viewport_to_cut_surface(area, prepared, settings=None, target=None) ->
         return False
     norm = norm.normalized()
 
-    v_axis = getattr(prepared, "axis_v", None)
-    if v_axis and v_axis.length > 1e-5 and abs(v_axis.normalized().dot(norm)) < 0.95:
-        up_ref = v_axis.normalized()
+    world_up = Vector((0.0, 0.0, 1.0))
+    if abs(norm.z) > 0.999:
+        if norm.z > 0:
+            # Vista Superior (Top)
+            cam_z = Vector((0.0, 0.0, 1.0))
+            cam_y = Vector((0.0, 1.0, 0.0))
+            cam_x = Vector((1.0, 0.0, 0.0))
+        else:
+            # Vista Inferior (Bottom)
+            cam_z = Vector((0.0, 0.0, -1.0))
+            cam_y = Vector((0.0, 1.0, 0.0))
+            cam_x = Vector((-1.0, 0.0, 0.0))
     else:
-        up_ref = Vector((0, 0, 1)) if abs(norm.z) < 0.95 else Vector((0, 1, 0))
+        # Horizonte estritamente nivelado com a gravidade global do Blender (zero roll):
+        # cam_x é perpendicular à normal e ao eixo Z do mundo, garantindo cam_x.z == 0.0
+        cam_z = norm
+        cam_x = world_up.cross(norm).normalized()
+        cam_y = cam_z.cross(cam_x).normalized()
 
-    cam_z = norm
-    cam_x = up_ref.cross(norm).normalized()
-    cam_y = cam_z.cross(cam_x).normalized()
     cam_rot_mat = Matrix((cam_x, cam_y, cam_z)).transposed()
 
     display_offset = get_explosion_display_offset(settings, prepared) if settings else Vector((0.0, 0.0, 0.0))
@@ -783,12 +793,18 @@ def align_viewport_to_cut_surface(area, prepared, settings=None, target=None) ->
             getattr(prepared.interface, "width_mm", 0.0),
             getattr(prepared.interface, "height_mm", 0.0)
         ) / getattr(prepared, "unit_scale", 1000.0)
-    if span_max < 1e-4 and target and hasattr(target, "dimensions"):
-        span_max = max(target.dimensions.x, target.dimensions.y, target.dimensions.z)
+    target_dim = 0.0
+    if target and hasattr(target, "dimensions"):
+        target_dim = max(target.dimensions.x, target.dimensions.y, target.dimensions.z)
     if span_max < 1e-4:
-        span_max = 0.1
+        span_max = target_dim if target_dim > 1e-4 else 0.1
 
-    rv3d.view_distance = max(span_max * 1.6, 0.05)
+    ref_dim = target_dim if target_dim > 1e-4 else span_max
+    if ref_dim > 1e-4 and (0.3 * ref_dim < rv3d.view_distance < 6.0 * ref_dim):
+        pass  # Mantém a distância confortável atual do usuário
+    else:
+        rv3d.view_distance = max(span_max * 1.8, 0.1)
+
     area.tag_redraw()
     return True
 

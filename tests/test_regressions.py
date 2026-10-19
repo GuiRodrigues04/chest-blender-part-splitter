@@ -28,6 +28,7 @@ contract = importlib.import_module(root.name + ".src.geometry_contract")
 life = importlib.import_module(root.name + ".src.lifecycle")
 state = importlib.import_module(root.name + ".src.scene_state")
 operators = importlib.import_module(root.name + ".src.operators")
+solid_tools = importlib.import_module(root.name + ".src.solid_tools")
 addon.register()
 
 
@@ -493,6 +494,54 @@ class Regressions(unittest.TestCase):
             1e-4,
         )
 
+    def test_vertex_align_edit_mode_flow(self):
+        t, c, *_ = self.solid()
+
+        # Target starts in EDIT mode
+        bpy.ops.object.select_all(action='DESELECT')
+        t.select_set(True)
+        bpy.context.view_layer.objects.active = t
+        bpy.ops.object.mode_set(mode='EDIT')
+        self.assertEqual(t.mode, 'EDIT')
+
+        # 1. Test align_vertices directly when target is in EDIT mode
+        gs.align_vertices(c, t, 0, 3)
+        self.assertLess(
+            ((c.matrix_world @ c.data.vertices[0].co) - (t.matrix_world @ t.data.vertices[3].co)).length,
+            1e-4,
+        )
+        self.assertEqual(t.mode, 'EDIT')
+
+        # 2. Test align_vertices when cutter is in EDIT mode
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.select_all(action='DESELECT')
+        c.select_set(True)
+        bpy.context.view_layer.objects.active = c
+        bpy.ops.object.mode_set(mode='EDIT')
+        self.assertEqual(c.mode, 'EDIT')
+
+        gs.align_vertices(c, t, 0, 2)
+        self.assertLess(
+            ((c.matrix_world @ c.data.vertices[0].co) - (t.matrix_world @ t.data.vertices[2].co)).length,
+            1e-4,
+        )
+
+        # 3. Test operator execution with target active in EDIT mode
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.select_all(action='DESELECT')
+        t.select_set(True)
+        bpy.context.view_layer.objects.active = t
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        res = bpy.ops.chest.splitter_align_solid_vertices(cutter_vertex=0, target_vertex=3)
+        self.assertEqual(res, {"FINISHED"})
+        self.assertLess(
+            ((c.matrix_world @ c.data.vertices[0].co) - (t.matrix_world @ t.data.vertices[3].co)).length,
+            1e-4,
+        )
+        self.assertEqual(bpy.context.active_object, t)
+        self.assertEqual(t.mode, 'EDIT')
+
     def test_solid_nonuniform_scale_gap(self):
         t, c, *_ = self.solid()
         c.scale = (0.8, 1.1, 0.9)
@@ -597,10 +646,25 @@ class Regressions(unittest.TestCase):
         s.target_object = t
         self.assertEqual(bpy.ops.chest.splitter_generate_preview(), {"FINISHED"})
         self.assertEqual(bpy.ops.chest.splitter_commit_parts(), {"FINISHED"})
-        self.assertEqual(s.session_status, "COMMITTED")
+        self.assertEqual(s.target_object.name, "body__B")
+        self.assertEqual(s.session_status, "CONFIGURED")
         self.assertEqual(bpy.ops.chest.splitter_revert_cut(), {"FINISHED"})
         self.assertTrue(state.object_in_scene(t, bpy.context.scene))
         self.assertEqual(len(t.data.vertices), 8)
+
+    def test_commit_auto_target_options(self):
+        s = self.s
+        t = box("part_model", (40, 40, 40))
+        s.target_object = t
+        s.commit_next_target = 'EXTRACTED'
+        self.assertEqual(bpy.ops.chest.splitter_generate_preview(), {"FINISHED"})
+        self.assertEqual(bpy.ops.chest.splitter_commit_parts(), {"FINISHED"})
+        self.assertEqual(s.target_object.name, "part_model__A")
+        self.assertEqual(s.last_committed_part_a, "part_model__A")
+        self.assertEqual(s.last_committed_part_b, "part_model__B")
+        # Quick switch back to Part B
+        self.assertEqual(bpy.ops.chest.splitter_set_target(object_name="part_model__B"), {"FINISHED"})
+        self.assertEqual(s.target_object.name, "part_model__B")
 
     def test_failure_preserves_previous_preview(self):
         self.solid()

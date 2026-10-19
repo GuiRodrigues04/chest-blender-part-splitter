@@ -313,6 +313,27 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         update=_on_target_object_update,
     )
 
+    commit_next_target: EnumProperty(
+        name="Próximo Alvo",
+        items=[
+            ('RECEIVER', "Corpo Remanescente (Parte B)", "Define automaticamente a peça remanescente como novo alvo para o próximo corte"),
+            ('EXTRACTED', "Peça Extraída (Parte A)", "Define automaticamente a peça extraída como novo alvo para o próximo corte"),
+            ('NONE', "Nenhum (Manter Alvo Anterior)", "Não atualiza o alvo automaticamente"),
+        ],
+        default='RECEIVER',
+        description="Escolhe qual peça gerada se torna o novo alvo após confirmar a divisão",
+    )
+    last_committed_part_a: StringProperty(
+        name="Última Parte A",
+        default="",
+        description="Nome da última Parte A confirmada no corte",
+    )
+    last_committed_part_b: StringProperty(
+        name="Última Parte B",
+        default="",
+        description="Nome da última Parte B confirmada no corte",
+    )
+
 
     split_mode: EnumProperty(
         name="Modo de Divisão",

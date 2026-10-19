@@ -670,19 +670,43 @@ class CHEST_OT_splitter_set_target(bpy.types.Operator):
     bl_label = "Usar objeto selecionado como alvo"
     bl_options = {'REGISTER', 'UNDO'}
 
+    object_name: bpy.props.StringProperty(
+        name="Nome do Objeto",
+        default="",
+        description="Nome do objeto a ser definido como alvo (opcional)",
+    )
+
     @classmethod
     def poll(cls, context):
-        return context.active_object and context.active_object.type == 'MESH'
+        if context.active_object and context.active_object.type == 'MESH':
+            return True
+        return hasattr(context, "scene") and bool(context.scene)
 
     def execute(self, context):
         stop_connector_editor(context.scene)
         settings = context.scene.chest_splitter
-        obj = context.active_object
+        obj = None
+        if self.object_name:
+            obj = context.scene.objects.get(self.object_name) or bpy.data.objects.get(self.object_name)
+        if obj is None:
+            obj = context.active_object
+
+        if not obj or obj.type != 'MESH':
+            msg = report_msg("Nenhum objeto malha válido selecionado.", "No valid mesh object selected.")
+            self.report({'WARNING'}, msg)
+            return {'CANCELLED'}
 
         # Preserva seleção e modo
         orig_mode = context.mode
         if orig_mode != 'OBJECT' and bpy.ops.object.mode_set.poll():
             bpy.ops.object.mode_set(mode='OBJECT')
+
+        try:
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            context.view_layer.objects.active = obj
+        except Exception:
+            pass
 
         settings.target_object = obj
 
@@ -2656,6 +2680,9 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
         final_name_a = f"{base_name}{PART_A_SUFFIX}"
         final_name_b = f"{base_name}{PART_B_SUFFIX}"
 
+        settings.last_committed_part_a = final_name_a
+        settings.last_committed_part_b = final_name_b
+
         # Reseta localizações para posição montada original (INV-004)
         obj_a.location = Vector(obj_a.get("chest_assembled_loc", (0.0, 0.0, 0.0)))
         obj_b.location = Vector(obj_b.get("chest_assembled_loc", (0.0, 0.0, 0.0)))
@@ -2715,14 +2742,8 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
             target.hide_viewport = True
             target.hide_set(True)
 
-        # Seleciona EXCLUSIVAMENTE a peça extraída por papel semântico (DEV-08)
         extracted_obj = obj_b if getattr(settings, "invert_sides", False) else obj_a
-        try:
-            bpy.ops.object.select_all(action='DESELECT')
-            extracted_obj.select_set(True)
-            context.view_layer.objects.active = extracted_obj
-        except Exception:
-            pass
+        receiver_obj = obj_a if getattr(settings, "invert_sides", False) else obj_b
 
         # Informa e alerta se a edição proporcional estiver ativa (DEV-08)
         prop_warning = ""
@@ -2743,15 +2764,75 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
                 if guide_obj:
                     guide_obj.hide_viewport = True
 
-        settings.session_status = 'COMMITTED'
         stop_connector_editor(context.scene)
-        msg = report_msg(
-            f"Corte confirmado! Peças finais: '{final_name_a}' e '{final_name_b}'. Peça extraída selecionada. Use G para mover.{prop_warning}",
-            f"Cut confirmed! Final parts: '{final_name_a}' and '{final_name_b}'. Extracted part selected. Use G to move.{prop_warning}"
-        )
-        settings.last_status = msg
-        settings.last_status_level = 'SUCCESS' if not prop_warning else 'WARNING'
-        self.report({'INFO'}, msg)
+
+        # Determina o próximo alvo conforme preferência do usuário (commit_next_target)
+        choice = getattr(settings, "commit_next_target", 'RECEIVER')
+        if choice == 'RECEIVER':
+            new_target = receiver_obj
+        elif choice == 'EXTRACTED':
+            new_target = extracted_obj
+        else:
+            new_target = None
+
+        if new_target:
+            try:
+                bpy.ops.object.select_all(action='DESELECT')
+                new_target.select_set(True)
+                context.view_layer.objects.active = new_target
+            except Exception:
+                pass
+
+            settings.target_object = new_target
+            settings.parent_operation_id = new_target.get("chest_operation_id", "") or settings.session_id
+            settings.session_id = ""
+            settings.session_status = 'CONFIGURED'
+            from .geometry_loop import clear_capture
+            clear_capture(settings, reason="commit_auto_target")
+
+            report = analyze_target_mesh(new_target, context.scene)
+            settings.diag_dims_mm = report["dims_mm"]
+            settings.diag_triangles = report["triangles"]
+            settings.diag_faces = report["faces"]
+            settings.diag_volume_mm3 = report["volume_mm3"]
+            settings.diag_is_manifold = report["is_manifold"]
+            settings.diag_non_manifold_edges = report["non_manifold_edges"]
+            settings.diag_has_unapplied_scale = report["has_unapplied_scale"]
+            settings.diag_is_non_uniform_scale = report["is_non_uniform_scale"]
+            settings.diag_degenerate_faces = report["degenerate_faces"]
+
+            guide_obj = ensure_plane_guide(context)
+            if guide_obj:
+                guide_obj.hide_viewport = False
+                center, _ = get_target_bounds(new_target)
+                guide_obj.location = center
+                context.view_layer.update()
+                read_plane_geometry(context)
+
+            dims = report["dims_mm"]
+            msg = report_msg(
+                f"Corte confirmado! Novo alvo atualizado para '{new_target.name}' ({dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm). Pronto para o próximo corte.{prop_warning}",
+                f"Cut confirmed! New target updated to '{new_target.name}' ({dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm). Ready for next cut.{prop_warning}"
+            )
+            settings.last_status = msg
+            settings.last_status_level = 'SUCCESS' if not prop_warning else 'WARNING'
+            self.report({'INFO'}, msg)
+        else:
+            try:
+                bpy.ops.object.select_all(action='DESELECT')
+                extracted_obj.select_set(True)
+                context.view_layer.objects.active = extracted_obj
+            except Exception:
+                pass
+
+            settings.session_status = 'COMMITTED'
+            msg = report_msg(
+                f"Corte confirmado! Peças finais: '{final_name_a}' e '{final_name_b}'. Peça extraída selecionada. Use G para mover.{prop_warning}",
+                f"Cut confirmed! Final parts: '{final_name_a}' and '{final_name_b}'. Extracted part selected. Use G to move.{prop_warning}"
+            )
+            settings.last_status = msg
+            settings.last_status_level = 'SUCCESS' if not prop_warning else 'WARNING'
+            self.report({'INFO'}, msg)
 
         return {'FINISHED'}
 

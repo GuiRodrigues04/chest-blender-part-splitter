@@ -439,12 +439,30 @@ def slice_mesh_by_solid(
 
 def align_vertices(cutter, target, cutter_index, target_index):
     """World translation only; also works with parent transforms and unapplied scale."""
-    if not (0 <= cutter_index < len(cutter.data.vertices) and 0 <= target_index < len(target.data.vertices)):
-        raise ValueError("Selecione um vértice válido em cada objeto.")
-    source = cutter.matrix_world @ cutter.data.vertices[cutter_index].co
-    destination = target.matrix_world @ target.data.vertices[target_index].co
+    if cutter.mode == 'EDIT':
+        bm_c = bmesh.from_edit_mesh(cutter.data)
+        bm_c.verts.ensure_lookup_table()
+        if not (0 <= cutter_index < len(bm_c.verts)):
+            raise ValueError("Selecione um vértice válido no cortador.")
+        source = cutter.matrix_world @ bm_c.verts[cutter_index].co
+    else:
+        if not (0 <= cutter_index < len(cutter.data.vertices)):
+            raise ValueError("Selecione um vértice válido no cortador.")
+        source = cutter.matrix_world @ cutter.data.vertices[cutter_index].co
+
+    if target.mode == 'EDIT':
+        bm_t = bmesh.from_edit_mesh(target.data)
+        bm_t.verts.ensure_lookup_table()
+        if not (0 <= target_index < len(bm_t.verts)):
+            raise ValueError("Selecione um vértice válido no alvo.")
+        destination = target.matrix_world @ bm_t.verts[target_index].co
+    else:
+        if not (0 <= target_index < len(target.data.vertices)):
+            raise ValueError("Selecione um vértice válido no alvo.")
+        destination = target.matrix_world @ target.data.vertices[target_index].co
+
     matrix = cutter.matrix_world.copy()
-    matrix.translation += destination-source
+    matrix.translation += destination - source
     cutter.matrix_world = matrix
 
 

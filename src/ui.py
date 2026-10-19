@@ -36,6 +36,47 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
         row_set = box_target.row(align=True)
         row_set.operator("chest.splitter_set_target", text=localize_text("Usar selecionado como alvo"), icon='EYEDROPPER')
 
+        active_obj = context.active_object
+        if active_obj and active_obj.type == 'MESH' and active_obj != obj:
+            row_active = box_target.row(align=True)
+            row_active.alert = True
+            lbl_use_active = "Set Selected as Target" if loc == 'en_US' else "Definir Selecionado como Alvo"
+            op = row_active.operator(
+                "chest.splitter_set_target",
+                text=f"{lbl_use_active}: {active_obj.name}",
+                icon='CHECKMARK'
+            )
+            op.object_name = active_obj.name
+
+        part_a_name = getattr(settings, "last_committed_part_a", "")
+        part_b_name = getattr(settings, "last_committed_part_b", "")
+        has_part_a = bool(part_a_name and (part_a_name in scene.objects or part_a_name in bpy.data.objects))
+        has_part_b = bool(part_b_name and (part_b_name in scene.objects or part_b_name in bpy.data.objects))
+        if has_part_a or has_part_b:
+            row_parts = box_target.row(align=True)
+            lbl_switch = "Switch Part:" if loc == 'en_US' else "Alternar Peça:"
+            row_parts.label(text=lbl_switch, icon='SNAP_VOLUME')
+            if has_part_a:
+                lbl_pa = f"Part A ({part_a_name})" if loc == 'en_US' else f"Parte A ({part_a_name})"
+                is_curr_a = bool(obj and obj.name == part_a_name)
+                op_a = row_parts.operator(
+                    "chest.splitter_set_target",
+                    text=lbl_pa,
+                    icon='CHECKMARK' if is_curr_a else 'BLANK1',
+                    depress=is_curr_a
+                )
+                op_a.object_name = part_a_name
+            if has_part_b:
+                lbl_pb = f"Part B ({part_b_name})" if loc == 'en_US' else f"Parte B ({part_b_name})"
+                is_curr_b = bool(obj and obj.name == part_b_name)
+                op_b = row_parts.operator(
+                    "chest.splitter_set_target",
+                    text=lbl_pb,
+                    icon='CHECKMARK' if is_curr_b else 'BLANK1',
+                    depress=is_curr_b
+                )
+                op_b.object_name = part_b_name
+
         if obj:
             row_target_info = box_target.row(align=True)
             lbl_target = "Target" if loc == 'en_US' else "Alvo"
@@ -743,6 +784,9 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             box_commit.label(text=localize_text("5. Criar Peças"), icon='MOD_SOLIDIFY')
 
             if settings.session_status == 'PREVIEW_VALID':
+                row_choice = box_commit.row(align=True)
+                row_choice.prop(settings, "commit_next_target", text=localize_text("Próximo Alvo"))
+
                 row_commit = box_commit.row()
                 row_commit.scale_y = 1.4
                 row_commit.operator("chest.splitter_commit_parts", text=localize_text("Confirmar Divisão"), icon='CHECKMARK')
@@ -772,6 +816,11 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 else:
                     hint_text = "Posicione o cortador e clique em 'Gerar / Atualizar Prévia'." if settings.split_mode == 'SOLID' else "Posicione o plano ou contorno e clique em 'Gerar / Atualizar Prévia'."
                 box_commit.label(text=hint_text, icon='INFO')
+                has_ops = bool(getattr(scene, "chest_operations", None) and any(rec.status == 'COMMITTED' for rec in scene.chest_operations))
+                if has_ops:
+                    row_revert = box_commit.row()
+                    row_revert.scale_y = 1.1
+                    row_revert.operator("chest.splitter_revert_cut", text=localize_text("Reverter último corte"), icon='LOOP_BACK')
 
         # --- SEÇÃO 6: EXPORTAÇÃO PARA IMPRESSÃO 3D ---
         if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):

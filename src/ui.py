@@ -317,6 +317,16 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 row_pick.operator("chest.splitter_select_existing_cutter", text=localize_text("Usar Selecionado"), icon='EYEDROPPER')
                 row_pick.operator("chest.splitter_copy_selected_as_cutter", text=localize_text("Copiar Selecionado"), icon='DUPLICATE')
 
+            # Gerar Cortador da Malha (Faces / Quinas / Contorno)
+            box_gen = box_solid.box()
+            row_gen_head = box_gen.row(align=True)
+            row_gen_head.label(text=localize_text("Gerar Cortador da Malha:"), icon='MOD_SOLIDIFY')
+            row_gen_head.operator("chest.splitter_edit_target", text=localize_text("Editar Alvo"), icon='EDITMODE_HLT')
+
+            row_gen_btns = box_gen.row(align=True)
+            row_gen_btns.operator("chest.splitter_create_cutter_from_selection", text=localize_text("Desta Seleção"), icon='MOD_SOLIDIFY')
+            row_gen_btns.operator("chest.splitter_create_corner_box_cutter", text=localize_text("Caixa para Quina"), icon='MESH_CUBE')
+
             # Ações e Alinhamento do Cortador
             cutter = settings.solid_cutter_object
             from .scene_state import object_in_scene

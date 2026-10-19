@@ -1441,9 +1441,16 @@ class CHEST_OT_splitter_create_cutter_from_selection(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        settings = context.scene.chest_splitter
-        return (settings.target_object is not None and
-                (settings.loop_is_captured or settings.split_mode == 'MATERIAL'))
+        settings = getattr(context.scene, "chest_splitter", None)
+        return (settings is not None and
+                settings.target_object is not None and
+                (settings.loop_is_captured or settings.split_mode in ('MATERIAL', 'SOLID')))
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "depth_mm", text=localize_text("Profundidade (mm)"))
+        layout.prop(self, "outer_extension_mm", text=localize_text("Extensão Exterior (mm)"))
+        layout.prop(self, "invert_direction", text=localize_text("Inverter Direção"))
 
     def execute(self, context):
         settings = context.scene.chest_splitter
@@ -1454,6 +1461,15 @@ class CHEST_OT_splitter_create_cutter_from_selection(bpy.types.Operator):
 
         col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
         prism_name = f"Prism_Cutter_{target.name}"
+
+        # Remove versão anterior se existir na coleção de guias
+        old_prism = col.objects.get(prism_name)
+        if old_prism:
+            old_mesh = old_prism.data if old_prism.type == 'MESH' else None
+            col.objects.unlink(old_prism)
+            bpy.data.objects.remove(old_prism, do_unlink=True)
+            if old_mesh and old_mesh.users == 0:
+                bpy.data.meshes.remove(old_mesh, do_unlink=True)
 
         if settings.split_mode == 'MATERIAL':
             from .geometry_material import create_material_patch_prism_cutter, analyze_material_structure
@@ -1489,6 +1505,139 @@ class CHEST_OT_splitter_create_cutter_from_selection(bpy.types.Operator):
             except Exception as e:
                 self.report({'ERROR'}, report_msg(f"Não foi possível gerar prisma de material: {str(e)}", f"Could not generate material prism: {str(e)}"))
                 return {'CANCELLED'}
+
+        elif settings.split_mode == 'SOLID':
+            from .geometry_material import create_material_patch_prism_cutter
+            from .geometry_loop import capture_edge_loop, analyze_loop_region, create_loop_prism_cutter
+
+            # Atualiza dados se estiver no modo de edição
+            if target.mode == 'EDIT':
+                try:
+                    target.update_from_editmode()
+                except Exception:
+                    pass
+
+            # Identifica elementos selecionados
+            sel_faces = []
+            sel_edges = []
+            if target.mode == 'EDIT':
+                bm_edit = bmesh.from_edit_mesh(target.data)
+                sel_faces = [f.index for f in bm_edit.faces if f.select]
+                sel_edges = [e.index for e in bm_edit.edges if e.select]
+            else:
+                sel_faces = [f.index for f in target.data.polygons if f.select]
+                sel_edges = [e.index for e in target.data.edges if e.select]
+
+            if sel_faces:
+                # Caso 1: Faces selecionadas (Prioridade para corte prismático por faces)
+                bm_temp = bmesh.new()
+                if target.mode == 'EDIT':
+                    bm_temp = bmesh.from_edit_mesh(target.data).copy()
+                else:
+                    bm_temp.from_mesh(target.data)
+                bm_temp.faces.ensure_lookup_table()
+
+                norm_mat = target.matrix_world.to_3x3().inverted().transposed()
+                avg_norm = Vector((0.0, 0.0, 0.0))
+                for fi in sel_faces:
+                    if fi < len(bm_temp.faces):
+                        avg_norm += (norm_mat @ bm_temp.faces[fi].normal).normalized()
+                bm_temp.free()
+
+                if avg_norm.length < 1e-6:
+                    avg_norm = Vector((0.0, 0.0, 1.0))
+                else:
+                    avg_norm.normalize()
+
+                inward_dir = -avg_norm if not self.invert_direction else avg_norm
+                try:
+                    prism_obj = create_material_patch_prism_cutter(
+                        obj=target,
+                        region_face_indices=sel_faces,
+                        inward_dir=inward_dir,
+                        depth_bu=depth_bu,
+                        outward_ext_bu=outer_bu,
+                        name=prism_name,
+                    )
+                except Exception as e:
+                    self.report({'ERROR'}, report_msg(f"Não foi possível gerar prisma a partir das faces selecionadas: {str(e)}", f"Could not generate prism from selected faces: {str(e)}"))
+                    return {'CANCELLED'}
+
+            elif sel_edges:
+                # Caso 2: Arestas selecionadas (Contorno de arestas)
+                success, indices, is_planar, dev_mm, err_msg = capture_edge_loop(target)
+                if not success:
+                    self.report({'ERROR'}, report_msg(f"Seleção de arestas inválida para contorno: {err_msg}", f"Invalid edge loop selection: {err_msg}"))
+                    return {'CANCELLED'}
+                if not is_planar:
+                    self.report({'ERROR'}, report_msg(f"O contorno de arestas não é planar (desvio {dev_mm:.2f} mm > 0.15 mm).", f"Edge loop is not planar (deviation {dev_mm:.2f} mm > 0.15 mm)."))
+                    return {'CANCELLED'}
+                settings.loop_vertex_indices = ",".join(str(i) for i in indices)
+                settings.loop_is_planar = True
+                settings.loop_is_captured = True
+                settings.loop_planar_deviation_mm = dev_mm
+
+                try:
+                    analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, scene=context.scene)
+                    coords_world = analysis.get("coords_world", [])
+                    inward_dir = analysis.get("inward_dir_world", Vector((0.0, 0.0, -1.0)))
+                    if self.invert_direction:
+                        inward_dir = -inward_dir
+                    prism_obj = create_loop_prism_cutter(
+                        coords_world=coords_world,
+                        inward_dir=inward_dir,
+                        depth_bu=depth_bu,
+                        outward_ext_bu=outer_bu,
+                        name=prism_name,
+                    )
+                except Exception as e:
+                    self.report({'ERROR'}, report_msg(f"Não foi possível gerar prisma de contorno: {str(e)}", f"Could not generate loop prism: {str(e)}"))
+                    return {'CANCELLED'}
+
+            elif settings.loop_is_captured and settings.loop_is_planar:
+                # Caso 3: Loop capturado anteriormente
+                from .geometry_loop import create_loop_prism_cutter, analyze_loop_region
+                try:
+                    indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i.strip()]
+                    analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, scene=context.scene)
+                    coords_world = analysis.get("coords_world", [])
+                    inward_dir = analysis.get("inward_dir_world", Vector((0.0, 0.0, -1.0)))
+                    if self.invert_direction:
+                        inward_dir = -inward_dir
+                    prism_obj = create_loop_prism_cutter(
+                        coords_world=coords_world,
+                        inward_dir=inward_dir,
+                        depth_bu=depth_bu,
+                        outward_ext_bu=outer_bu,
+                        name=prism_name,
+                    )
+                except Exception as e:
+                    self.report({'ERROR'}, report_msg(f"Não foi possível gerar prisma de contorno: {str(e)}", f"Could not generate loop prism: {str(e)}"))
+                    return {'CANCELLED'}
+
+            else:
+                # Caso 4: Nada selecionado
+                if target.mode != 'EDIT':
+                    try:
+                        bpy.ops.object.select_all(action='DESELECT')
+                        target.select_set(True)
+                        context.view_layer.objects.active = target
+                        bpy.ops.object.mode_set(mode='EDIT')
+                        self.report({'INFO'}, report_msg(
+                            "Modo de Edição ativado. Selecione as faces desejadas (ou um contorno de arestas) e clique novamente.",
+                            "Edit Mode activated. Select the desired faces (or an edge loop) and click again."
+                        ))
+                        return {'FINISHED'}
+                    except Exception as e:
+                        self.report({'WARNING'}, report_msg(f"Não foi possível entrar no Modo de Edição: {e}", f"Could not enter Edit Mode: {e}"))
+                        return {'CANCELLED'}
+                else:
+                    self.report({'WARNING'}, report_msg(
+                        "Selecione uma ou mais faces (ou um contorno fechado de arestas) no modelo para gerar o cortador.",
+                        "Select one or more faces (or a closed edge loop) on the model to generate the cutter."
+                    ))
+                    return {'CANCELLED'}
+
         else:
             if not settings.loop_is_planar:
                 self.report({'ERROR'}, report_msg("A seleção de contorno não é planar (desvio > 0.15 mm). Selecione um contorno planar.", "Loop selection is not planar (deviation > 0.15 mm). Select a planar loop."))
@@ -1525,6 +1674,9 @@ class CHEST_OT_splitter_create_cutter_from_selection(bpy.types.Operator):
         settings.solid_source = 'EXISTING'
         settings.solid_cutter_object = prism_obj
 
+        if settings.session_status == 'PREVIEW_VALID':
+            settings.session_status = 'PREVIEW_STALE'
+
         try:
             bpy.ops.object.mode_set(mode='OBJECT')
         except Exception:
@@ -1551,13 +1703,26 @@ class CHEST_OT_splitter_create_corner_box_cutter(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        settings = context.scene.chest_splitter
-        return settings.target_object is not None
+        settings = getattr(context.scene, "chest_splitter", None)
+        return settings is not None and settings.target_object is not None
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "size_x_mm", text=localize_text("Largura (X mm)"))
+        layout.prop(self, "size_y_mm", text=localize_text("Altura (Y mm)"))
+        layout.prop(self, "size_z_mm", text=localize_text("Profundidade (Z mm)"))
 
     def execute(self, context):
         settings = context.scene.chest_splitter
         target = settings.target_object
         unit_scale = get_scene_scale_to_mm(context.scene)
+
+        # Atualiza dados se estiver no modo de edição
+        if target.mode == 'EDIT':
+            try:
+                target.update_from_editmode()
+            except Exception:
+                pass
 
         bm = bmesh.new()
         if target.mode == 'EDIT':
@@ -1569,6 +1734,19 @@ class CHEST_OT_splitter_create_corner_box_cutter(bpy.types.Operator):
         sel_faces = [f for f in bm.faces if f.select]
         if len(sel_faces) != 3:
             bm.free()
+            if len(sel_faces) == 0 and target.mode != 'EDIT':
+                try:
+                    bpy.ops.object.select_all(action='DESELECT')
+                    target.select_set(True)
+                    context.view_layer.objects.active = target
+                    bpy.ops.object.mode_set(mode='EDIT')
+                    self.report({'INFO'}, report_msg(
+                        "Modo de Edição ativado. Selecione exatamente as 3 faces que formam a quina e clique novamente em Caixa para Quina.",
+                        "Edit Mode activated. Select exactly the 3 faces forming the corner and click Corner Box again."
+                    ))
+                    return {'FINISHED'}
+                except Exception:
+                    pass
             self.report({'WARNING'}, report_msg("Selecione exatamente 3 faces que formam a quina regular.", "Select exactly 3 faces that form the regular corner."))
             return {'CANCELLED'}
 
@@ -1616,12 +1794,21 @@ class CHEST_OT_splitter_create_corner_box_cutter(bpy.types.Operator):
         center_world = corner_pt + rot_mat @ center_local
 
         col = get_or_create_collection(context.scene, COLLECTION_GUIDES_NAME)
+        box_name = f"{SOLID_CUTTER_NAME}_CornerBox"
+        old_box = col.objects.get(box_name)
+        if old_box:
+            old_mesh = old_box.data if old_box.type == 'MESH' else None
+            col.objects.unlink(old_box)
+            bpy.data.objects.remove(old_box, do_unlink=True)
+            if old_mesh and old_mesh.users == 0:
+                bpy.data.meshes.remove(old_mesh, do_unlink=True)
+
         mesh_data = create_primitive_cutter_mesh(
-            name=f"{SOLID_CUTTER_NAME}_CornerBox_Mesh",
+            name=f"{box_name}_Mesh",
             primitive_type='BOX',
             dims=box_dims,
         )
-        box_obj = bpy.data.objects.new(f"{SOLID_CUTTER_NAME}_CornerBox", mesh_data)
+        box_obj = bpy.data.objects.new(box_name, mesh_data)
         box_obj.matrix_world = Matrix.LocRotScale(center_world, rot_mat.to_quaternion(), Vector((1, 1, 1)))
         box_obj["chest_align_anchor_local"] = tuple(-center_local)
         box_obj["chest_align_ref_pos"] = tuple(corner_pt)
@@ -1632,6 +1819,9 @@ class CHEST_OT_splitter_create_corner_box_cutter(bpy.types.Operator):
         settings.split_mode = 'SOLID'
         settings.solid_source = 'EXISTING'
         settings.solid_cutter_object = box_obj
+
+        if settings.session_status == 'PREVIEW_VALID':
+            settings.session_status = 'PREVIEW_STALE'
 
         try:
             bpy.ops.object.mode_set(mode='OBJECT')
@@ -2171,6 +2361,10 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             update_preview_positions(context.scene)
             target.hide_viewport = True
             target.hide_set(True)
+            target.select_set(False)
+            if candidate_obj_b and candidate_obj_b.name in bpy.data.objects:
+                candidate_obj_b.select_set(True)
+                context.view_layer.objects.active = candidate_obj_b
 
             if settings.connector_enabled:
                 from .connector_surface import cache_prepared_interface
@@ -2741,6 +2935,7 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
         if target and target.name in bpy.data.objects:
             target.hide_viewport = True
             target.hide_set(True)
+            target.select_set(False)
 
         extracted_obj = obj_b if getattr(settings, "invert_sides", False) else obj_a
         receiver_obj = obj_a if getattr(settings, "invert_sides", False) else obj_b

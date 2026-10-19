@@ -4,7 +4,12 @@ from pathlib import Path
 import zipfile
 
 root = Path(__file__).resolve().parents[1]
-output = root / "dist" / "chest_part_splitter-0.8.13.zip"
+# Read version from blender_manifest.toml
+import re
+manifest = (root / "blender_manifest.toml").read_text(encoding="utf-8")
+m = re.search(r'^\s*version\s*=\s*"([^"]+)"', manifest, re.MULTILINE)
+version = m.group(1) if m else "0.8.14"
+output = root / "dist" / f"chest_part_splitter-{version}.zip"
 output.parent.mkdir(exist_ok=True)
 files = [
     root / n

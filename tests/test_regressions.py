@@ -991,6 +991,77 @@ class Regressions(unittest.TestCase):
             self.assertAlmostEqual(mat.col[0].z, 0.0, places=4)  # cam_x.z == 0 garante zero roll
             self.assertGreaterEqual(mat.col[1].z, -1e-4)        # cam_y.z >= 0 garante up positivo
 
+    def test_solid_cut_clean_corner_subtraction(self):
+        """Verifica se o corte por sólido subtrai completamente a quina do corpo B (sem deixar faces residuais intactas)."""
+        # Cria cubo alvo de 40mm usando o helper box
+        target = box("TestCube", (40, 40, 40))
+
+        # Seleciona as 3 faces da quina superior (+X, +Y, +Z)
+        for p in target.data.polygons:
+            p.select = (p.normal.x > 0.9 or p.normal.y > 0.9 or p.normal.z > 0.9)
+
+        settings = bpy.context.scene.chest_splitter
+        settings.target_object = target
+        settings.split_mode = 'SOLID'
+        settings.part_clearance_mm = 0.0
+
+        res_cutter = bpy.ops.chest.splitter_create_corner_box_cutter(size_x_mm=15.0, size_y_mm=15.0, size_z_mm=15.0)
+        self.assertEqual(res_cutter, {'FINISHED'})
+
+        res_preview = bpy.ops.chest.splitter_generate_preview()
+        self.assertEqual(res_preview, {'FINISHED'})
+
+        obj_a = bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_A")
+        obj_b = bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_B")
+        self.assertIsNotNone(obj_a)
+        self.assertIsNotNone(obj_b)
+
+        # O alvo deve estar oculto e desmarcado
+        self.assertTrue(target.hide_viewport)
+        self.assertFalse(target.select_get())
+
+        # Volumes calculados: Part A = 15^3 = 3375 mm^3, Part B = 40^3 - 3375 = 60625 mm^3
+        self.assertAlmostEqual(settings.part_a_volume_mm3, 3375.0, delta=1.0)
+        self.assertAlmostEqual(settings.part_b_volume_mm3, 60625.0, delta=1.0)
+
+        # O vértice da quina (20, 20, 20) deve estar na Parte A e NÃO na Parte B
+        has_corner_a = any(v.co.x > 19.9 and v.co.y > 19.9 and v.co.z > 19.9 for v in obj_a.data.vertices)
+        has_corner_b = any(v.co.x > 19.9 and v.co.y > 19.9 and v.co.z > 19.9 for v in obj_b.data.vertices)
+        self.assertTrue(has_corner_a, "Parte A deve conter o vértice da quina cortada.")
+        self.assertFalse(has_corner_b, "Parte B ainda contém o vértice da quina cortada (falha na subtração booleana).")
+
+    def test_solid_create_cutter_from_selected_faces(self):
+        """Verifica a criação de cortador sólido prismático a partir de faces selecionadas no modo SOLID."""
+        target = box("TargetFaceCube", (40, 40, 40))
+        # Seleciona apenas a face superior (+Z)
+        for p in target.data.polygons:
+            p.select = (p.normal.z > 0.9)
+
+        settings = bpy.context.scene.chest_splitter
+        settings.target_object = target
+        settings.split_mode = 'SOLID'
+        settings.part_clearance_mm = 0.0
+
+        res_cutter = bpy.ops.chest.splitter_create_cutter_from_selection(depth_mm=10.0, outer_extension_mm=1.0)
+        self.assertEqual(res_cutter, {'FINISHED'})
+        self.assertIsNotNone(settings.solid_cutter_object)
+        self.assertEqual(settings.solid_source, 'EXISTING')
+
+        # Gera prévia
+        res_preview = bpy.ops.chest.splitter_generate_preview()
+        self.assertEqual(res_preview, {'FINISHED'})
+        self.assertEqual(settings.session_status, 'PREVIEW_VALID')
+
+        obj_a = bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_A")
+        obj_b = bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_B")
+        self.assertIsNotNone(obj_a)
+        self.assertIsNotNone(obj_b)
+
+        # Part A volume: 40 * 40 * 10 = 16,000 mm^3
+        # Part B volume: 40 * 40 * 30 = 48,000 mm^3
+        self.assertAlmostEqual(settings.part_a_volume_mm3, 16000.0, delta=10.0)
+        self.assertAlmostEqual(settings.part_b_volume_mm3, 48000.0, delta=10.0)
+
 
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(Regressions)

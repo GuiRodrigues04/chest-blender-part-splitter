@@ -1166,7 +1166,8 @@ def create_loop_prism_cutter(
         # Tampa inferior: normal para fora (a favor de inward_dir)
         bm.faces.new((bot_verts[t[0]], bot_verts[t[1]], bot_verts[t[2]]))
 
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    from .geometry_solid import ensure_solid_outward_normals
+    ensure_solid_outward_normals(bm)
 
     mesh = bpy.data.meshes.new(f"{name}_Mesh")
     bm.to_mesh(mesh)

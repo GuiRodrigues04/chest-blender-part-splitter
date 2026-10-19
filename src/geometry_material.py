@@ -438,7 +438,8 @@ def create_material_patch_prism_cutter(
     bm_src.free()
 
     bmesh.ops.triangulate(bm_prism, faces=bm_prism.faces[:])
-    bmesh.ops.recalc_face_normals(bm_prism, faces=bm_prism.faces[:])
+    from .geometry_solid import ensure_solid_outward_normals
+    ensure_solid_outward_normals(bm_prism)
 
     # Validação do cortador antes de qualquer operação booleana (D01)
     scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)

@@ -4,10 +4,10 @@ import zipfile
 import bpy
 
 repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-zip_path = os.path.join(repo_root, "dist", "chest_part_splitter-0.8.13.zip")
+zip_path = os.path.join(repo_root, "dist", "chest_part_splitter-0.8.14.zip")
 target_dir = os.path.expanduser(r"~\AppData\Roaming\Blender Foundation\Blender\5.2\extensions\user_default\chest_part_splitter")
 
-print(f"--- INSTALLING CHEST PART SPLITTER 0.8.13 ---")
+print(f"--- INSTALLING CHEST PART SPLITTER 0.8.14 ---")
 print(f"Source ZIP: {zip_path}")
 print(f"Target Directory: {target_dir}")
 

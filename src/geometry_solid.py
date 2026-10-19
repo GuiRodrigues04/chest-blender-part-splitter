@@ -116,6 +116,19 @@ def create_bmesh_capsule(
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
 
 
+def ensure_solid_outward_normals(bm: bmesh.types.BMesh) -> None:
+    """Garante que todas as faces de uma malha fechada tenham normais apontando para o exterior."""
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bm.normal_update()
+    if not bm.verts or not bm.faces:
+        return
+    center = sum((v.co for v in bm.verts), Vector()) / float(len(bm.verts))
+    signed_vol = sum(f.normal.dot(f.calc_center_median() - center) * f.calc_area() for f in bm.faces)
+    if signed_vol < 0:
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+        bm.normal_update()
+
+
 def create_primitive_cutter_mesh(
     name: str,
     primitive_type: str,
@@ -174,7 +187,7 @@ def create_primitive_cutter_mesh(
         bmesh.ops.create_cube(bm, size=1.0)
         bmesh.ops.scale(bm, vec=Vector((dx, dy, dz)), verts=bm.verts[:])
 
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    ensure_solid_outward_normals(bm)
 
     mesh_data = bpy.data.meshes.new(name)
     bm.to_mesh(mesh_data)
@@ -277,7 +290,7 @@ def _cutter_snapshot(cutter, offset_bu, scene):
     try:
         bm.from_mesh(mesh)
         bm.transform(cutter.matrix_world)
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        ensure_solid_outward_normals(bm)
         if not bm.faces or not all(e.is_manifold for e in bm.edges) or abs(bm.calc_volume()) < 1e-18:
             raise SolidCutterValidationError("A malha avaliada do cortador deve ser um sólido fechado.")
         planes = [(f.index, f.verts[0].co.copy(), f.normal.copy(), (f.verts[1].co-f.verts[0].co).normalized()) for f in bm.faces]
@@ -294,7 +307,7 @@ def _cutter_snapshot(cutter, offset_bu, scene):
                 changes.append((vert, Vector(delta)))
             for vert, delta in changes:
                 vert.co += delta
-            bm.normal_update()
+            ensure_solid_outward_normals(bm)
             if any(abs((v.co-p).dot(n)-offset_bu) > max(1e-7, abs(offset_bu)*0.02)
                    for (idx,p,n,u), f in zip(planes, bm.faces) for v in f.verts):
                 raise SolidSliceError("A folga deformaria uma face do cortador.")

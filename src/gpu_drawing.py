@@ -135,15 +135,24 @@ def _draw_loop_overlay(context, settings):
         pass
 
 
+_CACHED_CUT_LINE_KEY = None
+_CACHED_CUT_LINE_SEGMENTS = []
+
+def clear_cut_line_cache():
+    global _CACHED_CUT_LINE_KEY, _CACHED_CUT_LINE_SEGMENTS
+    _CACHED_CUT_LINE_KEY = None
+    _CACHED_CUT_LINE_SEGMENTS = []
+
+
 def _compute_cut_line_segments(mesh_or_bm, matrix_world: Matrix, plane_co: Vector, plane_no: Vector, is_bmesh: bool = False) -> List[Vector]:
-    """Calcula segmentos de linha estritos da interseção entre o plano e cada triângulo/face da malha (C04 / C12 / V14).
+    """Calcula segmentos de linha estritos da interseção entre o plano e cada triângulo/face da malha (C04 / C12 / V14 / COM-06).
     
-    Garante que cada segmento pertença a uma única face, eliminando traços espúrios que cortam o vazio
-    e detectando com precisão arestas coincidentes ou tangentes ao plano de corte.
+    Garante que a tesselação respeite n-gons côncavos sem gerar arestas falsas cruzando o vazio.
     """
     segments = []
     norm = plane_no.normalized()
 
+    triangles = []
     if is_bmesh:
         bm = mesh_or_bm
         for f in bm.faces:
@@ -151,90 +160,82 @@ def _compute_cut_line_segments(mesh_or_bm, matrix_world: Matrix, plane_co: Vecto
                 continue
             v_coords = [matrix_world @ v.co for v in f.verts]
             n_v = len(v_coords)
-            for i in range(1, n_v - 1):
-                tri = (v_coords[0], v_coords[i], v_coords[i + 1])
-                dists = [(p - plane_co).dot(norm) for p in tri]
-                on_plane = [abs(d) <= 1e-6 for d in dists]
-                num_on_plane = sum(on_plane)
-                has_pos = any(d > 1e-6 for d in dists)
-                has_neg = any(d < -1e-6 for d in dists)
-
-                if not (has_pos and has_neg) and num_on_plane < 2:
-                    continue
-
-                inter_pts = []
-                if num_on_plane == 2:
-                    for v_idx in range(3):
-                        if on_plane[v_idx]:
-                            inter_pts.append(tri[v_idx])
-                elif num_on_plane == 3:
-                    continue
-                else:
-                    for e_idx in range(3):
-                        p_a = tri[e_idx]
-                        p_b = tri[(e_idx + 1) % 3]
-                        d_a = dists[e_idx]
-                        d_b = dists[(e_idx + 1) % 3]
-                        if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
-                            t = d_a / (d_a - d_b)
-                            inter_pts.append(p_a + t * (p_b - p_a))
-                        elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
-                            inter_pts.append(p_a)
-
-                if len(inter_pts) == 2:
-                    segments.append(inter_pts[0])
-                    segments.append(inter_pts[1])
+            if n_v == 3:
+                triangles.append((v_coords[0], v_coords[1], v_coords[2]))
+            elif n_v == 4:
+                triangles.append((v_coords[0], v_coords[1], v_coords[2]))
+                triangles.append((v_coords[0], v_coords[2], v_coords[3]))
+            else:
+                import mathutils.geometry
+                t_indices = mathutils.geometry.tessellate_polygon([v_coords])
+                for t_idx in t_indices:
+                    triangles.append((v_coords[t_idx[0]], v_coords[t_idx[1]], v_coords[t_idx[2]]))
     else:
         mesh = mesh_or_bm
         if not mesh or not mesh.polygons or not mesh.vertices:
             return []
         mw = matrix_world
         verts_co = [mw @ v.co for v in mesh.vertices]
-        for poly in mesh.polygons:
-            p_verts = poly.vertices
-            n_v = len(p_verts)
-            if n_v < 3:
-                continue
-            v0_co = verts_co[p_verts[0]]
-            d0 = (v0_co - plane_co).dot(norm)
-            for i in range(1, n_v - 1):
-                v1_co = verts_co[p_verts[i]]
-                v2_co = verts_co[p_verts[i + 1]]
-                d1 = (v1_co - plane_co).dot(norm)
-                d2 = (v2_co - plane_co).dot(norm)
+        has_calc_loops = hasattr(mesh, "calc_loop_triangles")
+        if has_calc_loops:
+            try:
+                mesh.calc_loop_triangles()
+                if len(mesh.loop_triangles) > 0:
+                    for lt in mesh.loop_triangles:
+                        triangles.append((verts_co[lt.vertices[0]], verts_co[lt.vertices[1]], verts_co[lt.vertices[2]]))
+            except Exception:
+                pass
 
-                dists = (d0, d1, d2)
-                on_plane = (abs(d0) <= 1e-6, abs(d1) <= 1e-6, abs(d2) <= 1e-6)
-                num_on_plane = sum(on_plane)
-                has_pos = any(d > 1e-6 for d in dists)
-                has_neg = any(d < -1e-6 for d in dists)
-
-                if not (has_pos and has_neg) and num_on_plane < 2:
+        if not triangles:
+            for poly in mesh.polygons:
+                p_verts = poly.vertices
+                n_v = len(p_verts)
+                if n_v < 3:
                     continue
-
-                tri = (v0_co, v1_co, v2_co)
-                inter_pts = []
-                if num_on_plane == 2:
-                    for v_idx in range(3):
-                        if on_plane[v_idx]:
-                            inter_pts.append(tri[v_idx])
-                elif num_on_plane == 3:
-                    continue
+                v_poly = [verts_co[idx] for idx in p_verts]
+                if n_v == 3:
+                    triangles.append((v_poly[0], v_poly[1], v_poly[2]))
+                elif n_v == 4:
+                    triangles.append((v_poly[0], v_poly[1], v_poly[2]))
+                    triangles.append((v_poly[0], v_poly[2], v_poly[3]))
                 else:
-                    for e_idx in range(3):
-                        p_a = tri[e_idx]
-                        p_b = tri[(e_idx + 1) % 3]
-                        d_a = dists[e_idx]
-                        d_b = dists[(e_idx + 1) % 3]
-                        if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
-                            t = d_a / (d_a - d_b)
-                            inter_pts.append(p_a + t * (p_b - p_a))
-                        elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
-                            inter_pts.append(p_a)
+                    import mathutils.geometry
+                    t_indices = mathutils.geometry.tessellate_polygon([v_poly])
+                    for t_idx in t_indices:
+                        triangles.append((v_poly[t_idx[0]], v_poly[t_idx[1]], v_poly[t_idx[2]]))
 
-                if len(inter_pts) == 2:
-                    segments.append(inter_pts[0])
-                    segments.append(inter_pts[1])
+    for tri in triangles:
+        dists = [(p - plane_co).dot(norm) for p in tri]
+        on_plane = [abs(d) <= 1e-6 for d in dists]
+        num_on_plane = sum(on_plane)
+        has_pos = any(d > 1e-6 for d in dists)
+        has_neg = any(d < -1e-6 for d in dists)
+
+        if not (has_pos and has_neg) and num_on_plane < 2:
+            continue
+
+        inter_pts = []
+        if num_on_plane == 2:
+            for v_idx in range(3):
+                if on_plane[v_idx]:
+                    inter_pts.append(tri[v_idx])
+        elif num_on_plane == 3:
+            continue
+        else:
+            for e_idx in range(3):
+                p_a = tri[e_idx]
+                p_b = tri[(e_idx + 1) % 3]
+                d_a = dists[e_idx]
+                d_b = dists[(e_idx + 1) % 3]
+                if (d_a > 1e-6 and d_b < -1e-6) or (d_a < -1e-6 and d_b > 1e-6):
+                    t = d_a / (d_a - d_b)
+                    inter_pts.append(p_a + t * (p_b - p_a))
+                elif abs(d_a) <= 1e-6 and not any((p_a - ip).length_squared < 1e-10 for ip in inter_pts):
+                    inter_pts.append(p_a)
+
+        if len(inter_pts) == 2:
+            segments.append(inter_pts[0])
+            segments.append(inter_pts[1])
 
     return segments
 
@@ -298,7 +299,19 @@ def _draw_plane_overlay(context, settings):
                 cut_line_segments = _compute_cut_line_segments(bm, mw, origin, norm, is_bmesh=True)
             else:
                 mesh = target.data
-                cut_line_segments = _compute_cut_line_segments(mesh, mw, origin, norm, is_bmesh=False)
+                cache_key = (
+                    target.name, len(mesh.vertices), len(mesh.polygons),
+                    tuple(round(v, 4) for row in mw for v in row),
+                    (round(origin.x, 4), round(origin.y, 4), round(origin.z, 4)),
+                    (round(norm.x, 4), round(norm.y, 4), round(norm.z, 4))
+                )
+                global _CACHED_CUT_LINE_KEY, _CACHED_CUT_LINE_SEGMENTS
+                if _CACHED_CUT_LINE_KEY == cache_key:
+                    cut_line_segments = _CACHED_CUT_LINE_SEGMENTS
+                else:
+                    cut_line_segments = _compute_cut_line_segments(mesh, mw, origin, norm, is_bmesh=False)
+                    _CACHED_CUT_LINE_KEY = cache_key
+                    _CACHED_CUT_LINE_SEGMENTS = cut_line_segments
         except Exception:
             cut_line_segments = []
 

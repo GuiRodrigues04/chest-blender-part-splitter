@@ -303,11 +303,23 @@ def cache_prepared_interface(context, cut_iface, sig=None):
         contact_tris = cut_iface.interface_triangles_world
 
     # Pin UVs belong to a selected region, never to whichever loop was used before.
-    binding = repr((target.name_full, mode,
+    def _get_persistent_id(obj):
+        if not obj:
+            return ""
+        pid = obj.get("chest_persistent_id")
+        if not pid:
+            import uuid
+            pid = uuid.uuid4().hex[:12]
+            obj["chest_persistent_id"] = pid
+        return pid
+
+    target_id = _get_persistent_id(target)
+    cutter_id = _get_persistent_id(settings.solid_cutter_object) if (mode == 'SOLID' and settings.solid_cutter_object) else None
+    binding = repr((target_id, mode,
                     settings.loop_vertex_indices if mode == 'LOOP' else None,
                     settings.loop_seed_face_index if mode == 'LOOP' else None,
                     (settings.material_split_index, settings.material_region_index) if mode == 'MATERIAL' else None,
-                    (settings.solid_cutter_object.name_full, settings.solid_interface_face_index)
+                    (cutter_id, settings.solid_interface_face_index)
                     if mode == 'SOLID' else None))
     if settings.manual_binding and settings.manual_binding != binding:
         settings.manual_connectors.clear()

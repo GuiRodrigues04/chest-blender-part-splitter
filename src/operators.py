@@ -41,6 +41,7 @@ from .lifecycle import (
     ensure_backups_collection,
     find_operation_record,
     get_or_create_operation_record,
+    resolve_exportable_operation_record,
     capture_target_snapshot,
     discard_target_snapshot,
     record_created_object,
@@ -373,18 +374,31 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
             cmw = [f"{v:.5f}" for row in cutter.matrix_world for v in row]
             tokens.append(f"cutter_mw:{','.join(cmw)}")
             if cutter.data:
-                cm = cutter.data
-                tokens.append(f"cutter_geom:{len(cm.vertices)},{len(cm.edges)},{len(cm.polygons)}")
-                h.update(str(tokens).encode('utf-8'))
-                tokens.clear()
-                if len(cm.vertices) > 0:
-                    ccoords = array.array('f', [0.0] * (len(cm.vertices) * 3))
-                    cm.vertices.foreach_get("co", ccoords)
-                    h.update(ccoords.tobytes())
-                if len(cm.edges) > 0:
-                    cedges = array.array('i', [0] * (len(cm.edges) * 2))
-                    cm.edges.foreach_get("vertices", cedges)
-                    h.update(cedges.tobytes())
+                eval_cutter_obj = None
+                eval_cm = None
+                try:
+                    depsgraph = context.evaluated_depsgraph_get()
+                    eval_cutter_obj = cutter.evaluated_get(depsgraph)
+                    eval_cm = eval_cutter_obj.to_mesh()
+                    cm = eval_cm
+                except Exception:
+                    cm = cutter.data
+
+                try:
+                    tokens.append(f"cutter_geom:{len(cm.vertices)},{len(cm.edges)},{len(cm.polygons)}")
+                    h.update(str(tokens).encode('utf-8'))
+                    tokens.clear()
+                    if len(cm.vertices) > 0:
+                        ccoords = array.array('f', [0.0] * (len(cm.vertices) * 3))
+                        cm.vertices.foreach_get("co", ccoords)
+                        h.update(ccoords.tobytes())
+                    if len(cm.edges) > 0:
+                        cedges = array.array('i', [0] * (len(cm.edges) * 2))
+                        cm.edges.foreach_get("vertices", cedges)
+                        h.update(cedges.tobytes())
+                finally:
+                    if eval_cutter_obj and eval_cm:
+                        eval_cutter_obj.to_mesh_clear()
 
     elif settings.split_mode == 'LOOP':
         tokens.append(f"loop_indices:{settings.loop_vertex_indices}")
@@ -461,47 +475,64 @@ def verify_preview_current(context: bpy.types.Context) -> Tuple[bool, str]:
     return True, ""
 
 
-def get_current_session_parts(scene: bpy.types.Scene) -> List[bpy.types.Object]:
-    """Retorna os objetos malha pertencentes estritamente à sessão ativa atual."""
+def get_current_session_parts(scene: bpy.types.Scene, op_id: Optional[str] = None) -> List[bpy.types.Object]:
+    """Retorna os objetos malha pertencentes à sessão ativa atual ou à operação exportável."""
     settings = scene.chest_splitter
-    curr_sid = settings.session_id
-    if not curr_sid:
+    target_op_id = op_id
+
+    # 1. Se estiver em estado de prévia ativo, retorna partes da prévia da sessão ativa
+    if not target_op_id and settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE', 'PREVIEW_INVALID'):
+        curr_sid = settings.session_id
+        if curr_sid:
+            preview_col = find_collection(scene, COLLECTION_PREVIEWS_NAME)
+            if preview_col:
+                res = [
+                    o for o in preview_col.objects
+                    if o.type == 'MESH' and o.get("chest_session_id") == curr_sid
+                    and o.get("chest_role") in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL)
+                ]
+                if res:
+                    return res
         return []
 
-    if settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE', 'PREVIEW_INVALID'):
-        preview_col = find_collection(scene, COLLECTION_PREVIEWS_NAME)
-        if preview_col:
-            res = [
-                o for o in preview_col.objects
-                if o.type == 'MESH' and o.get("chest_session_id") == curr_sid
-                and o.get("chest_role") in (ROLE_PREVIEW_A, ROLE_PREVIEW_B, ROLE_PREVIEW_PART, ROLE_SUBPART_MATERIAL)
-            ]
-            if res:
-                return res
-        return []
+    # 2. Resolução de partes confirmadas
+    if not target_op_id:
+        if settings.session_status == 'COMMITTED' and settings.session_id:
+            target_op_id = settings.session_id
+        elif getattr(settings, "active_operation_id", ""):
+            target_op_id = settings.active_operation_id
+        else:
+            op_rec = resolve_exportable_operation_record(scene)
+            if op_rec:
+                target_op_id = op_rec.operation_id
 
-    elif settings.session_status == 'COMMITTED':
-        parts_col = find_collection(scene, COLLECTION_PARTS_NAME)
-        if parts_col:
+    parts_col = find_collection(scene, COLLECTION_PARTS_NAME)
+    if parts_col:
+        if target_op_id:
             res = [
                 o for o in parts_col.objects
                 if o.type == 'MESH' and (
-                    o.get("chest_session_id") == curr_sid
-                    or o.get("chest_splitter_session_id") == curr_sid
+                    o.get("chest_operation_id") == target_op_id
+                    or o.get("chest_session_id") == target_op_id
+                    or o.get("chest_splitter_session_id") == target_op_id
                 )
                 and o.get("chest_role") in (ROLE_COMMITTED_PART, ROLE_SUBPART_MATERIAL)
             ]
             if res:
                 return res
-            # Fallback seguro para migração de partes com id mas sem role, ou vice-versa
+
             res = [
                 o for o in parts_col.objects
-                if o.type == 'MESH' and (o.get("chest_session_id") == curr_sid or o.get("chest_splitter_session_id") == curr_sid)
+                if o.type == 'MESH' and (
+                    o.get("chest_operation_id") == target_op_id
+                    or o.get("chest_session_id") == target_op_id
+                    or o.get("chest_splitter_session_id") == target_op_id
+                )
             ]
             if res:
                 return res
-            
-            # Fallback ultra conservador apenas se não houver NADA da sessão atual
+
+        if settings.session_status == 'COMMITTED':
             target = settings.target_object
             if target:
                 base_name = target.name.replace(WORK_COPY_SUFFIX, "")
@@ -511,7 +542,6 @@ def get_current_session_parts(scene: bpy.types.Scene) -> List[bpy.types.Object]:
                 ]
                 if res:
                     return res
-        return []
 
     return []
 
@@ -2277,28 +2307,12 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
             new_sig = compute_session_input_signature(context)
 
-            # --- SUCESSO TOTAL: SWAP ATÔMICO ---
-            # 1. Remove prévia anterior somente após 100% de sucesso nos cálculos
-            cleanup_collection_objects(preview_col, exclude_objects={target, candidate_obj_a, candidate_obj_b}, session_id=settings.session_id)
-
-            # 2. Promove candidatos para objetos oficiais de prévia
-            candidate_obj_a.name = PREVIEW_A_NAME
-            if candidate_obj_a.data:
-                candidate_obj_a.data.name = f"{target.name}_part_a_preview"
-            candidate_obj_a["chest_session_id"] = settings.session_id
-            candidate_obj_a["chest_operation_id"] = op_id
-            candidate_obj_a["chest_role"] = ROLE_PREVIEW_A
-            if op_rec:
-                record_created_object(op_rec, candidate_obj_a, ROLE_PREVIEW_A)
-
-            candidate_obj_b.name = PREVIEW_B_NAME
-            if candidate_obj_b.data:
-                candidate_obj_b.data.name = f"{target.name}_part_b_preview"
-            candidate_obj_b["chest_session_id"] = settings.session_id
-            candidate_obj_b["chest_operation_id"] = op_id
-            candidate_obj_b["chest_role"] = ROLE_PREVIEW_B
-            if op_rec:
-                record_created_object(op_rec, candidate_obj_b, ROLE_PREVIEW_B)
+            # 1. Executa caches e configurações dependentes ANTES de tocar na prévia anterior
+            if settings.connector_enabled:
+                from .connector_surface import cache_prepared_interface
+                raw_iface = (report.get('interfaces', {}).get(settings.connector_male_part)
+                             if settings.split_mode == 'SOLID' else report.get('interface'))
+                cache_prepared_interface(context, raw_iface)
 
             # Snapshot de estado montado e direção efetiva da interface (INV-004)
             normal_a_to_b = Vector((0.0, 0.0, 1.0))
@@ -2358,6 +2372,29 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             settings.session_input_signature = new_sig
             settings.session_status = 'PREVIEW_VALID'
 
+            # --- SUCESSO TOTAL GARANTIDO: SWAP ATÔMICO ---
+            # 2. Descarta prévia anterior somente após 100% de sucesso em TODAS as etapas falíveis
+            cleanup_collection_objects(preview_col, exclude_objects={target, candidate_obj_a, candidate_obj_b}, session_id=settings.session_id)
+
+            # 3. Promove candidatos para objetos oficiais de prévia
+            candidate_obj_a.name = PREVIEW_A_NAME
+            if candidate_obj_a.data:
+                candidate_obj_a.data.name = f"{target.name}_part_a_preview"
+            candidate_obj_a["chest_session_id"] = settings.session_id
+            candidate_obj_a["chest_operation_id"] = op_id
+            candidate_obj_a["chest_role"] = ROLE_PREVIEW_A
+            if op_rec:
+                record_created_object(op_rec, candidate_obj_a, ROLE_PREVIEW_A)
+
+            candidate_obj_b.name = PREVIEW_B_NAME
+            if candidate_obj_b.data:
+                candidate_obj_b.data.name = f"{target.name}_part_b_preview"
+            candidate_obj_b["chest_session_id"] = settings.session_id
+            candidate_obj_b["chest_operation_id"] = op_id
+            candidate_obj_b["chest_role"] = ROLE_PREVIEW_B
+            if op_rec:
+                record_created_object(op_rec, candidate_obj_b, ROLE_PREVIEW_B)
+
             update_preview_positions(context.scene)
             target.hide_viewport = True
             target.hide_set(True)
@@ -2365,12 +2402,6 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             if candidate_obj_b and candidate_obj_b.name in bpy.data.objects:
                 candidate_obj_b.select_set(True)
                 context.view_layer.objects.active = candidate_obj_b
-
-            if settings.connector_enabled:
-                from .connector_surface import cache_prepared_interface
-                raw_iface = (report.get('interfaces', {}).get(settings.connector_male_part)
-                             if settings.split_mode == 'SOLID' else report.get('interface'))
-                cache_prepared_interface(context, raw_iface)
             conn_info = report_msg(f" (+{settings.connector_distribution} encaixes)", f" (+{settings.connector_distribution} connectors)") if (settings.connector_enabled) else ""
             msg = report_msg(
                 f"Preview gerado com sucesso{conn_info}! "
@@ -3578,7 +3609,10 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         settings = context.scene.chest_splitter
-        return settings.session_status in ('PREVIEW_VALID', 'COMMITTED')
+        if settings.session_status == 'PREVIEW_VALID':
+            return True
+        parts = get_current_session_parts(context.scene)
+        return len(parts) >= 2
 
     def execute(self, context):
         settings = context.scene.chest_splitter
@@ -3617,7 +3651,15 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
             if not obj or obj.type != 'MESH' or not obj.data:
                 self.report({'ERROR'}, report_msg("Um ou mais objetos da sessão foram removidos ou corrompidos.", "One or more session objects were removed or corrupted."))
                 return {'CANCELLED'}
-                
+
+            det = obj.matrix_world.determinant()
+            if abs(det) < 1e-9:
+                self.report({'ERROR'}, report_msg(
+                    f"A peça '{obj.name}' possui escala zero ou singular (determinante {det:.4e}). Exportação bloqueada.",
+                    f"Part '{obj.name}' has zero or singular scale (determinant {det:.4e}). Export blocked."
+                ))
+                return {'CANCELLED'}
+
             bm_part = bmesh.new()
             eval_mesh = None
             eval_obj = None
@@ -3637,11 +3679,15 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
             else:
                 bm_part.from_mesh(obj.data)
 
+            bm_part.transform(obj.matrix_world)
+            if det < 0:
+                bmesh.ops.reverse_faces(bm_part, faces=bm_part.faces[:])
+
             is_valid, msg, _ = validate_printable_mesh(bm_part, part_name=obj.name, unit_scale=unit_scale, check_manifold=check_solid)
             bm_part.free()
             if eval_obj and eval_mesh:
                 eval_obj.to_mesh_clear()
-            
+
             if not is_valid:
                 self.report({'ERROR'}, report_msg(f"Geometria inválida ({localize_text(msg)}). Exporte falhou.", f"Invalid geometry ({localize_text(msg)}). Export failed."))
                 return {'CANCELLED'}

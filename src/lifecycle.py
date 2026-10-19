@@ -158,6 +158,25 @@ def resolve_receiver_object(target_or_scene_or_op: Any) -> Optional[bpy.types.Ob
             if obj and obj.name in bpy.data.objects:
                 if obj.get("chest_splitter_part") != "A" and not obj.name.endswith("__A"):
                     return obj
+def resolve_exportable_operation_record(scene: bpy.types.Scene, op_id: Optional[str] = None) -> Optional[Any]:
+    """Localiza o registro de operação exportável (pela ID fornecida, pela ativa ou pela última confirmada)."""
+    if not hasattr(scene, "chest_operations") or len(scene.chest_operations) == 0:
+        return None
+    if op_id:
+        return find_operation_record(scene, op_id)
+    settings = getattr(scene, "chest_splitter", None)
+    if settings:
+        if getattr(settings, "active_operation_id", ""):
+            rec = find_operation_record(scene, settings.active_operation_id)
+            if rec and rec.status == 'COMMITTED':
+                return rec
+        if getattr(settings, "session_id", ""):
+            rec = find_operation_record(scene, settings.session_id)
+            if rec and rec.status == 'COMMITTED':
+                return rec
+    for rec in reversed(scene.chest_operations):
+        if rec.status == 'COMMITTED':
+            return rec
     return None
 
 

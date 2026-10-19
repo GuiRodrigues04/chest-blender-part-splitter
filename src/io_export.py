@@ -197,6 +197,8 @@ def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -
             bm.from_mesh(obj.data)
 
         bm.transform(obj.matrix_world)
+        if obj.matrix_world.determinant() < 0:
+            bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
         bm.verts.ensure_lookup_table()
         bm.faces.ensure_lookup_table()

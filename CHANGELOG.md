@@ -1,3 +1,15 @@
+# 0.8.14 — 2026-10-19
+
+- **COM-01 (Exportação após Confirmar)**: Criado resolvedor explícito de operações exportáveis (`resolve_exportable_operation_record` e `get_current_session_parts`), permitindo exportar peças A e B em qualquer modo de próximo alvo (`RECEIVER`, `EXTRACTED` ou `NONE`) e em cortes encadeados.
+- **COM-02 (Invalidação por Modificadores do Cortador)**: Assinatura determinística de corte e sessão agora avaliam modificadores e deformações da malha do cortador sólido via depsgraph, rejeitando prévias obsoletas e invalidando cache quando parâmetros do cortador mudam.
+- **COM-03 (Transação de Prévia com Recuperação Segura)**: Reestruturado o ciclo de vida da geração de prévia: caches e validações agora precedem o descarte da prévia anterior. Em caso de falha em qualquer etapa, a prévia anterior é preservada intacta na Viewport sem deixar órfãos nem ocultar o alvo indevidamente.
+- **COM-04 (Validação Física e Orientação 3MF)**: Adicionada validação de finitude e determinante de matriz mundial antes da exportação, bloqueando peças com escala singular/zero. Exportador 3MF corrige automaticamente o winding de triângulos em malhas com escala negativa/espelhamento, garantindo volumes assinados positivos.
+- **COM-05 (Preservação de Pinos ao Renomear)**: Identificador persistente em `target` e `cutter` impede que renomeações de objetos na cena limpem acidentalmente o posicionamento de pinos manuais.
+- **COM-06 (Linha de Corte com Tesselação Real)**: Eliminação do leque ingênuo de triângulos em favor da triangulação real da malha (`calc_loop_triangles` e `tessellate_polygon`), impedindo traços espúrios sobre vazios em n-gons côncavos (ex: perfis em U e L).
+- **COM-07 (Otimização e Cache de Redraw)**: Implementado cache de análise de material e de segmentos de corte do plano na Viewport, evitando recalcular malhas pesadas durante órbita de câmera e interações de interface.
+- **Internacionalização (i18n)**: Auditoria bilíngue completa com 1.285 termos simétricos em Português e Inglês, eliminando vazamentos em tooltips e botões de enum.
+- **Suíte de Testes**: 62 testes de regressão automatizados passando 100% no Blender 5.2.0 LTS.
+
 # 0.8.13
 
 - Marcadores vinculados à interface atual e ao deslocamento real da prévia; descartado o fallback que desenhava sobre uma origem antiga.

@@ -37,7 +37,25 @@ def cut_signature(settings, target, scene, mesh=None):
     digest = hashlib.sha256()
     digest.update(repr((target.name_full, tuple(tuple(r) for r in target.matrix_world),
                         get_scene_scale_to_mm(scene))).encode())
-    update_mesh_hash(digest, mesh if mesh is not None else target.data)
+    if mesh is not None:
+        update_mesh_hash(digest, mesh)
+    else:
+        eval_target_obj = None
+        eval_target_mesh = None
+        try:
+            if target and any(m.show_viewport for m in target.modifiers):
+                depsgraph = scene.evaluated_depsgraph_get()
+                eval_target_obj = target.evaluated_get(depsgraph)
+                eval_target_mesh = eval_target_obj.to_mesh()
+                update_mesh_hash(digest, eval_target_mesh)
+            else:
+                update_mesh_hash(digest, target.data)
+        except Exception:
+            update_mesh_hash(digest, target.data)
+        finally:
+            if eval_target_obj and eval_target_mesh:
+                eval_target_obj.to_mesh_clear()
+
     digest.update(repr([(p, getattr(settings, p, None)) for p in CUT_PROPERTIES]).encode())
     if settings.split_mode == 'PLANE':
         from .plane_state import resolve_plane_state
@@ -48,7 +66,18 @@ def cut_signature(settings, target, scene, mesh=None):
         from .scene_state import object_in_scene
         if object_in_scene(cutter, scene, mesh=True):
             digest.update(repr(tuple(tuple(r) for r in cutter.matrix_world)).encode())
-            update_mesh_hash(digest, cutter.data)
+            eval_cutter_obj = None
+            eval_cutter_mesh = None
+            try:
+                depsgraph = scene.evaluated_depsgraph_get()
+                eval_cutter_obj = cutter.evaluated_get(depsgraph)
+                eval_cutter_mesh = eval_cutter_obj.to_mesh()
+                update_mesh_hash(digest, eval_cutter_mesh)
+            except Exception:
+                update_mesh_hash(digest, cutter.data)
+            finally:
+                if eval_cutter_obj and eval_cutter_mesh:
+                    eval_cutter_obj.to_mesh_clear()
         else:
             digest.update(b'MISSING_CUTTER')
     return digest.hexdigest()

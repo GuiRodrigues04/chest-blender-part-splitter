@@ -9,7 +9,24 @@ def draw_help_button(layout, topic: str):
     """Desenha botão compacto com ícone INFO para exibir ajuda e popup dinâmico."""
     row = layout.row(align=True)
     op = row.operator("chest.splitter_help", text=localize_text(""), icon='INFO', emboss=False)
-    op.topic = topic
+_CACHED_UI_MAT_KEY = None
+_CACHED_UI_MAT_REGIONS = []
+_CACHED_UI_MAT_ANALYSIS = {}
+
+def get_cached_material_ui_analysis(obj, mat_idx, region_idx):
+    global _CACHED_UI_MAT_KEY, _CACHED_UI_MAT_REGIONS, _CACHED_UI_MAT_ANALYSIS
+    if not obj or not obj.data:
+        return [], {}
+    key = (obj.name, len(obj.data.polygons), mat_idx, region_idx)
+    if _CACHED_UI_MAT_KEY == key:
+        return _CACHED_UI_MAT_REGIONS, _CACHED_UI_MAT_ANALYSIS
+    from .geometry_material import list_material_regions, analyze_material_structure
+    regions = list_material_regions(obj, mat_idx)
+    analysis = analyze_material_structure(obj, mat_idx, region_idx)
+    _CACHED_UI_MAT_KEY = key
+    _CACHED_UI_MAT_REGIONS = regions
+    _CACHED_UI_MAT_ANALYSIS = analysis
+    return regions, analysis
 
 
 class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
@@ -398,11 +415,9 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 row_pick = box_mat.row(align=True)
                 row_pick.operator("chest.splitter_pick_material_region", text=localize_text("Usar Face Selecionada (Edit Mode)"), icon='RESTRICT_SELECT_OFF')
 
-                # Diagnóstico dinâmico do material selecionado
-                from .geometry_material import analyze_material_structure, list_material_regions
+                # Diagnóstico dinâmico do material selecionado com cache (COM-07)
                 mat_idx = min(settings.material_split_index, len(mats) - 1)
-
-                regions = list_material_regions(obj, mat_idx)
+                regions, analysis = get_cached_material_ui_analysis(obj, mat_idx, settings.material_region_index)
                 if len(regions) > 1:
                     box_reg = box_mat.box()
                     lbl_color_areas = (
@@ -424,7 +439,6 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                         op_r.material_index = mat_idx
                         op_r.region_index = r["index"]
 
-                analysis = analyze_material_structure(obj, mat_idx, settings.material_region_index)
                 box_diag_mat = box_mat.box()
                 if analysis.get("valid"):
                     mat_type = analysis.get("type")
@@ -838,7 +852,10 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     row_revert.operator("chest.splitter_revert_cut", text=localize_text("Reverter último corte"), icon='LOOP_BACK')
 
         # --- SEÇÃO 6: EXPORTAÇÃO PARA IMPRESSÃO 3D ---
-        if settings.session_status in ('PREVIEW_VALID', 'COMMITTED'):
+        from .operators import get_current_session_parts
+        export_parts_list = get_current_session_parts(scene)
+        can_export = (settings.session_status == 'PREVIEW_VALID') or (len(export_parts_list) >= 2)
+        if can_export:
             layout.separator()
             box_exp = layout.box()
             box_exp.label(text=localize_text("6. Exportação para Fatiador (Bambu / Orca / Prusa)"), icon='EXPORT')
@@ -849,7 +866,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
             row_exp_act = box_exp.row()
             row_exp_act.scale_y = 1.3
-            row_exp_act.operator("chest.splitter_export_parts", text=localize_text("Exportar Peças Selecionadas"), icon='EXPORT')
+            row_exp_act.operator("chest.splitter_export_parts", text=localize_text("Exportar Peças (A e B)"), icon='EXPORT')
 
         # --- FEEDBACK DE STATUS ---
         status_text = settings.get_localized_status() if hasattr(settings, "get_localized_status") else settings.last_status

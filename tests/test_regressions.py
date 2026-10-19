@@ -556,6 +556,71 @@ class Regressions(unittest.TestCase):
         self.assertTrue(r["B"]["is_manifold"])
         self.assertLess(r["sum_volume_mm3"], 64000)
 
+    def test_solid_mode_no_pins_option(self):
+        from types import SimpleNamespace
+        ui = importlib.import_module(root.name + ".src.ui")
+        panel = next(
+            c
+            for c in vars(ui).values()
+            if isinstance(c, type)
+            and c is not bpy.types.Panel
+            and issubclass(c, bpy.types.Panel)
+        )
+
+        drawn_props = []
+        drawn_ops = []
+        drawn_labels = []
+
+        class CaptureLayout:
+            def row(self, *a, **kw):
+                return self
+
+            column = box = split = grid_flow = row
+
+            def label(self, *a, text="", **kw):
+                drawn_labels.append(text)
+
+            def separator(self, *a, **kw):
+                pass
+
+            def prop(self, obj, name, *a, **kw):
+                drawn_props.append(name)
+
+            def operator(self, name, *a, text="", **kw):
+                drawn_ops.append(name)
+                return SimpleNamespace()
+
+            def template_list(self, *a, **kw):
+                pass
+
+        self.s.split_mode = "PLANE"
+        self.s.connector_enabled = True
+        self.assertTrue(self.s.connector_enabled)
+
+        # Switching to SOLID automatically disables connector_enabled
+        self.s.split_mode = "SOLID"
+        self.assertFalse(self.s.connector_enabled)
+
+        self.solid()
+        self.s.split_mode = "SOLID"
+        panel.draw(SimpleNamespace(layout=CaptureLayout()), bpy.context)
+
+        # Confirm connector_enabled toggle is not drawn
+        self.assertNotIn("connector_enabled", drawn_props)
+        self.assertNotIn("connector_type", drawn_props)
+        self.assertNotIn("connector_distribution", drawn_props)
+
+        # Confirm face capture operators for pins are not drawn
+        self.assertNotIn("chest.splitter_capture_solid_face", drawn_ops)
+        self.assertNotIn("chest.splitter_auto_solid_face", drawn_ops)
+
+        # Confirm vertex alignment and clearance are drawn
+        self.assertIn("chest.splitter_align_solid_vertices", drawn_ops)
+        self.assertTrue(
+            "3. Interface Clearance" in drawn_labels or "3. Folga da Interface" in drawn_labels
+        )
+        self.assertIn("part_clearance_mm", drawn_props)
+
     def test_depth_thickness_excess_rejected(self):
         obj, loop, seed = patch()
         with self.assertRaises(ValueError):

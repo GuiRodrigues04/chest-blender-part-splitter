@@ -327,10 +327,10 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 op_align.align_mode = 'ACTIVE_FACE'
                 op_align.anchor = 'SUPPORT_FACE'
 
-                # Dimensões físicas locais (mm)
+                # Alinhamento por Vértices
                 box_solid.operator("chest.splitter_align_solid_vertices", text=localize_text("Alinhar por Vértices"), icon='SNAP_VERTEX')
-                box_solid.operator("chest.splitter_auto_solid_face", text=localize_text("Escolher Face Automaticamente"), icon='FACESEL')
-                box_solid.operator("chest.splitter_capture_solid_face", text=localize_text("Capturar Face de Encaixe"), icon='FACESEL')
+
+                # Dimensões físicas locais (mm)
                 box_dims = box_solid.box()
                 box_dims.label(text=localize_text("Dimensões Físicas Locais (mm):"), icon='CON_SIZELIMIT')
                 col_dims = box_dims.column(align=True)
@@ -460,8 +460,12 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
         # --- SEÇÃO 3: ENCAIXES E FOLGAS (Antes da Prévia!) ---
         box_conn = layout.box()
         row_conn_head = box_conn.row(align=True)
-        row_conn_head.label(text=localize_text("3. Encaixes & Folgas"), icon='SNAP_VERTEX')
-        draw_help_button(row_conn_head, "connectors")
+        if settings.split_mode == 'SOLID':
+            row_conn_head.label(text=localize_text("3. Folga da Interface"), icon='DRIVER_DISTANCE')
+            draw_help_button(row_conn_head, "clearance")
+        else:
+            row_conn_head.label(text=localize_text("3. Encaixes & Folgas"), icon='SNAP_VERTEX')
+            draw_help_button(row_conn_head, "connectors")
 
         # Folga Física entre Peças (E01)
         box_part_clearance = box_conn.box()
@@ -483,10 +487,11 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 icon='INFO'
             )
 
-        row_enable = box_conn.row(align=True)
-        row_enable.prop(settings, "connector_enabled", text=localize_text("Ativar Encaixes"), toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')
+        if settings.split_mode != 'SOLID':
+            row_enable = box_conn.row(align=True)
+            row_enable.prop(settings, "connector_enabled", text=localize_text("Ativar Encaixes"), toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')
 
-        if settings.connector_enabled:
+        if settings.split_mode != 'SOLID' and settings.connector_enabled:
             # Formato do Encaixe
             col_shape = box_conn.column(align=True)
             col_shape.label(text=localize_text("Formato do Encaixe:"))
@@ -688,7 +693,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             row_preview.operator("chest.splitter_generate_preview", text=localize_text("Gerar / Atualizar Prévia"), icon='PLAY')
             row_preview.operator("chest.splitter_remove_preview", text=localize_text("Remover Prévia"), icon='X')
 
-            if settings.connector_enabled and settings.connector_distribution == 'MANUAL':
+            if settings.split_mode != 'SOLID' and settings.connector_enabled and settings.connector_distribution == 'MANUAL':
                 row_reedit = box_preview.row(align=True)
                 from .connector_editor import get_editor_interaction_state
                 is_ed_active = settings.is_editing_connectors and get_editor_interaction_state().get("is_active", False)

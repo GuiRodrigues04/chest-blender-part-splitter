@@ -61,6 +61,13 @@ def _on_clearance_preset_update(self, context):
     _on_param_change_mark_stale(self, context)
 
 
+def _on_split_mode_update(self, context):
+    """Callback ao alterar o modo de divisão."""
+    if getattr(self, "split_mode", "") == 'SOLID':
+        self.connector_enabled = False
+    _on_param_change_mark_stale(self, context)
+
+
 def _poll_mesh_cutter(self, obj):
     """Filtra objetos válidos para atuarem como cortador sólido."""
     return obj.type == 'MESH' and obj != self.target_object
@@ -340,7 +347,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         items=SPLIT_MODES,
         default='PLANE',
         description="Método de divisão do modelo",
-        update=_on_param_change_mark_stale,
+        update=_on_split_mode_update,
     )
 
     session_status: EnumProperty(

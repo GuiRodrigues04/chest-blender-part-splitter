@@ -55,7 +55,7 @@ try:
             print(f"Repo refresh note: {e}")
 
     # In Blender 4.2+, extensions can be enabled either via addon_enable or package_install_files
-    addon_name = "chest_part_splitter"
+    addon_name = "bl_ext.user_default.chest_part_splitter"
     import addon_utils
     addon_utils.modules_refresh()
     
@@ -77,9 +77,9 @@ except Exception as e:
 # Verify classes and UI
 print("\nVerifying registered classes and properties...")
 panel_exists = hasattr(bpy.types, "VIEW3D_PT_chest_part_splitter")
-scene_props = hasattr(bpy.types.Scene, "chest_part_splitter")
+scene_props = hasattr(bpy.types.Scene, "chest_splitter")
 print(f"VIEW3D_PT_chest_part_splitter registered: {panel_exists}")
-print(f"Scene.chest_part_splitter registered: {scene_props}")
+print(f"Scene.chest_splitter registered: {scene_props}")
 
 # Test importing module directly from target directory
 try:

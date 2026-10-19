@@ -27,7 +27,7 @@ from .connector_surface import (
     get_explosion_display_offset,
 )
 from .diagnostic import get_scene_scale_to_mm
-from .translations import localize_text
+from .translations import localize_text, report_msg
 
 
 # Estado volátil de interação do editor para o drawing overlay
@@ -191,7 +191,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         try:
             self._prepared = prepare_split_candidates(context, force_recompute=True)
         except Exception as exc:
-            self.report({'ERROR'}, f"Falha ao preparar superfície de encaixe: {exc}")
+            self.report({'ERROR'}, report_msg(f"Falha ao preparar superfície de encaixe: {exc}", f"Failed to prepare mating surface: {exc}"))
             return {'CANCELLED'}
         self._prepare_target_and_cleanup_previews(context)
         from .connector_surface import set_cached_prepared_split
@@ -257,7 +257,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         context.window_manager.modal_handler_add(self)
         self.report(
             {'INFO'},
-            "Editor de Pinos: Clique para adicionar/mover | G: mover | R: girar | V: alinhar vista | X/Del: remover pino | Shift+X: limpar todos | Enter: confirmar | Esc: sair."
+            localize_text("Editor de Pinos: Clique para adicionar/mover | G: mover | R: girar | V: alinhar vista | X/Del: remover pino | Shift+X: limpar todos | Enter: confirmar | Esc: sair.")
         )
         self._area.tag_redraw()
         return {'RUNNING_MODAL'}
@@ -510,7 +510,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                     item.yaw_deg = 0.0
                     settings.manual_connector_index = len(settings.manual_connectors) - 1
                     evaluate_connector_specs(self._prepared, settings)
-                    self.report({'INFO'}, f"Pino #{len(settings.manual_connectors)} posicionado em U={hit_u:.1f}, V={hit_v:.1f} mm.")
+                    self.report({'INFO'}, report_msg(f"Pino #{len(settings.manual_connectors)} posicionado em U={hit_u:.1f}, V={hit_v:.1f} mm.", f"Pin #{len(settings.manual_connectors)} placed at U={hit_u:.1f}, V={hit_v:.1f} mm."))
                     return {'RUNNING_MODAL'}
                 else:
                     # Clicou fora da superfície de corte no canvas 3D: avisa o usuário e não cria pino solto
@@ -524,7 +524,9 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         if event.type == 'TAB' and event.value == 'PRESS':
             # Alterna submodo Adicionar / Mover
             settings.manual_editor_submode = 'MOVE' if settings.manual_editor_submode == 'ADD' else 'ADD'
-            self.report({'INFO'}, f"Submodo: {'Adicionar Pinos' if settings.manual_editor_submode == 'ADD' else 'Mover / Selecionar'}")
+            submode_pt = 'Adicionar Pinos' if settings.manual_editor_submode == 'ADD' else 'Mover / Selecionar'
+            submode_en = 'Add Pins' if settings.manual_editor_submode == 'ADD' else 'Move / Select'
+            self.report({'INFO'}, report_msg(f"Submodo: {submode_pt}", f"Submode: {submode_en}"))
             return {'RUNNING_MODAL'}
 
         elif event.type == 'R' and event.value == 'PRESS':
@@ -568,7 +570,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                 item.yaw_deg = orig_pin.yaw_deg
                 settings.manual_connector_index = len(settings.manual_connectors) - 1
                 evaluate_connector_specs(self._prepared, settings)
-                self.report({'INFO'}, f"Pino duplicado em U={hit_u:.1f}, V={hit_v:.1f} mm.")
+                self.report({'INFO'}, report_msg(f"Pino duplicado em U={hit_u:.1f}, V={hit_v:.1f} mm.", f"Pin duplicated at U={hit_u:.1f}, V={hit_v:.1f} mm."))
                 return {'RUNNING_MODAL'}
 
         elif event.type == 'G' and event.value == 'PRESS':
@@ -582,9 +584,11 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                 return {'RUNNING_MODAL'}
 
         elif event.type == 'V' and event.value == 'PRESS':
-            # Re-alinha a visualização 3D perpendicularmente ao corte
-            if align_viewport_to_cut_surface(self._area, self._prepared, settings, self._target):
-                self.report({'INFO'}, localize_text("Visão alinhada à face de corte."))
+            # Re-alinha a visualização 3D perpendicularmente ao corte (inverte 180° se Shift+V ou se já alinhado)
+            flip = True if event.shift else None
+            if align_viewport_to_cut_surface(self._area, self._prepared, settings, self._target, flip=flip):
+                msg = "Visão invertida (180°)." if flip else "Visão alinhada à face de corte."
+                self.report({'INFO'}, localize_text(msg))
                 self._area.tag_redraw()
             return {'RUNNING_MODAL'}
 
@@ -720,14 +724,15 @@ class CHEST_OT_splitter_confirm_manual_connectors(bpy.types.Operator):
         try:
             prep = prepare_split_candidates(context)
         except Exception as e:
-            self.report({'ERROR'}, f"Não foi possível preparar o corte: {e}")
+            self.report({'ERROR'}, report_msg(f"Não foi possível preparar o corte: {e}", f"Could not prepare cut: {e}"))
             return {'CANCELLED'}
 
         eval_res = evaluate_connector_specs(prep, settings)
         has_invalid = any(not ev["is_valid"] for ev in eval_res)
         if has_invalid:
             first_err = next(ev["reason"] for ev in eval_res if not ev["is_valid"])
-            self.report({'WARNING'}, f"Não é possível gerar prévia: {first_err}. Corrija a posição ou exclua o pino.")
+            first_err_loc = localize_text(first_err)
+            self.report({'WARNING'}, report_msg(f"Não é possível gerar prévia: {first_err_loc}. Corrija a posição ou exclua o pino.", f"Cannot generate preview: {first_err_loc}. Fix position or delete the pin."))
             return {'CANCELLED'}
 
         stop_connector_editor(context.scene)
@@ -740,12 +745,17 @@ class CHEST_OT_splitter_confirm_manual_connectors(bpy.types.Operator):
             self.report({'INFO'}, localize_text("Prévia com conectores gerada com sucesso."))
             return {'FINISHED'}
         except Exception as e:
-            self.report({'ERROR'}, f"Erro na geração da prévia: {e}")
+            self.report({'ERROR'}, report_msg(f"Erro na geração da prévia: {e}", f"Preview generation error: {e}"))
             return {'CANCELLED'}
 
 
-def align_viewport_to_cut_surface(area, prepared, settings=None, target=None) -> bool:
-    """Orienta a câmera da Viewport 3D perpendicularmente à superfície de corte mantendo o horizonte nivelado (sem roll/inclinação)."""
+def align_viewport_to_cut_surface(area, prepared, settings=None, target=None, flip: Optional[bool] = None) -> bool:
+    """Orienta a câmera da Viewport 3D perpendicularmente à superfície de corte mantendo o horizonte nivelado (sem roll/inclinação).
+    
+    Detecta de forma inteligente qual lado da peça o usuário já está visualizando para que a câmera
+    nunca pule inadvertidamente para trás do bloco. Se a câmera já estiver alinhada, pressionar novamente
+    inverte a direção em 180° (comportamento de alternância idêntico aos atalhos numéricos do Blender).
+    """
     if not area or not prepared:
         return False
     if not hasattr(area, "spaces") or not area.spaces.active:
@@ -762,23 +772,57 @@ def align_viewport_to_cut_surface(area, prepared, settings=None, target=None) ->
         return False
     norm = norm.normalized()
 
+    # Obter a direção atual de visão da câmera (vetor apontando do olho do observador para a cena)
+    curr_mat = rv3d.view_rotation.to_matrix()
+    curr_view_dir = -curr_mat.col[2]
+
+    # As duas direções de alinhamento ortogonal são:
+    # 1) Olhar na direção -norm (câmera situada no lado +norm, logo cam_z = +norm)
+    # 2) Olhar na direção +norm (câmera situada no lado -norm, logo cam_z = -norm)
+    dot_pos = curr_view_dir.dot(-norm)
+    dot_neg = curr_view_dir.dot(norm)
+
+    if flip is True:
+        # Inversão explícita solicitada pelo usuário (ex: botão Inverter ou Shift+V)
+        if dot_pos >= dot_neg:
+            target_cam_z = -norm
+        else:
+            target_cam_z = norm
+    elif flip is False:
+        target_cam_z = norm
+    else:
+        # Modo inteligente (flip is None):
+        # Se a câmera JÁ estiver praticamente alinhada com um dos lados (dot > 0.98),
+        # alternar para o lado oposto (toggle 180°).
+        if dot_pos > 0.98:
+            target_cam_z = -norm
+        elif dot_neg > 0.98:
+            target_cam_z = norm
+        else:
+            # Usuário estava orbitando livremente: alinha ao lado mais próximo da visão atual,
+            # impedindo terminantemente que a visão vá para as costas do bloco!
+            if dot_pos >= dot_neg:
+                target_cam_z = norm
+            else:
+                target_cam_z = -norm
+
     world_up = Vector((0.0, 0.0, 1.0))
-    if abs(norm.z) > 0.999:
-        if norm.z > 0:
-            # Vista Superior (Top)
+    if abs(target_cam_z.z) > 0.999:
+        if target_cam_z.z > 0:
+            # Vista Superior (Top) - alinhada com eixos nativos do Blender
             cam_z = Vector((0.0, 0.0, 1.0))
             cam_y = Vector((0.0, 1.0, 0.0))
             cam_x = Vector((1.0, 0.0, 0.0))
         else:
-            # Vista Inferior (Bottom)
+            # Vista Inferior (Bottom) - alinhada com eixos nativos do Blender
             cam_z = Vector((0.0, 0.0, -1.0))
-            cam_y = Vector((0.0, 1.0, 0.0))
-            cam_x = Vector((-1.0, 0.0, 0.0))
+            cam_y = Vector((0.0, -1.0, 0.0))
+            cam_x = Vector((1.0, 0.0, 0.0))
     else:
         # Horizonte estritamente nivelado com a gravidade global do Blender (zero roll):
-        # cam_x é perpendicular à normal e ao eixo Z do mundo, garantindo cam_x.z == 0.0
-        cam_z = norm
-        cam_x = world_up.cross(norm).normalized()
+        # cam_x é perpendicular a target_cam_z e ao eixo Z do mundo, garantindo cam_x.z == 0.0
+        cam_z = target_cam_z
+        cam_x = world_up.cross(cam_z).normalized()
         cam_y = cam_z.cross(cam_x).normalized()
 
     cam_rot_mat = Matrix((cam_x, cam_y, cam_z)).transposed()
@@ -810,10 +854,16 @@ def align_viewport_to_cut_surface(area, prepared, settings=None, target=None) ->
 
 
 class CHEST_OT_splitter_view_cut_face(bpy.types.Operator):
-    """Orienta a câmera perpendicularmente à superfície de encaixe e enquadra a área útil (Seção 4.1)"""
+    """Orienta a câmera perpendicularmente à superfície de corte ou inverte a direção de visão em 180°"""
     bl_idname = "chest.splitter_view_cut_face"
     bl_label = "Ver Face de Encaixe"
     bl_options = {'REGISTER'}
+
+    flip_direction: bpy.props.BoolProperty(
+        name="Inverter Lado da Vista",
+        description="Inverte a direção da visão em 180°",
+        default=False
+    )
 
     def execute(self, context):
         settings = context.scene.chest_splitter
@@ -822,7 +872,7 @@ class CHEST_OT_splitter_view_cut_face(bpy.types.Operator):
             try:
                 prep = prepare_split_candidates(context)
             except Exception as e:
-                self.report({'WARNING'}, f"Superfície não disponível: {e}")
+                self.report({'WARNING'}, report_msg(f"Superfície não disponível: {e}", f"Surface not available: {e}"))
                 return {'CANCELLED'}
 
         area_3d = None
@@ -837,7 +887,9 @@ class CHEST_OT_splitter_view_cut_face(bpy.types.Operator):
         if not area_3d:
             return {'CANCELLED'}
 
-        if align_viewport_to_cut_surface(area_3d, prep, settings, settings.target_object):
-            self.report({'INFO'}, localize_text("Câmera alinhada à face de contato."))
+        flip = True if self.flip_direction else None
+        if align_viewport_to_cut_surface(area_3d, prep, settings, settings.target_object, flip=flip):
+            msg = "Visão invertida (180°)." if self.flip_direction else "Câmera alinhada à face de contato."
+            self.report({'INFO'}, localize_text(msg))
             return {'FINISHED'}
         return {'CANCELLED'}

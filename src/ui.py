@@ -2,7 +2,7 @@
 
 import bpy
 from .constants import PANEL_TITLE
-from .translations import localize_text
+from .translations import localize_text, get_addon_locale
 
 
 def draw_help_button(layout, topic: str):
@@ -25,6 +25,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
         scene = context.scene
         settings = scene.chest_splitter
         obj = settings.target_object
+        loc = get_addon_locale(context)
 
         # --- SEÇÃO 1: OBJETO ALVO ---
         box_target = layout.box()
@@ -37,19 +38,25 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
         if obj:
             row_target_info = box_target.row(align=True)
-            row_target_info.label(text=f"Alvo: {obj.name}", icon='CHECKMARK')
+            lbl_target = "Target" if loc == 'en_US' else "Alvo"
+            row_target_info.label(text=f"{lbl_target}: {obj.name}", icon='CHECKMARK')
             row_target_info.operator("chest.splitter_edit_target", text=localize_text("Editar Alvo"), icon='EDITMODE_HLT')
             row_target_info.operator("chest.splitter_clear_target", text=localize_text(""), icon='X')
 
             # Métricas físicas e topológicas
             col_metrics = box_target.column(align=True)
             dims = settings.diag_dims_mm
+            lbl_dims = "Dimensions" if loc == 'en_US' else "Dimensões"
             col_metrics.label(
-                text=f"Dimensões: {dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm",
+                text=f"{lbl_dims}: {dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm",
                 icon='CON_SIZELIMIT'
             )
+            if loc == 'en_US':
+                lbl_mesh = f"Mesh: {settings.diag_triangles:,} triangles ({settings.diag_faces:,} faces)"
+            else:
+                lbl_mesh = f"Malha: {settings.diag_triangles:,} triângulos ({settings.diag_faces:,} faces)"
             col_metrics.label(
-                text=f"Malha: {settings.diag_triangles:,} triângulos ({settings.diag_faces:,} faces)",
+                text=lbl_mesh,
                 icon='MESH_DATA'
             )
             col_metrics.label(
@@ -72,14 +79,24 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             if not settings.diag_is_manifold:
                 box_mani = box_target.box()
                 box_mani.alert = True
+                lbl_mani = (
+                    f"Warning: {settings.diag_non_manifold_edges} open/non-manifold edge(s)."
+                    if loc == 'en_US'
+                    else f"Aviso: {settings.diag_non_manifold_edges} aresta(s) abertas/não-manifold."
+                )
                 box_mani.label(
-                    text=f"Aviso: {settings.diag_non_manifold_edges} aresta(s) abertas/não-manifold.",
+                    text=lbl_mani,
                     icon='ERROR'
                 )
 
             if settings.diag_degenerate_faces > 0:
+                lbl_deg = (
+                    f"{settings.diag_degenerate_faces} degenerate face(s) detected."
+                    if loc == 'en_US'
+                    else f"{settings.diag_degenerate_faces} face(s) degeneradas detectadas."
+                )
                 box_target.label(
-                    text=f"{settings.diag_degenerate_faces} face(s) degeneradas detectadas.",
+                    text=lbl_deg,
                     icon='INFO'
                 )
         else:
@@ -144,11 +161,26 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             row_cap.operator("chest.splitter_capture_face_boundary", text=localize_text("Capturar das Faces"), icon='FACESEL')
 
             if settings.loop_is_captured:
-                box_loop.label(text=f"Vértices no contorno: {settings.loop_vertex_count}", icon='VERTEXSEL')
+                lbl_loop_vc = (
+                    f"Boundary vertices: {settings.loop_vertex_count}"
+                    if loc == 'en_US'
+                    else f"Vértices no contorno: {settings.loop_vertex_count}"
+                )
+                box_loop.label(text=lbl_loop_vc, icon='VERTEXSEL')
                 if settings.loop_is_planar:
-                    box_loop.label(text=f"Status: Planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)", icon='CHECKMARK')
+                    lbl_planar = (
+                        f"Status: Planar ({settings.loop_planarity_deviation_mm:.2f}mm dev)"
+                        if loc == 'en_US'
+                        else f"Status: Planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)"
+                    )
+                    box_loop.label(text=lbl_planar, icon='CHECKMARK')
                 else:
-                    box_loop.label(text=f"Aviso: Não-planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)", icon='ERROR')
+                    lbl_non_planar = (
+                        f"Warning: Non-planar ({settings.loop_planarity_deviation_mm:.2f}mm dev)"
+                        if loc == 'en_US'
+                        else f"Aviso: Não-planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)"
+                    )
+                    box_loop.label(text=lbl_non_planar, icon='ERROR')
                 
                 box_loop.prop(
                     settings, 
@@ -167,7 +199,12 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             col_seed_hint.label(text=localize_text("Dica: Selecione apenas 1 face dentro da região desejada."), icon='INFO')
 
             if settings.loop_seed_face_index >= 0:
-                box_loop.label(text=f"Região de Referência: Face #{settings.loop_seed_face_index}", icon='CHECKMARK')
+                lbl_seed = (
+                    f"Reference Region: Face #{settings.loop_seed_face_index}"
+                    if loc == 'en_US'
+                    else f"Região de Referência: Face #{settings.loop_seed_face_index}"
+                )
+                box_loop.label(text=lbl_seed, icon='CHECKMARK')
 
             # --- TIPO DE CORTE (PELA BASE vs POR PROFUNDIDADE) ---
             box_behavior = box_loop.box()
@@ -183,11 +220,12 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 box_dec = box_behavior.box()
                 lbl_mode = localize_text("Pela Base") if settings.loop_detected_mode == 'DETACH' else localize_text("Profundidade")
                 icon_mode = 'SNAP_FACE' if settings.loop_detected_mode == 'DETACH' else 'CON_SIZELIMIT'
-                box_dec.label(text=f"Auto Detectado: {lbl_mode}", icon=icon_mode)
+                lbl_auto = f"Auto Detected: {lbl_mode}" if loc == 'en_US' else f"Auto Detectado: {lbl_mode}"
+                box_dec.label(text=lbl_auto, icon=icon_mode)
                 if settings.loop_auto_reason:
                     col_r = box_dec.column()
                     col_r.scale_y = 0.8
-                    col_r.label(text=settings.loop_auto_reason)
+                    col_r.label(text=localize_text(settings.loop_auto_reason))
 
             show_depth = (settings.loop_behavior == 'EXTRUDE') or (
                 settings.loop_behavior == 'AUTO' and settings.loop_detected_mode == 'EXTRUDE'
@@ -261,14 +299,25 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
                 # Diagnóstico do Cortador Selecionado
                 box_cutter_diag = box_solid.box()
-                box_cutter_diag.label(text=f"Cortador: '{cutter.name}'", icon='OUTLINER_OB_MESH')
+                lbl_cutter_name = f"Cutter: '{cutter.name}'" if loc == 'en_US' else f"Cortador: '{cutter.name}'"
+                box_cutter_diag.label(text=lbl_cutter_name, icon='OUTLINER_OB_MESH')
                 if settings.solid_cutter_is_manifold:
-                    box_cutter_diag.label(text=f"Status: Fechado / 100% Manifold ({settings.solid_cutter_triangles:,} tris)", icon='CHECKMARK')
+                    lbl_cutter_mani = (
+                        f"Status: Closed / 100% Manifold ({settings.solid_cutter_triangles:,} tris)"
+                        if loc == 'en_US'
+                        else f"Status: Fechado / 100% Manifold ({settings.solid_cutter_triangles:,} tris)"
+                    )
+                    box_cutter_diag.label(text=lbl_cutter_mani, icon='CHECKMARK')
                     box_cutter_diag.label(text=f"Volume: {settings.solid_cutter_volume_mm3:,.1f} mm³")
                 else:
                     box_cutter_warn = box_cutter_diag.box()
                     box_cutter_warn.alert = True
-                    box_cutter_warn.label(text=f"Erro: {settings.solid_cutter_non_manifold_edges} aresta(s) abertas!", icon='ERROR')
+                    lbl_cutter_err = (
+                        f"Error: {settings.solid_cutter_non_manifold_edges} open edge(s)!"
+                        if loc == 'en_US'
+                        else f"Erro: {settings.solid_cutter_non_manifold_edges} aresta(s) abertas!"
+                    )
+                    box_cutter_warn.label(text=lbl_cutter_err, icon='ERROR')
                     box_cutter_warn.label(text=localize_text("Cortador precisa ser um sólido 3D estanque."))
 
 
@@ -305,13 +354,20 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 regions = list_material_regions(obj, mat_idx)
                 if len(regions) > 1:
                     box_reg = box_mat.box()
-                    box_reg.label(text=f"Esta cor aparece em {len(regions)} áreas separadas:", icon='STICKY_UVS_DISABLE')
+                    lbl_color_areas = (
+                        f"This color appears in {len(regions)} separate areas:"
+                        if loc == 'en_US'
+                        else f"Esta cor aparece em {len(regions)} áreas separadas:"
+                    )
+                    box_reg.label(text=lbl_color_areas, icon='STICKY_UVS_DISABLE')
                     col_reg = box_reg.column(align=True)
                     for r in regions:
                         is_r = (settings.material_region_index == r["index"])
+                        area_word = "Area" if loc == 'en_US' else "Área"
+                        faces_word = "faces" if loc == 'en_US' else "faces"
                         op_r = col_reg.operator(
                             "chest.splitter_select_split_material",
-                            text=f"Área {r['index'] + 1} ({r['face_count']} faces)",
+                            text=f"{area_word} {r['index'] + 1} ({r['face_count']} {faces_word})",
                             icon='RADIOBUT_ON' if is_r else 'RADIOBUT_OFF',
                         )
                         op_r.material_index = mat_idx
@@ -323,10 +379,20 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     mat_type = analysis.get("type")
                     if mat_type == "CLOSED_COMPONENT":
                         box_diag_mat.label(text=localize_text("Tipo: Componente 3D Fechado (Sólido)"), icon='CHECKMARK')
-                        box_diag_mat.label(text=f"Faces: {analysis['face_count']:,} | Malha estanque para fatiador.")
+                        lbl_mat_closed = (
+                            f"Faces: {analysis['face_count']:,} | Water-tight mesh for slicer."
+                            if loc == 'en_US'
+                            else f"Faces: {analysis['face_count']:,} | Malha estanque para fatiador."
+                        )
+                        box_diag_mat.label(text=lbl_mat_closed)
                     else:
                         box_diag_mat.label(text=localize_text("Tipo: Região Superficial (Com Profundidade)"), icon='INFO')
-                        box_diag_mat.label(text=f"Faces: {analysis['face_count']:,} | Fronteira contínua.")
+                        lbl_mat_surf = (
+                            f"Faces: {analysis['face_count']:,} | Continuous boundary."
+                            if loc == 'en_US'
+                            else f"Faces: {analysis['face_count']:,} | Fronteira contínua."
+                        )
+                        box_diag_mat.label(text=lbl_mat_surf)
                         box_mat_depth = box_mat.box()
                         row_md_head = box_mat_depth.row(align=True)
                         row_md_head.label(text=localize_text("Tipo de Corte da Região:"), icon='MOD_SOLIDIFY')
@@ -340,7 +406,8 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                         box_mat_depth.prop(settings, "material_interface_mat_mode", text=localize_text("Material da Interface"))
                 else:
                     box_diag_mat.alert = True
-                    box_diag_mat.label(text=f"Aviso: {analysis.get('error', 'Estrutura inválida')}", icon='ERROR')
+                    warn_prefix = "Warning:" if loc == 'en_US' else "Aviso:"
+                    box_diag_mat.label(text=f"{warn_prefix} {localize_text(analysis.get('error', 'Estrutura inválida'))}", icon='ERROR')
 
                 row_sol_tools = box_mat.row(align=True)
                 row_sol_tools.operator("chest.splitter_create_cutter_from_selection", text=localize_text("Criar Cortador Desta Seleção"), icon='MOD_SOLIDIFY')
@@ -390,7 +457,12 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
             top_part = 'A' if settings.part_a_is_superior else 'B'
             is_top = (settings.connector_male_part == top_part)
-            cur_desc = "Parte Superior" if is_top else "Parte Inferior"
+            if loc == 'en_US':
+                cur_desc = "Upper Part" if is_top else "Lower Part"
+                btn_inv_text = f"Invert: Pins on {cur_desc}"
+            else:
+                cur_desc = "Parte Superior" if is_top else "Parte Inferior"
+                btn_inv_text = f"Inverter: Pinos na {cur_desc}"
 
             row_male_pick = box_male.row(align=True)
             row_male_pick.prop(settings, "connector_male_part", expand=True)
@@ -399,7 +471,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             row_male_btn.scale_y = 1.2
             row_male_btn.operator(
                 "chest.splitter_invert_male_female",
-                text=f"Inverter: Pinos na {cur_desc}",
+                text=btn_inv_text,
                 icon='ARROW_LEFTRIGHT'
             )
 
@@ -410,8 +482,13 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 box_dims.prop(settings, "connector_diameter_mm", text=localize_text("Espessura / Diâmetro (mm)"), slider=True)
                 box_dims.prop(settings, "connector_capsule_length_mm", text=localize_text("Comprimento Lateral (mm)"), slider=True)
                 if settings.connector_max_safe_lateral_mm > 0:
+                    lbl_safe_lim = (
+                        f"Max Safe Limit: {settings.connector_max_safe_lateral_mm:.1f} mm (anti-collision)"
+                        if loc == 'en_US'
+                        else f"Limite Seguro Máx: {settings.connector_max_safe_lateral_mm:.1f} mm (anti-colisão)"
+                    )
                     box_dims.label(
-                        text=f"Limite Seguro Máx: {settings.connector_max_safe_lateral_mm:.1f} mm (anti-colisão)",
+                        text=lbl_safe_lim,
                         icon='INFO',
                     )
             else:
@@ -433,7 +510,12 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 op_p.preset = p_code
 
             box_clear.prop(settings, "clearance_per_side_mm", slider=True)
-            box_clear.label(text=f"Folga total no diâmetro: {settings.clearance_per_side_mm * 2:.2f} mm", icon='INFO')
+            lbl_diam_clear = (
+                f"Total diameter clearance: {settings.clearance_per_side_mm * 2:.2f} mm"
+                if loc == 'en_US'
+                else f"Folga total no diâmetro: {settings.clearance_per_side_mm * 2:.2f} mm"
+            )
+            box_clear.label(text=lbl_diam_clear, icon='INFO')
             box_clear.prop(settings, "end_clearance_mm", slider=True)
 
             # Distribuição
@@ -475,7 +557,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     )
                 else:
                     has_preview = (settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE'))
-                    lbl_edit = "Editar Posições Novamente" if has_preview else "Editar Posições dos Pinos"
+                    lbl_edit = localize_text("Editar Posições Novamente") if has_preview else localize_text("Editar Posições dos Pinos")
                     row_click = box_manual.row(align=True)
                     row_click.scale_y = 1.35
                     row_click.operator(
@@ -486,6 +568,8 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
                 row_view = box_manual.row(align=True)
                 row_view.operator("chest.splitter_view_cut_face", text=localize_text("Alinhar Vista ao Corte (V)"), icon='VIEW_CAMERA')
+                op_flip = row_view.operator("chest.splitter_view_cut_face", text=localize_text("Inverter Lado"), icon='ARROW_LEFTRIGHT')
+                op_flip.flip_direction = True
 
                 if is_editing:
                     box_mode = box_manual.box()
@@ -507,13 +591,15 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 if n_manual == 0:
                     box_manual.label(text=localize_text("Nenhum pino posicionado. Clique em 'Editar Posições' para adicionar."), icon='INFO')
                 else:
-                    box_manual.label(text=f"Total de Pinos: {n_manual}", icon='LAYER_ACTIVE')
+                    lbl_tot_pins = f"Total Pins: {n_manual}" if loc == 'en_US' else f"Total de Pinos: {n_manual}"
+                    box_manual.label(text=lbl_tot_pins, icon='LAYER_ACTIVE')
                     box_edit = box_manual.box()
                     idx = settings.manual_connector_index
                     if 0 <= idx < n_manual:
                         active_conn = settings.manual_connectors[idx]
                         row_sel = box_edit.row(align=True)
-                        row_sel.prop(settings, "manual_connector_index", text=f"Pino #{idx + 1}")
+                        lbl_pin_num = f"Pin #{idx + 1}" if loc == 'en_US' else f"Pino #{idx + 1}"
+                        row_sel.prop(settings, "manual_connector_index", text=lbl_pin_num)
                         row_sel.operator("chest.splitter_remove_manual_connector", text=localize_text(""), icon='X')
 
                         row_coords = box_edit.row(align=True)
@@ -527,7 +613,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                             row_err.alert = True
                             reason = getattr(active_conn, "status_reason", "") or getattr(active_conn, "validation_msg", "") or "Posição fora do domínio / margem violada"
                             row_err.label(
-                                text=reason,
+                                text=localize_text(reason),
                                 icon='CANCEL'
                             )
                         else:
@@ -558,7 +644,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
             row_preview = box_preview.row(align=True)
             row_preview.scale_y = 1.3
-            row_preview.operator("chest.splitter_generate_preview", text=localize_text("Gerar / Atualizar Preview"), icon='PLAY')
+            row_preview.operator("chest.splitter_generate_preview", text=localize_text("Gerar / Atualizar Prévia"), icon='PLAY')
             row_preview.operator("chest.splitter_remove_preview", text=localize_text("Remover Prévia"), icon='X')
 
             if settings.connector_enabled and settings.connector_distribution == 'MANUAL':
@@ -581,9 +667,9 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             if settings.split_mode in ('PLANE', 'SOLID'):
                 row_inv = box_preview.row(align=True)
                 if settings.split_mode == 'SOLID':
-                    lbl_inv = "Inverter: A=Ext / B=Int" if settings.invert_sides else "Inverter: A=Int / B=Ext"
+                    lbl_inv = localize_text("Inverter: A=Ext / B=Int") if settings.invert_sides else localize_text("Inverter: A=Int / B=Ext")
                 else:
-                    lbl_inv = "Inverter Lados (Ativo)" if settings.invert_sides else "Inverter Lados A / B"
+                    lbl_inv = localize_text("Inverter Lados (Ativo)") if settings.invert_sides else localize_text("Inverter Lados A / B")
                 row_inv.operator("chest.splitter_invert_sides", text=lbl_inv, icon='ARROW_LEFTRIGHT')
 
             # Visualização Montada / Explodida e Cores
@@ -605,33 +691,44 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 box_diag_parts = box_preview.box()
                 box_diag_parts.label(text=localize_text("Resultados do Corte"), icon='CHECKMARK')
 
-                lbl_tag_a = " (Superior)" if settings.part_a_is_superior else " (Inferior)"
-                lbl_tag_b = " (Inferior)" if settings.part_a_is_superior else " (Superior)"
+                lbl_tag_a = (" (Upper)" if loc == 'en_US' else " (Superior)") if settings.part_a_is_superior else (" (Lower)" if loc == 'en_US' else " (Inferior)")
+                lbl_tag_b = (" (Lower)" if loc == 'en_US' else " (Inferior)") if settings.part_a_is_superior else (" (Upper)" if loc == 'en_US' else " (Superior)")
+
+                part_word = "Part" if loc == 'en_US' else "Parte"
+                dim_word = "Dimensions" if loc == 'en_US' else "Dimensões"
+                island_word = "island(s)" if loc == 'en_US' else "ilha(s)"
+                open_edges_word = "open edges" if loc == 'en_US' else "aresta(s) abertas"
+                warn_word = "Warning" if loc == 'en_US' else "Aviso"
 
                 col_a = box_diag_parts.box()
-                col_a.label(text=f"Parte A{lbl_tag_a}", icon='MESH_CUBE')
+                col_a.label(text=f"{part_word} A{lbl_tag_a}", icon='MESH_CUBE')
                 col_a.label(text=f"Volume: {settings.part_a_volume_mm3:,.1f} mm³")
                 dims_a = settings.part_a_dims_mm
-                col_a.label(text=f"Dimensões: {dims_a[0]:.1f} x {dims_a[1]:.1f} x {dims_a[2]:.1f} mm")
-                col_a.label(text=f"Malha: {settings.part_a_triangles:,} tris | {settings.part_a_components} ilha(s)")
+                col_a.label(text=f"{dim_word}: {dims_a[0]:.1f} x {dims_a[1]:.1f} x {dims_a[2]:.1f} mm")
+                col_a.label(text=f"Mesh: {settings.part_a_triangles:,} tris | {settings.part_a_components} {island_word}" if loc == 'en_US' else f"Malha: {settings.part_a_triangles:,} tris | {settings.part_a_components} {island_word}")
                 if not settings.part_a_is_manifold:
-                    col_a.label(text=f"Aviso: {settings.part_a_non_manifold_edges} aresta(s) abertas", icon='ERROR')
+                    col_a.label(text=f"{warn_word}: {settings.part_a_non_manifold_edges} {open_edges_word}", icon='ERROR')
 
                 col_b = box_diag_parts.box()
-                col_b.label(text=f"Parte B{lbl_tag_b}", icon='MESH_CUBE')
+                col_b.label(text=f"{part_word} B{lbl_tag_b}", icon='MESH_CUBE')
                 col_b.label(text=f"Volume: {settings.part_b_volume_mm3:,.1f} mm³")
                 dims_b = settings.part_b_dims_mm
-                col_b.label(text=f"Dimensões: {dims_b[0]:.1f} x {dims_b[1]:.1f} x {dims_b[2]:.1f} mm")
-                col_b.label(text=f"Malha: {settings.part_b_triangles:,} tris | {settings.part_b_components} ilha(s)")
+                col_b.label(text=f"{dim_word}: {dims_b[0]:.1f} x {dims_b[1]:.1f} x {dims_b[2]:.1f} mm")
+                col_b.label(text=f"Mesh: {settings.part_b_triangles:,} tris | {settings.part_b_components} {island_word}" if loc == 'en_US' else f"Malha: {settings.part_b_triangles:,} tris | {settings.part_b_components} {island_word}")
                 if not settings.part_b_is_manifold:
-                    col_b.label(text=f"Aviso: {settings.part_b_non_manifold_edges} aresta(s) abertas", icon='ERROR')
+                    col_b.label(text=f"{warn_word}: {settings.part_b_non_manifold_edges} {open_edges_word}", icon='ERROR')
 
                 # Balanço de Volume
                 box_vol = box_diag_parts.box()
                 vol_ok = settings.volume_diff_pct < 0.5
                 icon_vol = 'CHECKMARK' if vol_ok else 'ERROR'
+                lbl_sum_vol = (
+                    f"Total Volume: {settings.part_sum_volume_mm3:,.1f} mm³ (diff: {settings.volume_diff_pct:.2f}%)"
+                    if loc == 'en_US'
+                    else f"Soma Volumes: {settings.part_sum_volume_mm3:,.1f} mm³ (dif: {settings.volume_diff_pct:.2f}%)"
+                )
                 box_vol.label(
-                    text=f"Soma Volumes: {settings.part_sum_volume_mm3:,.1f} mm³ (dif: {settings.volume_diff_pct:.2f}%)",
+                    text=lbl_sum_vol,
                     icon=icon_vol
                 )
 
@@ -670,7 +767,10 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                 box_commit.operator("chest.splitter_redo_session", text=localize_text("Refazer / Novo Corte"), icon='FILE_REFRESH')
 
             elif settings.session_status == 'CONFIGURED':
-                hint_text = "Posicione o cortador e clique em 'Gerar / Atualizar Preview'." if settings.split_mode == 'SOLID' else "Posicione o plano ou contorno e clique em 'Gerar / Atualizar Preview'."
+                if loc == 'en_US':
+                    hint_text = "Position the cutter and click 'Generate / Update Preview'." if settings.split_mode == 'SOLID' else "Position the plane or boundary and click 'Generate / Update Preview'."
+                else:
+                    hint_text = "Posicione o cortador e clique em 'Gerar / Atualizar Prévia'." if settings.split_mode == 'SOLID' else "Posicione o plano ou contorno e clique em 'Gerar / Atualizar Prévia'."
                 box_commit.label(text=hint_text, icon='INFO')
 
         # --- SEÇÃO 6: EXPORTAÇÃO PARA IMPRESSÃO 3D ---
@@ -690,6 +790,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
         # --- FEEDBACK DE STATUS ---
         status_text = settings.get_localized_status() if hasattr(settings, "get_localized_status") else settings.last_status
         if status_text:
+            status_text = localize_text(status_text)
             layout.separator()
             box_status = layout.box()
             icon_status = 'INFO'

@@ -73,7 +73,7 @@ from .geometry_solid import (
     SolidCutterValidationError,
     SolidSliceError,
 )
-from .translations import _get_current_locale
+from .translations import _get_current_locale, localize_text, report_msg, get_addon_locale
 from .connector_editor import (
     CHEST_OT_splitter_edit_manual_connectors,
     CHEST_OT_splitter_confirm_manual_connectors,
@@ -716,7 +716,10 @@ class CHEST_OT_splitter_set_target(bpy.types.Operator):
         read_plane_geometry(context)
 
         dims = report["dims_mm"]
-        msg = f"Alvo: '{obj.name}' ({dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm, {report['triangles']} tris)"
+        msg = report_msg(
+            f"Alvo: '{obj.name}' ({dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm, {report['triangles']} tris)",
+            f"Target: '{obj.name}' ({dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm, {report['triangles']} tris)"
+        )
         settings.last_status = msg
         settings.last_status_level = 'SUCCESS' if report["valid"] else 'WARNING'
         self.report({'INFO'}, msg)
@@ -759,7 +762,7 @@ class CHEST_OT_splitter_clear_target(bpy.types.Operator):
         settings.diag_has_unapplied_scale = False
         settings.diag_is_non_uniform_scale = False
         settings.diag_degenerate_faces = 0
-        settings.last_status = "Alvo removido. Selecione um novo objeto."
+        settings.last_status = report_msg("Alvo removido. Selecione um novo objeto.", "Target removed. Select a new object.")
         settings.last_status_level = 'INFO'
 
         return {'FINISHED'}
@@ -815,7 +818,10 @@ class CHEST_OT_splitter_create_work_copy(bpy.types.Operator):
         settings.diag_is_non_uniform_scale = report["is_non_uniform_scale"]
         settings.diag_degenerate_faces = report["degenerate_faces"]
 
-        msg = f"Cópia de trabalho '{new_obj.name}' criada. Original preservado."
+        msg = report_msg(
+            f"Cópia de trabalho '{new_obj.name}' criada. Original preservado.",
+            f"Work copy '{new_obj.name}' created. Original preserved."
+        )
         settings.last_status = msg
         settings.last_status_level = 'SUCCESS'
         self.report({'INFO'}, msg)
@@ -909,7 +915,10 @@ class CHEST_OT_splitter_align_plane(bpy.types.Operator):
         elif mode == 'FACE':
             # Validação estrita do alvo e Edit Mode (B11 / T37)
             if not target or context.edit_object != target or target.mode != 'EDIT':
-                msg = "Para alinhar por Face, o modelo alvo deve estar selecionado e ativo em Edit Mode."
+                msg = report_msg(
+                    "Para alinhar por Face, o modelo alvo deve estar selecionado e ativo em Edit Mode.",
+                    "To align by Face, the target model must be selected and active in Edit Mode."
+                )
                 settings.last_status = msg
                 settings.last_status_level = 'WARNING'
                 self.report({'WARNING'}, msg)
@@ -922,13 +931,19 @@ class CHEST_OT_splitter_align_plane(bpy.types.Operator):
                 if len(selected_faces) == 1:
                     active_face = selected_faces[0]
                 elif len(selected_faces) > 1:
-                    msg = "Múltiplas faces selecionadas sem face ativa. Selecione apenas uma face de referência."
+                    msg = report_msg(
+                        "Múltiplas faces selecionadas sem face ativa. Selecione apenas uma face de referência.",
+                        "Multiple faces selected without active face. Select only one reference face."
+                    )
                     settings.last_status = msg
                     settings.last_status_level = 'WARNING'
                     self.report({'WARNING'}, msg)
                     return {'CANCELLED'}
                 else:
-                    msg = "Nenhuma face selecionada no modelo alvo. Selecione uma face para alinhar o plano."
+                    msg = report_msg(
+                        "Nenhuma face selecionada no modelo alvo. Selecione uma face para alinhar o plano.",
+                        "No face selected on target model. Select a face to align the plane."
+                    )
                     settings.last_status = msg
                     settings.last_status_level = 'WARNING'
                     self.report({'WARNING'}, msg)
@@ -944,7 +959,7 @@ class CHEST_OT_splitter_align_plane(bpy.types.Operator):
             guide_obj.rotation_euler = rot_quat.to_euler()
 
         read_plane_geometry(context)
-        msg = f"Plano alinhado por '{self.align_mode}'."
+        msg = report_msg(f"Plano alinhado por '{self.align_mode}'.", f"Plane aligned by '{self.align_mode}'.")
         settings.last_status = msg
         settings.last_status_level = 'INFO'
         self.report({'INFO'}, msg)
@@ -981,7 +996,10 @@ class CHEST_OT_splitter_create_or_focus_solid_cutter(bpy.types.Operator):
         except Exception:
             pass
 
-        self.report({'INFO'}, f"Cortador sólido '{settings.solid_primitive_type}' criado/focado. Use G/R/S para posicionar.")
+        self.report({'INFO'}, report_msg(
+            f"Cortador sólido '{settings.solid_primitive_type}' criado/focado. Use G/R/S para posicionar.",
+            f"Solid cutter '{settings.solid_primitive_type}' created/focused. Use G/R/S to position."
+        ))
         return {'FINISHED'}
 
 
@@ -1009,9 +1027,9 @@ class CHEST_OT_splitter_select_existing_cutter(bpy.types.Operator):
             settings.solid_cutter_triangles = diag["triangles"]
             settings.solid_cutter_volume_mm3 = diag["volume_mm3"]
         except Exception as e:
-            self.report({'WARNING'}, f"Aviso de cortador: {str(e)}")
+            self.report({'WARNING'}, report_msg(f"Aviso de cortador: {str(e)}", f"Cutter warning: {str(e)}"))
 
-        self.report({'INFO'}, f"Objeto '{obj.name}' definido como cortador sólido.")
+        self.report({'INFO'}, report_msg(f"Objeto '{obj.name}' definido como cortador sólido.", f"Object '{obj.name}' set as solid cutter."))
         return {'FINISHED'}
 
 
@@ -1035,7 +1053,10 @@ class CHEST_OT_splitter_create_solid_cutter(bpy.types.Operator):
                 o.select_set(False)
             cutter_obj.select_set(True)
             context.view_layer.objects.active = cutter_obj
-            self.report({'INFO'}, "Cortador já existente na sessão foi selecionado. Use 'Focar' ou 'Reiniciar Formato'.")
+            self.report({'INFO'}, report_msg(
+                "Cortador já existente na sessão foi selecionado. Use 'Focar' ou 'Reiniciar Formato'.",
+                "Existing session cutter was selected. Use 'Focus' or 'Reset Shape'."
+            ))
             return {'FINISHED'}
 
         cutter_obj = ensure_solid_cutter(context)
@@ -1044,7 +1065,7 @@ class CHEST_OT_splitter_create_solid_cutter(bpy.types.Operator):
             o.select_set(False)
         cutter_obj.select_set(True)
         context.view_layer.objects.active = cutter_obj
-        self.report({'INFO'}, f"Cortador sólido '{settings.solid_primitive_type}' criado.")
+        self.report({'INFO'}, report_msg(f"Cortador sólido '{settings.solid_primitive_type}' criado.", f"Solid cutter '{settings.solid_primitive_type}' created."))
         return {'FINISHED'}
 
 
@@ -1077,7 +1098,7 @@ class CHEST_OT_splitter_focus_solid_cutter(bpy.types.Operator):
                             break
         except Exception:
             pass
-        self.report({'INFO'}, f"Cortador '{cutter_obj.name}' focado.")
+        self.report({'INFO'}, report_msg(f"Cortador '{cutter_obj.name}' focado.", f"Cutter '{cutter_obj.name}' focused."))
         return {'FINISHED'}
 
 
@@ -1100,7 +1121,10 @@ class CHEST_OT_splitter_reset_solid_cutter(bpy.types.Operator):
             o.select_set(False)
         cutter_obj.select_set(True)
         context.view_layer.objects.active = cutter_obj
-        self.report({'INFO'}, f"Formato do cortador reiniciado para primitiva '{settings.solid_primitive_type}'.")
+        self.report({'INFO'}, report_msg(
+            f"Formato do cortador reiniciado para primitiva '{settings.solid_primitive_type}'.",
+            f"Cutter shape reset to primitive '{settings.solid_primitive_type}'."
+        ))
         return {'FINISHED'}
 
 
@@ -1133,7 +1157,7 @@ class CHEST_OT_splitter_duplicate_solid_cutter(bpy.types.Operator):
             o.select_set(False)
         new_obj.select_set(True)
         context.view_layer.objects.active = new_obj
-        self.report({'INFO'}, f"Cortador duplicado como '{new_obj.name}'.")
+        self.report({'INFO'}, report_msg(f"Cortador duplicado como '{new_obj.name}'.", f"Cutter duplicated as '{new_obj.name}'."))
         return {'FINISHED'}
 
 
@@ -1184,7 +1208,10 @@ class CHEST_OT_splitter_copy_selected_as_cutter(bpy.types.Operator):
         new_obj.select_set(True)
         context.view_layer.objects.active = new_obj
 
-        self.report({'INFO'}, f"Objeto copiado como cortador '{new_obj.name}'. Objeto fonte preservado.")
+        self.report({'INFO'}, report_msg(
+            f"Objeto copiado como cortador '{new_obj.name}'. Objeto fonte preservado.",
+            f"Object copied as cutter '{new_obj.name}'. Source object preserved."
+        ))
         return {'FINISHED'}
 
 
@@ -1275,7 +1302,7 @@ class CHEST_OT_splitter_align_solid_cutter(bpy.types.Operator):
                     found = True
                 bm.free()
             if not found:
-                self.report({'WARNING'}, "Nenhuma face ativa ou selecionada encontrada no alvo.")
+                self.report({'WARNING'}, report_msg("Nenhuma face ativa ou selecionada encontrada no alvo.", "No active or selected face found on target."))
                 return {'CANCELLED'}
 
             z_axis = normal if not self.invert_direction else -normal
@@ -1358,7 +1385,7 @@ class CHEST_OT_splitter_align_solid_cutter(bpy.types.Operator):
 
         if settings.session_status == 'PREVIEW_VALID':
             settings.session_status = 'PREVIEW_STALE'
-        self.report({'INFO'}, f"Cortador alinhado ({self.align_mode}, {self.anchor}).")
+        self.report({'INFO'}, report_msg(f"Cortador alinhado ({self.align_mode}, {self.anchor}).", f"Cutter aligned ({self.align_mode}, {self.anchor})."))
         return {'FINISHED'}
 
 
@@ -1411,11 +1438,13 @@ class CHEST_OT_splitter_create_cutter_from_selection(bpy.types.Operator):
             try:
                 analysis = analyze_material_structure(target, mat_idx, reg_idx)
                 if not analysis.get("valid", False):
-                    self.report({'ERROR'}, analysis.get("error") or "Região de material inválida ou sem apoio.")
+                    err = analysis.get("error")
+                    err_txt = localize_text(err) if err else report_msg("Região de material inválida ou sem apoio.", "Invalid or unsupported material region.")
+                    self.report({'ERROR'}, err_txt)
                     return {'CANCELLED'}
                 region_faces = analysis.get("region_face_indices", [])
                 if not region_faces:
-                    self.report({'ERROR'}, "Nenhuma região válida identificada para o material selecionado.")
+                    self.report({'ERROR'}, report_msg("Nenhuma região válida identificada para o material selecionado.", "No valid region found for selected material."))
                     return {'CANCELLED'}
                 inward_dir = analysis.get("inward_dir_world", Vector((0.0, 0.0, -1.0)))
                 if self.invert_direction:
@@ -1434,11 +1463,11 @@ class CHEST_OT_splitter_create_cutter_from_selection(bpy.types.Operator):
                     lateral_offset_bu=0.0,
                 )
             except Exception as e:
-                self.report({'ERROR'}, f"Não foi possível gerar prisma de material: {str(e)}")
+                self.report({'ERROR'}, report_msg(f"Não foi possível gerar prisma de material: {str(e)}", f"Could not generate material prism: {str(e)}"))
                 return {'CANCELLED'}
         else:
             if not settings.loop_is_planar:
-                self.report({'ERROR'}, "A seleção de contorno não é planar (desvio > 0.15 mm). Selecione um contorno planar.")
+                self.report({'ERROR'}, report_msg("A seleção de contorno não é planar (desvio > 0.15 mm). Selecione um contorno planar.", "Loop selection is not planar (deviation > 0.15 mm). Select a planar loop."))
                 return {'CANCELLED'}
             from .geometry_loop import create_loop_prism_cutter, analyze_loop_region
             try:
@@ -1456,7 +1485,7 @@ class CHEST_OT_splitter_create_cutter_from_selection(bpy.types.Operator):
                     name=prism_name,
                 )
             except Exception as e:
-                self.report({'ERROR'}, f"Não foi possível gerar prisma de contorno: {str(e)}")
+                self.report({'ERROR'}, report_msg(f"Não foi possível gerar prisma de contorno: {str(e)}", f"Could not generate loop prism: {str(e)}"))
                 return {'CANCELLED'}
 
         # Garante que o cortador criado esteja na coleção de guias
@@ -1482,7 +1511,7 @@ class CHEST_OT_splitter_create_cutter_from_selection(bpy.types.Operator):
         prism_obj.select_set(True)
         context.view_layer.objects.active = prism_obj
 
-        self.report({'INFO'}, f"Cortador prismático editável criado: '{prism_obj.name}'.")
+        self.report({'INFO'}, report_msg(f"Cortador prismático editável criado: '{prism_obj.name}'.", f"Editable prismatic cutter created: '{prism_obj.name}'."))
         return {'FINISHED'}
 
 
@@ -1516,7 +1545,7 @@ class CHEST_OT_splitter_create_corner_box_cutter(bpy.types.Operator):
         sel_faces = [f for f in bm.faces if f.select]
         if len(sel_faces) != 3:
             bm.free()
-            self.report({'WARNING'}, "Selecione exatamente 3 faces que formam a quina regular.")
+            self.report({'WARNING'}, report_msg("Selecione exatamente 3 faces que formam a quina regular.", "Select exactly 3 faces that form the regular corner."))
             return {'CANCELLED'}
 
         norm_mat = target.matrix_world.to_3x3().inverted().transposed()
@@ -1526,13 +1555,13 @@ class CHEST_OT_splitter_create_corner_box_cutter(bpy.types.Operator):
                 dot = abs(world_normals[i].dot(world_normals[j]))
                 if dot > 0.15:
                     bm.free()
-                    self.report({'ERROR'}, "Quina não ortogonal detectada (ângulo fora de 90°). A geração requer 3 faces ortogonais.")
+                    self.report({'ERROR'}, report_msg("Quina não ortogonal detectada (ângulo fora de 90°). A geração requer 3 faces ortogonais.", "Non-orthogonal corner detected (angle outside 90°). Generation requires 3 orthogonal faces."))
                     return {'CANCELLED'}
 
         shared_verts = set(sel_faces[0].verts).intersection(sel_faces[1].verts).intersection(sel_faces[2].verts)
         if len(shared_verts) != 1:
             bm.free()
-            self.report({'ERROR'}, "As 3 faces selecionadas devem compartilhar exatamente um vértice de quina comum.")
+            self.report({'ERROR'}, report_msg("As 3 faces selecionadas devem compartilhar exatamente um vértice de quina comum.", "The 3 selected faces must share exactly one common corner vertex."))
             return {'CANCELLED'}
 
         v_corner = next(iter(shared_verts))
@@ -1590,7 +1619,7 @@ class CHEST_OT_splitter_create_corner_box_cutter(bpy.types.Operator):
         box_obj.select_set(True)
         context.view_layer.objects.active = box_obj
 
-        self.report({'INFO'}, f"Caixa para quina criada com sucesso ({self.size_x_mm:.1f}x{self.size_y_mm:.1f}x{self.size_z_mm:.1f} mm).")
+        self.report({'INFO'}, report_msg(f"Caixa para quina criada com sucesso ({self.size_x_mm:.1f}x{self.size_y_mm:.1f}x{self.size_z_mm:.1f} mm).", f"Corner box created successfully ({self.size_x_mm:.1f}x{self.size_y_mm:.1f}x{self.size_z_mm:.1f} mm)."))
         return {'FINISHED'}
 
 
@@ -1601,7 +1630,7 @@ _is_generating_preview = False
 class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
     """Executa o corte planar ou volumétrico em cópia e gera a visualização prévia das partes A e B de forma segura (B03)"""
     bl_idname = "chest.splitter_generate_preview"
-    bl_label = "Gerar Preview do Corte"
+    bl_label = "Gerar Prévia do Corte"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -1616,7 +1645,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
         if not target or target.name not in bpy.data.objects or target.type != 'MESH':
             settings.session_status = 'PREVIEW_INVALID'
-            self.report({'ERROR'}, "Objeto alvo inválido ou não encontrado.")
+            self.report({'ERROR'}, report_msg("Objeto alvo inválido ou não encontrado.", "Target object invalid or not found."))
             return {'CANCELLED'}
 
         # Encerra qualquer sessão modal ativa de edição de pinos
@@ -1969,11 +1998,14 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 settings.connector_max_safe_lateral_mm = max_safe_lateral_mm
 
                 if len(positions) == 0:
-                    self.report({'INFO'}, "Nenhum conector posicionado na interface. Corte gerado sem pinos.")
+                    self.report({'INFO'}, report_msg("Nenhum conector posicionado na interface. Corte gerado sem pinos.", "No connectors positioned on interface. Cut generated without pins."))
                 else:
                     cap_len = layout.get("adjusted_capsule_length_mm", settings.connector_capsule_length_mm)
                     if layout.get("capsule_was_adjusted", False):
-                        self.report({'WARNING'}, f"Comprimento lateral ({settings.connector_capsule_length_mm:.1f} mm) ajustado para limite seguro: {cap_len:.1f} mm.")
+                        self.report({'WARNING'}, report_msg(
+                            f"Comprimento lateral ({settings.connector_capsule_length_mm:.1f} mm) ajustado para limite seguro: {cap_len:.1f} mm.",
+                            f"Lateral length ({settings.connector_capsule_length_mm:.1f} mm) adjusted to safe limit: {cap_len:.1f} mm."
+                        ))
                         settings.connector_capsule_length_mm = cap_len
 
                     validate_connectors(
@@ -2121,11 +2153,14 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 raw_iface = (report.get('interfaces', {}).get(settings.connector_male_part)
                              if settings.split_mode == 'SOLID' else report.get('interface'))
                 cache_prepared_interface(context, raw_iface)
-            conn_info = f" (+{settings.connector_distribution} encaixes)" if (settings.connector_enabled) else ""
-            msg = (
+            conn_info = report_msg(f" (+{settings.connector_distribution} encaixes)", f" (+{settings.connector_distribution} connectors)") if (settings.connector_enabled) else ""
+            msg = report_msg(
                 f"Preview gerado com sucesso{conn_info}! "
                 f"Parte A: {settings.part_a_volume_mm3:,.0f} mm³ | "
-                f"Parte B: {settings.part_b_volume_mm3:,.0f} mm³"
+                f"Parte B: {settings.part_b_volume_mm3:,.0f} mm³",
+                f"Preview generated successfully{conn_info}! "
+                f"Part A: {settings.part_a_volume_mm3:,.0f} mm³ | "
+                f"Part B: {settings.part_b_volume_mm3:,.0f} mm³"
             )
             settings.last_status = msg
             settings.last_status_level = 'SUCCESS'
@@ -2242,8 +2277,14 @@ class CHEST_OT_splitter_invert_male_female(bpy.types.Operator):
         settings.connector_male_part = 'B' if settings.connector_male_part == 'A' else 'A'
         
         is_top = (settings.connector_male_part == 'A' and settings.part_a_is_superior) or (settings.connector_male_part == 'B' and not settings.part_a_is_superior)
-        pos_desc = "Parte Superior" if is_top else "Parte Inferior"
-        msg = f"Encaixes invertidos! Pinos (macho) agora na {pos_desc} ({'Parte A' if settings.connector_male_part == 'A' else 'Parte B'})."
+        pos_desc_pt = "Parte Superior" if is_top else "Parte Inferior"
+        pos_desc_en = "Top Part" if is_top else "Bottom Part"
+        part_tag_pt = 'Parte A' if settings.connector_male_part == 'A' else 'Parte B'
+        part_tag_en = 'Part A' if settings.connector_male_part == 'A' else 'Part B'
+        msg = report_msg(
+            f"Encaixes invertidos! Pinos (macho) agora na {pos_desc_pt} ({part_tag_pt}).",
+            f"Connectors inverted! Pins (male) now on {pos_desc_en} ({part_tag_en})."
+        )
         settings.last_status = msg
         settings.last_status_level = 'INFO'
         self.report({'INFO'}, msg)
@@ -2279,7 +2320,10 @@ class CHEST_OT_splitter_apply_connector_preset(bpy.types.Operator):
         had_preview = settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE')
         settings.clearance_preset = self.preset
         settings.clearance_per_side_mm = CLEARANCE_PRESETS[self.preset]
-        msg = f"Preset '{self.preset}' aplicado (folga por lado: {settings.clearance_per_side_mm:.2f} mm)."
+        msg = report_msg(
+            f"Preset '{self.preset}' aplicado (folga por lado: {settings.clearance_per_side_mm:.2f} mm).",
+            f"Preset '{self.preset}' applied (clearance per side: {settings.clearance_per_side_mm:.2f} mm)."
+        )
         settings.last_status = msg
         settings.last_status_level = 'INFO'
         self.report({'INFO'}, msg)
@@ -2350,7 +2394,7 @@ class CHEST_OT_splitter_add_manual_connector(bpy.types.Operator):
             for area in window.screen.areas:
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
-        self.report({'INFO'}, f"Pino #{n} adicionado.")
+        self.report({'INFO'}, report_msg(f"Pino #{n} adicionado.", f"Pin #{n} added."))
         return {'FINISHED'}
 
 
@@ -2364,7 +2408,7 @@ class CHEST_OT_splitter_remove_manual_connector(bpy.types.Operator):
         settings = context.scene.chest_splitter
         n = len(settings.manual_connectors)
         if n == 0:
-            self.report({'INFO'}, "Nenhum conector manual para remover.")
+            self.report({'INFO'}, report_msg("Nenhum conector manual para remover.", "No manual connector to remove."))
             return {'CANCELLED'}
 
         idx = settings.manual_connector_index
@@ -2403,7 +2447,7 @@ class CHEST_OT_splitter_remove_manual_connector(bpy.types.Operator):
             for area in window.screen.areas:
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
-        self.report({'INFO'}, "Pino removido.")
+        self.report({'INFO'}, report_msg("Pino removido.", "Pin removed."))
         return {'FINISHED'}
 
 
@@ -2441,7 +2485,7 @@ class CHEST_OT_splitter_clear_manual_connectors(bpy.types.Operator):
             for area in window.screen.areas:
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
-        self.report({'INFO'}, "Todos os pinos foram limpos.")
+        self.report({'INFO'}, report_msg("Todos os pinos foram limpos.", "All pins cleared."))
         return {'FINISHED'}
 
 
@@ -2455,14 +2499,14 @@ class CHEST_OT_splitter_convert_pattern_to_manual(bpy.types.Operator):
         settings = context.scene.chest_splitter
         target = settings.target_object
         if not target:
-            self.report({'WARNING'}, "Nenhum objeto alvo definido.")
+            self.report({'WARNING'}, report_msg("Nenhum objeto alvo definido.", "No target object set."))
             return {'CANCELLED'}
 
         from .connector_surface import prepare_split_candidates, evaluate_connector_specs
         try:
             prep = prepare_split_candidates(context)
         except Exception as e:
-            self.report({'ERROR'}, f"Falha ao preparar corte: {e}")
+            self.report({'ERROR'}, report_msg(f"Falha ao preparar corte: {e}", f"Failed to prepare cut: {e}"))
             return {'CANCELLED'}
 
         layout = compute_connector_layout(
@@ -2508,7 +2552,7 @@ class CHEST_OT_splitter_convert_pattern_to_manual(bpy.types.Operator):
             for area in window.screen.areas:
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
-        self.report({'INFO'}, f"{len(positions)} conector(es) convertidos para edição manual.")
+        self.report({'INFO'}, report_msg(f"{len(positions)} conector(es) convertidos para edição manual.", f"{len(positions)} connector(s) converted to manual editing."))
         return {'FINISHED'}
 
 
@@ -2544,7 +2588,10 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
         valid, reason = verify_preview_current(context)
         if not valid:
             settings.session_status = 'PREVIEW_STALE'
-            settings.last_status = f"{reason} Atualize a prévia antes de criar as peças finais."
+            settings.last_status = report_msg(
+                f"{localize_text(reason)} Atualize a prévia antes de criar as peças finais.",
+                f"{localize_text(reason)} Update preview before creating final parts."
+            )
             settings.last_status_level = 'WARNING'
             self.report({'WARNING'}, settings.last_status)
             return {'CANCELLED'}
@@ -2560,7 +2607,10 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
 
         if len(obj_a_list) != 1 or len(obj_b_list) != 1:
             settings.session_status = 'PREVIEW_STALE'
-            settings.last_status = "O conjunto de prévia não está íntegro (A ou B faltando ou múltiplo). Gere novamente."
+            settings.last_status = report_msg(
+                "O conjunto de prévia não está íntegro (A ou B faltando ou múltiplo). Gere novamente.",
+                "Preview set is not integral (missing or multiple A/B). Generate again."
+            )
             settings.last_status_level = 'ERROR'
             self.report({'ERROR'}, settings.last_status)
             return {'CANCELLED'}
@@ -2594,7 +2644,10 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
                 
             if not is_valid:
                 settings.session_status = 'PREVIEW_STALE'
-                settings.last_status = f"Erro de integridade na peça gerada: {msg}"
+                settings.last_status = report_msg(
+                    f"Erro de integridade na peça gerada: {localize_text(msg)}",
+                    f"Integrity error in generated part: {localize_text(msg)}"
+                )
                 settings.last_status_level = 'ERROR'
                 self.report({'ERROR'}, settings.last_status)
                 return {'CANCELLED'}
@@ -2674,7 +2727,10 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
         # Informa e alerta se a edição proporcional estiver ativa (DEV-08)
         prop_warning = ""
         if getattr(context.scene.tool_settings, "use_proportional_edit_objects", False):
-            prop_warning = " Aviso: A Edição Proporcional de Objetos está ativa. Desative-a (tecla 'O') para mover a peça sem arrastar o corpo remanescente."
+            prop_warning = report_msg(
+                " Aviso: A Edição Proporcional de Objetos está ativa. Desative-a (tecla 'O') para mover a peça sem arrastar o corpo remanescente.",
+                " Warning: Proportional Editing is active. Disable it ('O' key) to move part without dragging the remaining body."
+            )
             self.report({'WARNING'}, prop_warning.strip())
 
         settings.active_operation_id = settings.session_id
@@ -2689,7 +2745,10 @@ class CHEST_OT_splitter_commit_parts(bpy.types.Operator):
 
         settings.session_status = 'COMMITTED'
         stop_connector_editor(context.scene)
-        msg = f"Corte confirmado! Peças finais: '{final_name_a}' e '{final_name_b}'. Peça extraída selecionada. Use G para mover.{prop_warning}"
+        msg = report_msg(
+            f"Corte confirmado! Peças finais: '{final_name_a}' e '{final_name_b}'. Peça extraída selecionada. Use G para mover.{prop_warning}",
+            f"Cut confirmed! Final parts: '{final_name_a}' and '{final_name_b}'. Extracted part selected. Use G to move.{prop_warning}"
+        )
         settings.last_status = msg
         settings.last_status_level = 'SUCCESS' if not prop_warning else 'WARNING'
         self.report({'INFO'}, msg)
@@ -2739,7 +2798,7 @@ class CHEST_OT_splitter_continue_on_receiver(bpy.types.Operator):
             receiver_obj = context.active_object
 
         if not receiver_obj:
-            self.report({'ERROR'}, "Não foi possível localizar o corpo remanescente (peça receptora).")
+            self.report({'ERROR'}, report_msg("Não foi possível localizar o corpo remanescente (peça receptora).", "Could not locate remaining body (receiver part)."))
             return {'CANCELLED'}
 
         # Selecionar exclusivamente o receptor
@@ -2779,7 +2838,10 @@ class CHEST_OT_splitter_continue_on_receiver(bpy.types.Operator):
             read_plane_geometry(context)
 
         dims = report["dims_mm"]
-        msg = f"Continuando no receptor: '{receiver_obj.name}' ({dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm)"
+        msg = report_msg(
+            f"Continuando no receptor: '{receiver_obj.name}' ({dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm)",
+            f"Continuing on receiver: '{receiver_obj.name}' ({dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm)"
+        )
         settings.last_status = msg
         settings.last_status_level = 'SUCCESS'
         self.report({'INFO'}, msg)
@@ -2809,7 +2871,7 @@ class CHEST_OT_splitter_edit_target(bpy.types.Operator):
             if bpy.ops.object.mode_set.poll():
                 bpy.ops.object.mode_set(mode='EDIT')
         except Exception as e:
-            self.report({'WARNING'}, f"Não foi possível entrar no modo de edição: {e}")
+            self.report({'WARNING'}, report_msg(f"Não foi possível entrar no modo de edição: {e}", f"Could not enter edit mode: {e}"))
         return {'FINISHED'}
 
 
@@ -2979,7 +3041,7 @@ class CHEST_OT_splitter_redo_session(bpy.types.Operator):
         settings.session_status = 'CONFIGURED'
         settings.session_id = ""  # Força geração de novo ID no próximo preview
         settings.session_input_signature = ""
-        msg = "Sessão pronta para novo ajuste de corte."
+        msg = report_msg("Sessão pronta para novo ajuste de corte.", "Session ready for new cut adjustment.")
         settings.last_status = msg
         settings.last_status_level = 'INFO'
         return {'FINISHED'}
@@ -3006,9 +3068,9 @@ class CHEST_OT_splitter_capture_loop(bpy.types.Operator):
         
         if not success:
             settings.loop_is_captured = False
-            settings.last_status = f"Erro na captura: {err_msg}"
+            settings.last_status = report_msg(f"Erro na captura: {localize_text(err_msg)}", f"Capture error: {localize_text(err_msg)}")
             settings.last_status_level = 'ERROR'
-            self.report({'ERROR'}, err_msg)
+            self.report({'ERROR'}, localize_text(err_msg))
             return {'CANCELLED'}
             
         settings.loop_is_captured = True
@@ -3020,12 +3082,18 @@ class CHEST_OT_splitter_capture_loop(bpy.types.Operator):
         settings.show_loop_highlight = True
         
         if not is_planar:
-            msg = f"Aviso: Loop capturado com {len(indices)} vértices, mas NÃO é perfeitamente plano (desvio {dev_mm:.2f}mm). O corte planar direto pode ter gaps na tampa interna."
+            msg = report_msg(
+                f"Aviso: Loop capturado com {len(indices)} vértices, mas NÃO é perfeitamente plano (desvio {dev_mm:.2f}mm). O corte planar direto pode ter gaps na tampa interna.",
+                f"Warning: Loop captured with {len(indices)} vertices, but is NOT perfectly planar (deviation {dev_mm:.2f}mm). Direct planar cut may have gaps on inner cap."
+            )
             settings.last_status = msg
             settings.last_status_level = 'WARNING'
             self.report({'WARNING'}, msg)
         else:
-            msg = f"Sucesso: Loop planar capturado com {len(indices)} vértices."
+            msg = report_msg(
+                f"Sucesso: Loop planar capturado com {len(indices)} vértices.",
+                f"Success: Planar loop captured with {len(indices)} vertices."
+            )
             settings.last_status = msg
             settings.last_status_level = 'SUCCESS'
             self.report({'INFO'}, msg)
@@ -3056,9 +3124,9 @@ class CHEST_OT_splitter_capture_face_boundary(bpy.types.Operator):
         success, indices, is_planar, dev_mm, seed_face_idx, err_msg = capture_face_boundary_loop(obj, context.scene)
 
         if not success:
-            settings.last_status = f"Erro na captura do contorno: {err_msg}"
+            settings.last_status = report_msg(f"Erro na captura do contorno: {localize_text(err_msg)}", f"Boundary capture error: {localize_text(err_msg)}")
             settings.last_status_level = 'ERROR'
-            self.report({'ERROR'}, err_msg)
+            self.report({'ERROR'}, localize_text(err_msg))
             return {'CANCELLED'}
 
         # Só após sucesso, troca a seleção para as arestas do contorno no Edit Mode
@@ -3096,7 +3164,10 @@ class CHEST_OT_splitter_capture_face_boundary(bpy.types.Operator):
         if settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE'):
             settings.session_status = 'PREVIEW_STALE'
 
-        msg = f"Sucesso: Perímetro de {len(indices)} arestas capturado a partir das faces."
+        msg = report_msg(
+            f"Sucesso: Perímetro de {len(indices)} arestas capturado a partir das faces.",
+            f"Success: Perimeter of {len(indices)} edges captured from faces."
+        )
         settings.last_status = msg
         settings.last_status_level = 'SUCCESS'
         self.report({'INFO'}, msg)
@@ -3126,14 +3197,18 @@ class CHEST_OT_splitter_define_seed_face(bpy.types.Operator):
         
         seed_idx = get_selected_seed_face(obj)
         if seed_idx < 0:
-            settings.last_status = "Selecione pelo menos uma face em Edit Mode."
+            msg = report_msg("Selecione pelo menos uma face em Edit Mode.", "Select at least one face in Edit Mode.")
+            settings.last_status = msg
             settings.last_status_level = 'ERROR'
-            self.report({'ERROR'}, settings.last_status)
+            self.report({'ERROR'}, msg)
             return {'CANCELLED'}
             
         settings.loop_seed_face_index = seed_idx
         
-        msg = f"Sucesso: Face {seed_idx} definida como semente para a Parte A."
+        msg = report_msg(
+            f"Sucesso: Face {seed_idx} definida como semente para a Parte A.",
+            f"Success: Face {seed_idx} set as seed for Part A."
+        )
         settings.last_status = msg
         settings.last_status_level = 'SUCCESS'
         self.report({'INFO'}, msg)
@@ -3157,7 +3232,7 @@ class CHEST_OT_splitter_separate_by_material(bpy.types.Operator):
 
         objs_to_process = get_current_session_parts(context.scene)
         if not objs_to_process:
-            self.report({'WARNING'}, "Nenhuma peça da sessão ativa encontrada para separação.")
+            self.report({'WARNING'}, report_msg("Nenhuma peça da sessão ativa encontrada para separação.", "No active session part found for separation."))
             return {'CANCELLED'}
 
         parts_col = get_or_create_collection(context.scene, COLLECTION_PARTS_NAME)
@@ -3188,21 +3263,30 @@ class CHEST_OT_splitter_separate_by_material(bpy.types.Operator):
 
         if created_count > 0:
             if open_edge_count > 0:
-                msg = (
+                msg = report_msg(
                     f"{created_count} sub-peças por cor/material criadas na coleção '{target_col.name}'. "
                     f"Nota: {open_edge_count} gerada(s) como casca superficial aberta. "
-                    "Para peças sólidas individuais, use o modo de corte 'Material' com Profundidade."
+                    "Para peças sólidas individuais, use o modo de corte 'Material' com Profundidade.",
+                    f"{created_count} color/material sub-parts created in collection '{target_col.name}'. "
+                    f"Note: {open_edge_count} generated as open surface shell. "
+                    "For individual solid parts, use 'Material' cut mode with Depth."
                 )
                 settings.last_status_level = 'WARNING'
                 self.report({'WARNING'}, msg)
             else:
-                msg = f"{created_count} sub-peças por cor/material criadas na coleção '{target_col.name}'."
+                msg = report_msg(
+                    f"{created_count} sub-peças por cor/material criadas na coleção '{target_col.name}'.",
+                    f"{created_count} color/material sub-parts created in collection '{target_col.name}'."
+                )
                 settings.last_status_level = 'SUCCESS'
                 self.report({'INFO'}, msg)
             settings.last_status = msg
             return {'FINISHED'}
         else:
-            msg = "As peças já possuem apenas 1 material ou não possuem múltiplos materiais."
+            msg = report_msg(
+                "As peças já possuem apenas 1 material ou não possuem múltiplos materiais.",
+                "Parts already have only 1 material or do not have multiple materials."
+            )
             settings.last_status = msg
             settings.last_status_level = 'INFO'
             self.report({'INFO'}, msg)
@@ -3227,7 +3311,10 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
             is_current, reason = verify_preview_current(context)
             if not is_current:
                 settings.session_status = 'PREVIEW_STALE'
-                settings.last_status = f"Prévia desatualizada ({reason}). Gere a prévia novamente antes de exportar."
+                settings.last_status = report_msg(
+                    f"Prévia desatualizada ({localize_text(reason)}). Gere a prévia novamente antes de exportar.",
+                    f"Preview outdated ({localize_text(reason)}). Generate preview again before exporting."
+                )
                 settings.last_status_level = 'WARNING'
                 self.report({'WARNING'}, settings.last_status)
                 return {'CANCELLED'}
@@ -3238,7 +3325,10 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
         has_b = any(o.get("chest_splitter_part") == "B" or o.get("chest_role") == ROLE_PREVIEW_B for o in objects)
         
         if not objects or not has_a or not has_b:
-            settings.last_status = "Conjunto de peças incompleto (faltando Parte A ou B). Cancelando exportação."
+            settings.last_status = report_msg(
+                "Conjunto de peças incompleto (faltando Parte A ou B). Cancelando exportação.",
+                "Incomplete part set (missing Part A or B). Cancelling export."
+            )
             settings.last_status_level = 'ERROR'
             self.report({'ERROR'}, settings.last_status)
             return {'CANCELLED'}
@@ -3249,7 +3339,7 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
         
         for obj in objects:
             if not obj or obj.type != 'MESH' or not obj.data:
-                self.report({'ERROR'}, "Um ou mais objetos da sessão foram removidos ou corrompidos.")
+                self.report({'ERROR'}, report_msg("Um ou mais objetos da sessão foram removidos ou corrompidos.", "One or more session objects were removed or corrupted."))
                 return {'CANCELLED'}
                 
             bm_part = bmesh.new()
@@ -3263,7 +3353,10 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
                     bm_part.from_mesh(eval_mesh)
                 except Exception as e:
                     bm_part.free()
-                    self.report({'ERROR'}, f"Falha ao avaliar modificadores de '{obj.name}': {e}. Cancelando exportação para evitar divergência.")
+                    self.report({'ERROR'}, report_msg(
+                        f"Falha ao avaliar modificadores de '{obj.name}': {e}. Cancelando exportação para evitar divergência.",
+                        f"Failed to evaluate modifiers of '{obj.name}': {e}. Cancelling export to avoid divergence."
+                    ))
                     return {'CANCELLED'}
             else:
                 bm_part.from_mesh(obj.data)
@@ -3274,7 +3367,7 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
                 eval_obj.to_mesh_clear()
             
             if not is_valid:
-                self.report({'ERROR'}, f"Geometria inválida ({msg}). Exporte falhou.")
+                self.report({'ERROR'}, report_msg(f"Geometria inválida ({localize_text(msg)}). Exporte falhou.", f"Invalid geometry ({localize_text(msg)}). Export failed."))
                 return {'CANCELLED'}
 
         raw_dir = settings.export_directory
@@ -3325,7 +3418,7 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
             if settings.export_format == '3MF':
                 out_path = os.path.join(export_dir, f"{base_name}__parts.3mf")
                 export_objects_to_3mf(objects, out_path, unit_scale=unit_scale)
-                msg = f"Arquivo 3MF Multimaterial exportado: '{out_path}'"
+                msg = report_msg(f"Arquivo 3MF Multimaterial exportado: '{out_path}'", f"3MF Multimaterial file exported: '{out_path}'")
                 settings.last_status = msg
                 settings.last_status_level = 'SUCCESS'
                 self.report({'INFO'}, msg)
@@ -3334,7 +3427,7 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
             elif settings.export_format == 'STL_PER_MATERIAL':
                 try:
                     exported = export_objects_to_stl_by_material(objects, export_dir, unit_scale=unit_scale)
-                    msg = f"{len(exported)} arquivos STL por cor exportados em '{export_dir}'"
+                    msg = report_msg(f"{len(exported)} arquivos STL por cor exportados em '{export_dir}'", f"{len(exported)} STL files by color exported to '{export_dir}'")
                     settings.last_status = msg
                 except ValueError as ve:
                     self.report({'ERROR'}, str(ve))
@@ -3392,7 +3485,7 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
                         except OSError:
                             pass
 
-                msg = f"{len(exported)} peças STL exportadas em '{export_dir}'"
+                msg = report_msg(f"{len(exported)} peças STL exportadas em '{export_dir}'", f"{len(exported)} STL parts exported to '{export_dir}'")
                 settings.last_status = msg
                 settings.last_status_level = 'SUCCESS'
                 self.report({'INFO'}, msg)
@@ -3421,18 +3514,18 @@ class CHEST_OT_splitter_export_parts(bpy.types.Operator):
                         use_selection=True,
                         global_scale=unit_scale,
                     )
-                msg = f"Arquivo OBJ com materiais exportado (escala mm): '{out_path}'"
+                msg = report_msg(f"Arquivo OBJ com materiais exportado (escala mm): '{out_path}'", f"OBJ file with materials exported (mm scale): '{out_path}'")
                 settings.last_status = msg
                 settings.last_status_level = 'SUCCESS'
                 self.report({'INFO'}, msg)
                 return {'FINISHED'}
 
             else:
-                self.report({'ERROR'}, f"Formato de exportação desconhecido: {settings.export_format}")
+                self.report({'ERROR'}, report_msg(f"Formato de exportação desconhecido: {settings.export_format}", f"Unknown export format: {settings.export_format}"))
                 return {'CANCELLED'}
 
         except Exception as e:
-            msg = f"Falha na exportação: {str(e)}"
+            msg = report_msg(f"Falha na exportação: {str(e)}", f"Export failed: {str(e)}")
             settings.last_status = msg
             settings.last_status_level = 'ERROR'
             self.report({'ERROR'}, msg)
@@ -3696,7 +3789,10 @@ def on_depsgraph_update_post(scene, depsgraph):
             clear_prepared_split_cache()
             if settings.session_status == 'PREVIEW_VALID':
                 settings.session_status = 'PREVIEW_STALE'
-                settings.last_status = "O alvo ou cortador foi excluído da cena. Selecione objetos válidos."
+                settings.last_status = report_msg(
+                    "O alvo ou cortador foi excluído da cena. Selecione objetos válidos.",
+                    "Target or cutter was deleted from scene. Select valid objects."
+                )
             return
         prep = get_cached_prepared_split()
         relevant = {target, target.data}

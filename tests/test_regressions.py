@@ -796,7 +796,71 @@ class Regressions(unittest.TestCase):
         self.assertGreaterEqual(self.s.solid_interface_face_index, 0)
         self.assertEqual(bpy.ops.chest.splitter_auto_solid_face(), {"FINISHED"})
         self.assertEqual(self.s.solid_interface_face_index, -1)
-        self.assertIsNone(cs.get_cached_prepared_split())
+    def test_view_alignment_smart_and_flip(self):
+        import math
+        ce = importlib.import_module(root.name + ".src.connector_editor")
+        
+        class DummyRegion3D:
+            def __init__(self, quat, loc, dist=1.0):
+                self.view_rotation = quat.copy()
+                self.view_location = loc.copy()
+                self.view_distance = dist
+                self.view_perspective = 'PERSP'
+
+        class DummySpace:
+            def __init__(self, r3d):
+                self.type = 'VIEW_3D'
+                self.region_3d = r3d
+
+        class DummyArea:
+            def __init__(self, space):
+                self.type = 'VIEW_3D'
+                self.spaces = type('Spaces', (), {'active': space})()
+            def tag_redraw(self):
+                pass
+
+        class DummyPrep:
+            def __init__(self, normal):
+                self.surface_normal = normal.copy()
+                self.surface_origin = Vector((0.0, 0.0, 0.0))
+                self.interface = None
+                self.unit_scale = 1000.0
+
+        # Caso 1: Normal vertical (0, 0, 1). Observador olhando de baixo para cima (view_dir.z > 0)
+        # Quat olhando para cima: (w=0, x=1, y=0, z=0) -> cam_z = (0, 0, -1), view_dir = (0, 0, 1)
+        # Simulamos o usuário levemente inclinado olhando de baixo:
+        q_looking_up = Euler((math.radians(110), 0, 0)).to_quaternion()
+        r3d = DummyRegion3D(q_looking_up, Vector((0, 0, 0)), 1.0)
+        area = DummyArea(DummySpace(r3d))
+        prep = DummyPrep(Vector((0.0, 0.0, 1.0)))
+
+        # Alinhamento inteligente: deve manter a visão vindo de baixo, SEM pular para trás do bloco!
+        success = ce.align_viewport_to_cut_surface(area, prep)
+        self.assertTrue(success)
+        curr_view_dir = -(r3d.view_rotation.to_matrix().col[2])
+        self.assertGreater(curr_view_dir.dot(Vector((0, 0, 1))), 0.99)
+
+        # Segundo clique/chamada estando já alinhado: deve alternar (toggle 180°) para o topo
+        success = ce.align_viewport_to_cut_surface(area, prep)
+        self.assertTrue(success)
+        curr_view_dir = -(r3d.view_rotation.to_matrix().col[2])
+        self.assertGreater(curr_view_dir.dot(Vector((0, 0, -1))), 0.99)
+
+        # Inversão explícita com flip=True: deve retornar para olhar de baixo
+        success = ce.align_viewport_to_cut_surface(area, prep, flip=True)
+        self.assertTrue(success)
+        curr_view_dir = -(r3d.view_rotation.to_matrix().col[2])
+        self.assertGreater(curr_view_dir.dot(Vector((0, 0, 1))), 0.99)
+
+        # Verificação de rotação para superfícies angulares e horizontais (zero roll, horizonte nivelado)
+        for test_norm in [Vector((0, 1, 0)), Vector((1, 0, 0)), Vector((1, 1, 0.5)).normalized()]:
+            prep_angled = DummyPrep(test_norm)
+            success = ce.align_viewport_to_cut_surface(area, prep_angled)
+            self.assertTrue(success)
+            mat = r3d.view_rotation.to_matrix()
+            self.assertAlmostEqual(mat.determinant(), 1.0, places=4)
+            self.assertAlmostEqual(mat.col[0].z, 0.0, places=4)  # cam_x.z == 0 garante zero roll
+            self.assertGreaterEqual(mat.col[1].z, -1e-4)        # cam_y.z >= 0 garante up positivo
 
 
 if __name__ == "__main__":

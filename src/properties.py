@@ -601,7 +601,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
             ('EXPLODED', "Explodido", "Peças afastadas para inspeção do corte"),
         ],
         default='ASSEMBLED',
-        description="Modo de visualização das partes de preview",
+        description="Modo de visualização das partes da prévia",
         update=lambda self, context: _on_preview_transform_update(self, context),
     )
 
@@ -1048,7 +1048,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
 
     # --- Visualização de Cores e Exportação Multicolor (Fase 5) ---
     preview_color_mode: EnumProperty(
-        name="Modo de Cor do Preview",
+        name="Modo de Cor da Prévia",
         items=[
             ('MATERIALS', "Cores Originais (Materiais)", "Mantém a visualização dos materiais e texturas reais do modelo"),
             ('PARTS', "Cores A / B (Contraste)", "Destaca Parte A e Parte B com azul e laranja para conferir a divisão"),

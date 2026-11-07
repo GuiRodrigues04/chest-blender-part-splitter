@@ -1,0 +1,16 @@
+[
+  {
+    "gap_mm": 0.1,
+    "components": 1,
+    "nonmanifold_edges": 0,
+    "exterior_samples": 160,
+    "exterior_max_distance_mm": 7.634573506720699e-05
+  },
+  {
+    "gap_mm": 1.0,
+    "components": 1,
+    "nonmanifold_edges": 0,
+    "exterior_samples": 160,
+    "exterior_max_distance_mm": 7.634573506720699e-05
+  }
+]

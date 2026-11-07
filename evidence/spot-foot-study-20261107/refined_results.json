@@ -1,0 +1,114 @@
+[
+  {
+    "gap_mm": 0.1,
+    "solidify_mode": "NON_MANIFOLD",
+    "subdivision": 0,
+    "blade_bad_edges": 0,
+    "status": "OK",
+    "bad_edges": 0,
+    "vertices": 137,
+    "faces": 179,
+    "volume_mm3": 20212747.598938257,
+    "removed_mm3": 8589.412342104724,
+    "nearest_from_foot_mm": [
+      0.0969998654909432,
+      0.10032692838043052,
+      0.10570009180810302
+    ],
+    "nearest_from_body_mm": [
+      0.0969940738286823,
+      0.09987066446878348,
+      0.10255909728584811
+    ],
+    "normal_ray_mm": [
+      0.09700015686778352,
+      0.09987085606106225,
+      0.10255401173001155
+    ],
+    "ray_misses": 0
+  },
+  {
+    "gap_mm": 0.1,
+    "solidify_mode": "NON_MANIFOLD",
+    "subdivision": 3,
+    "blade_bad_edges": 0,
+    "status": "OK",
+    "bad_edges": 0,
+    "vertices": 329,
+    "faces": 422,
+    "volume_mm3": 20212738.616105426,
+    "removed_mm3": 8598.395174936462,
+    "nearest_from_foot_mm": [
+      0.09849572961684316,
+      0.1001963196178858,
+      0.10376737918704748
+    ],
+    "nearest_from_body_mm": [
+      0.09994438732974231,
+      0.09998417031705945,
+      0.1000336415017955
+    ],
+    "normal_ray_mm": [
+      0.09993481978401542,
+      0.09998255019589228,
+      0.10001902444148436
+    ],
+    "ray_misses": 0
+  },
+  {
+    "gap_mm": 1.0,
+    "solidify_mode": "NON_MANIFOLD",
+    "subdivision": 0,
+    "blade_bad_edges": 0,
+    "status": "OK",
+    "bad_edges": 0,
+    "vertices": 137,
+    "faces": 179,
+    "volume_mm3": 20135505.27083497,
+    "removed_mm3": 85831.74044539052,
+    "nearest_from_foot_mm": [
+      0.9604084771126509,
+      1.0021599935664034,
+      1.037853304296732
+    ],
+    "nearest_from_body_mm": [
+      0.9698006906546652,
+      0.9988108722609468,
+      1.0255746310576797
+    ],
+    "normal_ray_mm": [
+      0.9697895806059241,
+      0.9988080516067733,
+      1.0255844175592066
+    ],
+    "ray_misses": 0
+  },
+  {
+    "gap_mm": 1.0,
+    "solidify_mode": "NON_MANIFOLD",
+    "subdivision": 3,
+    "blade_bad_edges": 0,
+    "status": "OK",
+    "bad_edges": 0,
+    "vertices": 329,
+    "faces": 422,
+    "volume_mm3": 20135412.94789517,
+    "removed_mm3": 85924.06338519057,
+    "nearest_from_foot_mm": [
+      0.9854158852249384,
+      1.0018137437857078,
+      1.037574838846922
+    ],
+    "nearest_from_body_mm": [
+      0.9999392786994576,
+      0.9999872002351496,
+      1.0000396287068725
+    ],
+    "normal_ray_mm": [
+      0.9999430116042496,
+      0.9999866340884142,
+      1.000026132144034
+    ],
+    "ray_misses": 0
+  }
+]

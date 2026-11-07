@@ -2726,6 +2726,13 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     plane_region=resolve_plane_region(context.scene, settings),
                 )
 
+            # Every cut method shares the same conservative, topology-only
+            # grid attempt after physical clearance, before pins and validation.
+            from .geometry_quad_cap import finish_cut_pair
+            report['topology'] = finish_cut_pair(candidate_mesh_a, candidate_mesh_b,
+                source_mesh_to_cut, target.matrix_world, unit_scale,
+                use_contact_marks=settings.split_mode not in ('PLANE','SOLID'))
+
             # Limpa malha avaliada temporária
             if eval_mesh:
                 try:
@@ -3013,7 +3020,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 f"Part A: {settings.part_a_volume_mm3:,.0f} mm³ | "
                 f"Part B: {settings.part_b_volume_mm3:,.0f} mm³"
             )
-            if getattr(report.get('interface'), 'topology_fallback', False):
+            if report.get('topology', {}).get('fallback', False):
                 msg += report_msg(
                     " Não foi possível criar toda a superfície em quadriláteros; usamos a triangulação de segurança.",
                     " A complete quad surface could not be created; the safe triangulation was used.")

@@ -1,3 +1,10 @@
+# 0.9.6 — tentativa de grade em todos os métodos — 2026-11-07
+
+- Prévia de Loop, Plano, Região inteira, Sólido e Material compartilha uma etapa de organização das superfícies criadas, após a folga e antes dos encaixes. Regiões planas compatíveis recebem quads; contornos ímpares, furos e grades incompatíveis preservam a alternativa segura com aviso informativo.
+- A reorganização preserva bordas, materiais, marcas de contato, volume e superfície física, verificada por amostragem bidirecional da tesselação. Superfícies curvas do loop mantêm o tratamento da 0.9.5.
+- Corrigido fechamento planar com contornos internos: os contornos são triangulados conjuntamente, preservando furos em vez de criar discos sobrepostos.
+- Folga sem encaixes verificada nos cinco métodos com zero e 0,1 mm, incluindo distância em cinco pontos da interface e alternativa triangulada. Não altera os valores padrão das folgas.
+
 # 0.9.5 — tampas editáveis por loop — 2026-11-07
 
 - Fechamento direto por loop tenta uma grade de quadriláteros, mantendo o contorno e verificando fechamento, interseções e coincidência das superfícies. Quando a grade não é válida, tenta o fechamento anterior e informa a triangulação em PT/EN sem sinalizar erro vermelho.

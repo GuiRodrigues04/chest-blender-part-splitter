@@ -79,10 +79,62 @@ def cap_open_cut_boundaries(
     if not target_edges:
         return 0
 
+    # Nested boundaries must be filled together. Filling each wire separately
+    # closes a real hole with overlapping disks even when all edges are manifold.
+    from .geometry_material import _order_boundary_loops, _get_orthonormal_basis
+    try:
+        loops = _order_boundary_loops(target_edges)
+    except ValueError:
+        loops = []  # Preserve the established fill for non-simple edge nets.
     created_all = []
+    if len(loops)>1 and plane_normal is not None:
+        from mathutils.geometry import delaunay_2d_cdt
+        from .geometry_connectors import point_in_polygon_2d
+        from .localized_errors import LocalizedGeometryError
+        u,v = _get_orthonormal_basis(plane_normal.normalized())
+        origin = loops[0][0].co.copy()
+        span = max((vertex.co-origin).length for loop in loops for vertex in loop)
+        polygons = [[Vector(((vertex.co-origin).dot(u)/span,(vertex.co-origin).dot(v)/span,0)) for vertex in loop] for loop in loops]
+        def area(poly):
+            return sum(a.x*b.y-b.x*a.y for a,b in zip(poly,poly[1:]+poly[:1]))/2
+        expected = 0.
+        depths=[]
+        for i,poly in enumerate(polygons):
+            point=poly[0]
+            depth=sum(point_in_polygon_2d(point.x,point.y,[(p.x,p.y) for p in other])
+                      for j,other in enumerate(polygons) if j!=i)
+            depths.append(depth)
+            positive=depth%2==0
+            expected += abs(area(poly))*(1 if positive else -1)
+            if (area(poly)>0)!=positive:
+                polygons[i].reverse();loops[i].reverse()
+        flat=[p for poly in polygons for p in poly]
+        verts=[vertex for loop in loops for vertex in loop]
+        offsets=[];count=0
+        for poly in polygons:offsets.append(count);count+=len(poly)
+        if any(depths):
+            edges=[]
+            for offset,poly in zip(offsets,polygons):
+                edges.extend((offset+k,offset+(k+1)%len(poly)) for k in range(len(poly)))
+            xy,_,triangles,originals,_,_=delaunay_2d_cdt(
+                [Vector((p.x,p.y)) for p in flat],edges,[],0,1e-10,True)
+            indices=[]
+            for tri in triangles:
+                center=sum((xy[k] for k in tri),Vector((0,0)))/3
+                inside=sum(point_in_polygon_2d(center.x,center.y,[(p.x,p.y) for p in poly]) for poly in polygons)%2
+                if inside:
+                    if any(not originals[k] for k in tri):
+                        raise LocalizedGeometryError('geometry.planar_hole_fill')
+                    indices.append(tuple(originals[k][0] for k in tri))
+            measured=sum(abs(area([flat[i] for i in tri])) for tri in indices)
+            if expected<=0 or abs(measured-expected)>max(1e-8,expected*1e-5):
+                raise LocalizedGeometryError('geometry.planar_hole_fill')
+            created_all=[bm.faces.new([verts[i] for i in tri]) for tri in indices]
+            faces_created=len(created_all)
+
     # 1. Tentativa com edgenet_fill
     try:
-        res = bmesh.ops.edgenet_fill(bm, edges=target_edges)
+        res = bmesh.ops.edgenet_fill(bm, edges=target_edges) if not created_all else {}
         created = res.get("faces", [])
         created_all.extend(created)
         faces_created += len(created)

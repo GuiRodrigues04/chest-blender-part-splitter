@@ -1,0 +1,17 @@
+[
+  {
+    "fixture": "simple",
+    "workflow": "pins_and_commit",
+    "passed": true
+  },
+  {
+    "fixture": "advanced",
+    "workflow": "pins_and_commit",
+    "passed": true
+  },
+  {
+    "fixture": "simple",
+    "workflow": "four_successive_cuts",
+    "passed": true
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Padrão Testes.blend",
+    "case": "PLANE_Z_FDM_PINS",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": true,
+    "status": "pass",
+    "import_mesh_objects": 26,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 13501967.359744359
+    },
+    "source_volume": 13501967.359744359,
+    "dimensions_mm": [
+      1106.9051513671875,
+      164.5146942138672,
+      192.72390747070312
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 5594552.293734464,
+        "faces": 918
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 7899122.048020509,
+        "faces": 709
+      }
+    ],
+    "sum_volume": 13493674.341754973,
+    "manual_file": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_planar_solid_20261021\\final_connectors\\manual\\Padrão Testes_blend_planar_pins.blend",
+    "revert": "pass",
+    "seconds": 0.753
+  }
+]

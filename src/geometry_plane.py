@@ -3,6 +3,7 @@
 Este módulo não depende de seleção ativa nem de contexto de interface da Viewport,
 permitindo execução determinística e testes automatizados headless.
 """
+from .translations import localized_format
 
 from typing import Dict, Any, Tuple, Optional, List
 import bpy
@@ -238,6 +239,112 @@ def reconstruct_boundary_loops(cut_edges: List[bmesh.types.BMEdge]) -> List[List
     return loops
 
 
+def plane_precision_tolerance(bm, unit_scale):
+    """Numerical coincidence only; never swallow a requested physical offset."""
+    magnitude = max((abs(c) for v in bm.verts for c in v.co), default=0.0)
+    return max(0.0001 / unit_scale, magnitude * 2e-7)
+
+
+def final_planar_contact_loops(bm, plane_origin, plane_normal, unit_scale):
+    """Read ordered contact boundaries from the final, repaired mesh.
+
+    Bisect edge references are not stable across micro-edge repair. Recover the
+    perimeter of the retained planar faces instead, excluding internal edges
+    between cap triangles and preserving separate islands and holes.
+    """
+    bm.normal_update()
+    normal = plane_normal.normalized()
+    # Numerical plane membership, not the much broader coplanar cleanup band.
+    tolerance = plane_precision_tolerance(bm, unit_scale)
+    contact_faces = {
+        f for f in bm.faces
+        if f.normal.dot(normal) > 0.99999
+        and all(abs((v.co - plane_origin).dot(normal)) <= tolerance for v in f.verts)
+    }
+    perimeter = [e for e in bm.edges
+                 if sum(f in contact_faces for f in e.link_faces) == 1]
+    from collections import Counter
+    degrees = Counter(v for e in perimeter for v in e.verts)
+    if not perimeter or any(degree != 2 for degree in degrees.values()):
+        raise PlaneSliceError(
+            "Não foi possível reconstruir um contorno fechado da superfície do corte."
+        )
+    loops = reconstruct_boundary_loops(perimeter)
+    if not loops:
+        raise PlaneSliceError(
+            "Não foi possível reconstruir um contorno fechado da superfície do corte."
+        )
+    return loops
+
+
+def common_planar_interface(loops_a, loops_b, origin, normal, unit_scale):
+    """Intersect both retained cap footprints, including islands and holes.
+
+    CDT constrains every boundary; triangle interiors determine membership.
+    Work in millimetres to keep the merge tolerance independent of scene units.
+    The resulting domain belongs to both parts, regardless of male side.
+    """
+    from mathutils.geometry import delaunay_2d_cdt
+    from .geometry_contract import build_cut_interface
+    frame = build_cut_interface(origin, normal, [],
+        boundary_loops_world=loops_a, unit_scale=unit_scale)
+    coords, faces, lookup = [], [], {}
+    for loop in loops_a + loops_b:
+        projected = [Vector(tuple(c*unit_scale for c in frame.world_to_uv(p))) for p in loop]
+        # Imported triangulated seams contribute many nearly collinear points.
+        # Simplify below 0.0001 mm before intersecting coincident constraints.
+        changed = True
+        while changed and len(projected) > 3:
+            changed = False
+            for i, point in enumerate(projected):
+                start, end = projected[i-1], projected[(i+1) % len(projected)]
+                delta = end-start
+                t = (point-start).dot(delta)/delta.length_squared if delta.length_squared else 0
+                if 0 <= t <= 1 and (point-(start+t*delta)).length <= .0001:
+                    projected.pop(i)
+                    changed = True
+                    break
+        indices = []
+        for point in projected:
+            key = tuple(point)
+            if key not in lookup:
+                lookup[key] = len(coords)
+                coords.append(Vector(key))
+            indices.append(lookup[key])
+        area = sum(coords[indices[i]].cross(coords[indices[(i+1) % len(indices)]])
+                   for i in range(len(indices)))
+        if area < 0:
+            indices.reverse()
+        faces.append(indices)
+    xy, _, triangles, _, _, _ = delaunay_2d_cdt(
+        coords, [], faces, 0, .0001, True)
+    from .geometry_connectors import point_in_polygon_2d
+    polygons = [[tuple(coords[i]) for i in face] for face in faces]
+    bm = bmesh.new()
+    try:
+        verts = [bm.verts.new((p.x, p.y, 0)) for p in xy]
+        for triangle in triangles:
+            center = sum((xy[i] for i in triangle), Vector((0, 0))) / len(triangle)
+            in_a = sum(point_in_polygon_2d(center.x, center.y, poly)
+                       for poly in polygons[:len(loops_a)]) % 2
+            in_b = sum(point_in_polygon_2d(center.x, center.y, poly)
+                       for poly in polygons[len(loops_a):]) % 2
+            if in_a and in_b:
+                bm.faces.new([verts[i] for i in triangle])
+        boundary = [e for e in bm.edges if e.is_boundary]
+        from collections import Counter
+        degrees = Counter(v for e in boundary for v in e.verts)
+        if any(d != 2 for d in degrees.values()):
+            raise PlaneSliceError("A área comum do corte possui um contorno ambíguo.")
+        loops = reconstruct_boundary_loops(boundary)
+        world_loops = [[frame.uv_to_world(p.x/unit_scale, p.y/unit_scale)
+                        for p in loop] for loop in loops]
+        return build_cut_interface(origin, normal, [], unit_scale=unit_scale,
+            source_mode='PLANE', boundary_loops_world=world_loops)
+    finally:
+        bm.free()
+
+
 def slice_mesh_by_plane(
     source_mesh: bpy.types.Mesh,
     matrix_world,
@@ -251,12 +358,19 @@ def slice_mesh_by_plane(
     plane_offset_mm: float = 0.0,
     part_clearance_mm: float = 0.0,
     part_clearance_apply_to: str = 'PART',
+    plane_region=None,
 ) -> Dict[str, Any]:
     """Corta uma malha pelo plano dado, gerando Parte A e Parte B fechadas (B11 / P02 / P03).
     
     Elimina lâminas e películas coplanares espúrias em alinhamentos por face,
     aplica folga física calibrada entre peças (E01) e processa em World Space.
     """
+    if plane_region is not None:
+        from .geometry_plane_limited import slice_mesh_by_limited_plane
+        return slice_mesh_by_limited_plane(source_mesh, matrix_world, plane_origin,
+            plane_normal, target_mesh_a, target_mesh_b, plane_region, invert_sides,
+            unit_scale, coplanar_tol_mm, plane_offset_mm,
+            part_clearance_mm, part_clearance_apply_to)
     norm = plane_normal.normalized()
     if norm.length < 1e-6:
         raise PlaneSliceError("Vetor normal do plano inválido (comprimento nulo).")
@@ -274,6 +388,7 @@ def slice_mesh_by_plane(
     clearance_bu = max(0.0, part_clearance_mm / unit_scale)
 
     results = {}
+    retained_loops = {}
 
     for side_key, cut_normal in [("A", effective_normal_a), ("B", effective_normal_b)]:
         # Calcula origem específica considerando folga entre peças (Etapa E / E01)
@@ -296,6 +411,9 @@ def slice_mesh_by_plane(
         bm.from_mesh(source_mesh)
         bm.transform(matrix_world)
         bm.normal_update()
+        # 0.05 mm is a proximity band, not proof of coplanarity. In particular,
+        # a 0.03 mm offset above a pedestal must not delete its top surface.
+        exact_plane_tol = min(coplanar_tol_bu, plane_precision_tolerance(bm, unit_scale))
 
         # 1. Classificação pré-corte de faces coplanares para eliminar lâminas (B11 / P02 / P03)
         # Identifica se o plano de corte coincide com alguma face planar real do modelo
@@ -304,7 +422,7 @@ def slice_mesh_by_plane(
             if f.calc_area() < 1e-8:
                 continue
             dists = [(v.co - side_origin).dot(norm) for v in f.verts]
-            if all(abs(d) <= coplanar_tol_bu for d in dists):
+            if all(abs(d) <= exact_plane_tol for d in dists):
                 dot_val = f.normal.dot(norm)
                 if abs(dot_val) > 0.8:
                     coplanar_faces_pre.append((f.index, dot_val))
@@ -317,6 +435,7 @@ def slice_mesh_by_plane(
             geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
             plane_co=side_origin,
             plane_no=cut_normal,
+            dist=exact_plane_tol,
             clear_outer=True,
             clear_inner=False,
         )
@@ -331,7 +450,7 @@ def slice_mesh_by_plane(
                 if not f.is_valid:
                     continue
                 dists = [(v.co - side_origin).dot(norm) for v in f.verts]
-                if all(abs(d) <= coplanar_tol_bu for d in dists):
+                if all(abs(d) <= exact_plane_tol for d in dists):
                     dot_val = f.normal.dot(norm)
                     if retained_positive_halfspace and dot_val > 0.8:
                         # Face exterior do corpo inferior não deve virar tampa/lâmina na peça superior
@@ -355,7 +474,7 @@ def slice_mesh_by_plane(
         if len(bm.verts) == 0:
             bm.free()
             raise NoIntersectionError(
-                f"O plano de corte não intersecta o modelo (lado {side_key} ficou vazio)."
+                localized_format('audit.dynamic.19', v0=side_key)
             )
 
         # 4. Fecha bordas abertas no plano de corte estritamente (C09 / V13)
@@ -364,17 +483,29 @@ def slice_mesh_by_plane(
             cut_edges=cut_edges,
             plane_origin=side_origin,
             plane_normal=cut_normal,
-            coplanar_tol_bu=coplanar_tol_bu,
+            coplanar_tol_bu=exact_plane_tol,
         )
+
+        # Bisect can create connected sub-tolerance edges on imported CAD
+        # seams. Repair only validated local degeneracies, preserving the
+        # requested cut plane and its exact clearance.
+        from .diagnostic import sanitize_mesh_micro_degeneracies
+        from .geometry_clearance import remove_boolean_wires
+        remove_boolean_wires(bm)
+        sanitize_mesh_micro_degeneracies(bm, unit_scale)
+        remove_boolean_wires(bm)
 
         # Avalia métricas
         metrics = evaluate_bmesh_metrics(bm, unit_scale=unit_scale)
         results[side_key] = metrics
 
         # Coleta loops ordenados de borda do corte para construção da interface compartilhada
-        if side_key == "A":
-            interface_loops = reconstruct_boundary_loops(cut_edges)
-            interface_points = [p for loop in interface_loops for p in loop] if interface_loops else [v.co.copy() for e in cut_edges if e.is_valid for v in e.verts]
+        try:
+            retained_loops[side_key] = final_planar_contact_loops(
+                bm, side_origin, cut_normal, unit_scale)
+        except PlaneSliceError:
+            bm.free()
+            raise
 
         # Escreve na malha de destino correspondente
         target_mesh = target_mesh_a if side_key == "A" else target_mesh_b
@@ -393,15 +524,8 @@ def slice_mesh_by_plane(
     results["sum_volume_mm3"] = results["A"]["volume_mm3"] + results["B"]["volume_mm3"]
 
     # Constrói CutInterface formal para o corte planar
-    from .geometry_contract import build_cut_interface
-    cut_interface = build_cut_interface(
-        origin_world=base_origin,
-        normal_a_to_b=effective_normal_a,
-        boundary_points_world=interface_points if 'interface_points' in locals() else [],
-        boundary_loops_world=interface_loops if 'interface_loops' in locals() else None,
-        unit_scale=unit_scale,
-        source_mode="PLANE",
-    )
+    cut_interface = common_planar_interface(retained_loops['A'], retained_loops['B'],
+                                          base_origin, effective_normal_a, unit_scale)
     results["interface"] = cut_interface
 
     return results

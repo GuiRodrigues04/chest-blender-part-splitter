@@ -14,3 +14,7 @@ temp_test/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Generated local review scenes and installation snapshots; keep JSON reports.
+evidence/**/*.blend
+evidence/**/installed_before_*/

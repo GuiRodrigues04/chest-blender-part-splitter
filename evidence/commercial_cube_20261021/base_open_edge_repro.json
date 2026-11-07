@@ -1,0 +1,151 @@
+{
+  "status": "REPRODUCED_REJECTION",
+  "error": "RuntimeError('O destaque por base gerou peça não-manifold (arestas abertas: Parte A=0, Parte B=1).')",
+  "message": "O destaque por base gerou peça não-manifold (arestas abertas: Parte A=0, Parte B=1).",
+  "evaluations": [
+    {
+      "face_count": 532,
+      "edge_count": 798,
+      "non_manifold_edge_count": 0,
+      "non_manifold_edges": [],
+      "metrics": {
+        "volume_mm3": 239377.37755368493,
+        "dims_mm": [
+          140.00000059604645,
+          51.000000443309546,
+          189.9999976158142
+        ],
+        "triangles": 532,
+        "faces": 532,
+        "verts": 268,
+        "is_manifold": true,
+        "non_manifold_edges": 0,
+        "components": 1
+      }
+    },
+    {
+      "face_count": 1830,
+      "edge_count": 2744,
+      "non_manifold_edge_count": 1,
+      "non_manifold_edges": [
+        {
+          "edge_index": 1299,
+          "linked_face_count": 4,
+          "vertex_indices": [
+            737,
+            750
+          ],
+          "vertices_world_mm": [
+            [
+              70.000000298,
+              -3.000000026,
+              119.999997318
+            ],
+            [
+              69.401137531,
+              -3.000000026,
+              129.136845469
+            ]
+          ],
+          "linked_faces": [
+            {
+              "index": 1444,
+              "material_index": 0,
+              "area_mm2": 116.48191139101982,
+              "normal_world": [
+                0.0,
+                -1.0,
+                0.0
+              ],
+              "vertex_indices": [
+                750,
+                837,
+                737
+              ],
+              "center_world_mm": [
+                60.058191419,
+                -3.000000026,
+                142.012044787
+              ]
+            },
+            {
+              "index": 1578,
+              "material_index": 1,
+              "area_mm2": 0.5146139301359653,
+              "normal_world": [
+                0.0,
+                -1.0,
+                0.0
+              ],
+              "vertex_indices": [
+                737,
+                749,
+                750
+              ],
+              "center_world_mm": [
+                69.688022137,
+                -3.000000026,
+                125.332683325
+              ]
+            },
+            {
+              "index": 1579,
+              "material_index": 1,
+              "area_mm2": 0.8570495992898941,
+              "normal_world": [
+                0.0,
+                0.99999994,
+                0.0
+              ],
+              "vertex_indices": [
+                737,
+                769,
+                750
+              ],
+              "center_world_mm": [
+                69.488726556,
+                -3.000000026,
+                126.846522093
+              ]
+            },
+            {
+              "index": 1513,
+              "material_index": 0,
+              "area_mm2": 0.5146139301359653,
+              "normal_world": [
+                -0.0,
+                1.0,
+                -0.0
+              ],
+              "vertex_indices": [
+                741,
+                737,
+                750
+              ],
+              "center_world_mm": [
+                69.787889719,
+                -3.000000026,
+                123.809061944
+              ]
+            }
+          ],
+          "edge_length_mm": 9.156453423202038
+        }
+      ],
+      "metrics": {
+        "volume_mm3": 2827.550015129403,
+        "dims_mm": [
+          140.00000059604645,
+          2.0000000949949026,
+          189.9999976158142
+        ],
+        "triangles": 1830,
+        "faces": 1830,
+        "verts": 917,
+        "is_manifold": false,
+        "non_manifold_edges": 1,
+        "components": 1
+      }
+    }
+  ]
+}

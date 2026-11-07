@@ -1,0 +1,287 @@
+[
+  {
+    "suite": "test_acceptance_0810_suite.py",
+    "exit_code": 0,
+    "seconds": 3.86
+  },
+  {
+    "suite": "test_acceptance_089_suite.py",
+    "exit_code": 0,
+    "seconds": 4.53
+  },
+  {
+    "suite": "test_acceptance_etapa2.py",
+    "exit_code": 0,
+    "seconds": 3.73
+  },
+  {
+    "suite": "test_acceptance_etapa3.py",
+    "exit_code": 0,
+    "seconds": 5.75
+  },
+  {
+    "suite": "test_acceptance_etapa4.py",
+    "exit_code": 0,
+    "seconds": 3.77
+  },
+  {
+    "suite": "test_acceptance_etapa5_ui.py",
+    "exit_code": 0,
+    "seconds": 3.42
+  },
+  {
+    "suite": "test_acceptance_etapa6_material.py",
+    "exit_code": 0,
+    "seconds": 3.62
+  },
+  {
+    "suite": "test_acceptance_etapa7_delivery.py",
+    "exit_code": 0,
+    "seconds": 3.56
+  },
+  {
+    "suite": "test_b01_b07.py",
+    "exit_code": 0,
+    "seconds": 3.5
+  },
+  {
+    "suite": "test_capsule_lateral_size.py",
+    "exit_code": 0,
+    "seconds": 3.84
+  },
+  {
+    "suite": "test_commercial_audit.py",
+    "exit_code": 0,
+    "seconds": 4.64
+  },
+  {
+    "suite": "test_commit_selection_bugfix.py",
+    "exit_code": 0,
+    "seconds": 3.31
+  },
+  {
+    "suite": "test_connector_clearance_slivers.py",
+    "exit_code": 0,
+    "seconds": 6.28
+  },
+  {
+    "suite": "test_final_plan_corrections.py",
+    "exit_code": 0,
+    "seconds": 3.34
+  },
+  {
+    "suite": "test_grid_positioning_points.py",
+    "exit_code": 0,
+    "seconds": 4.41
+  },
+  {
+    "suite": "test_installed_zip_0812.py",
+    "exit_code": 0,
+    "seconds": 3.67
+  },
+  {
+    "suite": "test_inv_001_003_material.py",
+    "exit_code": 0,
+    "seconds": 3.61
+  },
+  {
+    "suite": "test_inv_002_material_base.py",
+    "exit_code": 0,
+    "seconds": 3.67
+  },
+  {
+    "suite": "test_inv_004_explosion.py",
+    "exit_code": 0,
+    "seconds": 3.25
+  },
+  {
+    "suite": "test_inv_005_loop.py",
+    "exit_code": 0,
+    "seconds": 3.38
+  },
+  {
+    "suite": "test_inv_006_thickness.py",
+    "exit_code": 0,
+    "seconds": 3.33
+  },
+  {
+    "suite": "test_loop_capture_selection_gaps.py",
+    "exit_code": 0,
+    "seconds": 3.72
+  },
+  {
+    "suite": "test_loopcut_scenario.py",
+    "exit_code": 0,
+    "seconds": 3.78
+  },
+  {
+    "suite": "test_manual_connectors_workflow.py",
+    "exit_code": 0,
+    "seconds": 4.22
+  },
+  {
+    "suite": "test_material_manual_connectors_bugfix.py",
+    "exit_code": 0,
+    "seconds": 3.41
+  },
+  {
+    "suite": "test_material_regions.py",
+    "exit_code": 0,
+    "seconds": 3.47
+  },
+  {
+    "suite": "test_multicolor_support.py",
+    "exit_code": 0,
+    "seconds": 3.75
+  },
+  {
+    "suite": "test_phase3a_loop.py",
+    "exit_code": 0,
+    "seconds": 3.51
+  },
+  {
+    "suite": "test_plan_086_commercial.py",
+    "exit_code": 0,
+    "seconds": 4.92
+  },
+  {
+    "suite": "test_plan_087.py",
+    "exit_code": 0,
+    "seconds": 4.08
+  },
+  {
+    "suite": "test_plan_088.py",
+    "exit_code": 0,
+    "seconds": 4.05
+  },
+  {
+    "suite": "test_pos_testes_087.py",
+    "exit_code": 0,
+    "seconds": 3.55
+  },
+  {
+    "suite": "test_reedit_after_preview_bugfix.py",
+    "exit_code": 0,
+    "seconds": 3.49
+  },
+  {
+    "suite": "test_regressions.py",
+    "exit_code": 0,
+    "seconds": 4.81
+  },
+  {
+    "suite": "test_regressions_0812.py",
+    "exit_code": 0,
+    "seconds": 7.95
+  },
+  {
+    "suite": "test_release_connector_frames.py",
+    "exit_code": 0,
+    "seconds": 3.86
+  },
+  {
+    "suite": "test_release_depth_guard.py",
+    "exit_code": 0,
+    "seconds": 5.67
+  },
+  {
+    "suite": "test_release_depth_region.py",
+    "exit_code": 0,
+    "seconds": 7.77
+  },
+  {
+    "suite": "test_release_geometry.py",
+    "exit_code": 0,
+    "seconds": 11.7
+  },
+  {
+    "suite": "test_release_interface.py",
+    "exit_code": 0,
+    "seconds": 4.58
+  },
+  {
+    "suite": "test_release_material_patch.py",
+    "exit_code": 0,
+    "seconds": 4.08
+  },
+  {
+    "suite": "test_release_package.py",
+    "exit_code": 0,
+    "seconds": 4.24
+  },
+  {
+    "suite": "test_release_state.py",
+    "exit_code": 0,
+    "seconds": 4.16
+  },
+  {
+    "suite": "test_release_workflows.py",
+    "exit_code": 0,
+    "seconds": 21.55
+  },
+  {
+    "suite": "test_reproduce_extrude_bug.py",
+    "exit_code": 0,
+    "seconds": 3.12
+  },
+  {
+    "suite": "test_reproduce_flaws.py",
+    "exit_code": 0,
+    "seconds": 3.31
+  },
+  {
+    "suite": "test_reproduce_operator.py",
+    "exit_code": 0,
+    "seconds": 3.8
+  },
+  {
+    "suite": "test_reversion_086.py",
+    "exit_code": 0,
+    "seconds": 4.05
+  },
+  {
+    "suite": "test_run_0811_comprehensive.py",
+    "exit_code": 0,
+    "seconds": 3.61
+  },
+  {
+    "suite": "test_smoke_phase0.py",
+    "exit_code": 0,
+    "seconds": 3.12
+  },
+  {
+    "suite": "test_smoke_phase1.py",
+    "exit_code": 0,
+    "seconds": 3.38
+  },
+  {
+    "suite": "test_smoke_phase2.py",
+    "exit_code": 0,
+    "seconds": 3.84
+  },
+  {
+    "suite": "test_smoke_phase3.py",
+    "exit_code": 0,
+    "seconds": 4.06
+  },
+  {
+    "suite": "test_stress_phases0_3.py",
+    "exit_code": 0,
+    "seconds": 9.36
+  },
+  {
+    "suite": "test_transforms_extrude.py",
+    "exit_code": 0,
+    "seconds": 3.75
+  },
+  {
+    "suite": "test_user_mesh_0812.py",
+    "exit_code": 0,
+    "seconds": 4.27
+  },
+  {
+    "suite": "test_verify_bug_and_fix.py",
+    "exit_code": 0,
+    "seconds": 3.41
+  }
+]

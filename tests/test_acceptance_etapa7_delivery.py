@@ -40,13 +40,11 @@ class TestAcceptanceEtapa7Delivery(unittest.TestCase):
         bpy.ops.wm.read_homefile(use_empty=True)
 
     def test_01_commercial_zip_purity(self):
-        import glob
-        zip_candidates = (
-            glob.glob(os.path.join(parent_dir, "dist", "chest_part_splitter-*.zip")) +
-            glob.glob(os.path.join(parent_dir, "chest_part_splitter-*.zip"))
-        )
-        zip_path = zip_candidates[0] if zip_candidates else None
-        self.assertTrue(zip_path and os.path.exists(zip_path), f"Arquivo ZIP não encontrado: {zip_path}")
+        import tomllib
+        from pathlib import Path
+        manifest = tomllib.loads((Path(parent_dir) / 'blender_manifest.toml').read_text(encoding='utf-8'))
+        zip_path = Path(parent_dir) / 'dist' / f"{manifest['id']}-{manifest['version']}.zip"
+        self.assertTrue(zip_path.is_file(), str(zip_path))
 
         with zipfile.ZipFile(zip_path, "r") as zf:
             names = zf.namelist()
@@ -62,7 +60,8 @@ class TestAcceptanceEtapa7Delivery(unittest.TestCase):
                 n_lower = n.lower()
                 self.assertFalse(n_lower.startswith("scratch/"), f"Arquivo de scratch no ZIP: {n}")
                 self.assertFalse(n_lower.startswith("tests/"), f"Arquivo de testes no ZIP: {n}")
-                self.assertFalse(n_lower.startswith("docs/"), f"Documento interno no ZIP: {n}")
+                if n_lower.startswith("docs/"):
+                    self.assertEqual(n, "docs/GUIA_RAPIDO_PT_EN.md", f"Documento interno no ZIP: {n}")
                 self.assertFalse("__pycache__" in n_lower, f"Cache no ZIP: {n}")
                 self.assertFalse(n_lower.endswith(".blend"), f"Arquivo .blend no ZIP: {n}")
                 self.assertFalse(n_lower.endswith(".png"), f"Imagem solta no ZIP: {n}")
@@ -83,13 +82,15 @@ class TestAcceptanceEtapa7Delivery(unittest.TestCase):
         init_path = os.path.join(parent_dir, "__init__.py")
         with open(init_path, "r", encoding="utf-8") as f:
             init_code = f.read()
-        self.assertTrue('"version": (0, 8, 12)' in init_code or '"version": (0, 8, 11)' in init_code or '"version": (0, 8, 10)' in init_code or '"version": (0, 8, 9)' in init_code or '"version": (0, 8, 8)' in init_code or '"version": (0, 8, 7)' in init_code or '"version": (0, 8, 6)' in init_code or '"version": (0, 8, 5)' in init_code or '"version": (0, 8, 4)' in init_code)
+        import ast
+        info = next(ast.literal_eval(n.value) for n in ast.parse(init_code).body
+                    if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'bl_info' for t in n.targets))
 
         import tomllib
         manifest_path = os.path.join(parent_dir, "blender_manifest.toml")
         with open(manifest_path, "rb") as mf:
             mdata = tomllib.load(mf)
-        self.assertIn(mdata.get("version"), ("0.8.12", "0.8.11", "0.8.10", "0.8.9", "0.8.8", "0.8.7", "0.8.6", "0.8.5", "0.8.4"))
+        self.assertEqual(mdata["version"], ".".join(map(str, info["version"])))
         self.assertEqual(mdata.get("id"), "chest_part_splitter")
 
     def test_04_full_material_multi_region_workflow(self):
@@ -133,6 +134,7 @@ class TestAcceptanceEtapa7Delivery(unittest.TestCase):
         self.assertLess(self.settings.volume_diff_pct, 0.1)
 
         # Confirma criação das peças
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         res_commit = bpy.ops.chest.splitter_commit_parts()
         self.assertEqual(res_commit, {'FINISHED'})
         self.assertEqual(self.settings.session_status, 'COMMITTED')

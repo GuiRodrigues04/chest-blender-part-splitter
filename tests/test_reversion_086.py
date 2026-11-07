@@ -118,7 +118,7 @@ class TestReversion086(unittest.TestCase):
         res_prev = bpy.ops.chest.splitter_generate_preview()
         self.assertIn('FINISHED', res_prev)
         self.assertEqual(self.settings.session_status, 'PREVIEW_VALID')
-        self.assertTrue(target.hide_viewport)
+        self.assertTrue(target.hide_get())
 
         # 2. Remover prévia
         res_rem = bpy.ops.chest.splitter_remove_preview()
@@ -136,6 +136,7 @@ class TestReversion086(unittest.TestCase):
         self.assertEqual(self.settings.session_status, 'PREVIEW_VALID')
 
         # 5. Confirmar corte
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         res_commit = bpy.ops.chest.splitter_commit_parts()
         self.assertIn('FINISHED', res_commit)
         self.assertEqual(self.settings.session_status, 'COMMITTED')
@@ -256,6 +257,7 @@ class TestReversion086(unittest.TestCase):
 
         # Gera e confirma
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
 
         # Altera intencionalmente a matriz do alvo enquanto oculto
@@ -286,6 +288,7 @@ class TestReversion086(unittest.TestCase):
         bpy.context.view_layer.objects.active = box1
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
 
         # Corta Box2
@@ -294,6 +297,7 @@ class TestReversion086(unittest.TestCase):
         bpy.context.view_layer.objects.active = box2
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
 
         parts_col = bpy.data.collections.get(COLLECTION_PARTS_NAME)
@@ -318,10 +322,11 @@ class TestReversion086(unittest.TestCase):
         bpy.context.view_layer.objects.active = base
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
 
         parts_col = bpy.data.collections.get(COLLECTION_PARTS_NAME)
-        part_a = [o for o in parts_col.objects if o.name.endswith("__A")][0]
+        part_a = [o for o in parts_col.objects if o.get('chest_splitter_part') == 'A'][0]
         parent_op_id = part_a.get("chest_operation_id")
 
         # Define Parte A como alvo de um novo corte filho
@@ -330,6 +335,7 @@ class TestReversion086(unittest.TestCase):
         bpy.context.view_layer.objects.active = part_a
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
 
         # Tentar reverter o corte pai diretamente deve ser bloqueado
@@ -369,6 +375,7 @@ class TestReversion086(unittest.TestCase):
         bpy.context.view_layer.objects.active = cube
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
 
         # Separa por material
@@ -393,6 +400,7 @@ class TestReversion086(unittest.TestCase):
         bpy.context.view_layer.objects.active = box
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
 
         parts_col = bpy.data.collections.get(COLLECTION_PARTS_NAME)
@@ -416,6 +424,7 @@ class TestReversion086(unittest.TestCase):
         bpy.context.view_layer.objects.active = box
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
 
         parts_col = bpy.data.collections.get(COLLECTION_PARTS_NAME)
@@ -444,6 +453,7 @@ class TestReversion086(unittest.TestCase):
         bpy.context.view_layer.objects.active = box
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
 
         # Usuário apaga o alvo original da cena
@@ -480,6 +490,7 @@ class TestReversion086(unittest.TestCase):
 
         for _ in range(5):
             bpy.ops.chest.splitter_generate_preview()
+            bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
             bpy.ops.chest.splitter_commit_parts()
             bpy.ops.chest.splitter_revert_cut()
 

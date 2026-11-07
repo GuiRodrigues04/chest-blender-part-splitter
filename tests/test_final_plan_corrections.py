@@ -204,6 +204,7 @@ class TestFinalPlanCorrections(unittest.TestCase):
         bpy.context.view_layer.objects.active = box_x
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         res_commit_x = bpy.ops.chest.splitter_commit_parts()
         self.assertIn('FINISHED', res_commit_x)
         sid_x = self.settings.session_id
@@ -274,9 +275,11 @@ class TestFinalPlanCorrections(unittest.TestCase):
         self.assertFalse(is_cur2, "Mudança de posição do alvo não invalidou a prévia!")
 
         # Exportação deve ser bloqueada
-        res_exp = bpy.ops.chest.splitter_export_parts()
-        self.assertEqual(res_exp, {'CANCELLED'}, "Exportação com prévia desatualizada não foi cancelada!")
-        self.assertEqual(self.settings.session_status, 'PREVIEW_STALE')
+        self.assertFalse(bpy.ops.chest.splitter_export_parts.poll())
+        with self.assertRaisesRegex(RuntimeError, 'poll'):
+            bpy.ops.chest.splitter_export_parts()
+        # Poll is read-only; freshness is established by verify_preview_current.
+        self.assertFalse(verify_preview_current(bpy.context)[0])
 
     def test_r11_r12_connectors_capsule_and_wall_thickness(self):
         """R11/R12: Auto-ajuste de cápsula e diagnóstico seguro de espessura de parede."""

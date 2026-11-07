@@ -1,0 +1,264 @@
+{
+  "blender": "5.2.0 LTS",
+  "glb": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Placa_Chest_Inteira.glb",
+  "cases": [
+    {
+      "file": "Placa_Chest_Inteira.glb",
+      "material_index": 0,
+      "region_index": 0,
+      "extraction_mode": "EXTRUDE",
+      "depth_mm": 2.0,
+      "requested_gap_mm": 0.0,
+      "apply_to": "PART",
+      "connectors": false,
+      "pins": false,
+      "import_operator": "{'FINISHED'}",
+      "raw": {
+        "verts": 1966,
+        "faces": 1450,
+        "nonmanifold_edges": 1994
+      },
+      "repair_operator": "{'FINISHED'}",
+      "repair_message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+      "repaired": {
+        "verts": 727,
+        "faces": 1450,
+        "nonmanifold_edges": 0
+      },
+      "direct_geometry": {
+        "parts": [
+          {
+            "verts": 547,
+            "edges": 1267,
+            "faces": 722,
+            "volume_mm3": 6232.135280458855,
+            "valid": true,
+            "manifold": true,
+            "nonmanifold_edges": 0
+          },
+          {
+            "verts": 1092,
+            "edges": 2902,
+            "faces": 1812,
+            "volume_mm3": 212101.52721791173,
+            "valid": true,
+            "manifold": true,
+            "nonmanifold_edges": 0
+          }
+        ],
+        "closed_solid_pair": true
+      },
+      "source_unchanged_after_direct": true,
+      "effective_gap_mm": 0.0,
+      "effective_bottom_gap_mm": 0.0,
+      "configuration_matches": true,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 6,232 mm³ | Part B: 212,102 mm³",
+      "preview_current": true,
+      "preview_parts": [
+        {
+          "verts": 547,
+          "edges": 1267,
+          "faces": 722,
+          "volume_mm3": 6232.135280458855,
+          "valid": true,
+          "manifold": true,
+          "nonmanifold_edges": 0,
+          "object": "SPLITTER_PREVIEW_A"
+        },
+        {
+          "verts": 1092,
+          "edges": 2902,
+          "faces": 1812,
+          "volume_mm3": 212101.52721791173,
+          "valid": true,
+          "manifold": true,
+          "nonmanifold_edges": 0,
+          "object": "SPLITTER_PREVIEW_B"
+        }
+      ],
+      "closed_solid_preview": true,
+      "source_unchanged_after_preview": true,
+      "source_volume_mm3": 218333.66251520524,
+      "preview_volume_mm3": 218333.6624983706,
+      "volume_delta_mm3": -1.6834645066410303e-05,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "file": "Placa_Chest_Inteira.glb",
+      "material_index": 0,
+      "region_index": 0,
+      "extraction_mode": "EXTRUDE",
+      "depth_mm": 2.0,
+      "requested_gap_mm": 0.1,
+      "apply_to": "PART",
+      "connectors": false,
+      "pins": false,
+      "import_operator": "{'FINISHED'}",
+      "raw": {
+        "verts": 1966,
+        "faces": 1450,
+        "nonmanifold_edges": 1994
+      },
+      "repair_operator": "{'FINISHED'}",
+      "repair_message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+      "repaired": {
+        "verts": 727,
+        "faces": 1450,
+        "nonmanifold_edges": 0
+      },
+      "direct_geometry": {
+        "parts": [
+          {
+            "verts": 787,
+            "edges": 1455,
+            "faces": 670,
+            "volume_mm3": 5866.006184545962,
+            "valid": true,
+            "manifold": true,
+            "nonmanifold_edges": 0
+          },
+          {
+            "verts": 1092,
+            "edges": 2902,
+            "faces": 1812,
+            "volume_mm3": 212101.52721791173,
+            "valid": true,
+            "manifold": true,
+            "nonmanifold_edges": 0
+          }
+        ],
+        "closed_solid_pair": true
+      },
+      "source_unchanged_after_direct": true,
+      "effective_gap_mm": 0.10000000149011612,
+      "effective_bottom_gap_mm": 0.10000000149011612,
+      "configuration_matches": true,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 5,866 mm³ | Part B: 212,102 mm³",
+      "preview_current": true,
+      "preview_parts": [
+        {
+          "verts": 787,
+          "edges": 1455,
+          "faces": 670,
+          "volume_mm3": 5866.006184545962,
+          "valid": true,
+          "manifold": true,
+          "nonmanifold_edges": 0,
+          "object": "SPLITTER_PREVIEW_A"
+        },
+        {
+          "verts": 1092,
+          "edges": 2902,
+          "faces": 1812,
+          "volume_mm3": 212101.52721791173,
+          "valid": true,
+          "manifold": true,
+          "nonmanifold_edges": 0,
+          "object": "SPLITTER_PREVIEW_B"
+        }
+      ],
+      "closed_solid_preview": true,
+      "source_unchanged_after_preview": true,
+      "source_volume_mm3": 218333.66251520524,
+      "preview_volume_mm3": 217967.5334024577,
+      "volume_delta_mm3": -366.12911274755606,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "file": "Placa_Chest_Inteira.glb",
+      "material_index": 1,
+      "region_index": 0,
+      "extraction_mode": "EXTRUDE",
+      "depth_mm": 2.0,
+      "requested_gap_mm": 0.1,
+      "apply_to": "PART",
+      "connectors": false,
+      "pins": false,
+      "import_operator": "{'FINISHED'}",
+      "raw": {
+        "verts": 1966,
+        "faces": 1450,
+        "nonmanifold_edges": 1994
+      },
+      "repair_operator": "{'FINISHED'}",
+      "repair_message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+      "repaired": {
+        "verts": 727,
+        "faces": 1450,
+        "nonmanifold_edges": 0
+      },
+      "direct_geometry": {
+        "parts": [
+          {
+            "verts": 802,
+            "edges": 1465,
+            "faces": 665,
+            "volume_mm3": 5866.512453357975,
+            "valid": true,
+            "manifold": true,
+            "nonmanifold_edges": 0
+          },
+          {
+            "verts": 1084,
+            "edges": 2887,
+            "faces": 1805,
+            "volume_mm3": 212100.98723076112,
+            "valid": true,
+            "manifold": true,
+            "nonmanifold_edges": 0
+          }
+        ],
+        "closed_solid_pair": true
+      },
+      "source_unchanged_after_direct": true,
+      "effective_gap_mm": 0.10000000149011612,
+      "effective_bottom_gap_mm": 0.10000000149011612,
+      "configuration_matches": true,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 5,867 mm³ | Part B: 212,101 mm³",
+      "preview_current": true,
+      "preview_parts": [
+        {
+          "verts": 802,
+          "edges": 1465,
+          "faces": 665,
+          "volume_mm3": 5866.512455543665,
+          "valid": true,
+          "manifold": true,
+          "nonmanifold_edges": 0,
+          "object": "SPLITTER_PREVIEW_A"
+        },
+        {
+          "verts": 1084,
+          "edges": 2887,
+          "faces": 1805,
+          "volume_mm3": 212100.98723076112,
+          "valid": true,
+          "manifold": true,
+          "nonmanifold_edges": 0,
+          "object": "SPLITTER_PREVIEW_B"
+        }
+      ],
+      "closed_solid_preview": true,
+      "source_unchanged_after_preview": true,
+      "source_volume_mm3": 218333.66251520524,
+      "preview_volume_mm3": 217967.4996863048,
+      "volume_delta_mm3": -366.16282890044386,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    }
+  ]
+}

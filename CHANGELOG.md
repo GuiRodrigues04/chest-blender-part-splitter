@@ -1,3 +1,203 @@
+# 0.9.4 — revisão complementar dos avisos — 2026-11-02
+
+- Erros do editor manual de pinos, alinhamento do cortador e exportação passam pela tradução na apresentação, inclusive causas inseridas em avisos bilíngues.
+- Mantidos os algoritmos de corte, folga e encaixe.
+
+# 0.9.3 — auditoria de português e inglês — 2026-11-02
+
+- Catálogo ampliado para erros de geometria e estado, incluindo mensagens com medidas e causas internas. Aviso de reescolha de contato agora usa tradução explícita.
+- Preferências e terminologia de prévia/contorno revisadas em português. Verificação cruzada de catálogos, parâmetros, ajuda e erros nos dois idiomas.
+- Sem alteração dos algoritmos de corte e folga.
+
+# 0.9.2 — conectores ao trocar alvo — 2026-11-02
+
+- Região inteira desativa os conectores ao mudar de alvo, exigindo preparar o contato da nova peça. O botão permite desligar um estado ativo herdado, mesmo sem contato escolhido.
+- Margem de borda padrão: 0,4 mm; valores já salvos são preservados.
+- Geometria da folga mantida; deformação exterior parcial permanece em avaliação no registro GAP-003.
+
+# 0.9.1 — Região inteira e folga em múltiplos contatos — 2026-11-02
+
+- Reconstrução conservadora de regiões convexas com contatos unidos em direções diferentes, validada por contenção, superfície selecionada e conservação de volume. Operações locais preservam escala, rotação e espelhamento.
+- Contornos com projeção ambígua não geram mais um fechamento silenciosamente diferente da região pretendida; são recusados quando a reconstrução não pode ser certificada.
+- Folga aplicada simultaneamente às normais de todos os contatos, com interseção de restrições nos cantos. Transições estreitas usam corte validado e verificações de superfícies sem afastamento.
+- Mantidos os modos por Base, Profundidade, Material e cortador sólido. Novas regressões medem folga em cada contato, incluem peças côncavas e transformadas e preservam a malha de entrada.
+- A versão é destinada aos testes finais do usuário; geometria e encaixe físico ainda dependem da impressão. Casos que não admitem reconstrução segura continuam sendo recusados.
+- Preservação dos materiais e das identidades dos contatos em cortes sucessivos; preparação de pinos corrigida para faces poligonais com triangulações diferentes.
+
+# 0.8.35 — área comum dos pinos e offsets pequenos — 2026-11-02
+
+- A área para posicionar pinos é reconstruída a partir das faces finais da superfície de corte, após o reparo de microarestas, preservando ilhas e furos. Não reutiliza referências de arestas do bisect invalidadas pelo reparo.
+- Removido o fallback que interpretava extremos de arestas sem ordem como um polígono. Contornos inválidos agora geram erro explícito.
+- Cortes por plano completo calculam a interseção das seções finais A e B, considerando folga e inversão. A superfície mais larga do pé não oferece posições sem contraparte na placa vertical. Furos e ilhas são preservados, com simplificação apenas abaixo de 0,0001 mm no domínio do contato.
+- Remoção de lâminas usa coincidência numérica do plano, sem confundir proximidade de 0,05 mm com coplanaridade. Offsets de 0,03 mm deixam de remover a face vizinha do pé.
+- Regressão da Placa Chest: pinos à esquerda, no centro e à direita aceitos; prévia com três pinos e ambas as peças fechadas. Testes adicionais de folga, inversão, furos, ilhas, transformação e fluxo manual.
+- Validação focada: 41 testes aprovados, incluindo 48 combinações adicionais de offset/folga, inversão e destino da folga na placa real.
+
+# 0.8.34 — recuperação de interfaces em modo de edição — 2026-10-30
+
+- Corrigido IndexError ao gerar prévia em Edit Mode num restante que já possui atributos de interfaces anteriores. A leitura usa uma cópia da BMesh de edição, incluindo geometria e marcações consistentes, em vez de indexar arrays RNA vazios.
+- A mesma leitura se aplica aos ancestrais em edição. Marcas já existentes, seleção, modo de edição e geometria são preservados; malhas temporárias são liberadas, inclusive no caminho de cache.
+- Mantidas as restrições de procedência do histórico, de malhas compartilhadas em edição e de espessura real da parede.
+
+# 0.8.33 — folga uniforme nas paredes do encaixe — 2026-10-30
+
+- Corrigido o afunilamento da base profunda nos cortes por Contorno e Material. A folga remove uma faixa completa das paredes de inserção, com ombro junto ao relevo original preservado.
+- Folgas lateral e de fundo independentes, incluindo fundo zero. Material na base passa a respeitar a folga de fundo separada; a profundidade não limita indevidamente a folga lateral dos cortes prismáticos.
+- Validação de espessura da cavidade considera a profundidade adicional da folga. Preservadas as faces, materiais e UVs do relevo nas operações de remoção.
+- Verificação dos quatro modos de corte, com 16 suítes aprovadas e 105 cenários dimensionais dedicados à folga, incluindo os três destinos e cortes passantes.
+
+# 0.8.32 — interfaces preservadas em cortes sucessivos — 2026-10-30
+
+- A triangulação de entrada remapeia os atributos de faces splitter_* para cada triângulo. Não perde as marcações de interfaces, inclusive em polígonos com mais de três vértices.
+- Região inteira e regiões com aberturas acumulam os contatos anteriores em splitter_previous_interface antes de marcar o contato do novo corte. Não reutilizam esses contatos antigos como área atual para pinos.
+- Ao gerar a prévia ou preparar encaixes, a extensão recupera marcações legadas somente por correspondência de superfície com alvos/snapshots da cadeia de operações do próprio objeto. Corrige o caso do bigode com espessura incorreta de 0,02 mm, sem mover vértices ou mudar materiais e seleção. Sem histórico elegível, não relaxa a checagem de parede.
+- Recuperação respeita Edit Mode e separa dados quando a malha é compartilhada por outros objetos. Cache considera geometria, transformações e marcações dos ancestrais e é limpo ao carregar/desfazer.
+- Mantidos os bloqueios para paredes realmente finas e fechamentos que cruzem a superfície. Nenhuma mudança no editor manual de pinos nesta versão.
+
+# 0.8.31 — fechamento de Região inteira com triângulos herdados degenerados — 2026-10-29
+
+- Corrigido o corte da pata de 405 faces: triângulos quase colineares gerados pela triangulação de um polígono do restante são saneados em uma cópia candidata, sem alterar o alvo nem a seleção.
+- O reparo é aceito somente se preservar as tampas exatas, superfície, áreas por material, limites e volume dentro das tolerâncias físicas existentes. Tampas degeneradas continuam sendo recusadas. Mantidas as validações finais de fechamento, componentes, cruzamento e contenção.
+- Reparos rejeitados descartam a cópia sem invalidar referências das faces originais. Falhas por degenerescência passam a ter mensagem própria em português e inglês, em vez de sugerir somente ajuste da seleção.
+
+# 0.8.30 — cortes por material e histórico — 2026-10-29
+
+- Profundidade não depende de uma tentativa de fechamento direto para analisar a região. Corrige o contorno do gato com desvio de 0,30 mm.
+- Relevos com projeção saliente usam a união das projeções de todas as faces selecionadas. Preserva o bigode completo sem fechar sua concavidade com um casco convexo.
+- Medição de espessura distingue interfaces de cortes anteriores da parede externa. Corrige os 0,04 mm encontrados ao cortar o bigode após separar o nariz. Mantidos os bloqueios de parede fina real, contornos inválidos e peças abertas.
+- Alvos intermediários gerados pela extensão passam à coleção Histórico de cortes. Migração dos alvos antigos ocultos ao abrir a cena; não apaga objetos, não altera backups e mantém reversão. O olho volta a controlar a visibilidade desses intermediários.
+- Nomes curtos numerados para novas peças e restantes; os nomes manuais viram a referência dos próximos resultados. Objetos antigos não são renomeados em massa.
+
+# 0.8.29 — idiomas e seleção do cortador — 2026-10-25
+
+- Seletor de cortador exclui backups internos; revisão de traduções e auditoria de catálogo.
+
+# 0.8.28 — painel do Loop com sequência estável — 2026-10-24
+
+- Seletor dos quatro tipos do Loop permanece no topo, na mesma ordem, incluindo Região inteira. Elimina a mudança de posição ao trocar de tipo.
+- Painel organizado em escolha do tipo, seleção/captura e ajustes/prévia, com explicação curta de cada tipo e Editar Alvo disponível em todos. Mantém apenas controles pertinentes abaixo do seletor.
+- Manual do Loop explica seleção por faces, contorno, face de referência, Região inteira, Pela Base, Profundidade, Automático e encaixes. Incluído no guia rápido distribuído.
+- Sem mudanças nos cálculos de corte, geometria, materiais, encaixes ou folgas.
+
+# 0.8.27 — material uniforme na região inteira — 2026-10-24
+
+- Região inteira no corte por Material passa a mostrar a mesma opção Material da Interface dos modos Pela Base e Profundidade.
+- Material da Peça Extraída colore toda a parte A com o material escolhido, incluindo fechamentos, apoio plano, transições, pinos e paredes dos furos. A atribuição é reaplicada após as booleanas dos encaixes.
+- Manter Origem conserva a atribuição anterior; corte por faces/Edge Loop e materiais do corpo restante permanecem independentes. Sem alteração de coordenadas, topologia, dimensões ou folgas.
+
+# 0.8.26 — regiões inteiras e contatos planos para montagem — 2026-10-24
+
+- Região inteira passa a ser um tipo de corte em Material e Edge Loop. No Loop aceita faces selecionadas ou contorno fechado. Remove Fechar região da lista principal. Material continua separando a região pela cor sem exigir captura adicional.
+- Para pinos, agrupa triângulos adjacentes em áreas amplas, avaliando o desvio contra um plano comum. Preparar área plana modifica somente a interface interna e cria superfícies complementares nas duas peças, com transição para o contorno original. Mantém a superfície exterior, sem escalar a pata.
+- Todos os pinos compartilham a mesma direção de inserção, perpendicular à área preparada. Recusa contatos sem direção comum, travas locais e colisões encontradas em seis posições amostradas de retirada do corpo. A verificação é discreta, não uma prova contínua de montagem.
+- Folga entre peças aplicada fisicamente na peça, cavidade ou ambas; mantém o apoio realmente plano e as folgas lateral/fundo dos pinos independentes. Tamanho, distribuição e lado macho continuam ajustáveis.
+- Sólido mantém corte, diagnóstico e alinhamentos, sem pinos ou atalhos de geração de cascas no painel. O cortador não é sugerido em vermelho como novo alvo.
+- Editar alvo oculta as prévias da operação e marca a prévia como desatualizada, evitando sobreposição com o original e confirmação de resultado antigo. Mantém as correções de seleção e descarte da 0.8.25.
+- Migra arquivos com Fechar região da 0.8.24/0.8.25 para Edge Loop / Região inteira; exige preparar novamente o contato dos pinos.
+
+# 0.8.25 — seleção e edição após descartar prévia — 2026-10-24
+
+- Corrigido handler modal de alinhamento de vértices do cortador que podia continuar consumindo cliques e Tab depois de gerar/descartar uma prévia. A ferramenta agora é encerrada nas transições de sessão e entrega o primeiro evento seguinte ao Blender, sem reativar o objeto/modo anterior. Uma instância antiga não remove o cabeçalho de uma ferramenta nova.
+- Descartar prévia e Editar alvo restauram seleção e visibilidade do alvo, uma rota de coleções da camada atual e a presença do alvo na vista local. Coleções sem relação com o alvo permanecem intactas. Erros de ativação deixam de ser tratados como sucesso silencioso.
+- Reverter corte volta a definir o objeto original restaurado como alvo da sessão, evitando referência vazia após apagar a peça que era o alvo atual.
+- Encerramento do alinhamento também acompanha troca de alvo, desfazer/refazer, carregamento e desativação da extensão. Limpeza tolera áreas/handlers já removidos.
+- Sem alteração dos algoritmos geométricos de corte, fechamento, pinos ou folgas.
+
+# 0.8.24 — fechar regiões inteiras e escolher o contato dos pinos — 2026-10-24
+
+- Novo Fechar região: captura as faces do alvo e fecha cada contorno com os mesmos triângulos nas duas peças. Mantém a superfície exterior e os materiais; não amplia a região e não gera uma segunda parede. Atalho no modo Material: Separar região inteira (sem criar casca), usando a região de cor escolhida.
+- Prévia de Região e Sólido permite escolher uma superfície plana real de contato para os pinos, pela lista de áreas ou por uma face selecionada na prévia. O contato escolhido aparece destacado em edição. Pinos automáticos e manuais usam essa interface; trocar a geometria exige reescolher o contato. Os outros contatos permanecem sem pinos.
+- Triangulação explícita da superfície visível dos operandos sólidos antes das operações booleanas: evita diagonais diferentes nas duas metades de tampas não planares.
+- Prévia bem-sucedida seleciona somente a operação nova. Editar alvo revela o objeto oculto e sai da edição anterior antes de trocar o alvo ativo.
+- Validação do fechamento verifica orientação, volume, componentes, singularidades, degenerações, interseções dos fechamentos e amostras de contenção. Mantém a prévia anterior se a atualização falhar. Recusa seleção obsoleta, modificadores ativos e contornos acima de 128 vértices.
+- Limite desta etapa: Fechar região e pinos escolhidos na prévia do Sólido requerem folga entre peças de 0 mm. Folgas lateral e de fundo dos pinos continuam configuráveis. Contatos curvos são divididos em facetas planas; não é uma reconstrução suave nem uma garantia de trajetória de montagem ou ajuste na impressora.
+
+# 0.8.23 — inspeção manual de defeitos no cortador — 2026-10-24
+
+- Painel do cortador ganha Localizar problemas, Próximo problema e Atualizar diagnóstico. A localização entra na edição do cortador, revela e enquadra os elementos defeituosos com raio X, sem alterar coordenadas, conexões ou o alvo principal.
+- Diagnóstico do cortador distingue bordas abertas, arestas soltas, arestas com mais de duas faces, orientação incompatível, vértices não-manifold, degenerações e arestas de comprimento nulo. Não classifica mais toda aresta não-manifold como aberta. Cortador vazio ou sem volume não recebe status saudável.
+- Atualização explícita reexamina edições e modificadores, preservando seleção e modo. Defeitos exclusivos dos modificadores são informados sem mapear índices inexistentes na malha base. Campos do alvo e do cortador permanecem independentes.
+- Sem reparo automático, preenchimento de buracos ou alteração dos algoritmos de corte.
+
+# 0.8.22 — criação e edição dos cortadores sólidos — 2026-10-22
+
+- Criar/Focar restaura a visibilidade do cortador e do caminho das coleções, incluindo a vista local. Criar recupera cortador vazio após exclusão de todos os vértices, preserva cortadores editados não vazios e respeita o cortador configurado. Reiniciar atua no cortador atual, inclusive cópias, e restaura escala/orientação da primitiva.
+- Painel separa geração a partir de faces/contorno, alinhamento do objeto inteiro e edição da malha. Expõe face do alvo, centro da seleção, cursor, eixos do alvo e X/Y/Z, com apoio e inversão explícitos. Centro da seleção preserva a orientação; referência vazia é recusada. Cursor respeita rotação por quaternion.
+- Novo Ajustar só um vértice: dois cliques movem apenas o ponto do cortador até o vértice do alvo, em coordenadas globais, mantendo o cortador em edição. Mover cortador por vértices preserva o comportamento anterior de translação do objeto inteiro. Escape restaura o modo/objeto de origem, sem mover geometria. Malhas compartilhadas são copiadas somente ao confirmar edição de um ponto.
+- Das faces selecionadas torna explícita a geração por extrusão já existente, abre parâmetros de profundidade/extensão e usa normais ponderadas por área. Começa pela edição do alvo e recusa seleção sem direção definida. Criação independente preserva o cortador anterior inclusive em falhas.
+- Testes cobrem recuperação, foco, reinício, sete alinhamentos com dois apoios e inversão, edição de um vértice, cliques/cancelamento, malhas compartilhadas, desenho do painel e geração por faces. Validado também em pequena seleção da pata do Teste Gato. Esta versão não implementa pinos no Corte Sólido nem fechamento automático de interfaces curvas da pata.
+
+# 0.8.21 — profundidade em regiões de contorno não planar — 2026-10-22
+
+- Extração com profundidade por Loop ou Material passa pelo motor de base volumétrica, sem substituir a profundidade por um fechamento em degraus definido pela largura do contorno. O fechamento em degraus continua disponível no destaque direto sem base adicional.
+- Reproduzido no nariz do Teste Gato: 5 e 20 mm agora deslocam o fundo de contato em 15 mm, com peças fechadas e conservação de volume. Interseções e regiões que não admitem projeção continuam sendo recusadas.
+- Diagnóstico do gato: bigode com contorno bifurcado por uma face cinza isolada; pata curva com dois contornos incompatíveis com o apoio planar do motor de molduras. Não são reparados automaticamente nesta versão.
+
+# 0.8.20 — localização de defeitos para correção manual — 2026-10-22
+
+- Localizar problemas seleciona bordas abertas, arestas soltas, arestas com mais de duas faces, orientação incompatível entre faces, vértices singulares e faces degeneradas na malha editável.
+- Próximo problema percorre regiões recalculadas em cada clique, entra no Modo de Edição, habilita visibilidade por raio X e enquadra a seleção numa vista 3D disponível.
+- As ações alteram seleção/visibilidade, sem reparar, apagar ou mover geometria. A análise é atualizada para permitir nova conferência após correção manual. Falhas existentes apenas no resultado de modificadores não recebem índices falsos na malha base.
+
+# 0.8.19 — área limitada no corte planar — 2026-10-22
+
+- Plano completo mantém o comportamento existente. Área limitada usa o retângulo do guia como domínio real de seleção das seções a separar, com largura e altura ajustáveis em milímetros e por escala do guia.
+- Somente contornos fechados totalmente contidos no retângulo são separados; regiões atravessadas pelo plano fora do retângulo permanecem unidas. Não são criadas paredes laterais de caixa.
+- Área parcial ou insuficiente é recusada com orientação para ampliar ou reposicionar o guia; a prévia anterior é preservada em caso de falha.
+- Desenho translúcido, linha de corte, superfície de conectores, assinaturas de entrada e invalidação de prévia usam o mesmo domínio. Rotação no plano e alteração da escala/tamanho do guia invalidam a prévia limitada.
+- Testes: nove casos de área limitada, fluxo de conector/prévia/confirmação, pose de pé real e regressões de plano, conectores e recriação do guia.
+
+# 0.8.18 — auditoria de placas, folgas e robustez numérica — 2026-10-21
+
+- Corrigida troca de Loop para Material com captura antiga: a região capturada só é consultada no modo Loop.
+- Volume de referência do saneamento calculado em precisão dupla, preservando a tolerância existente e evitando rejeição por erro numérico de triangulação.
+- Saídas planares passam pelo saneamento validado antes das métricas finais. Cortes por sólido repetem a operação com o solver Manifold quando Exact produz saída inválida, mantendo validação de ambas as peças.
+- Prismas de extração por material recebem o mesmo saneamento; saídas booleanas vazias acionam a tentativa alternativa já existente.
+- Saídas vazias do Loop acionam a tentativa alternativa validada. Encaixes avaliam as duas peças em candidatos temporários e repetem com Manifold somente quando a saída Exact é inválida, sem alterar as folgas ou dimensões.
+- Auditoria com nove BLENDs, nove GLBs e o arquivo de cubos: evidências e limitações em `evidence/commercial_20261021`. Um caso Arco/Base permanece bloqueado por fechamento inválido; nenhuma validação foi desativada.
+
+- Corrigido o corte por material da placa QR reparada com profundidade de 0,10 mm e folga zero. Resíduos de arestas sem faces gerados na saída booleana são removidos antes da validação; arestas de superfície abertas não são removidas nem preenchidas. Prévia e confirmação geram dois sólidos fechados, conservando o volume dentro da tolerância.
+
+- Reparo seguro também trata microfaces quase colineares em cópia, com validações de fechamento, volume, áreas por material e distância de superfície por cor em precisão dupla (0,0001 mm). Faces pequenas bem formadas são preservadas; diagnóstico e corte passam a usar o mesmo critério físico. Novos controles Tentar reparo seguro e Mostrar faces. Folga que colapsa microdetalhes recebe mensagem orientada, sem alteração automática de parâmetros.
+
+- Corrigido agrupamento de regiões por material: a união por coincidência preserva conexões topológicas existentes, evitando falsas ilhas e bifurcações em microarestas da placa QR Inclinada. A validação de microfaces da fonte permanece ativa.
+
+- Corrigida extração de molduras com contorno externo planar e contorno interno em alturas diferentes (placa Osso): usa o contorno externo como referência e projeta os contornos no apoio mais interno. Mantém validações de projeção, espessura, fechamento e volume. Regressões cobrem Material e Loop, com a placa real em profundidade de 2 mm e folga de 0,10 mm.
+
+- Seletor único de folgas: Impressão FDM (peças 0,10 mm; pinos 0,15 mm radial e 0,20 mm axial), Sem folgas e Personalizado. Edição individual ativa Personalizado; dimensões e posições dos pinos são preservadas. Arquivos antigos não têm valores sobrescritos.
+- Removidos os botões rápidos redundantes de folga dos pinos. A seção Slicer Export fica oculta; exportadores internos são preservados.
+- Regressões verificam presets, edição, compatibilidade e persistência, além de prévia e criação final com conectores.
+
+# 0.8.17 — molduras, aberturas e reparo seguro — 2026-10-20
+
+- Material reconhece regiões conectadas com contornos interno e externo. Extrai molduras pela base ou por profundidade, preservando o centro receptor.
+- Captura pelas faces do Loop registra todos os contornos e a região selecionada; o corte compartilha o motor de molduras com Material.
+- Folgas consideram paredes internas e externas, com fundo independente. Pinos usam a superfície final de contato e respeitam aberturas.
+- Reparo de malha opera em cópia com tolerância física conservadora, recusa resultados inválidos e retorna corretamente ao modo de edição. Malhas já fechadas não são modificadas.
+- Contornos cruzados, ajustes que colapsam a moldura e regiões sem projeção/apoio válidos continuam bloqueados. Regressões incluem a placa Arco e regiões sintéticas com duas aberturas.
+
+# 0.8.16 — correção de extração por profundidade — 2026-10-20
+
+- Captura de Loop: reconhece microfaces omitidas que conectam a seleção sem deformar a malha. A recuperação de vértices separados é testada em uma cópia e só é aplicada após validar o contorno; falhas preservam a seleção e a geometria. A seleção visual final contém somente as arestas consecutivas do perímetro, sem diagonais internas.
+- Encaixes após folga entre peças: o saneamento transacional pós-booleano também trata triângulos quase colineares, mesmo sem micro-arestas. Mantém a folga configurada e as validações de sólido fechado; verifica volume e limites antes de aceitar a limpeza. Regressão com a placa Mesa, pinos automáticos/central e inversão de macho; preservadas as alterações de captura de contornos.
+- Material com relevo usa o mesmo motor de região e profundidade do Loop. Preserva a estrutura selecionada inteira, inclusive partes inclinadas que saem da projeção do contorno, e cria a base apenas na ligação com o corpo.
+- O fallback booleano do Loop verifica a superfície selecionada antes de projetar o cortador. Se a projeção cortaria a estrutura, a operação é recusada em vez de gerar peças truncadas e fragmentos no corpo.
+- Mantém a cor original das faces selecionadas e o material configurado nas interfaces novas A/B. Corrige o texto de ajuda de Profundidade em PT/EN.
+- Regressões com a cena Cubo Teste 2 conferem preservação das faces da estrutura, componentes conectados, profundidade real, folgas e corte passante. Versão candidata para validação no Blender 5.2.
+
+# 0.8.15 — candidata de validação — 2026-10-19
+
+- Folga por Loop preserva os planos das faces externas nos casos de canto e degrau. Reconstrói cantos convexos quando o deslocamento exige novos vértices; trata laterais e fundo independentemente.
+- Loop AUTO identifica quando o fechamento direto atravessaria a superfície existente e usa a profundidade configurada. Fechamentos diretos inválidos são recusados com diagnóstico; o valor escolhido de profundidade é preservado.
+- Extração por profundidade de Loop e Material usa a mesma tesselação visível da fonte para as duas booleanas e remove degenerações numéricas conectadas sob limite físico. Mantém as validações de área e sólido fechado.
+- Pinos usam a superfície final de contato, com referência de origem e orientação estáveis ao trocar o lado macho ou alterar a folga. Preserva furos no domínio de posicionamento.
+- Exportação bloqueia prévias desatualizadas, inválidas ou incompletas. O painel e o operador compartilham a verificação; a execução confere novamente o estado completo.
+- Falhas tardias na substituição da prévia recuperam os objetos, malhas, métricas, referências e visibilidade anteriores.
+- Assinaturas avaliam modificadores pelo depsgraph correto. A ocultação visual do alvo mantém sua avaliação geométrica ativa.
+- Caches de material e contorno acompanham as revisões da geometria; consultas repetidas evitam percorrer a malha inteira. A análise em Edit Mode lê o BMesh sem escrever nos datablocks durante o desenho.
+- Mensagens prioritárias de geometria e diagnósticos são estruturados e localizados em PT/EN, inclusive após trocar o idioma. Botões de ajuda abrem o tópico correspondente.
+- Guia rápido PT/EN e novas regressões com os casos recebidos. Consulte o relatório de validação para resultados, artefato e verificações manuais pendentes.
+
 # 0.8.14 — 2026-10-19
 
 - **COM-01 (Exportação após Confirmar)**: Criado resolvedor explícito de operações exportáveis (`resolve_exportable_operation_record` e `get_current_session_parts`), permitindo exportar peças A e B em qualquer modo de próximo alvo (`RECEIVER`, `EXTRACTED` ou `NONE`) e em cortes encadeados.

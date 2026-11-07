@@ -7,6 +7,7 @@ import bmesh
 from mathutils import Vector, Matrix
 
 from .constants import (
+    COLLECTION_MAIN_NAME,
     COLLECTION_GUIDES_NAME,
     COLLECTION_PREVIEWS_NAME,
     COLLECTION_WORK_NAME,
@@ -25,21 +26,142 @@ from .translations import _get_current_locale
 
 
 def get_or_create_collection(scene: bpy.types.Scene, name: str) -> bpy.types.Collection:
-    """Obtém ou cria uma coleção na cena ativa de forma segura."""
-    for col in scene.collection.children_recursive:
-        if col.name == name:
+    """Obtém ou cria uma coleção na cena ativa de forma segura, aninhada sob a coleção mestre 'Splitter'."""
+    if scene is None:
+        scene = bpy.context.scene
+
+    legacy_map = {
+        "CHEST_SPLITTER_GUIDES": COLLECTION_GUIDES_NAME,
+        "CHEST_SPLITTER_PREVIEWS": COLLECTION_PREVIEWS_NAME,
+        "CHEST_SPLITTER_WORK": COLLECTION_WORK_NAME,
+        "CHEST_SPLITTER_PARTS": COLLECTION_PARTS_NAME,
+        "CHEST_SPLITTER_BACKUPS": COLLECTION_BACKUPS_NAME,
+    }
+    target_name = legacy_map.get(name, name)
+
+    # 1. Se a coleção solicitada for a coleção principal
+    if target_name == COLLECTION_MAIN_NAME:
+        main_col = None
+        for col in scene.collection.children:
+            if col.name == COLLECTION_MAIN_NAME:
+                main_col = col
+                break
+        if not main_col:
+            main_col = bpy.data.collections.get(COLLECTION_MAIN_NAME)
+            if not main_col:
+                main_col = bpy.data.collections.new(COLLECTION_MAIN_NAME)
+            if main_col.name not in scene.collection.children:
+                scene.collection.children.link(main_col)
+
+        # Migra e organiza coleções legadas (CHEST_SPLITTER_*) e sub-coleções soltas na raiz para dentro do Splitter
+        for old_name, new_name in legacy_map.items():
+            old_col = bpy.data.collections.get(old_name)
+            if old_col:
+                new_target_col = bpy.data.collections.get(new_name)
+                if not new_target_col:
+                    old_col.name = new_name
+                    new_target_col = old_col
+                else:
+                    for obj in list(old_col.objects):
+                        if obj.name not in new_target_col.objects:
+                            new_target_col.objects.link(obj)
+                        old_col.objects.unlink(obj)
+                    if old_col.name in scene.collection.children:
+                        scene.collection.children.unlink(old_col)
+                    if old_col.name in main_col.children:
+                        main_col.children.unlink(old_col)
+                    bpy.data.collections.remove(old_col)
+
+                if new_target_col.name not in main_col.children:
+                    main_col.children.link(new_target_col)
+                if new_target_col.name in scene.collection.children:
+                    scene.collection.children.unlink(new_target_col)
+
+        for sub_n in (COLLECTION_GUIDES_NAME, COLLECTION_PREVIEWS_NAME, COLLECTION_WORK_NAME, COLLECTION_PARTS_NAME, COLLECTION_BACKUPS_NAME):
+            loose_col = scene.collection.children.get(sub_n)
+            if loose_col:
+                if loose_col.name not in main_col.children:
+                    main_col.children.link(loose_col)
+                scene.collection.children.unlink(loose_col)
+
+        return main_col
+
+    # 2. Assegura que a coleção mestre 'Splitter' existe na raiz da cena
+    main_col = get_or_create_collection(scene, COLLECTION_MAIN_NAME)
+
+    # Migração de coleções legadas soltas na raiz (ex: CHEST_SPLITTER_PARTS)
+    for old_name, new_name in legacy_map.items():
+        old_col = bpy.data.collections.get(old_name)
+        if old_col:
+            new_target_col = bpy.data.collections.get(new_name)
+            if not new_target_col:
+                old_col.name = new_name
+            else:
+                for obj in list(old_col.objects):
+                    if obj.name not in new_target_col.objects:
+                        new_target_col.objects.link(obj)
+                    old_col.objects.unlink(obj)
+                if old_col.name in scene.collection.children:
+                    scene.collection.children.unlink(old_col)
+                if old_col.name in main_col.children:
+                    main_col.children.unlink(old_col)
+                bpy.data.collections.remove(old_col)
+
+    # 3. Verifica se a coleção alvo já está aninhada dentro de main_col
+    for col in main_col.children:
+        if col.name == target_name:
             return col
-    new_col = bpy.data.collections.new(name)
-    scene.collection.children.link(new_col)
-    return new_col
+
+    # 4. Verifica se existe em children_recursive da cena (ex: solta na raiz)
+    for col in scene.collection.children_recursive:
+        if col.name == target_name:
+            if col.name not in main_col.children:
+                main_col.children.link(col)
+            if col.name in scene.collection.children:
+                scene.collection.children.unlink(col)
+            return col
+
+    # 5. Verifica se já existe em bpy.data.collections
+    sub_col = bpy.data.collections.get(target_name)
+    if not sub_col:
+        sub_col = bpy.data.collections.new(target_name)
+
+    if sub_col.name not in main_col.children:
+        main_col.children.link(sub_col)
+    if sub_col.name in scene.collection.children:
+        scene.collection.children.unlink(sub_col)
+
+
+    return sub_col
 
 
 def find_collection(scene: bpy.types.Scene, name: str) -> Optional[bpy.types.Collection]:
-    """Localiza uma coleção na cena ativa pelo nome."""
-    for col in scene.collection.children_recursive:
-        if col.name == name:
-            return col
-    return None
+    """Localiza uma coleção na cena ativa pelo nome de forma segura."""
+    if scene is None:
+        scene = bpy.context.scene
+
+    legacy_map = {
+        "CHEST_SPLITTER_GUIDES": COLLECTION_GUIDES_NAME,
+        "CHEST_SPLITTER_PREVIEWS": COLLECTION_PREVIEWS_NAME,
+        "CHEST_SPLITTER_WORK": COLLECTION_WORK_NAME,
+        "CHEST_SPLITTER_PARTS": COLLECTION_PARTS_NAME,
+        "CHEST_SPLITTER_BACKUPS": COLLECTION_BACKUPS_NAME,
+    }
+    target_name = legacy_map.get(name, name)
+
+    main_col = bpy.data.collections.get(COLLECTION_MAIN_NAME)
+    if main_col and target_name in main_col.children:
+        return main_col.children[target_name]
+
+    if scene:
+        for col in scene.collection.children_recursive:
+            if col.name == target_name or col.name == name:
+                return col
+
+    found = bpy.data.collections.get(target_name)
+    if found:
+        return found
+    return bpy.data.collections.get(name)
 
 
 def ensure_backups_collection(scene: bpy.types.Scene) -> bpy.types.Collection:
@@ -136,7 +258,7 @@ def resolve_receiver_object(target_or_scene_or_op: Any) -> Optional[bpy.types.Ob
             op_record = target_or_scene_or_op.chest_operations[-1]
         else:
             # Fallback buscando na coleção de partes por objeto B
-            parts_col = target_or_scene_or_op.collection.children.get(COLLECTION_PARTS_NAME)
+            parts_col = find_collection(target_or_scene_or_op, COLLECTION_PARTS_NAME)
             if parts_col:
                 for obj in parts_col.objects:
                     if obj.name.endswith("__B") or obj.get("chest_role") in ("ROLE_PREVIEW_B", "PART_B") or obj.get("chest_semantic_role") == "RECEIVER":
@@ -344,12 +466,20 @@ def remove_preview(context: bpy.types.Context, op_id: Optional[str] = None) -> T
     settings = scene.chest_splitter
     loc = _get_current_locale()
 
-    # Garante saída segura de Edit Mode
+    from .connector_editor import stop_connector_editor
+    from .solid_tools import stop_solid_alignment
+    stop_connector_editor(scene)
+    stop_solid_alignment()
+
+    # Never delete an edited object if Blender refused the mode transition.
     if context.mode != 'OBJECT':
         try:
             bpy.ops.object.mode_set(mode='OBJECT')
-        except Exception:
-            pass
+        except RuntimeError as exc:
+            return False, str(exc)
+        if context.mode != 'OBJECT':
+            return False, ('Não foi possível sair do modo de edição.' if loc == 'pt_BR'
+                           else 'Could not leave edit mode.')
 
     if op_id:
         op_record = find_operation_record(scene, op_id)
@@ -420,18 +550,13 @@ def remove_preview(context: bpy.types.Context, op_id: Optional[str] = None) -> T
 
     # Restaura visibilidade e acessibilidade do alvo
     target = op_record.target_object if (op_record and op_record.target_object) else settings.target_object
+    restore_error = None
     if target and target.name in bpy.data.objects:
-        target.hide_viewport = False
-        target.hide_set(False)
-
-        # Seleciona e ativa o alvo
         try:
-            bpy.ops.object.select_all(action='DESELECT')
-            target.select_set(True)
-            context.view_layer.objects.active = target
-        except Exception:
-            pass
-
+            from .scene_state import activate_target_for_selection
+            activate_target_for_selection(context, target)
+        except (RuntimeError, ReferenceError) as exc:
+            restore_error = str(exc)
         if settings.target_object != target:
             settings.target_object = target
 
@@ -451,6 +576,13 @@ def remove_preview(context: bpy.types.Context, op_id: Optional[str] = None) -> T
         settings.session_status = 'CONFIGURED'
     else:
         settings.session_status = 'EMPTY'
+
+    if restore_error:
+        msg = (f"Prévia removida, mas não foi possível ativar o alvo: {restore_error}"
+               if loc == 'pt_BR' else f"Preview discarded, but the target could not be activated: {restore_error}")
+        settings.last_status = msg
+        settings.last_status_level = 'WARNING'
+        return False, msg
 
     msg = (
         "Prévia removida com sucesso. Retornado ao objeto alvo."
@@ -472,12 +604,20 @@ def revert_committed_operation(context: bpy.types.Context, op_id: Optional[str] 
     settings = scene.chest_splitter
     loc = _get_current_locale()
 
-    # Garante saída segura de Edit Mode
+    from .connector_editor import stop_connector_editor
+    from .solid_tools import stop_solid_alignment
+    stop_connector_editor(scene)
+    stop_solid_alignment()
+
+    # Never delete an edited object if Blender refused the mode transition.
     if context.mode != 'OBJECT':
         try:
             bpy.ops.object.mode_set(mode='OBJECT')
-        except Exception:
-            pass
+        except RuntimeError as exc:
+            return False, str(exc)
+        if context.mode != 'OBJECT':
+            return False, ('Não foi possível sair do modo de edição.' if loc == 'pt_BR'
+                           else 'Could not leave edit mode.')
 
     if op_id:
         op_record = find_operation_record(scene, op_id)
@@ -553,6 +693,8 @@ def revert_committed_operation(context: bpy.types.Context, op_id: Optional[str] 
             target.rotation_euler = backup_snap.rotation_euler.copy()
             target.scale = backup_snap.scale.copy()
 
+        from .history import restore_target
+        restore_target(scene, target)
         target.hide_viewport = op_record.target_hide_viewport
         target.hide_render = op_record.target_hide_render
         target.hide_set(False)
@@ -616,14 +758,16 @@ def revert_committed_operation(context: bpy.types.Context, op_id: Optional[str] 
     op_record.status = 'REVERTED'
 
     # 3. REATIVAÇÃO DO ALVO E RECONCILIAÇÃO DA SESSÃO
+    restore_error = None
     if target and target.name in bpy.data.objects:
-        target.hide_viewport = False
+        # Commit may have made a generated piece the session target. Its deletion
+        # above clears that RNA pointer; restore it to the actual original object.
+        settings.target_object = target
         try:
-            bpy.ops.object.select_all(action='DESELECT')
-            target.select_set(True)
-            context.view_layer.objects.active = target
-        except Exception:
-            pass
+            from .scene_state import activate_target_for_selection
+            activate_target_for_selection(context, target)
+        except (RuntimeError, ReferenceError) as exc:
+            restore_error = str(exc)
 
         # Recalcula diagnósticos do alvo restaurado
         diag = analyze_target_mesh(target, scene)
@@ -644,6 +788,13 @@ def revert_committed_operation(context: bpy.types.Context, op_id: Optional[str] 
     settings.part_b_volume_mm3 = 0.0
     settings.part_sum_volume_mm3 = 0.0
     settings.volume_diff_pct = 0.0
+
+    if restore_error:
+        msg = (f"Corte revertido, mas não foi possível ativar o alvo: {restore_error}"
+               if loc == 'pt_BR' else f"Cut reverted, but the target could not be activated: {restore_error}")
+        settings.last_status = msg
+        settings.last_status_level = 'WARNING'
+        return False, msg
 
     msg = (
         f"Corte revertido com sucesso. O modelo '{target.name if target else ''}' foi restaurado."

@@ -45,6 +45,8 @@ def test_sequence():
     settings.loop_behavior = 'EXTRUDE'
     settings.loop_extrude_depth_mm = 50.0 # First test with 50mm
     settings.loop_through_cut = False
+    settings.part_clearance_mm = 0.0
+    settings.part_clearance_bottom_mm = 0.0
 
     print("\n--- FIRST RUN of generate_preview ---")
     bpy.ops.chest.splitter_generate_preview()
@@ -61,7 +63,7 @@ def test_sequence():
     print("Run 2: Parte A dims:", settings.part_a_dims_mm)
     print("Run 2: Parte B dims:", settings.part_b_dims_mm)
 
-    assert cube.hide_viewport is True, "Target should be hidden in viewport after preview"
+    assert cube.hide_get(), "Target should be hidden in viewport after preview"
     assert 40000 < settings.part_a_volume_mm3 < 55000, f"Expected Parte A ~46302 mm3, got {settings.part_a_volume_mm3}"
     assert 9300000 < settings.part_b_volume_mm3 < 9400000, f"Expected Parte B ~9347629 mm3, got {settings.part_b_volume_mm3}"
     assert abs((settings.part_a_volume_mm3 + settings.part_b_volume_mm3) - (211.0**3)) < 1000, "Volume sum mismatch"

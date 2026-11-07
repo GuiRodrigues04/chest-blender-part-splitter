@@ -176,7 +176,7 @@ class TestCommercialAudit(unittest.TestCase):
         # 3. Verifica que a prévia anterior foi REALMENTE preservada
         previews_after = [o for o in bpy.context.scene.objects if o.get('chest_role') in ('ROLE_PREVIEW_A', 'ROLE_PREVIEW_B', 'PREVIEW_A', 'PREVIEW_B')]
         self.assertEqual(len(previews_after), 2, f"A prévia anterior foi destruída! Objetos encontrados: {[o.name for o in previews_after]}")
-        self.assertTrue(target.hide_viewport, "O alvo deve continuar oculto enquanto a prévia anterior estiver ativa")
+        self.assertTrue(target.hide_get(), "O alvo deve continuar oculto enquanto a prévia anterior estiver ativa")
 
 
     def test_com04_export_physical_geometry_singular_scale_and_mirrored_winding(self):
@@ -290,6 +290,203 @@ class TestCommercialAudit(unittest.TestCase):
         # Primeiro cálculo
         segs1 = gpu_drawing._compute_cut_line_segments(mesh, mw, origin, norm, is_bmesh=False)
         self.assertGreater(len(segs1), 0)
+
+    def test_com08_stepped_belt_loop_detach_and_extrude(self):
+        """COM-08: Loop 3D em degrau envolvendo o bloco inteiro deve gerar corte justo manifold em DETACH e EXTRUDE."""
+        gl = importlib.import_module(root.name + ".src.geometry_loop")
+        bpy.context.scene.unit_settings.scale_length = 0.001
+
+        for use_tris in (False, True):
+            self.setUp()
+            bm = bmesh.new()
+            bmesh.ops.create_cube(bm, size=164.5)
+            bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=7, use_grid_fill=True)
+            if use_tris:
+                bmesh.ops.triangulate(bm, faces=bm.faces[:])
+            me = bpy.data.meshes.new(f"SteppedCube_{use_tris}")
+            bm.to_mesh(me)
+            bm.free()
+            obj = bpy.data.objects.new(f"SteppedCube_{use_tris}", me)
+            bpy.context.scene.collection.objects.link(obj)
+            bpy.context.view_layer.objects.active = obj
+            obj.select_set(True)
+
+            h = 164.5 / 2.0
+            step = 164.5 / 8.0
+            eps = 1e-3
+            z_step = 2 * step
+            x_min = -3 * step
+            x_max = 3 * step
+
+            bpy.ops.object.mode_set(mode='EDIT')
+            bm_edit = bmesh.from_edit_mesh(me)
+            bm_edit.verts.ensure_lookup_table()
+            bm_edit.edges.ensure_lookup_table()
+            bm_edit.faces.ensure_lookup_table()
+            for v in bm_edit.verts:
+                v.select = False
+            for e in bm_edit.edges:
+                e.select = False
+            for f in bm_edit.faces:
+                f.select = False
+
+            for e in bm_edit.edges:
+                c1, c2 = e.verts[0].co, e.verts[1].co
+                on_front = abs(c1.y - (-h)) < eps and abs(c2.y - (-h)) < eps
+                if on_front:
+                    if abs(c1.z - z_step) < eps and abs(c2.z - z_step) < eps and x_min - eps <= min(c1.x, c2.x) and max(c1.x, c2.x) <= x_max + eps:
+                        e.select = True
+                    elif abs(c1.z) < eps and abs(c2.z) < eps and (max(c1.x, c2.x) <= x_min + eps or min(c1.x, c2.x) >= x_max - eps):
+                        e.select = True
+                    elif (abs(c1.x - x_min) < eps and abs(c2.x - x_min) < eps) or (abs(c1.x - x_max) < eps and abs(c2.x - x_max) < eps):
+                        if min(c1.z, c2.z) >= -eps and max(c1.z, c2.z) <= z_step + eps:
+                            e.select = True
+                else:
+                    on_wall = (abs(c1.x - h) < eps and abs(c2.x - h) < eps) or (abs(c1.x + h) < eps and abs(c2.x + h) < eps) or (abs(c1.y - h) < eps and abs(c2.y - h) < eps)
+                    if on_wall and abs(c1.z) < eps and abs(c2.z) < eps:
+                        e.select = True
+
+            seed_face_idx = next(f.index for f in bm_edit.faces if abs(f.calc_center_median().z - h) < eps)
+            ok, indices, is_planar, dev_mm, err = gl.capture_edge_loop(obj)
+            self.assertTrue(ok, f"Falha na captura do loop: {err}")
+            self.assertFalse(is_planar)
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            total_vol = 164.5 ** 3
+
+            # 1. Teste DETACH (Na Base)
+            res_detach = gl.slice_mesh_by_loop(obj, obj.name, indices, seed_face_idx, scene=bpy.context.scene)
+            try:
+                self.assertTrue(res_detach.split_result.part_a_metrics["is_manifold"])
+                self.assertTrue(res_detach.split_result.part_b_metrics["is_manifold"])
+                self.assertAlmostEqual(
+                    res_detach.split_result.part_a_metrics["volume_mm3"] + res_detach.split_result.part_b_metrics["volume_mm3"],
+                    total_vol,
+                    delta=total_vol * 1e-4,
+                )
+            finally:
+                res_detach.bm_a.free()
+                res_detach.bm_b.free()
+
+            # 2. Teste EXTRUDE (Profundidade = 10.0 mm)
+            res_ext = gl.slice_mesh_by_loop_extrude(obj, obj.name, indices, seed_face_idx, 10.0, scene=bpy.context.scene)
+            try:
+                self.assertTrue(res_ext.split_result.part_a_metrics["is_manifold"])
+                self.assertTrue(res_ext.split_result.part_b_metrics["is_manifold"])
+                vol_a = res_ext.split_result.part_a_metrics["volume_mm3"]
+                vol_b = res_ext.split_result.part_b_metrics["volume_mm3"]
+                self.assertAlmostEqual(vol_a + vol_b, total_vol, delta=total_vol * 1e-4)
+                expected_step_vol = (6 * step) * (2 * step) * 10.0
+                self.assertAlmostEqual(vol_b - vol_a, 2.0 * expected_step_vol, delta=50.0)
+            finally:
+                res_ext.bm_a.free()
+                res_ext.bm_b.free()
+
+            # 3. Teste de Folga Física (part_clearance_mm) no Loop 3D em Degrau (PART, CAVITY, BOTH)
+            res_nom = gl.slice_mesh_by_loop(obj, obj.name, indices, seed_face_idx, scene=bpy.context.scene, part_clearance_mm=0.0)
+            vol_a_nom = res_nom.split_result.part_a_metrics["volume_mm3"]
+            vol_b_nom = res_nom.split_result.part_b_metrics["volume_mm3"]
+            res_nom.bm_a.free()
+            res_nom.bm_b.free()
+
+            for app_mode in ('PART', 'CAVITY', 'BOTH'):
+                res_clr = gl.slice_mesh_by_loop(
+                    obj, obj.name, indices, seed_face_idx, scene=bpy.context.scene,
+                    part_clearance_mm=0.4, part_clearance_apply_to=app_mode,
+                )
+                try:
+                    self.assertTrue(res_clr.split_result.part_a_metrics["is_manifold"], f"Parte A não-manifold em {app_mode}")
+                    self.assertTrue(res_clr.split_result.part_b_metrics["is_manifold"], f"Parte B não-manifold em {app_mode}")
+                    va = res_clr.split_result.part_a_metrics["volume_mm3"]
+                    vb = res_clr.split_result.part_b_metrics["volume_mm3"]
+                    if app_mode == 'PART':
+                        self.assertLess(va, vol_a_nom - 100.0)
+                        self.assertAlmostEqual(vb, vol_b_nom, delta=10.0)
+                    elif app_mode == 'CAVITY':
+                        self.assertAlmostEqual(va, vol_a_nom, delta=10.0)
+                        self.assertLess(vb, vol_b_nom - 100.0)
+                    else:
+                        self.assertLess(va, vol_a_nom - 50.0)
+                        self.assertLess(vb, vol_b_nom - 50.0)
+                finally:
+                    res_clr.bm_a.free()
+                    res_clr.bm_b.free()
+
+    def test_com09_loop_clearance_extrude_and_solid_capsule_clearance(self):
+        """COM-09: Folga de interface no modo LOOP (EXTRUDE lateral + fundo) e no modo SOLID (incluindo CAPSULE)."""
+        gl = importlib.import_module(root.name + ".src.geometry_loop")
+        gs = importlib.import_module(root.name + ".src.geometry_solid")
+        bpy.context.scene.unit_settings.scale_length = 0.001
+        bm = bmesh.new()
+        bmesh.ops.create_cube(bm, size=40.0)
+        bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=3, use_grid_fill=True)
+        mesh = bpy.data.meshes.new("LoopExtrudeClearanceCube")
+        bm.to_mesh(mesh)
+        bm.free()
+        obj = bpy.data.objects.new("LoopExtrudeClearanceCube", mesh)
+        bpy.context.scene.collection.objects.link(obj)
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bm_edit = bmesh.from_edit_mesh(obj.data)
+        bm_edit.faces.ensure_lookup_table()
+        for f in bm_edit.faces:
+            c = f.calc_center_median()
+            f.select = (abs(c.z - 20.0) < 1e-3 and abs(c.x) < 10.0 and abs(c.y) < 10.0)
+        ok, indices, is_planar, dev_mm, seed_idx, err = gl.capture_face_boundary_loop(obj)
+        self.assertTrue(ok, err)
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        res0 = gl.slice_mesh_by_loop_extrude(obj, obj.name, indices, seed_idx, depth_mm=10.0, part_clearance_mm=0.0)
+        va0 = res0.split_result.part_a_metrics["volume_mm3"]
+        vb0 = res0.split_result.part_b_metrics["volume_mm3"]
+        res0.bm_a.free()
+        res0.bm_b.free()
+
+        for app_mode in ('PART', 'CAVITY', 'BOTH'):
+            res_c = gl.slice_mesh_by_loop_extrude(
+                obj, obj.name, indices, seed_idx, depth_mm=10.0,
+                part_clearance_mm=0.3, part_clearance_apply_to=app_mode,
+                part_clearance_bottom_mm=0.5,
+            )
+            try:
+                self.assertTrue(res_c.split_result.part_a_metrics["is_manifold"])
+                self.assertTrue(res_c.split_result.part_b_metrics["is_manifold"])
+                va = res_c.split_result.part_a_metrics["volume_mm3"]
+                vb = res_c.split_result.part_b_metrics["volume_mm3"]
+                if app_mode == 'PART':
+                    self.assertLess(va, va0 - 50.0)
+                    self.assertAlmostEqual(vb, vb0, delta=1.0)
+                elif app_mode == 'CAVITY':
+                    self.assertAlmostEqual(va, va0, delta=1.0)
+                    self.assertLess(vb, vb0 - 50.0)
+                else:
+                    self.assertLess(va, va0 - 25.0)
+                    self.assertLess(vb, vb0 - 25.0)
+            finally:
+                res_c.bm_a.free()
+                res_c.bm_b.free()
+
+        # Verifica CAPSULE com folga no modo SOLID
+        cutter_mesh = gs.create_primitive_cutter_mesh("CapClearance", 'CAPSULE', Vector((20.0, 20.0, 20.0)), segments=24)
+        cutter_obj = bpy.data.objects.new("CapClearance", cutter_mesh)
+        cutter_obj.location = Vector((0.0, 0.0, 20.0))
+        bpy.context.scene.collection.objects.link(cutter_obj)
+        bpy.context.view_layer.update()
+
+        ma = bpy.data.meshes.new("CapOutA")
+        mb = bpy.data.meshes.new("CapOutB")
+        try:
+            rep = gs.slice_mesh_by_solid(
+                obj.data, obj.matrix_world, cutter_obj, ma, mb,
+                unit_scale=1.0, part_clearance_mm=0.25, part_clearance_apply_to='BOTH',
+            )
+            self.assertTrue(rep["A"]["is_manifold"])
+            self.assertTrue(rep["B"]["is_manifold"])
+            self.assertLess(rep["A"]["volume_mm3"] + rep["B"]["volume_mm3"], 64000.0 - 50.0)
+        finally:
+            bpy.data.meshes.remove(ma)
+            bpy.data.meshes.remove(mb)
 
 
 if __name__ == '__main__':

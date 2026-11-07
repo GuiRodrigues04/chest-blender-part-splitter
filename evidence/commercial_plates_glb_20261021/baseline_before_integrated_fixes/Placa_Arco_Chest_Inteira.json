@@ -1,0 +1,301 @@
+{
+  "file": "Placa_Arco_Chest_Inteira.glb",
+  "path": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Placa_Arco_Chest_Inteira.glb",
+  "import": {
+    "operator": "{'FINISHED'}",
+    "mesh_objects": 1,
+    "object_names": [
+      "Placa_Arco_Chest_Inteira"
+    ]
+  },
+  "materials": [
+    {
+      "index": 0,
+      "name": "Material_1",
+      "faces": 786,
+      "regions": 1,
+      "region_face_counts": [
+        786
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    },
+    {
+      "index": 1,
+      "name": "Material_2",
+      "faces": 1318,
+      "regions": 2,
+      "region_face_counts": [
+        665,
+        653
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    }
+  ],
+  "cases": [
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.0,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 8,514 mm³ | Part B: 233,691 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 699,
+          "faces": 1074,
+          "volume_mm3": 8513.915749914886,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 1191,
+          "faces": 1842,
+          "volume_mm3": 233690.96604223517,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 242204.92756881384,
+      "parts_volume_mm3": 242204.88179215006,
+      "volume_delta_mm3": -0.045776663784636185,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true,
+      "review_blend": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_glb_20261021\\Placa_Arco_Chest_Inteira_MATERIAL_preview.blend"
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.1,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 8,514 mm³ | Part B: 233,691 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 699,
+          "faces": 1074,
+          "volume_mm3": 8513.915749914886,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 1191,
+          "faces": 1842,
+          "volume_mm3": 233690.96604223517,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 242204.92756881384,
+      "parts_volume_mm3": 242204.88179215006,
+      "volume_delta_mm3": -0.045776663784636185,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "mode": "LOOP",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "AUTO",
+      "gap_mm": 0.0,
+      "capture_operator": "{'FINISHED'}",
+      "captured": true,
+      "loop_vertices": 262,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 5,676 mm³ | Part B: 236,529 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 683,
+          "faces": 1062,
+          "volume_mm3": 5675.943475909982,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 1078,
+          "faces": 1711,
+          "volume_mm3": 236528.96437395955,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 242204.92756881384,
+      "parts_volume_mm3": 242204.90784986952,
+      "volume_delta_mm3": -0.019718944327905774,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.0,
+      "exception": "RuntimeError: Error: Preview generation error: A face escolhida não pertence à moldura capturada. Capture a região novamente.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: A face escolhida não pertence à moldura capturada. Capture a região novamente.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.1,
+      "exception": "RuntimeError: Error: Preview generation error: A face escolhida não pertence à moldura capturada. Capture a região novamente.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: A face escolhida não pertence à moldura capturada. Capture a região novamente.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "LOOP",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "AUTO",
+      "gap_mm": 0.0,
+      "capture_operator": "{'FINISHED'}",
+      "captured": true,
+      "loop_vertices": 131,
+      "exception": "RuntimeError: Error: Preview generation error: The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth.\n\n",
+      "source_unchanged_on_failure": true
+    }
+  ],
+  "raw": {
+    "verts": 3235,
+    "edges": 4774,
+    "faces": 2104,
+    "triangles": 2104,
+    "nonmanifold_edges": 3236,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 242204.92756881384,
+    "valid": true,
+    "manifold": false,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      140.000001,
+      52.000001,
+      189.999998
+    ],
+    "connected_components": 568
+  },
+  "material_slots": [
+    {
+      "name": "Material_1",
+      "diffuse_color": [
+        0.9372549057006836,
+        0.8823529481887817,
+        0.7882353067398071,
+        1.0
+      ]
+    },
+    {
+      "name": "Material_2",
+      "diffuse_color": [
+        0.10196078568696976,
+        0.10588235408067703,
+        0.10980392247438431,
+        1.0
+      ]
+    }
+  ],
+  "raw_mesh_datablock": "Placa_Arco_Chest_Inteira",
+  "repair_operator": "{'FINISHED'}",
+  "repair_message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+  "repaired": {
+    "verts": 1054,
+    "edges": 3156,
+    "faces": 2104,
+    "triangles": 2104,
+    "nonmanifold_edges": 0,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 242204.92756881384,
+    "valid": true,
+    "manifold": true,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      140.000001,
+      52.000001,
+      189.999998
+    ],
+    "connected_components": 1
+  },
+  "repair_created_separate_datablock": true,
+  "import_merge_vertices": {
+    "operator": "{'FINISHED'}",
+    "stats": {
+      "verts": 3235,
+      "edges": 4774,
+      "faces": 2104,
+      "triangles": 2104,
+      "nonmanifold_edges": 3236,
+      "loose_edges": 0,
+      "components": null,
+      "volume_mm3": 242204.92756881384,
+      "valid": true,
+      "manifold": false,
+      "degenerate_faces": 0,
+      "bounds_mm": [
+        140.000001,
+        52.000001,
+        189.999998
+      ]
+    },
+    "connected_components": 568
+  },
+  "case_counts": {
+    "total": 6,
+    "closed_solid_previews": 3,
+    "failures": 3
+  }
+}

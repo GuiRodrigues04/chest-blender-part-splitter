@@ -1,0 +1,17 @@
+[
+  {
+    "suite": "test_material_region_connectivity.py",
+    "exit_code": 0,
+    "seconds": 3.72
+  },
+  {
+    "suite": "test_release_interface.py",
+    "exit_code": 0,
+    "seconds": 3.93
+  },
+  {
+    "suite": "test_frame_regions.py",
+    "exit_code": 0,
+    "seconds": 15.02
+  }
+]

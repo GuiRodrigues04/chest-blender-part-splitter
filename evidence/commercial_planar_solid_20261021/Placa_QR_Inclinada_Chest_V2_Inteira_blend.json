@@ -1,0 +1,240 @@
+[
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+    "case": "PLANE_X_ZERO",
+    "mode": "PLANE",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 219424.6647351252
+    },
+    "source_volume": 219424.6647351252,
+    "dimensions_mm": [
+      130.0,
+      94.00000762939453,
+      188.1660614013672
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 109712.32309392282,
+        "faces": 506
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 109712.32308910441,
+        "faces": 707
+      }
+    ],
+    "sum_volume": 219424.64618302725,
+    "measured_plane_gap_mm": 0.0,
+    "revert": "pass",
+    "seconds": 0.419
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+    "case": "PLANE_Z_FDM_PINS",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": true,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 219424.6647351252
+    },
+    "source_volume": 219424.6647351252,
+    "dimensions_mm": [
+      130.0,
+      94.00000762939453,
+      188.1660614013672
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 144218.54916052383,
+        "faces": 857
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 75120.25659389932,
+        "faces": 406
+      }
+    ],
+    "sum_volume": 219338.80575442314,
+    "manual_file": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_planar_solid_20261021\\manual\\Placa_QR_Inclinada_Chest_V2_Inteira_blend_planar_pins.blend",
+    "revert": "pass",
+    "seconds": 0.789
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+    "case": "PLANE_X_FDM",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 219424.6647351252
+    },
+    "source_volume": 219424.6647351252,
+    "dimensions_mm": [
+      130.0,
+      94.00000762939453,
+      188.1660614013672
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 109543.26168734377,
+        "faces": 506
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 109712.32308910441,
+        "faces": 707
+      }
+    ],
+    "sum_volume": 219255.58477644817,
+    "measured_plane_gap_mm": 0.09999603163206941,
+    "revert": "pass",
+    "seconds": 0.313
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+    "case": "PLANE_DIAGONAL_ZERO",
+    "mode": "PLANE",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 219424.6647351252
+    },
+    "source_volume": 219424.6647351252,
+    "dimensions_mm": [
+      130.0,
+      94.00000762939453,
+      188.1660614013672
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 163591.58599123644,
+        "faces": 775
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 55833.0563847009,
+        "faces": 313
+      }
+    ],
+    "sum_volume": 219424.64237593734,
+    "measured_plane_gap_mm": 0.0,
+    "revert": "pass",
+    "seconds": 0.246
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+    "case": "SOLID_CORNER_ZERO",
+    "mode": "SOLID",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 219424.6647351252
+    },
+    "source_volume": 219424.6647351252,
+    "dimensions_mm": [
+      130.0,
+      94.00000762939453,
+      188.1660614013672
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 118504.12643058442,
+        "faces": 707
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 100920.53706735666,
+        "faces": 506
+      }
+    ],
+    "sum_volume": 219424.6634979411,
+    "revert": "pass",
+    "seconds": 1.242
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+    "case": "SOLID_CORNER_FDM",
+    "mode": "SOLID",
+    "gap": 0.1,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 219424.6647351252
+    },
+    "source_volume": 219424.6647351252,
+    "dimensions_mm": [
+      130.0,
+      94.00000762939453,
+      188.1660614013672
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 118335.0544035163,
+        "faces": 707
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 100920.53706735666,
+        "faces": 506
+      }
+    ],
+    "sum_volume": 219255.59147087298,
+    "revert": "pass",
+    "seconds": 0.542
+  }
+]

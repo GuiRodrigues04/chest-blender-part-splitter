@@ -41,6 +41,7 @@ from src.geometry_connectors import (
 )
 from src.diagnostic import get_scene_scale_to_mm
 from src.constants import COLLECTION_PREVIEWS_NAME, PREVIEW_A_NAME, PREVIEW_B_NAME
+from src.lifecycle import find_collection
 
 
 def assert_test(cond: bool, msg: str):
@@ -149,7 +150,7 @@ def test_p2():
         assert_test(res == {'FINISHED'}, f"Preview com male={male_part}, inv={invert_sides}, norm={norm_vec} gerado.")
         assert_test(settings.session_status == 'PREVIEW_VALID', "Status é PREVIEW_VALID.")
 
-        col = scene.collection.children.get(COLLECTION_PREVIEWS_NAME)
+        col = find_collection(scene, COLLECTION_PREVIEWS_NAME)
         obj_a = col.objects.get(PREVIEW_A_NAME)
         obj_b = col.objects.get(PREVIEW_B_NAME)
         assert_test(obj_a is not None and obj_b is not None, "Objetos A e B existem no preview.")
@@ -505,7 +506,7 @@ def test_e1():
         assert_test(settings.session_status == 'PREVIEW_INVALID', "session_status definido como PREVIEW_INVALID.")
         assert_test(bpy.ops.chest.splitter_commit_parts.poll() is False, "Confirmação de corte bloqueada com segurança.")
 
-        col = scene.collection.children.get(COLLECTION_PREVIEWS_NAME)
+        col = find_collection(scene, COLLECTION_PREVIEWS_NAME)
         num_preview_objs = len(col.objects) if col else 0
         assert_test(num_preview_objs == 0, "Nenhum objeto parcial ou cortador temporário ficou na coleção de preview.")
     finally:

@@ -53,6 +53,11 @@ class CutInterface:
     width_mm: float = 0.0        # Dimensão útil ao longo do eixo maior (U)
     height_mm: float = 0.0       # Dimensão útil ao longo do eixo menor (V)
     area_mm2: float = 0.0
+    clearance_applied: bool = False
+    final_contact_a: Optional[Dict[str, Any]] = None
+    final_contact_b: Optional[Dict[str, Any]] = None
+    reference_origin_world: Optional[Vector] = None
+    reference_axis_u_world: Optional[Vector] = None
 
     def world_to_uv(self, point_world: Vector) -> Tuple[float, float]:
         """Projeta um ponto 3D de mundo no plano UV 2D da interface."""

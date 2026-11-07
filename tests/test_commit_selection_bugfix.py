@@ -108,6 +108,7 @@ class TestCommitSelectionBugfix(unittest.TestCase):
         ed_state["is_active"] = True
 
         # Confirma corte (Commit)
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'
         res_commit = bpy.ops.chest.splitter_commit_parts()
         self.assertIn('FINISHED', res_commit)
         self.assertEqual(self.settings.session_status, 'COMMITTED')
@@ -122,10 +123,14 @@ class TestCommitSelectionBugfix(unittest.TestCase):
         parts_col = bpy.data.collections.get(COLLECTION_PARTS_NAME)
         self.assertIsNotNone(parts_col)
         self.assertEqual(len(parts_col.objects), 2)
-        part_a = parts_col.objects.get("TargetBlock__A")
-        part_b = parts_col.objects.get("TargetBlock__B")
+        # Current public names are short and numbered; legacy __A/__B names
+        # no longer identify the committed objects.
+        part_a = parts_col.objects.get("TargetBlock — Peça 001")
+        part_b = parts_col.objects.get("TargetBlock — Restante 001")
         self.assertIsNotNone(part_a)
         self.assertIsNotNone(part_b)
+        self.assertEqual(part_a.get("chest_role"), ROLE_COMMITTED_PART)
+        self.assertEqual(part_b.get("chest_role"), ROLE_COMMITTED_PART)
 
         self.assertFalse(part_a.hide_viewport)
         self.assertFalse(part_a.hide_get())
@@ -185,4 +190,4 @@ class TestCommitSelectionBugfix(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(argv=[sys.argv[0]], verbosity=2)

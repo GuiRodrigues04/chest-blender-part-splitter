@@ -1,0 +1,42 @@
+[
+  {
+    "suite": "test_microface_repair.py",
+    "exit_code": 0,
+    "seconds": 13.66
+  },
+  {
+    "suite": "test_safe_mesh_repair.py",
+    "exit_code": 0,
+    "seconds": 3.46
+  },
+  {
+    "suite": "test_material_region_connectivity.py",
+    "exit_code": 0,
+    "seconds": 3.21
+  },
+  {
+    "suite": "test_frame_regions.py",
+    "exit_code": 0,
+    "seconds": 14.85
+  },
+  {
+    "suite": "test_stepped_frame_support.py",
+    "exit_code": 0,
+    "seconds": 14.6
+  },
+  {
+    "suite": "test_clearance_profiles.py",
+    "exit_code": 0,
+    "seconds": 3.72
+  },
+  {
+    "suite": "test_release_interface.py",
+    "exit_code": 0,
+    "seconds": 3.15
+  },
+  {
+    "suite": "test_connector_clearance_slivers.py",
+    "exit_code": 0,
+    "seconds": 5.89
+  }
+]

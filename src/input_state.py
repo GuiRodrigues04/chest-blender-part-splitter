@@ -2,19 +2,22 @@
 import array
 import hashlib
 
+import bpy
+
 from .diagnostic import get_scene_scale_to_mm
 
 
 CUT_PROPERTIES = (
-    'split_mode', 'invert_sides', 'plane_offset_mm',
+    'split_mode', 'invert_sides', 'plane_offset_mm', 'plane_extent_mode',
     'part_clearance_mm', 'part_clearance_apply_to',
     'part_clearance_bottom_enable', 'part_clearance_bottom_mm',
     'loop_vertex_indices', 'loop_seed_face_index', 'loop_behavior',
+    'loop_boundary_loops', 'loop_region_face_indices',
     'loop_extrude_depth_mm', 'loop_through_cut', 'loop_detach_add_base',
-    'loop_detach_base_depth_mm', 'loop_detach_base_clearance_mm',
+    'loop_detach_base_depth_mm',
     'material_split_index', 'material_region_index', 'material_extraction_mode',
     'material_extrude_depth_mm', 'material_interface_mat_mode',
-    'solid_interface_face_index',
+    'solid_interface_face_index', 'region_selection_enabled', 'region_face_indices', 'region_mesh_signature', 'contact_patch_index',
 )
 
 
@@ -33,54 +36,58 @@ def update_mesh_hash(digest, mesh):
     digest.update(repr([m.name_full if m else None for m in mesh.materials]).encode())
 
 
-def cut_signature(settings, target, scene, mesh=None):
+def update_evaluated_mesh_hash(digest, obj, scene):
+    """Hash the geometry Blender actually uses, never silently hash raw fallback data."""
+    # Dependency graphs belong to a context/view layer, not to Scene.
+    override = {} if bpy.context.scene == scene else {
+        'scene': scene, 'view_layer': scene.view_layers[0],
+    }
+    with bpy.context.temp_override(**override):
+        evaluated = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        try:
+            mesh = evaluated.to_mesh()
+            if mesh is None:
+                raise RuntimeError("Could not evaluate mesh for input fingerprint")
+            update_mesh_hash(digest, mesh)
+        finally:
+            evaluated.to_mesh_clear()
+
+
+def cut_signature(settings, target, scene, mesh=None, exclude=()):
     digest = hashlib.sha256()
     digest.update(repr((target.name_full, tuple(tuple(r) for r in target.matrix_world),
                         get_scene_scale_to_mm(scene))).encode())
     if mesh is not None:
         update_mesh_hash(digest, mesh)
     else:
-        eval_target_obj = None
-        eval_target_mesh = None
-        try:
-            if target and any(m.show_viewport for m in target.modifiers):
-                depsgraph = scene.evaluated_depsgraph_get()
-                eval_target_obj = target.evaluated_get(depsgraph)
-                eval_target_mesh = eval_target_obj.to_mesh()
-                update_mesh_hash(digest, eval_target_mesh)
-            else:
-                update_mesh_hash(digest, target.data)
-        except Exception:
+        if target and any(m.show_viewport for m in target.modifiers):
+            update_evaluated_mesh_hash(digest, target, scene)
+        else:
             update_mesh_hash(digest, target.data)
-        finally:
-            if eval_target_obj and eval_target_mesh:
-                eval_target_obj.to_mesh_clear()
 
-    digest.update(repr([(p, getattr(settings, p, None)) for p in CUT_PROPERTIES]).encode())
+    digest.update(repr([(p, getattr(settings, p, None)) for p in CUT_PROPERTIES if p not in exclude]).encode())
     if settings.split_mode == 'PLANE':
         from .plane_state import resolve_plane_state
         origin, normal = resolve_plane_state(scene, settings)
         digest.update(repr((tuple(origin), tuple(normal))).encode())
+        from .plane_region import region_signature
+        digest.update(repr(region_signature(scene, settings)).encode())
     if settings.split_mode == 'SOLID':
         cutter = settings.solid_cutter_object
         from .scene_state import object_in_scene
         if object_in_scene(cutter, scene, mesh=True):
             digest.update(repr(tuple(tuple(r) for r in cutter.matrix_world)).encode())
-            eval_cutter_obj = None
-            eval_cutter_mesh = None
-            try:
-                depsgraph = scene.evaluated_depsgraph_get()
-                eval_cutter_obj = cutter.evaluated_get(depsgraph)
-                eval_cutter_mesh = eval_cutter_obj.to_mesh()
-                update_mesh_hash(digest, eval_cutter_mesh)
-            except Exception:
-                update_mesh_hash(digest, cutter.data)
-            finally:
-                if eval_cutter_obj and eval_cutter_mesh:
-                    eval_cutter_obj.to_mesh_clear()
+            update_evaluated_mesh_hash(digest, cutter, scene)
         else:
             digest.update(b'MISSING_CUTTER')
     return digest.hexdigest()
+
+
+def contact_signature(settings, target, scene):
+    # Pin-area membership comes from the source selection, not from clearance amounts.
+    return cut_signature(settings, target, scene, exclude=(
+        'contact_patch_index', 'part_clearance_mm', 'part_clearance_apply_to',
+        'part_clearance_bottom_enable', 'part_clearance_bottom_mm'))
 
 
 def editor_configuration(settings, scene):
@@ -92,6 +99,8 @@ def editor_configuration(settings, scene):
         from .plane_state import resolve_plane_state
         origin, normal = resolve_plane_state(scene, settings)
         key += (tuple(origin), tuple(normal))
+        from .plane_region import region_signature
+        key += (region_signature(scene, settings),)
     if settings.split_mode == 'SOLID':
         cutter = settings.solid_cutter_object
         from .scene_state import object_in_scene

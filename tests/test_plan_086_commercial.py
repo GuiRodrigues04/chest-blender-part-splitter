@@ -597,7 +597,7 @@ class TestPlan086Commercial(unittest.TestCase):
     # T17: Rejeição de múltiplas ilhas, furos e malha inteira fechada (F02)
     # -------------------------------------------------------------------------
     def test_t17_capture_face_boundary_rejections(self):
-        """T17: Rejeita ilhas desconexas, furos internos e seleção sem perímetro."""
+        """T17: Rejeita ilhas desconexas, fonte aberta com anel e ausência de perímetro."""
         # 1. Duas ilhas desconexas
         obj = self._create_grid_mesh("Grid5x5_T17", x_segments=5, y_segments=5, size=0.05)
         bpy.ops.object.select_all(action='DESELECT')
@@ -617,7 +617,8 @@ class TestPlan086Commercial(unittest.TestCase):
         self.assertFalse(success1)
         self.assertIn("ilhas", err1.lower())
 
-        # 2. Região com furo (anel de faces)
+        # 2. Anel em uma grade aberta continua inválido: aberturas agora são
+        # aceitas apenas em fonte sólida (cobertas em test_frame_regions).
         for f in bm.faces:
             f.select = False
         # Seleciona perímetro da grade 3x3 mas desmarca o centro (face 12)
@@ -628,7 +629,7 @@ class TestPlan086Commercial(unittest.TestCase):
 
         success2, _, _, _, _, err2 = capture_face_boundary_loop(obj)
         self.assertFalse(success2)
-        self.assertTrue("furo" in err2.lower() or "ciclo" in err2.lower() or "aberto" in err2.lower() or "perímetro" in err2.lower())
+        self.assertIn("malha está aberta", err2.lower())
 
         bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -790,9 +791,9 @@ class TestPlan086Commercial(unittest.TestCase):
         part_b = [o for o in parts if o.get("chest_role") == ROLE_PREVIEW_B][0]
         bpy.data.objects.remove(part_b, do_unlink=True)
 
-        res_exp = bpy.ops.chest.splitter_export_parts()
-        self.assertEqual(res_exp, {'CANCELLED'})
-        self.assertIn("incompleto", self.settings.last_status.lower())
+        self.assertFalse(bpy.ops.chest.splitter_export_parts.poll())
+        with self.assertRaisesRegex(RuntimeError, 'poll'):
+            bpy.ops.chest.splitter_export_parts()
 
     # -------------------------------------------------------------------------
     # T23: Alterar modificador antes de exportar

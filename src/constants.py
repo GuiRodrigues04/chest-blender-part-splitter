@@ -1,24 +1,25 @@
-"""Constantes e definições padrão para o Chest Part Splitter."""
+"""Constantes e definições padrão para o Splitter."""
 
 # Identificação e versão do Addon
-ADDON_VERSION = (0, 8, 14)
-ADDON_VERSION_STR = "0.8.14"
-PANEL_TITLE = f"Part Splitter {ADDON_VERSION_STR}"
+ADDON_VERSION = (0, 9, 4)
+ADDON_VERSION_STR = "0.9.4"
+PANEL_TITLE = f"Splitter {ADDON_VERSION_STR}"
 
 # Coleções de organização no Blender
-COLLECTION_GUIDES_NAME = "CHEST_SPLITTER_GUIDES"
-COLLECTION_PREVIEWS_NAME = "CHEST_SPLITTER_PREVIEWS"
-COLLECTION_WORK_NAME = "CHEST_SPLITTER_WORK"
-COLLECTION_PARTS_NAME = "CHEST_SPLITTER_PARTS"
-COLLECTION_BACKUPS_NAME = "CHEST_SPLITTER_BACKUPS"
+COLLECTION_MAIN_NAME = "Splitter"
+COLLECTION_GUIDES_NAME = "Guides"
+COLLECTION_PREVIEWS_NAME = "Previews"
+COLLECTION_WORK_NAME = "Work"
+COLLECTION_PARTS_NAME = "Parts"
+COLLECTION_BACKUPS_NAME = "Backups"
 
 # Prefixos de nomes para partes e objetos auxiliares
 PART_A_SUFFIX = "__A"
 PART_B_SUFFIX = "__B"
 WORK_COPY_SUFFIX = "_work_copy"
-PLANE_GUIDE_NAME = "CHEST_SPLITTER_PLANE_GUIDE"
-PREVIEW_A_NAME = "CHEST_SPLITTER_PREVIEW_A"
-PREVIEW_B_NAME = "CHEST_SPLITTER_PREVIEW_B"
+PLANE_GUIDE_NAME = "SPLITTER_PLANE_GUIDE"
+PREVIEW_A_NAME = "SPLITTER_PREVIEW_A"
+PREVIEW_B_NAME = "SPLITTER_PREVIEW_B"
 
 # Papéis de objetos (Object roles para ciclo de vida seguro)
 ROLE_WORK_COPY = "WORK_COPY"
@@ -51,13 +52,13 @@ CLEARANCE_PRESETS = {
 }
 
 # Constantes de Cortador Sólido (Fase 3)
-SOLID_CUTTER_NAME = "CHEST_SPLITTER_SOLID_CUTTER"
+SOLID_CUTTER_NAME = "SPLITTER_SOLID_CUTTER"
 
 SPLIT_MODES = [
-    ('PLANE', "Plano", "Divisão rápida por plano infinito orientável"),
-    ('SOLID', "Cortador Sólido", "Divisão volumétrica por sólido fechado (Interseção / Diferença)"),
-    ('LOOP', "Loop de Arestas", "Divisão direta por anel de arestas fechado (Modo D)"),
-    ('MATERIAL', "Material", "Divisão assistida por fronteiras de materiais (Fase 4)"),
+    ('PLANE', "Plano", "Divisão rápida por plano infinito orientável", 1),
+    ('SOLID', "Cortador Sólido", "Divisão volumétrica por sólido fechado (Interseção / Diferença)", 2),
+    ('LOOP', "Loop de Arestas", "Divisão direta por anel de arestas fechado (Modo D)", 3),
+    ('MATERIAL', "Material", "Divisão assistida por fronteiras de materiais (Fase 4)", 4),
 ]
 
 SOLID_SOURCE_TYPES = [
@@ -71,5 +72,4 @@ SOLID_PRIMITIVE_TYPES = [
     ('SPHERE', "Esfera", "Primitiva esférica UV"),
     ('CAPSULE', "Cápsula", "Primitiva tipo cápsula / estádio tridimensional"),
 ]
-
 

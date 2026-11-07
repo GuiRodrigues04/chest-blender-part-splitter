@@ -97,7 +97,7 @@ class TestReeditAfterPreviewBugfix(unittest.TestCase):
         # 1. Gera prévia
         res = bpy.ops.chest.splitter_confirm_manual_connectors()
         self.assertIn('FINISHED', res)
-        self.assertTrue(target.hide_viewport, "Alvo deve estar oculto enquanto preview está visível.")
+        self.assertTrue(target.hide_get(), "Alvo deve estar oculto enquanto preview está visível.")
         self.assertIsNotNone(bpy.data.objects.get(PREVIEW_A_NAME), "Parte A deve existir.")
 
         # 2. Usuário reabre o editor para editar posições novamente

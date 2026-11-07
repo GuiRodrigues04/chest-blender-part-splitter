@@ -330,6 +330,8 @@ class TestManualConnectorsWorkflow(unittest.TestCase):
         # Configura explosão de 40 mm
         self.settings.view_mode = 'EXPLODED'
         self.settings.explosion_distance_mm = 40.0
+        self.assertEqual(get_explosion_display_offset(self.settings, prep).length, 0.0)
+        self.assertEqual(bpy.ops.chest.splitter_generate_preview(), {'FINISHED'})
         disp_offset = get_explosion_display_offset(self.settings, prep)
         self.assertGreater(disp_offset.length, 0.01)
 

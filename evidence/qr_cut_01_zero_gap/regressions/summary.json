@@ -1,0 +1,17 @@
+[
+  {
+    "suite": "test_frame_regions.py",
+    "exit_code": 0,
+    "seconds": 14.91
+  },
+  {
+    "suite": "test_stepped_frame_support.py",
+    "exit_code": 0,
+    "seconds": 15.19
+  },
+  {
+    "suite": "test_microface_repair.py",
+    "exit_code": 0,
+    "seconds": 15.14
+  }
+]

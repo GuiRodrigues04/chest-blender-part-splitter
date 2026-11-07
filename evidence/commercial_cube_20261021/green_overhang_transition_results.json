@@ -1,0 +1,733 @@
+[
+  {
+    "case": "overhang_inventory:Cubo Teste 2:region1",
+    "status": "PASS",
+    "faces": 113,
+    "seed": 19,
+    "green_total_area_mm2": 31642.010475479765,
+    "source_volume_mm3": 4088997.410292824,
+    "analysis": {
+      "valid": true,
+      "type": "SURFACE_PATCH",
+      "base_deviation_mm": 0.16034760116310706,
+      "has_holes": null,
+      "is_planar_base": true,
+      "error": null
+    }
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:BASE:depth2.0:throughFalse",
+    "status": "PASS",
+    "A": {
+      "verts": 137,
+      "faces": 139,
+      "volume_mm3": 116405.33218314752,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "2": 139
+      }
+    },
+    "B": {
+      "verts": 817,
+      "faces": 717,
+      "volume_mm3": 3972592.078109679,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 677,
+        "2": 40
+      }
+    },
+    "volume_sum_mm3": 4088997.410292826,
+    "source_volume_mm3": 4088997.410292824,
+    "volume_delta_pct": 5.694076574071394e-14,
+    "green_area_mm2": 37242.965947370976,
+    "green_area_delta_mm2": 5600.955471891211,
+    "selected_region_face_count": 113
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth0.05:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth0.05:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth0.1:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth0.1:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth0.25:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth0.25:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth0.5:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth0.5:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth1.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth1.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth2.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth2.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth5.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth5.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth10.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.wall_thickness')",
+    "message": "The depth (10.00 mm) exceeds the available thickness (9.32 mm). Reduce the depth or bottom clearance."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth10.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth20.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.wall_thickness')",
+    "message": "The depth (20.00 mm) exceeds the available thickness (9.32 mm). Reduce the depth or bottom clearance."
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:EXTRUDE:depth20.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop_capture:Cubo Teste 2:region1",
+    "status": "PASS",
+    "capture": {
+      "operator": [
+        "FINISHED"
+      ],
+      "captured": true,
+      "vertex_count": 34,
+      "seed": 19,
+      "face_count": 113,
+      "index_count": 34
+    }
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth0.05:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth0.05:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth0.1:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth0.1:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth0.25:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth0.25:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth0.5:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth0.5:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth1.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth1.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth2.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth2.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth5.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth5.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth10.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.wall_thickness')",
+    "message": "The depth (10.00 mm) exceeds the available thickness (9.32 mm). Reduce the depth or bottom clearance."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth10.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth20.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.wall_thickness')",
+    "message": "The depth (20.00 mm) exceeds the available thickness (9.32 mm). Reduce the depth or bottom clearance."
+  },
+  {
+    "case": "loop:Cubo Teste 2:region1:EXTRUDE:depth20.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "overhang_inventory:Cubo Teste 2__B:region1",
+    "status": "PASS",
+    "faces": 116,
+    "seed": 18,
+    "green_total_area_mm2": 33626.96275507915,
+    "source_volume_mm3": 3812676.114159777,
+    "analysis": {
+      "valid": true,
+      "type": "SURFACE_PATCH",
+      "base_deviation_mm": 0.16035254517630676,
+      "has_holes": null,
+      "is_planar_base": true,
+      "error": null
+    }
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:BASE:depth2.0:throughFalse",
+    "status": "PASS",
+    "A": {
+      "verts": 137,
+      "faces": 142,
+      "volume_mm3": 115984.99244806415,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "2": 142
+      }
+    },
+    "B": {
+      "verts": 1327,
+      "faces": 1260,
+      "volume_mm3": 3696691.1217117133,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 1146,
+        "2": 114
+      }
+    },
+    "volume_sum_mm3": 3812676.1141597773,
+    "source_volume_mm3": 3812676.114159777,
+    "volume_delta_pct": 1.2213502363296337e-14,
+    "green_area_mm2": 39227.91822697036,
+    "green_area_delta_mm2": 5600.955471891211,
+    "selected_region_face_count": 116
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth0.05:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth0.05:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth0.1:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth0.1:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth0.25:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth0.25:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth0.5:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth0.5:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth1.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth1.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth2.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth2.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth5.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth5.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth10.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.wall_thickness')",
+    "message": "The depth (10.00 mm) exceeds the available thickness (9.32 mm). Reduce the depth or bottom clearance."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth10.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth20.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.wall_thickness')",
+    "message": "The depth (20.00 mm) exceeds the available thickness (9.32 mm). Reduce the depth or bottom clearance."
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:EXTRUDE:depth20.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop_capture:Cubo Teste 2__B:region1",
+    "status": "PASS",
+    "capture": {
+      "operator": [
+        "FINISHED"
+      ],
+      "captured": true,
+      "vertex_count": 34,
+      "seed": 18,
+      "face_count": 116,
+      "index_count": 34
+    }
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth0.05:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth0.05:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth0.1:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth0.1:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth0.25:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth0.25:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth0.5:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth0.5:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth1.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth1.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth2.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth2.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth5.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth5.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth10.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.wall_thickness')",
+    "message": "The depth (10.00 mm) exceeds the available thickness (9.32 mm). Reduce the depth or bottom clearance."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth10.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth20.0:throughFalse",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.wall_thickness')",
+    "message": "The depth (20.00 mm) exceeds the available thickness (9.32 mm). Reduce the depth or bottom clearance."
+  },
+  {
+    "case": "loop:Cubo Teste 2__B:region1:EXTRUDE:depth20.0:throughTrue",
+    "status": "EXPECTED_REJECTION",
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "message": "The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth."
+  },
+  {
+    "case": "operator_base:Cubo Teste 2:region1",
+    "status": "PASS",
+    "operator": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "source_volume_mm3": 4088997.410292824,
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "verts": 137,
+        "faces": 139,
+        "volume_mm3": 116405.33218314752,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "2": 139
+        }
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "verts": 817,
+        "faces": 717,
+        "volume_mm3": 3972592.078109679,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "0": 677,
+          "2": 40
+        }
+      }
+    ],
+    "source_mesh_state_unchanged": true,
+    "selected_region_green_faces_in_A": 139
+  },
+  {
+    "case": "operator_base:Cubo Teste 2:commit-revert",
+    "status": "PASS",
+    "commit": [
+      "FINISHED"
+    ],
+    "revert": [
+      "FINISHED"
+    ],
+    "source_mesh_state_restored": true
+  },
+  {
+    "case": "operator_base:Cubo Teste 2__B:region1",
+    "status": "PASS",
+    "operator": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "source_volume_mm3": 3812676.114159777,
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "verts": 137,
+        "faces": 142,
+        "volume_mm3": 115984.99244806415,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "2": 142
+        }
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "verts": 1327,
+        "faces": 1260,
+        "volume_mm3": 3696691.1217117133,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "0": 1146,
+          "2": 114
+        }
+      }
+    ],
+    "source_mesh_state_unchanged": true,
+    "selected_region_green_faces_in_A": 142
+  },
+  {
+    "case": "operator_base:Cubo Teste 2__B:commit-revert",
+    "status": "PASS",
+    "commit": [
+      "FINISHED"
+    ],
+    "revert": [
+      "FINISHED"
+    ],
+    "source_mesh_state_restored": true
+  },
+  {
+    "case": "state_transition:Cubo Teste:LOOP_to_MATERIAL_same_target",
+    "status": "PASS",
+    "loop_capture_operator": [
+      "FINISHED"
+    ],
+    "captured_hole_face": 64,
+    "stale_region_face_count": 75,
+    "captured_boundary_loop_count": 2,
+    "legacy_would_reject_material_seed": true,
+    "updated_resolver_in_material_mode": null,
+    "loop_fields_preserved": true,
+    "loop_state_before": {
+      "loop_is_captured": true,
+      "loop_vertex_count": 16,
+      "loop_vertex_indices": "404,321,415,391,412,322,407,246,410,392,417,247",
+      "loop_seed_face_index": 448,
+      "loop_boundary_loops": "[[435, 87, 451, 490], [404, 321, 415, 391, 412, 322, 407, 246, 410, 392, 417, 247]]",
+      "loop_region_face_indices": "[189, 193, 194, 384, 385, 387, 388, 389, 392, 405, 406, 408, 409, 410, 411, 413, 416, 417, 418, 419, 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 445, 446, 447, 448, 449, 450, 451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 466, 467, 468, 469, 470, 471, 472, 473, 474]",
+      "loop_topology_signature": "V691E1344F655H4a7d6145"
+    },
+    "loop_state_after": {
+      "loop_is_captured": true,
+      "loop_vertex_count": 16,
+      "loop_vertex_indices": "404,321,415,391,412,322,407,246,410,392,417,247",
+      "loop_seed_face_index": 448,
+      "loop_boundary_loops": "[[435, 87, 451, 490], [404, 321, 415, 391, 412, 322, 407, 246, 410, 392, 417, 247]]",
+      "loop_region_face_indices": "[189, 193, 194, 384, 385, 387, 388, 389, 392, 405, 406, 408, 409, 410, 411, 413, 416, 417, 418, 419, 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 445, 446, 447, 448, 449, 450, 451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 466, 467, 468, 469, 470, 471, 472, 473, 474]",
+      "loop_topology_signature": "V691E1344F655H4a7d6145"
+    },
+    "mode": "MATERIAL",
+    "preview_operator": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "verts": 110,
+        "faces": 148,
+        "volume_mm3": 16915.648412076433,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "2": 148
+        }
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "verts": 759,
+        "faces": 1442,
+        "volume_mm3": 4579868.556420902,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "0": 824,
+          "1": 6,
+          "2": 612
+        }
+      }
+    ],
+    "material_region": 0
+  }
+]

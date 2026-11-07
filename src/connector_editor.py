@@ -9,6 +9,7 @@ Implementa:
 - Visualização direta e alinhamento de câmera à face de corte ('Ver Face de Encaixe').
 - Nenhuma operação booleana durante a manipulação do mouse (zero lag).
 """
+from .localized_errors import render_message
 
 import math
 import uuid
@@ -127,7 +128,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         settings = getattr(context.scene, "chest_splitter", None)
         if not settings or not settings.target_object:
             return False
-        return settings.split_mode in ('PLANE', 'LOOP', 'MATERIAL', 'SOLID')
+        return settings.split_mode in ('PLANE', 'LOOP', 'MATERIAL')
 
     def _prepare_target_and_cleanup_previews(self, context):
         settings = context.scene.chest_splitter
@@ -166,7 +167,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         try:
             self._prepared = prepare_split_candidates(context, force_recompute=True)
         except Exception as exc:
-            self.report({'ERROR'}, str(exc))
+            self.report({'ERROR'}, render_message(exc))
             return {'CANCELLED'}
         self._capture_snapshot(settings)
         self._prepare_target_and_cleanup_previews(context)
@@ -191,7 +192,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
         try:
             self._prepared = prepare_split_candidates(context, force_recompute=True)
         except Exception as exc:
-            self.report({'ERROR'}, report_msg(f"Falha ao preparar superfície de encaixe: {exc}", f"Failed to prepare mating surface: {exc}"))
+            self.report({'ERROR'}, report_msg(f"Falha ao preparar superfície de encaixe: {render_message(exc)}", f"Failed to prepare mating surface: {render_message(exc)}"))
             return {'CANCELLED'}
         self._prepare_target_and_cleanup_previews(context)
         from .connector_surface import set_cached_prepared_split
@@ -324,7 +325,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                 _EDITOR_STATE["is_dragging"] = False
                 evaluate_connector_specs(self._prepared, settings)
             except Exception as exc:
-                self.report({'WARNING'}, str(exc))
+                self.report({'WARNING'}, render_message(exc))
                 return self._finish_cleanup(context, 'FINISHED')
 
         # Redesenha a área do viewport para feedback responsivo
@@ -610,7 +611,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
             self._prepared = prepare_split_candidates(context)
             eval_res = evaluate_connector_specs(self._prepared, settings)
         except Exception as exc:
-            self.report({'ERROR'}, str(exc))
+            self.report({'ERROR'}, render_message(exc))
             return {'RUNNING_MODAL'}
         if any(not ev["is_valid"] for ev in eval_res):
             self.report({'WARNING'}, localize_text("Há pinos inválidos ou colidindo. Corrija-os ou remova-os."))
@@ -622,7 +623,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
             if 'FINISHED' in result:
                 self.report({'INFO'}, localize_text("Posições confirmadas! Prévia gerada com sucesso."))
         except RuntimeError as exc:
-            self.report({'ERROR'}, str(exc))
+            self.report({'ERROR'}, render_message(exc))
         if self._area:
             self._area.tag_redraw()
         # Keep placed markers on boolean failure; they can be edited again.
@@ -724,7 +725,7 @@ class CHEST_OT_splitter_confirm_manual_connectors(bpy.types.Operator):
         try:
             prep = prepare_split_candidates(context)
         except Exception as e:
-            self.report({'ERROR'}, report_msg(f"Não foi possível preparar o corte: {e}", f"Could not prepare cut: {e}"))
+            self.report({'ERROR'}, report_msg(f"Não foi possível preparar o corte: {render_message(e)}", f"Could not prepare cut: {render_message(e)}"))
             return {'CANCELLED'}
 
         eval_res = evaluate_connector_specs(prep, settings)
@@ -745,7 +746,7 @@ class CHEST_OT_splitter_confirm_manual_connectors(bpy.types.Operator):
             self.report({'INFO'}, localize_text("Prévia com conectores gerada com sucesso."))
             return {'FINISHED'}
         except Exception as e:
-            self.report({'ERROR'}, report_msg(f"Erro na geração da prévia: {e}", f"Preview generation error: {e}"))
+            self.report({'ERROR'}, report_msg(f"Erro na geração da prévia: {render_message(e)}", f"Preview generation error: {render_message(e)}"))
             return {'CANCELLED'}
 
 
@@ -872,7 +873,7 @@ class CHEST_OT_splitter_view_cut_face(bpy.types.Operator):
             try:
                 prep = prepare_split_candidates(context)
             except Exception as e:
-                self.report({'WARNING'}, report_msg(f"Superfície não disponível: {e}", f"Surface not available: {e}"))
+                self.report({'WARNING'}, report_msg(f"Superfície não disponível: {render_message(e)}", f"Surface not available: {render_message(e)}"))
                 return {'CANCELLED'}
 
         area_3d = None

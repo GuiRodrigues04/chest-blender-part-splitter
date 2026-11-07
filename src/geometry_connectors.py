@@ -4,6 +4,7 @@ Gera corpos sólidos de pinos macho (com chanfro de entrada) e cavidades fêmea
 (com folga radial por lado e folga de fundo), executando uniões e diferenças
 booleanas transacionais e robustas.
 """
+from .translations import localized_format
 
 import math
 from typing import List, Tuple, Dict, Any, Optional
@@ -293,28 +294,28 @@ def check_receiving_wall_thickness(
         min_found_depth = 1e9
 
         for pos in positions:
-            for offset in sample_offsets:
+            for offset_idx, offset in enumerate(sample_offsets):
                 sample_p = pos + offset
                 ray_start = sample_p + norm * 1e-4
                 hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(ray_start, norm)
                 if hit_loc is None:
-                    # Raio sem interseção: não há parede receptora na direção de inserção
-                    bm.free()
-                    return False, 0.0
+                    if offset_idx == 0:
+                        bm.free()
+                        return False, 0.0
+                    avail_depth = 0.0
+                else:
+                    if hit_norm.dot(norm) < -1e-6:
+                        entry_depth = (hit_loc-sample_p).length
+                        if entry_depth >= required_depth_bu:
+                            bm.free()
+                            return False, 0.0
+                        eps = max(1e-5, required_depth_bu * 1e-3)
+                        hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(hit_loc+norm*eps, norm)
+                        if hit_loc is None or hit_norm.dot(norm) <= 0:
+                            bm.free()
+                            return False, 0.0
+                    avail_depth = (hit_loc - sample_p).length
 
-                # With interface clearance the ray first ENTERS the receiver.
-                # Measure the far wall after that entry, not the air gap as thickness.
-                if hit_norm.dot(norm) < -1e-6:
-                    entry_depth = (hit_loc-sample_p).length
-                    if entry_depth >= required_depth_bu:
-                        bm.free()
-                        return False, 0.0
-                    eps = max(1e-8, required_depth_bu*1e-5)
-                    hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(hit_loc+norm*eps, norm)
-                    if hit_loc is None or hit_norm.dot(norm) <= 0:
-                        bm.free()
-                        return False, 0.0
-                avail_depth = (hit_loc - sample_p).length
                 if avail_depth < min_found_depth:
                     min_found_depth = avail_depth
 
@@ -463,17 +464,19 @@ def compute_connector_layout(
 
         cut_edges = [e for e in res.get("geom_cut", []) if isinstance(e, bmesh.types.BMEdge)]
         cut_pts = [v.co.copy() for e in cut_edges for v in e.verts]
+        from .geometry_plane import reconstruct_boundary_loops
+        boundary_loops = reconstruct_boundary_loops(cut_edges)
         bm.free()
-
-        ref_up = Vector((0, 0, 1)) if abs(norm.z) < 0.9 else Vector((0, 1, 0))
-        u_axis = norm.cross(ref_up).normalized()
-        v_axis = norm.cross(u_axis).normalized()
-
-        if not cut_pts:
+        if not boundary_loops:
             raise ConnectorValidationError("Nenhuma interface de corte válida encontrada para posicionamento de encaixes.")
-
-        u_coords = [(p - plane_origin).dot(u_axis) for p in cut_pts]
-        v_coords = [(p - plane_origin).dot(v_axis) for p in cut_pts]
+        from .geometry_contract import build_cut_interface
+        section = build_cut_interface(
+            plane_origin, norm, cut_pts, unit_scale=unit_scale,
+            boundary_loops_world=boundary_loops)
+        u_axis, v_axis = section.axis_u_world, section.axis_v_world
+        outer_polys, hole_polys = section.outer_contours_uv, section.hole_contours_uv
+        u_coords = [pt[0] for poly in outer_polys for pt in poly]
+        v_coords = [pt[1] for poly in outer_polys for pt in poly]
 
     min_u, max_u = min(u_coords), max(u_coords)
     min_v, max_v = min(v_coords), max(v_coords)
@@ -508,8 +511,7 @@ def compute_connector_layout(
     if not (distribution == 'MANUAL' and not manual_specs) and (
             span_minor_mm < req_min_span_mm - 1e-3 or span_major_mm < req_min_span_mm - 1e-3):
         raise ConnectorValidationError(
-            f"Falta de espaço: a interface ({span_major_mm:.1f}x{span_minor_mm:.1f} mm) não comporta o encaixe "
-            f"com margem de {edge_margin_mm:.1f} mm (necessário ao menos {req_min_span_mm:.1f}x{req_min_span_mm:.1f} mm)."
+            localized_format('audit.dynamic.0', v0=span_major_mm, v1=span_minor_mm, v2=edge_margin_mm, v3=req_min_span_mm, v4=req_min_span_mm)
         )
 
     margin_bu = edge_margin_mm / unit_scale
@@ -551,9 +553,29 @@ def compute_connector_layout(
                 if dist_to_edges >= check_r - 1e-6:
                     is_center_valid = True
 
-        if not is_center_valid and valid_domain_points and adjust_to_valid_area:
-            # Em regiões côncavas (como U ou L), seleciona o ponto com maior afastamento das bordas se ajuste ativo
-            cand_u, cand_v = valid_domain_points[0][0], valid_domain_points[0][1]
+        if not is_center_valid:
+            if not adjust_to_valid_area:
+                raise ConnectorValidationError(
+                    "Centro da interface de corte está fora da peça ou dentro de um furo. "
+                    "Ative 'Ajustar para Área Válida' ou use posicionamento manual."
+                )
+            if valid_domain_points:
+                cand_u, cand_v = valid_domain_points[0][0], valid_domain_points[0][1]
+            elif outer_polys:
+                best_pt = (cand_u, cand_v)
+                best_dist = -1.0
+                steps = 25
+                for si in range(1, steps):
+                    gu = min_u + (span_u * si / steps)
+                    for sj in range(1, steps):
+                        gv = min_v + (span_v * sj / steps)
+                        if any(point_in_polygon_2d(gu, gv, poly) for poly in outer_polys):
+                            if not any(point_in_polygon_2d(gu, gv, h_poly) for h_poly in hole_polys):
+                                d = min_distance_to_polygon_boundaries(gu, gv, outer_polys, hole_polys)
+                                if d > best_dist:
+                                    best_dist = d
+                                    best_pt = (gu, gv)
+                cand_u, cand_v = best_pt
 
         p = plane_origin + (u_axis * cand_u) + (v_axis * cand_v)
         positions.append(p)
@@ -595,8 +617,7 @@ def compute_connector_layout(
         min_span_linear3 = 3.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 4.0
         if span_major_mm < min_span_linear3:
             raise ConnectorValidationError(
-                f"Falta de espaço: a distribuição LINEAR_3 requer vão de ao menos {min_span_linear3:.1f} mm "
-                f"(disponível: {span_major_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes."
+                localized_format('audit.dynamic.5', v0=min_span_linear3, v1=span_major_mm)
             )
         p_mid = plane_origin + (major_axis * center_major) + (minor_axis * center_minor)
         d_major = avail_major * 0.7
@@ -606,6 +627,7 @@ def compute_connector_layout(
 
     elif distribution == 'AUTO_SHAPE':
         min_span_auto2 = 2.0 * cavity_diam_mm + 2.0 * edge_margin_mm + 2.0
+        placed_2 = False
         if span_major_mm >= min_span_auto2 and (span_major / max(span_minor, 1e-4)) >= 1.6:
             d_major = avail_major * 0.55
             if outer_polys:
@@ -627,11 +649,19 @@ def compute_connector_layout(
                             if min_d > best_min_dist:
                                 best_min_dist = min_d
                                 best_d = dt
-                d_major = best_d
-            p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
-            p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
-            positions.extend([p1, p2])
-        else:
+                if best_min_dist >= check_r - 1e-6:
+                    d_major = best_d
+                    p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
+                    p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
+                    positions.extend([p1, p2])
+                    placed_2 = True
+            else:
+                p1 = plane_origin + (major_axis * (center_major - d_major)) + (minor_axis * center_minor)
+                p2 = plane_origin + (major_axis * (center_major + d_major)) + (minor_axis * center_minor)
+                positions.extend([p1, p2])
+                placed_2 = True
+
+        if not placed_2:
             best_pt = (center_u, center_v)
             best_dist = -1.0
             if outer_polys:
@@ -676,8 +706,7 @@ def compute_connector_layout(
 
         if grid_span_u_mm < min_grid_minor - 1e-3 or grid_span_v_mm < min_grid_minor - 1e-3:
             raise ConnectorValidationError(
-                f"Falta de espaço: a distribuição GRID_4 requer ao menos {min_grid_major:.1f}x{min_grid_minor:.1f} mm "
-                f"(disponível: {grid_span_u_mm:.1f}x{grid_span_v_mm:.1f} mm). Reduza a quantidade ou medidas dos encaixes."
+                localized_format('audit.dynamic.7', v0=min_grid_major, v1=min_grid_minor, v2=grid_span_u_mm, v3=grid_span_v_mm)
             )
 
         avail_grid_u = max(0.0, (grid_span_u / 2.0) - margin_bu)
@@ -762,8 +791,7 @@ def compute_connector_layout(
         req_major_mm = cavity_cap_len_mm + 2.0 * edge_margin_mm
         if span_major_mm < req_major_mm - 1e-3:
             raise ConnectorValidationError(
-                f"Falta de espaço: a interface ({span_major_mm:.1f} mm) não comporta a cápsula "
-                f"com margem de {edge_margin_mm:.1f} mm (necessário ao menos {req_major_mm:.1f} mm)."
+                localized_format('audit.dynamic.1', v0=span_major_mm, v1=edge_margin_mm, v2=req_major_mm)
             )
 
     # The same exact footprint test is used in the editor and at generation.
@@ -777,7 +805,7 @@ def compute_connector_layout(
                 *uv, check_r, outer_polys, hole_polys, edge_margin_mm,
                 connector_type, half_len, yaw)
             if not valid:
-                raise ConnectorValidationError(f"O encaixe #{idx+1}: {reason}.")
+                raise ConnectorValidationError(localized_format('audit.dynamic.2', v0=idx + 1, v1=reason))
 
     if interface is not None:
         from .geometry_contract import interface_point
@@ -882,7 +910,7 @@ def validate_connectors(
                 dist_mm = dist * unit_scale
                 req_mm = eff_length + 2.0 * clearance_per_side_mm
                 raise ConnectorValidationError(
-                    f"Sobreposição entre encaixes detectada: distância {dist_mm:.2f} mm < mínimo {req_mm:.2f} mm."
+                    localized_format('audit.dynamic.3', v0=dist_mm, v1=req_mm)
                 )
 
     # Validação de espessura de parede da peça receptora (Critério C5)
@@ -906,8 +934,7 @@ def validate_connectors(
                 )
             else:
                 raise ConnectorValidationError(
-                    f"Parede fina: a cavidade de {tot_depth_mm:.1f} mm atravessaria a peça receptora "
-                    f"(espessura disponível: {avail_mm:.1f} mm). Reduza o comprimento de inserção."
+                    localized_format('audit.dynamic.4', v0=tot_depth_mm, v1=avail_mm)
                 )
 
 
@@ -995,9 +1022,12 @@ def apply_connectors_boolean(
     capsule_length_mm: float = 0.0,
     major_axis: Optional[Vector] = None,
     pin_rotations: Optional[List[Euler]] = None,
+    boolean_solver: str = 'EXACT',
 ):
     """Executa as operações booleanas para unir os machos e subtrair as cavidades de forma transacional."""
     norm = plane_normal.normalized()
+    solvers={item.identifier for item in bpy.types.BooleanModifier.bl_rna.properties['solver'].enum_items}
+    solver=boolean_solver if boolean_solver in solvers else 'EXACT'
 
     # Validação prévia de espessura de parede da peça receptora
     validate_connectors(
@@ -1086,7 +1116,7 @@ def apply_connectors_boolean(
             mod_name = f"Pin_Union_{idx}"
             mod_union = obj_male.modifiers.new(name=mod_name, type='BOOLEAN')
             mod_union.operation = 'UNION'
-            mod_union.solver = 'EXACT'
+            mod_union.solver = solver
             if hasattr(mod_union, "material_mode"):
                 try:
                     mod_union.material_mode = 'TRANSFER'
@@ -1137,7 +1167,7 @@ def apply_connectors_boolean(
             mod_name = f"Cavity_Diff_{idx}"
             mod_diff = obj_female.modifiers.new(name=mod_name, type='BOOLEAN')
             mod_diff.operation = 'DIFFERENCE'
-            mod_diff.solver = 'EXACT'
+            mod_diff.solver = solver
             if hasattr(mod_diff, "material_mode"):
                 try:
                     mod_diff.material_mode = 'TRANSFER'
@@ -1146,43 +1176,104 @@ def apply_connectors_boolean(
             mod_diff.object = cavity_obj
             modifiers_female_added.append(mod_name)
 
-        # Atualiza a view layer para garantir avaliação correta
-        bpy.context.view_layer.update()
-        depsgraph = bpy.context.evaluated_depsgraph_get()
+        def discard_mesh(mesh):
+            if mesh and mesh.users == 0:
+                bpy.data.meshes.remove(mesh, do_unlink=True)
 
-        eval_male = obj_male.evaluated_get(depsgraph)
-        new_male_mesh = eval_male.to_mesh()
+        def evaluate_candidate(solver_id):
+            """Evaluate both isolated Boolean results and accept only printable solids."""
+            for name in modifiers_male_added:
+                modifier = obj_male.modifiers.get(name)
+                if modifier:
+                    modifier.solver = solver_id
+            for name in modifiers_female_added:
+                modifier = obj_female.modifiers.get(name)
+                if modifier:
+                    modifier.solver = solver_id
 
-        eval_female = obj_female.evaluated_get(depsgraph)
-        new_female_mesh = eval_female.to_mesh()
+            bpy.context.view_layer.update()
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            eval_male = obj_male.evaluated_get(depsgraph)
+            eval_female = obj_female.evaluated_get(depsgraph)
+            candidate_male = candidate_female = None
+            try:
+                mesh_male = eval_male.to_mesh()
+                mesh_female = eval_female.to_mesh()
+                if not mesh_male.polygons or not mesh_female.polygons:
+                    raise RuntimeError("Connector Boolean generated an empty result.")
+                candidate_male = mesh_male.copy()
+                candidate_female = mesh_female.copy()
 
+                # Remove only roundoff slivers when the existing bounded cleanup
+                # proves that it preserves volume and bounds. A refused cleanup
+                # leaves the candidate untouched for strict validation below.
+                from .diagnostic import sanitize_mesh_micro_degeneracies, validate_bmesh_mesh_geometry
+                for mesh in (candidate_male, candidate_female):
+                    bm_san = bmesh.new()
+                    try:
+                        bm_san.from_mesh(mesh)
+                        if sanitize_mesh_micro_degeneracies(bm_san, scale_to_mm=unit_scale):
+                            bm_san.to_mesh(mesh)
+                            mesh.update()
+                    finally:
+                        bm_san.free()
+
+                failures = []
+                for label, mesh in (("Part A", candidate_male), ("Part B", candidate_female)):
+                    bm_check = bmesh.new()
+                    try:
+                        bm_check.from_mesh(mesh)
+                        bm_check.normal_update()
+                        report = validate_bmesh_mesh_geometry(bm_check, scale_to_mm=unit_scale)
+                        volume = abs(bm_check.calc_volume(signed=True)) * (unit_scale ** 3)
+                        if (not bm_check.faces or not report['is_valid'] or
+                                not report['is_manifold'] or not math.isfinite(volume) or volume <= 1e-9):
+                            failures.append(
+                                f"{label}: valid={report['is_valid']}, manifold={report['is_manifold']}, "
+                                f"degenerate_faces={len(report['degenerate_faces'])}, "
+                                f"non_manifold_edges={len(report['non_manifold_edges'])}, volume_mm3={volume:.9g}"
+                            )
+                    finally:
+                        bm_check.free()
+                if failures:
+                    raise RuntimeError("Invalid connector Boolean candidate: " + "; ".join(failures))
+                result = (candidate_male, candidate_female)
+                candidate_male = candidate_female = None
+                return result
+            finally:
+                eval_male.to_mesh_clear()
+                eval_female.to_mesh_clear()
+                discard_mesh(candidate_male)
+                discard_mesh(candidate_female)
+
+        selected_solver = solver
         try:
-            # Validação de integridade das malhas avaliadas
-            if len(new_male_mesh.polygons) == 0 or len(new_female_mesh.polygons) == 0:
-                raise RuntimeError("Operação booleana de encaixe gerou malha vazia ou corrompida.")
+            final_male, final_female = evaluate_candidate(solver)
+        except Exception as exact_error:
+            # Retry only the invalid, isolated Boolean result. The source meshes,
+            # pin dimensions, and clearances remain unchanged. Publish nothing
+            # unless both MANIFOLD outputs pass the same strict solid checks.
+            if solver != 'EXACT' or 'MANIFOLD' not in solvers:
+                raise
+            try:
+                final_male, final_female = evaluate_candidate('MANIFOLD')
+                selected_solver = 'MANIFOLD'
+            except Exception as retry_error:
+                raise RuntimeError(
+                    localized_format('audit.dynamic.6', v0=exact_error, v1=retry_error)
+                ) from retry_error
 
-            # Transfere malhas avaliadas em definitivo
-            old_mesh_male = obj_male.data
-            final_male = new_male_mesh.copy()
-            
-            old_mesh_female = obj_female.data
-            final_female = new_female_mesh.copy()
-
-            # A08: Saneamento determinístico pós-booleanos para eliminar micro-arestas sub-micrométricas
-            from .diagnostic import sanitize_mesh_micro_degeneracies
-            for msh in (final_male, final_female):
-                bm_san = bmesh.new()
-                bm_san.from_mesh(msh)
-                if sanitize_mesh_micro_degeneracies(bm_san, scale_to_mm=unit_scale):
-                    bm_san.to_mesh(msh)
-                    msh.update()
-                bm_san.free()
-
+        old_mesh_male = obj_male.data
+        old_mesh_female = obj_female.data
+        published = False
+        try:
             obj_male.data = final_male
             obj_female.data = final_female
+            published = True
         finally:
-            eval_male.to_mesh_clear()
-            eval_female.to_mesh_clear()
+            if not published:
+                discard_mesh(final_male)
+                discard_mesh(final_female)
 
         # Remove slots de material vazios
         for obj in (obj_male, obj_female):
@@ -1194,6 +1285,10 @@ def apply_connectors_boolean(
             bpy.data.meshes.remove(old_mesh_male, do_unlink=True)
         if old_mesh_female and old_mesh_female.users == 0:
             bpy.data.meshes.remove(old_mesh_female, do_unlink=True)
+
+        # Useful to callers and regression audits: indicates whether an EXACT
+        # result required the validated fallback. Existing callers may ignore it.
+        return selected_solver
 
     finally:
         # Garante remoção dos modificadores adicionados (sem tocar nos modificadores do usuário)

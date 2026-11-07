@@ -6,6 +6,7 @@ Permite exportar partes divididas para impressão 3D em múltiplos formatos:
 - STLs por parte (.stl).
 - Wavefront OBJ (.obj + .mtl).
 """
+from .translations import localized_format
 
 import os
 import io
@@ -106,7 +107,7 @@ def publish_staged_files_atomic(staged_files: List[Tuple[str, str]], target_dir:
                     shutil.copy2(backup_path, target_path)
                 except OSError:
                     pass
-        raise RuntimeError(f"Falha durante a publicação dos arquivos no destino: {e}. Rollback executado com sucesso.") from e
+        raise RuntimeError(localized_format('audit.dynamic.25', v0=e)) from e
     finally:
         if os.path.exists(backup_dir):
             try:
@@ -146,7 +147,7 @@ def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -
                 if eval_mesh and eval_mesh.materials:
                     mats = list(eval_mesh.materials)
             except Exception as e:
-                raise RuntimeError(f"Falha ao avaliar modificadores de '{obj.name}': {e}")
+                raise RuntimeError(localized_format('audit.dynamic.27', v0=obj.name, v1=e))
             finally:
                 if eval_obj and eval_mesh:
                     eval_obj.to_mesh_clear()
@@ -192,7 +193,7 @@ def build_3mf_xml(objects: List[bpy.types.Object], unit_scale: float = 1000.0) -
                 bm.from_mesh(eval_mesh)
             except Exception as e:
                 bm.free()
-                raise RuntimeError(f"Falha ao avaliar modificadores do objeto '{obj.name}': {e}")
+                raise RuntimeError(localized_format('audit.dynamic.28', v0=obj.name, v1=e))
         else:
             bm.from_mesh(obj.data)
 
@@ -408,7 +409,7 @@ def export_objects_to_stl_by_material(
                     bm_part.from_mesh(eval_mesh)
                 except Exception as e:
                     bm_part.free()
-                    raise RuntimeError(f"Falha ao avaliar modificadores de '{part.name}': {e}")
+                    raise RuntimeError(localized_format('audit.dynamic.31', v0=part.name, v1=e))
             else:
                 bm_part.from_mesh(part.data)
             
@@ -419,9 +420,8 @@ def export_objects_to_stl_by_material(
                 eval_obj.to_mesh_clear()
             
             if not is_valid:
-                raise ValueError(f"Material superficial detectado na peça '{parent_obj.name}' ({msg}). "
-                                 f"Para imprimir separadamente, utilize o modo de corte 'Material' "
-                                 f"com profundidade, gerando um sólido real.")
+                from .localized_errors import LocalizedGeometryError
+                raise LocalizedGeometryError('export.surface_material', part=parent_obj.name, reason=msg)
 
         used_names: Set[str] = set()
         # Gravação no diretório de staging temporário
@@ -442,7 +442,7 @@ def export_objects_to_stl_by_material(
                     apply_modifiers=True,
                 )
                 if 'FINISHED' not in res:
-                    raise RuntimeError(f"Exportador STL nativo falhou para '{part.name}'")
+                    raise RuntimeError(localized_format('audit.dynamic.29', v0=part.name))
             else:
                 res = bpy.ops.export_mesh.stl(
                     filepath=stage_path,
@@ -451,10 +451,10 @@ def export_objects_to_stl_by_material(
                     use_scene_unit=False,
                 )
                 if 'FINISHED' not in res:
-                    raise RuntimeError(f"Exportador STL clássico falhou para '{part.name}'")
+                    raise RuntimeError(localized_format('audit.dynamic.30', v0=part.name))
 
             if not os.path.exists(stage_path) or os.path.getsize(stage_path) == 0:
-                raise RuntimeError(f"Exportação falhou: arquivo vazio ou ausente para '{part.name}' ({filename})")
+                raise RuntimeError(localized_format('audit.dynamic.26', v0=part.name, v1=filename))
 
             staged_files.append((stage_path, filename))
 
@@ -491,4 +491,3 @@ def export_objects_to_stl_by_material(
                 bpy.context.view_layer.objects.active = prev_active
 
     return exported_files
-

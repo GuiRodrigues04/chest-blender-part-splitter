@@ -1,0 +1,120 @@
+{
+  "file": "Placa_Numero_Chest_Inteira.glb",
+  "path": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Placa_Numero_Chest_Inteira.glb",
+  "import": {
+    "operator": "{'FINISHED'}",
+    "mesh_objects": 1,
+    "object_names": [
+      "Placa_Numero_Chest_Inteira"
+    ]
+  },
+  "materials": [
+    {
+      "index": 0,
+      "name": "Material_1",
+      "faces": 1556,
+      "regions": 1,
+      "region_face_counts": [
+        1556
+      ],
+      "largest_region_analysis": {
+        "valid": false,
+        "error": "Todas as faces do modelo já utilizam este material.",
+        "has_holes": null,
+        "boundary_loops": null,
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    }
+  ],
+  "cases": [
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "classification": "expected_rejection_invalid_material_region",
+      "reason": "Todas as faces do modelo já utilizam este material."
+    }
+  ],
+  "raw": {
+    "verts": 2382,
+    "edges": 3526,
+    "faces": 1556,
+    "triangles": 1556,
+    "nonmanifold_edges": 2384,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 138179.50278641342,
+    "valid": true,
+    "manifold": false,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      200.000003,
+      7.0,
+      109.999999
+    ],
+    "connected_components": 418
+  },
+  "material_slots": [
+    {
+      "name": "Material_1",
+      "diffuse_color": [
+        0.08627451211214066,
+        0.2549019753932953,
+        0.20000000298023224,
+        1.0
+      ]
+    }
+  ],
+  "raw_mesh_datablock": "Placa_Numero_Chest_Inteira",
+  "repair_operator": "{'FINISHED'}",
+  "repair_message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+  "repaired": {
+    "verts": 776,
+    "edges": 2334,
+    "faces": 1556,
+    "triangles": 1556,
+    "nonmanifold_edges": 0,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 138179.50278641342,
+    "valid": true,
+    "manifold": true,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      200.000003,
+      7.0,
+      109.999999
+    ],
+    "connected_components": 1
+  },
+  "repair_created_separate_datablock": true,
+  "import_merge_vertices": {
+    "operator": "{'FINISHED'}",
+    "stats": {
+      "verts": 2382,
+      "edges": 3526,
+      "faces": 1556,
+      "triangles": 1556,
+      "nonmanifold_edges": 2384,
+      "loose_edges": 0,
+      "components": null,
+      "volume_mm3": 138179.50278641342,
+      "valid": true,
+      "manifold": false,
+      "degenerate_faces": 0,
+      "bounds_mm": [
+        200.000003,
+        7.0,
+        109.999999
+      ]
+    },
+    "connected_components": 418
+  },
+  "case_counts": {
+    "total": 1,
+    "closed_solid_previews": 0,
+    "failures": 0
+  }
+}

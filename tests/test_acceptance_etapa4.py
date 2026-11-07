@@ -197,6 +197,8 @@ def test_l4():
     settings.loop_extrude_depth_mm = 3.0
     settings.loop_through_cut = False
     settings.connector_enabled = False
+    settings.part_clearance_mm = 0.0
+    settings.part_clearance_bottom_mm = 0.0
 
     res = bpy.ops.chest.splitter_generate_preview()
     assert_test(res == {'FINISHED'}, "Preview de extração com profundidade gerado.")
@@ -256,11 +258,13 @@ def test_l5():
 
     assert_test(cancelled, "Preview bloqueado quando profundidade excede espessura.")
     assert_test(settings.session_status == 'PREVIEW_INVALID', "Status definido como PREVIEW_INVALID.")
-    assert_test("ultrapassa a espessura da peça" in settings.last_status, f"Erro explicativo com aviso: {settings.last_status}")
+    assert_test("exceeds the available thickness" in settings.get_localized_status(), f"Erro explicativo com aviso: {settings.last_status}")
     assert_test(bpy.ops.chest.splitter_commit_parts.poll() is False, "Confirmação bloqueada de forma segura.")
 
     # 2. Caso com corte passante ativado explicitamente
     settings.loop_through_cut = True
+    settings.part_clearance_mm = 0.0
+    settings.part_clearance_bottom_mm = 0.0
     res_through = bpy.ops.chest.splitter_generate_preview()
     assert_test(res_through == {'FINISHED'}, "Corte passante executou com sucesso.")
     assert_test(settings.session_status == 'PREVIEW_VALID', "Status é PREVIEW_VALID com corte passante.")
@@ -309,7 +313,8 @@ def test_auto_decision():
     res_cube = bpy.ops.chest.splitter_generate_preview()
     assert_test(res_cube == {'FINISHED'}, "Preview AUTO no cubo plano gerado.")
     assert_test(settings.loop_detected_mode == 'EXTRUDE', f"Modo detectado no cubo plano é EXTRUDE: {settings.loop_detected_mode}")
-    assert_test("Região plana" in settings.loop_auto_reason, f"Motivo claro: {settings.loop_auto_reason}")
+    from src.translations import localize_text
+    assert_test("Planar region" in localize_text(settings.loop_auto_reason), f"Motivo claro: {settings.loop_auto_reason}")
 
     # 2. Saliência 3D na base -> Deve detectar DETACH
     prot_obj = build_protrusion_obj("Prot_Auto")
@@ -331,7 +336,7 @@ def test_auto_decision():
     res_prot = bpy.ops.chest.splitter_generate_preview()
     assert_test(res_prot == {'FINISHED'}, "Preview AUTO na saliência 3D gerado.")
     assert_test(settings.loop_detected_mode == 'DETACH', f"Modo detectado na saliência 3D é DETACH: {settings.loop_detected_mode}")
-    assert_test("Saliência 3D" in settings.loop_auto_reason, f"Motivo claro: {settings.loop_auto_reason}")
+    assert_test("3D protrusion" in localize_text(settings.loop_auto_reason), f"Motivo claro: {settings.loop_auto_reason}")
 
 
 def test_extrude_with_connectors():

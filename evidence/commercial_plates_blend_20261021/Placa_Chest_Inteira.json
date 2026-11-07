@@ -1,0 +1,249 @@
+{
+  "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Vers\u00e3o 1 - Placas Inteiras\\Blender\\Placa_Chest_Inteira.blend",
+  "status": "ok",
+  "objects": [
+    {
+      "object": "Placa_Chest_Inteira",
+      "vertices": 727,
+      "edges": 2175,
+      "faces": 1450,
+      "materials": [
+        "Material_1",
+        "Material_2",
+        "Material_3"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "material": 0,
+      "region": 0,
+      "region_faces": 181,
+      "outcome": "material_rejected_or_failed",
+      "analysis_valid": true,
+      "analysis_error": null,
+      "depth_mm": 2.0,
+      "trials": [
+        {
+          "label": "EXTRUDE depth=2mm gap=0",
+          "outcome": "rejected_or_failed",
+          "error": "RuntimeError: O corte por material resultou em uma pe\u00e7a vazia. Verifique a \u00e1rea ou profundidade selecionada."
+        },
+        {
+          "label": "EXTRUDE depth=2mm gap=0.1mm",
+          "outcome": "rejected_or_failed",
+          "error": "RuntimeError: O corte por material resultou em uma pe\u00e7a vazia. Verifique a \u00e1rea ou profundidade selecionada."
+        },
+        {
+          "label": "BASE gap=0",
+          "outcome": "rejected_or_failed",
+          "error": "ValueError: A regi\u00e3o de material selecionada \u00e9 completamente coplanar com a base (n\u00e3o possui sali\u00eancia volum\u00e9trica). Para recortar superf\u00edcies planas, utilize o modo 'Extrair com Profundidade'."
+        }
+      ]
+    },
+    {
+      "material": 1,
+      "region": 0,
+      "region_faces": 178,
+      "outcome": "pass",
+      "analysis_valid": true,
+      "analysis_error": null,
+      "depth_mm": 2.0,
+      "trials": [
+        {
+          "label": "EXTRUDE depth=2mm gap=0",
+          "outcome": "pass",
+          "parts": [
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 6232.6733583700325,
+              "errors": []
+            },
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 212100.98722234857,
+              "errors": []
+            }
+          ],
+          "interface_loops": 1
+        },
+        {
+          "label": "EXTRUDE depth=2mm gap=0.1mm",
+          "outcome": "rejected_or_failed",
+          "error": "ValueError: O cortador prism\u00e1tico gerou geometria inv\u00e1lida (4 faces degeneradas/\u00e1rea zero, 2 arestas nulas). A extra\u00e7\u00e3o prism\u00e1tica requer uma superf\u00edcie com proje\u00e7\u00e3o desimpedida na dire\u00e7\u00e3o de extra\u00e7\u00e3o."
+        },
+        {
+          "label": "BASE gap=0",
+          "outcome": "rejected_or_failed",
+          "error": "ValueError: A regi\u00e3o de material selecionada \u00e9 completamente coplanar com a base (n\u00e3o possui sali\u00eancia volum\u00e9trica). Para recortar superf\u00edcies planas, utilize o modo 'Extrair com Profundidade'."
+        }
+      ]
+    },
+    {
+      "material": 2,
+      "region": 0,
+      "region_faces": 1091,
+      "outcome": "expected_invalid_configuration",
+      "analysis_valid": false,
+      "analysis_error": "A sele\u00e7\u00e3o possui regi\u00f5es externas desconectadas."
+    }
+  ],
+  "loop_cases": [
+    {
+      "material": 0,
+      "region": 0,
+      "face_count": 181,
+      "capture_result": [
+        "FINISHED"
+      ],
+      "captured_faces": 0,
+      "expected_faces": 181,
+      "captured_matches_region": null,
+      "loops": 1,
+      "outcome": "pass"
+    },
+    {
+      "material": 1,
+      "region": 0,
+      "face_count": 178,
+      "capture_result": [
+        "FINISHED"
+      ],
+      "captured_faces": 0,
+      "expected_faces": 178,
+      "captured_matches_region": null,
+      "loops": 1,
+      "outcome": "pass"
+    }
+  ],
+  "operator_cases": [
+    {
+      "mode": "LOOP",
+      "material": 0,
+      "region": 0,
+      "depth_mm": 2.0,
+      "profile": "FDM",
+      "connectors_requested": true,
+      "fdm_error": "RuntimeError: Error: Preview generation error: A extra\u00e7\u00e3o com profundidade gerou malha vazia para uma das partes.\n",
+      "fdm_preview_result": [
+        "CANCELLED"
+      ],
+      "fdm_status": "Preview generation error: A extra\u00e7\u00e3o com profundidade gerou malha vazia para uma das partes.",
+      "zero_gap_with_pins_error": "RuntimeError: Error: Preview generation error: A extra\u00e7\u00e3o com profundidade gerou malha vazia para uma das partes.\n",
+      "zero_gap_with_pins_result": [
+        "CANCELLED"
+      ],
+      "zero_gap_with_pins_status": "Preview generation error: A extra\u00e7\u00e3o com profundidade gerou malha vazia para uma das partes.",
+      "zero_gap_without_pins_error": "RuntimeError: Error: Preview generation error: A extra\u00e7\u00e3o com profundidade gerou malha vazia para uma das partes.\n",
+      "zero_gap_without_pins_result": [
+        "CANCELLED"
+      ],
+      "zero_gap_without_pins_status": "Preview generation error: A extra\u00e7\u00e3o com profundidade gerou malha vazia para uma das partes.",
+      "preview_result": [
+        "CANCELLED"
+      ]
+    },
+    {
+      "mode": "MATERIAL_after_LOOP_capture",
+      "material": 1,
+      "region": 0,
+      "depth_mm": 2.0,
+      "profile": "FDM",
+      "connectors_requested": true,
+      "captured_loop_retained": true,
+      "fdm_error": "RuntimeError: Error: Preview generation error: O cortador prism\u00e1tico gerou geometria inv\u00e1lida (4 faces degeneradas/\u00e1rea zero, 2 arestas nulas). A extra\u00e7\u00e3o prism\u00e1tica requer uma superf\u00edcie com proje\u00e7\u00e3o desimpedida na dire\u00e7\u00e3o de extra\u00e7\u00e3o.\n",
+      "fdm_preview_result": [
+        "CANCELLED"
+      ],
+      "fdm_status": "Preview generation error: O cortador prism\u00e1tico gerou geometria inv\u00e1lida (4 faces degeneradas/\u00e1rea zero, 2 arestas nulas). A extra\u00e7\u00e3o prism\u00e1tica requer uma superf\u00edcie com proje\u00e7\u00e3o desimpedida na dire\u00e7\u00e3o de extra\u00e7\u00e3o.",
+      "zero_gap_with_pins_result": [
+        "FINISHED"
+      ],
+      "zero_gap_with_pins_status": "Preview generated successfully (+AUTO_SHAPE connectors)! Part A: 6,237 mm\u00b3 | Part B: 212,096 mm\u00b3",
+      "profile_used": "NONE",
+      "pins_used": true,
+      "preview_result": [
+        "FINISHED"
+      ],
+      "preview_current": true,
+      "manifold": [
+        true,
+        true
+      ],
+      "preview_volumes_mm3": [
+        6237.132869458141,
+        212096.49233478113
+      ],
+      "commit_result": [
+        "FINISHED"
+      ],
+      "commit_volumes_mm3": [
+        6237.132869458141,
+        212096.49233478113
+      ],
+      "preview_commit_equal": true,
+      "revert_result": [
+        "FINISHED"
+      ]
+    },
+    {
+      "mode": "LOOP",
+      "material": 1,
+      "region": 0,
+      "depth_mm": 2.0,
+      "profile": "FDM",
+      "connectors_requested": true,
+      "fdm_error": "RuntimeError: Error: Preview generation error: A extra\u00e7\u00e3o com profundidade gerou malha vazia para uma das partes.\n",
+      "fdm_preview_result": [
+        "CANCELLED"
+      ],
+      "fdm_status": "Preview generation error: A extra\u00e7\u00e3o com profundidade gerou malha vazia para uma das partes.",
+      "zero_gap_with_pins_result": [
+        "FINISHED"
+      ],
+      "zero_gap_with_pins_status": "Preview generated successfully (+AUTO_SHAPE connectors)! Part A: 6,237 mm\u00b3 | Part B: 212,096 mm\u00b3",
+      "profile_used": "NONE",
+      "pins_used": true,
+      "preview_result": [
+        "FINISHED"
+      ],
+      "preview_current": true,
+      "manifold": [
+        true,
+        true
+      ],
+      "preview_volumes_mm3": [
+        6237.134574856126,
+        212096.49110464362
+      ],
+      "commit_result": [
+        "FINISHED"
+      ],
+      "commit_volumes_mm3": [
+        6237.134574856126,
+        212096.49110464362
+      ],
+      "preview_commit_equal": true,
+      "revert_result": [
+        "FINISHED"
+      ]
+    }
+  ],
+  "source_diagnostics": {
+    "is_valid": true,
+    "is_manifold": true,
+    "non_manifold_edges": [],
+    "degenerate_faces": [],
+    "zero_area_faces": null,
+    "volume_mm3": 218333.66251520524,
+    "errors": null
+  },
+  "scale_to_mm": 1000.0,
+  "repair": {
+    "status": "not_needed",
+    "usable_copy": false
+  },
+  "source_unchanged": true
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "suite": "test_release_geometry.py",
+    "exit_code": 0,
+    "seconds": 7.07
+  },
+  {
+    "suite": "test_plane_limited.py",
+    "exit_code": 0,
+    "seconds": 3.71
+  },
+  {
+    "suite": "test_frame_regions.py",
+    "exit_code": 0,
+    "seconds": 14.97
+  },
+  {
+    "suite": "test_clearance_profiles.py",
+    "exit_code": 0,
+    "seconds": 3.84
+  },
+  {
+    "suite": "test_planar_seats.py",
+    "exit_code": 0,
+    "seconds": 11.59
+  },
+  {
+    "suite": "test_whole_region_material.py",
+    "exit_code": 0,
+    "seconds": 5.81
+  },
+  {
+    "suite": "test_solid_edit_tools.py",
+    "exit_code": 0,
+    "seconds": 5.06
+  },
+  {
+    "suite": "test_connector_clearance_slivers.py",
+    "exit_code": 0,
+    "seconds": 6.19
+  }
+]

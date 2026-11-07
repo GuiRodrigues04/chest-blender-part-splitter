@@ -526,6 +526,8 @@ TRANSLATIONS_DICT = {
         ("*", "Automático / Auto"): "Automático / Auto",
         ("*", "Aviso"): "Aviso",
         ("*", "Aviso: Escala não aplicada!"): "Aviso: Escala não aplicada!",
+        ("*", "Reparar Malha (Soldar Vértices)"): "Reparar Malha (Soldar Vértices)",
+        ("*", "Aviso: Malha não estanque (vértices desconectados)"): "Aviso: Malha não estanque (vértices desconectados)",
         ("*", "Axial clearance at bottom of extraction, independent of lateral clearance"): "Folga axial no fundo da extração, independente da folga lateral",
         ("*", "Ação do Clique 3D no Modelo:"): "Ação do Clique 3D no Modelo:",
         ("*", "Base Cut Parameters:"): "Parâmetros do Corte pela Base:",
@@ -655,6 +657,10 @@ TRANSLATIONS_DICT = {
         ("*", "Criar Cortador Desta Seleção"): "Criar Cortador Desta Seleção",
         ("*", "Criar Cortador desta Seleção"): "Criar Cortador desta Seleção",
         ("*", "Criar Cortador a partir do Alvo:"): "Criar Cortador a partir do Alvo:",
+        ("*", "Criar Plano"): "Criar Plano",
+        ("*", "Create Plane"): "Criar Plano",
+        ("*", "Cria um novo plano de corte na cena caso o plano anterior tenha sido apagado"): "Cria um novo plano de corte na cena caso o plano anterior tenha sido apagado",
+        ("*", "Create a new cutting plane in the scene if the previous plane was deleted"): "Cria um novo plano de corte na cena caso o plano anterior tenha sido apagado",
         ("*", "Create Cutter from Target:"): "Criar Cortador a partir do Alvo:",
         ("*", "Desta Seleção"): "Desta Seleção",
         ("*", "From Selection"): "Desta Seleção",
@@ -826,8 +832,8 @@ TRANSLATIONS_DICT = {
         ("*", "Extracted Part Material"): "Material da Peça Extraída",
         ("*", "Extracted part selected. Use G to move."): "Peça extraída selecionada. Use G para mover.",
         ("*", "Extraction Depth (mm)"): "Profundidade de Extração (mm)",
-        ("*", "Extracts surface region projecting a prism with indicated depth"): "Extrai a região superficial projetando um prisma com a profundidade indicada",
-        ("*", "Extrai a região superficial projetando um prisma com a profundidade indicada"): "Extrai a região superficial projetando um prisma com a profundidade indicada",
+        ("*", "Extracts the complete region and creates the cut interface at the indicated depth"): "Extrai a região inteira e cria a interface de corte na profundidade indicada",
+        ("*", "Extrai a região inteira e cria a interface de corte na profundidade indicada"): "Extrai a região inteira e cria a interface de corte na profundidade indicada",
         ("*", "Extrair"): "Extrair",
         ("*", "Extrude"): "Extrair",
         ("*", "Face"): "Face",
@@ -1194,6 +1200,8 @@ TRANSLATIONS_DICT = {
         ("*", "Plane Opacity (%)"): "Opacidade do Plano (%)",
         ("*", "Plane Origin"): "Origem do Plano",
         ("*", "Plane Positioning"): "Posicionamento do Plano",
+        ("*", "Plano apagado. Clique em 'Criar Plano' para recriar."): "Plano apagado. Clique em 'Criar Plano' para recriar.",
+        ("*", "Plane deleted. Click 'Create Plane' to restore."): "Plano apagado. Clique em 'Criar Plano' para recriar.",
         ("*", "Ponto 3D por onde passa o plano de corte"): "Ponto 3D por onde passa o plano de corte",
         ("*", "Ponto de Apoio"): "Ponto de Apoio",
         ("*", "Por Profundidade"): "Por Profundidade",
@@ -1819,6 +1827,8 @@ TRANSLATIONS_DICT = {
         ("*", "Automático / Auto"): "Automatic / Auto",
         ("*", "Aviso"): "Warning",
         ("*", "Aviso: Escala não aplicada!"): "Warning: Unapplied scale!",
+        ("*", "Reparar Malha (Soldar Vértices)"): "Repair Mesh (Weld Vertices)",
+        ("*", "Aviso: Malha não estanque (vértices desconectados)"): "Warning: Non-manifold mesh (disconnected vertices)",
         ("*", "Axial clearance at bottom of extraction, independent of lateral clearance"): "Axial clearance at bottom of extraction, independent of lateral clearance",
         ("*", "Ação do Clique 3D no Modelo:"): "3D Click Action on Model:",
         ("*", "Base Cut Parameters:"): "Base Cut Parameters:",
@@ -1948,6 +1958,10 @@ TRANSLATIONS_DICT = {
         ("*", "Criar Cortador Desta Seleção"): "Create Cutter from Selection",
         ("*", "Criar Cortador desta Seleção"): "Create Cutter from Selection",
         ("*", "Criar Cortador a partir do Alvo:"): "Create Cutter from Target:",
+        ("*", "Criar Plano"): "Create Plane",
+        ("*", "Create Plane"): "Create Plane",
+        ("*", "Cria um novo plano de corte na cena caso o plano anterior tenha sido apagado"): "Create a new cutting plane in the scene if the previous plane was deleted",
+        ("*", "Create a new cutting plane in the scene if the previous plane was deleted"): "Create a new cutting plane in the scene if the previous plane was deleted",
         ("*", "Create Cutter from Target:"): "Create Cutter from Target:",
         ("*", "Desta Seleção"): "From Selection",
         ("*", "From Selection"): "From Selection",
@@ -2119,8 +2133,8 @@ TRANSLATIONS_DICT = {
         ("*", "Extracted Part Material"): "Extracted Part Material",
         ("*", "Extracted part selected. Use G to move."): "Extracted part selected. Use G to move.",
         ("*", "Extraction Depth (mm)"): "Extraction Depth (mm)",
-        ("*", "Extracts surface region projecting a prism with indicated depth"): "Extracts surface region projecting a prism with indicated depth",
-        ("*", "Extrai a região superficial projetando um prisma com a profundidade indicada"): "Extracts surface region projecting a prism with indicated depth",
+        ("*", "Extracts the complete region and creates the cut interface at the indicated depth"): "Extracts the complete region and creates the cut interface at the indicated depth",
+        ("*", "Extrai a região inteira e cria a interface de corte na profundidade indicada"): "Extracts the complete region and creates the cut interface at the indicated depth",
         ("*", "Extrair"): "Extrude",
         ("*", "Extrude"): "Extrude",
         ("*", "Face"): "Face",
@@ -2490,6 +2504,8 @@ TRANSLATIONS_DICT = {
         ("*", "Plane Opacity (%)"): "Plane Opacity (%)",
         ("*", "Plane Origin"): "Plane Origin",
         ("*", "Plane Positioning"): "Plane Positioning",
+        ("*", "Plano apagado. Clique em 'Criar Plano' para recriar."): "Plane deleted. Click 'Create Plane' to restore.",
+        ("*", "Plane deleted. Click 'Create Plane' to restore."): "Plane deleted. Click 'Create Plane' to restore.",
         ("*", "Ponto 3D por onde passa o plano de corte"): "3D point through which the cutting plane passes",
         ("*", "Ponto de Apoio"): "Support Point",
         ("*", "Por Profundidade"): "By Depth",
@@ -2827,6 +2843,105 @@ TRANSLATIONS_DICT = {
     },
 }
 
+for _pt, _en in (
+    ('Contorno de região degenerado.', 'Degenerate region boundary.'),
+    ('Os contornos se cruzam ou a folga colapsa a moldura.', 'The contours intersect or the clearance collapses the frame.'),
+    ('A seleção possui regiões externas desconectadas.', 'The selection contains disconnected outer regions.'),
+    ('Aberturas aninhadas não pertencem a uma única região selecionada.', 'Nested openings do not belong to a single selected region.'),
+    ('A região precisa de um contorno externo e de abertura interna.', 'The region needs an outer contour and an inner opening.'),
+    ('A malha está aberta ou possui vértices separados; use Reparar Malha antes de extrair a moldura.', 'The mesh is open or has split vertices; use Repair Mesh before extracting the frame.'),
+    ('Não foi possível determinar o plano da moldura.', 'The frame support plane could not be determined.'),
+    ('A moldura precisa de apoio planar (desvio superior a 0,25 mm).', 'The frame needs planar support (deviation above 0.25 mm).'),
+    ('A região atravessa o plano de apoio; use uma região superficial com projeção desimpedida.', 'The region crosses its support plane; choose a surface region with an unobstructed projection.'),
+    ('A folga colapsa um contorno da moldura.', 'The clearance collapses a frame contour.'),
+    ('A folga colapsa a largura da moldura.', 'The clearance collapses the frame width.'),
+    ('Não foi possível triangular a moldura preservando suas aberturas.', 'The frame could not be triangulated while preserving its openings.'),
+    ('Ative a cena do modelo antes de extrair a moldura.', 'Activate the model scene before extracting the frame.'),
+    ('A malha original precisa estar fechada e sem faces degeneradas para extrair a moldura.', 'Frame extraction requires a closed source mesh without degenerate faces.'),
+    ('A moldura é plana: escolha Profundidade para criar uma peça sólida.', 'The frame is flat: choose Depth to create a solid part.'),
+    ('A folga de fundo excede a espessura disponível na moldura.', 'Bottom clearance exceeds the available frame thickness.'),
+    ('O corte da moldura não produziu dois sólidos válidos; ajuste profundidade ou folga.', 'The frame cut did not produce two valid solids; adjust depth or clearance.'),
+    ('A extração da moldura não conservou o volume esperado; a fonte foi preservada.', 'The frame cut did not preserve the expected volume; the source was retained.'),
+    ('A face escolhida não pertence à moldura capturada. Capture a região novamente.', 'The chosen face is outside the captured frame. Capture the region again.'),
+    ('A malha mudou; capture os contornos da moldura novamente.', 'The mesh changed; capture the frame contours again.'),
+    ('Região com aberturas internas; o centro será preservado.', 'Region with inner openings; the centre will be preserved.'),
+    ('Contornos da região', 'Region contours'),
+    ('Faces da região com aberturas', 'Faces of the region with openings'),
+):
+    TRANSLATIONS_DICT['pt_BR'].update({('*',_pt):_pt,('*',_en):_pt})
+    TRANSLATIONS_DICT['en_US'].update({('*',_pt):_en,('*',_en):_en})
+
+
+for _pt, _en in (
+    ("Tentar reparo seguro", "Try Safe Repair"),
+    ("Mostrar faces", "Show Faces"),
+    ("Mostrar faces problemáticas", "Show Problem Faces"),
+    ("Padrão de Folgas", "Clearance Profile"),
+    ("Impressão FDM", "FDM Printing"),
+    ("Sem folgas", "No Clearances"),
+    ("Valores iniciais; ajuste para sua impressora.", "Starting values; adjust for your printer."),
+    ("Valores iniciais; o encaixe pode exigir ajuste para sua impressora", "Starting values; fit may need adjustment for your printer"),
+    ("Zera as folgas entre peças e dos pinos, inclusive no fundo", "Zeroes part and pin clearances, including bottom clearances"),
+    ("Ajuste as folgas individualmente sem alterar os pinos", "Adjust individual clearances without changing pins"),
+):
+    TRANSLATIONS_DICT['pt_BR'].update({('*', _pt): _pt, ('*', _en): _pt})
+    TRANSLATIONS_DICT['en_US'].update({('*', _pt): _en, ('*', _en): _en})
+
+
+for _pt, _en in (
+    ('Área do corte', 'Cut extent'),
+    ('Das faces selecionadas', 'From selected faces'),
+    ('Faces / Contorno', 'Faces / Contour'),
+    ('Alinhar cortador inteiro', 'Align whole cutter'),
+    ('Ponto de apoio', 'Anchor'),
+    ('Inverter direção', 'Invert direction'),
+    ('Face do alvo', 'Target face'),
+    ('Centro da seleção', 'Selection center'),
+    ('Eixos do alvo', 'Target axes'),
+    ('Mover cortador por vértices', 'Move cutter by vertices'),
+    ('Moldar a malha do cortador', 'Shape cutter mesh'),
+    ('Ajustar só um vértice', 'Adjust one vertex only'),
+    ('Editar cortador', 'Edit cutter'),
+    ('Cortador inteiro', 'Whole cutter'),
+    ('Somente um vértice', 'One vertex only'),
+    ('Face de apoio', 'Support face'),
+    ('Faces selecionadas', 'Selected faces'),
+    ('Move o objeto sem deformar a malha', 'Moves the object without deforming its mesh'),
+    ('Move só o vértice escolhido na malha do cortador', 'Moves only the chosen cutter mesh vertex'),
+    ('Localizar problemas', 'Locate problems'),
+    ('Atualizar diagnóstico', 'Refresh diagnostics'),
+    ('Diagnóstico inclui modificadores.', 'Diagnostics include modifiers.'),
+    ('Próximo problema', 'Next problem'),
+    ('Seleciona falhas da malha no Modo de Edição e aproxima a vista, sem reparar a geometria', 'Selects mesh defects in Edit Mode and frames the view without repairing geometry'),
+    ('Plano completo', 'Full plane'),
+    ('Área limitada', 'Limited area'),
+    ('Largura (mm)', 'Width (mm)'),
+    ('Altura (mm)', 'Height (mm)'),
+    ('Enquadre toda a seção que deseja separar.', 'Enclose the entire section to separate.'),
+    ('Atravessa todo o modelo', 'Cuts across the entire model'),
+    ('Separa apenas seções completas dentro do retângulo do guia', 'Separates only complete sections within the guide rectangle'),
+    ('Crie o guia do plano para definir a área limitada.', 'Create the plane guide to define the limited area.'),
+    ('O retângulo de corte tem tamanho nulo. Aumente largura e altura.', 'The cut rectangle has zero size. Increase width and height.'),
+    ('O corte não separa uma peça: a área limitada cobre apenas parte da seção. Amplie ou reposicione o retângulo.', 'The cut does not separate a part: the limited area covers only part of the section. Enlarge or reposition the rectangle.'),
+    ('A área limitada não contém uma seção completa. Amplie ou reposicione o retângulo.', 'The limited area contains no complete section. Enlarge or reposition the rectangle.'),
+    ('A área limitada não produziu duas peças fechadas. Amplie ou reposicione o retângulo.', 'The limited area did not produce two closed parts. Enlarge or reposition the rectangle.'),
+):
+    TRANSLATIONS_DICT['pt_BR'].update({('*',_pt):_pt,('*',_en):_pt})
+    TRANSLATIONS_DICT['en_US'].update({('*',_pt):_en,('*',_en):_en})
+
+
+
+# Shared aliases keep explicit UI labels and native RNA translations consistent.
+_RELEASE_0829_PAIRS = [('Nome do Objeto', 'Object Name'), ('Este objeto é o cortador. Selecione o modelo que será dividido.', 'This object is the cutter. Select the model to split.'), ('Usa a seleção de faces ou o contorno capturado', 'Uses the face selection or captured boundary'), ('Copia as faces selecionadas do alvo e cria um volume editável', 'Copies the selected target faces and creates an editable volume'), ('Separa o volume delimitado pelas faces ou pelo contorno selecionado', 'Separates the volume bounded by the selected faces or boundary'), ('Região inteira', 'Whole region'), ('Separa o volume delimitado pela região de material', 'Separates the volume bounded by the material region'), ('Aplica o material da peça na interface; em Região inteira, colore toda a peça extraída, incluindo os encaixes', 'Applies the part material to the interface; in Whole region mode, colors the entire extracted part, including connectors'), ('Posiciona o centro geométrico do cortador na referência', 'Positions the geometric center of the cutter at the reference'), ('Encosta a base local do cortador na referência', 'Places the local base of the cutter against the reference'), ('Arestas não-manifold do cortador', 'Non-manifold cutter edges'), ('Editando cortador; o alvo permanece o mesmo.', 'Editing cutter; the target remains the same.'), ('Área plana para os pinos', 'Flat area for pins'), ('Gere a prévia para encontrar as áreas de montagem.', 'Generate the preview to find assembly areas.'), ('Usar área selecionada na prévia', 'Use area selected in preview'), ('Escolher outra área', 'Choose another area'), ('Peças finais geradas na coleção de peças.', 'Final parts created in the parts collection.'), ('Preparar área plana — {area:.1f} mm²', 'Prepare flat area — {area:.1f} mm²'), ('Contato {index} escolhido. Ative os encaixes.', 'Contact {index} selected. Enable connectors.')]
+for _pt, _en in _RELEASE_0829_PAIRS:
+    TRANSLATIONS_DICT['pt_BR'].update({('*', _pt): _pt, ('*', _en): _pt})
+    TRANSLATIONS_DICT['en_US'].update({('*', _pt): _en, ('*', _en): _en})
+
+_REGION_0829_PAIRS = [('Reexaminar a malha sem mudar seleção ou modo', 'Recheck the mesh without changing selection or mode'), ('Focar uma região problemática por vez', 'Focus one problem region at a time'), ('Próximo', 'Next'), ('Todos', 'All'), ('Selecionar todas as regiões problemáticas', 'Select all problem regions'), ('Examinar o corpo principal', 'Inspect the main body'), ('Examinar o sólido de corte', 'Inspect the solid cutter'), ('Capturar faces para separar', 'Capture faces to separate'), ('Use Editar alvo e selecione as faces da peça no modo de edição.', 'Use Edit target and select the part faces in Edit Mode.'), ('Escolha uma região de material válida no alvo.', 'Choose a valid material region on the target.'), ('Selecione as faces da peça ou um contorno fechado sem bifurcações.', 'Select the part faces or a closed boundary without branches.'), ('O contorno deve separar duas regiões. Para outros casos, selecione as faces.', 'The boundary must separate two regions. Otherwise, select the faces.'), ('Contorno ambíguo: indique uma face do lado desejado ou selecione as faces da peça.', 'Ambiguous boundary: indicate a face on the desired side or select the part faces.'), ('Selecione somente a superfície da peça que deseja separar.', 'Select only the surface of the part you want to separate.'), ('Aplique os modificadores em uma cópia antes de capturar.', 'Apply modifiers to a copy before capturing.'), ('Escolher contato para os pinos', 'Choose contact for pins'), ('Gere uma prévia sem pinos e escolha o novo contato.', 'Generate a preview without pins and choose the new contact.'), ('A geometria do corte mudou. Use Reescolher contato e gere a prévia novamente.', 'The cut geometry changed. Use Choose contact again and regenerate the preview.'), ('Entre no modo de edição de uma prévia e selecione uma face do contato.', 'Enter Edit Mode on a preview and select a contact face.'), ('Escolha uma superfície nova do corte, não uma face exterior da peça.', 'Choose a new cut surface, not an exterior face of the part.'), ('Cortador ou alvo inválido.', 'Invalid cutter or target.'), ('{count} faces capturadas. Folga entre peças: 0 mm. Gere a prévia.', '{count} faces captured. Part clearance: 0 mm. Generate the preview.'), ('Contato {index} destacado. Ative os encaixes e atualize a prévia.', 'Contact {index} highlighted. Enable connectors and update the preview.')]
+for _pt, _en in _REGION_0829_PAIRS:
+    TRANSLATIONS_DICT['pt_BR'].update({('*', _pt): _pt, ('*', _en): _pt})
+    TRANSLATIONS_DICT['en_US'].update({('*', _pt): _en, ('*', _en): _en})
+
 def localize_text(text: str) -> str:
     """Resolve explicit panel labels using the addon language, including English and Portuguese.
 
@@ -2835,6 +2950,10 @@ def localize_text(text: str) -> str:
     """
     if not text:
         return text
+    from .localized_errors import decode_message, render_message
+    decoded = decode_message(text)
+    if isinstance(decoded, dict):
+        return render_message(decoded)
     loc = get_addon_locale()
     if loc == 'en_US':
         return TRANSLATIONS_DICT.get('en_US', {}).get(('*', text), text)
@@ -2942,6 +3061,60 @@ MESSAGES = {
 }
 
 
+MESSAGES['pt_BR'].update({
+    'geometry.region_degenerate': 'A peça candidata contém {count} face(s) degeneradas e {edges} aresta(s) quase nulas. O reparo automático seguro não pôde preservar a geometria. O alvo original foi mantido; verifique a malha, não apenas a seleção.',
+    'diagnostic.closure_uses_depth': 'O fechamento direto atravessa a superfície selecionada. Será usada a profundidade de extração configurada.',
+    'geometry.closing_intersection': '{part}: a superfície de fechamento cruza a geometria existente ({count} interseção(ões)). Ajuste o contorno ou escolha uma profundidade de fechamento explícita.',
+    'geometry.depth_region_overhang': 'Não foi possível separar a região inteira com esta profundidade. A projeção do contorno cortaria partes da estrutura selecionada. Ajuste o contorno ou a profundidade.',
+    'geometry.patch_tessellation': 'A face {face} da região selecionada não possui tesselação visível válida.',
+    'geometry.simple_boundary': 'A região de material selecionada precisa de um único contorno fechado simples.',
+    'connectors.no_contact_patch': 'Não há uma superfície de contato válida para pinos no lado selecionado após aplicar a folga. Revise a folga ou escolha o outro lado.',
+    'export.surface_material': "Material superficial detectado na peça '{part}' ({reason}). Para imprimir separadamente, utilize o modo de corte 'Material' com profundidade, gerando um sólido real.",
+    'preview.failed': 'Erro na geração da prévia: {reason}',
+    'export.failed': 'Falha na exportação: {reason}',
+    'geometry.non_planar': 'A base da saliência não é planar (desvio: {deviation:.2f} mm > {limit:.2f} mm). Use a extração com Profundidade e escolha a profundidade desejada.',
+    'geometry.clearance_excessive': 'A folga configurada é grande demais para os detalhes do contorno selecionado. Reduza a folga.',
+    'geometry.wall_thickness': 'A profundidade ({depth:.2f} mm) ultrapassa a espessura disponível ({available:.2f} mm). Reduza a profundidade ou a folga de fundo.',
+    'geometry.degenerate_faces': '{part}: possui {count} face(s) com área nula ou vértices colineares/coincidentes.',
+    'geometry.null_edges': '{part}: possui {count} aresta(s) com comprimento nulo (degeneração).',
+    'geometry.insufficient_elements': '{part}: contagem insuficiente de elementos ({faces} faces, {vertices} vértices).',
+    'geometry.invalid_coordinates': '{part}: contém coordenadas infinitas ou NaN.',
+    'geometry.zero_volume': '{part}: volume nulo ou desprezível ({volume:.4f} mm³).',
+    'geometry.non_manifold': '{part}: possui {count} aresta(s) não-manifold/abertas (não é um sólido fechado).',
+    'geometry.validation_failed': 'Validação da geometria cortada falhou: {reason}',
+    'geometry.connectors_invalid': 'Resultado inválido após encaixes: {reason}',
+    'diagnostic.planar_region': 'Região plana detectada (desvio de relevo: {height:.2f} mm). Requer profundidade de extração para gerar peça sólida.',
+    'diagnostic.non_planar_protrusion': 'Saliência 3D com contorno não planar (desvio: {deviation:.2f} mm).',
+    'diagnostic.protrusion': 'Saliência 3D detectada (altura saliente: {height:.2f} mm). Destacando volume pela interface do contorno.',
+})
+MESSAGES['en_US'].update({
+    'geometry.region_degenerate': 'The candidate contains {count} degenerate face(s) and {edges} near-zero edge(s). Safe automatic repair could not preserve its geometry. The original target was kept; inspect the mesh, not only the selection.',
+    'diagnostic.closure_uses_depth': 'Direct closing crosses the selected surface. The configured extraction depth will be used.',
+    'geometry.closing_intersection': '{part}: the closing surface crosses existing geometry ({count} intersection(s)). Adjust the boundary or choose an explicit closing depth.',
+    'geometry.depth_region_overhang': 'The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth.',
+    'geometry.patch_tessellation': 'Selected region face {face} has no valid visible tessellation.',
+    'geometry.simple_boundary': 'The selected material region requires one simple closed boundary.',
+    'connectors.no_contact_patch': 'No valid connector contact surface remains on the selected side after clearance. Review the clearance or choose the other side.',
+    'export.surface_material': "Surface material detected in part '{part}' ({reason}). For separate printing, use 'Material' cut mode with Depth to generate a closed solid.",
+    'preview.failed': 'Preview generation error: {reason}',
+    'export.failed': 'Export failed: {reason}',
+    'geometry.non_planar': 'The protrusion base is non-planar (deviation: {deviation:.2f} mm > {limit:.2f} mm). Use Depth extraction and set the desired depth.',
+    'geometry.clearance_excessive': 'The configured clearance is too large for the selected boundary details. Reduce the clearance.',
+    'geometry.wall_thickness': 'The depth ({depth:.2f} mm) exceeds the available thickness ({available:.2f} mm). Reduce the depth or bottom clearance.',
+    'geometry.degenerate_faces': '{part}: has {count} face(s) with zero area or collinear/coincident vertices.',
+    'geometry.null_edges': '{part}: has {count} edge(s) with zero length (degenerate geometry).',
+    'geometry.insufficient_elements': '{part}: insufficient elements ({faces} faces, {vertices} vertices).',
+    'geometry.invalid_coordinates': '{part}: contains infinite or NaN coordinates.',
+    'geometry.zero_volume': '{part}: zero or negligible volume ({volume:.4f} mm³).',
+    'geometry.non_manifold': '{part}: has {count} non-manifold/open edge(s) (not a closed solid).',
+    'geometry.validation_failed': 'Cut geometry validation failed: {reason}',
+    'geometry.connectors_invalid': 'Invalid result after connectors: {reason}',
+    'diagnostic.planar_region': 'Planar region detected (relief deviation: {height:.2f} mm). Extraction depth is required to generate a solid part.',
+    'diagnostic.non_planar_protrusion': '3D protrusion with a non-planar boundary (deviation: {deviation:.2f} mm).',
+    'diagnostic.protrusion': '3D protrusion detected (protrusion height: {height:.2f} mm). Detaching volume along the boundary interface.',
+})
+
+
 def get_addon_preferences(context: Optional[bpy.types.Context] = None) -> Optional[bpy.types.AddonPreferences]:
     """Recupera preferências da extensão."""
     ctx = context or bpy.context
@@ -2950,7 +3123,8 @@ def get_addon_preferences(context: Optional[bpy.types.Context] = None) -> Option
     addons = getattr(ctx.preferences, "addons", None)
     if not addons:
         return None
-    for k, addon in addons.items():
+    for k in reversed(list(addons.keys())):
+        addon = addons[k]
         if k == "chest_part_splitter" or k.endswith(".chest_part_splitter") or k == __package__ or k == "src":
             pref = getattr(addon, "preferences", None)
             if pref:
@@ -2996,10 +3170,27 @@ def tr(key: str, **kwargs) -> str:
         template = MESSAGES.get("pt_BR", {}).get(key, key)
     if kwargs:
         try:
+            from .localized_errors import MESSAGE_MARKER, LocalizedGeometryError, decode_message, render_message
+            kwargs = {name: render_message(value) if isinstance(value, LocalizedGeometryError)
+                      or (isinstance(decode_message(value), dict) and MESSAGE_MARKER in decode_message(value))
+                      else localize_text(value) if isinstance(value, str) and name in ('part', 'reason')
+                      else value for name, value in kwargs.items()}
             return template.format(**kwargs)
         except Exception:
             return template
     return template
+
+
+MESSAGES['pt_BR'].update({
+    'geometry.source_microfaces': 'A malha está fechada, mas há {count} face(s) quase colineares ou com vértices coincidentes. Use Tentar reparo seguro ou Mostrar faces no Modelo Alvo.',
+    'geometry.source_open_repair': 'A malha original está aberta ou não manifold. Use Tentar reparo seguro no Modelo Alvo; buracos reais precisam de reparo manual.',
+    'geometry.clearance_microfeatures': 'A folga de {clearance:.3f} mm cruza os contornos ou colapsa detalhes/aberturas da região. Reduza a folga em Personalizado ou escolha uma região sem esses detalhes. A folga não foi alterada.',
+})
+MESSAGES['en_US'].update({
+    'geometry.source_microfaces': 'The mesh is closed, but {count} face(s) are nearly collinear or have coincident vertices. Use Try Safe Repair or Show Faces under Target Model.',
+    'geometry.source_open_repair': 'The source mesh is open or non-manifold. Use Try Safe Repair under Target Model; real holes require manual repair.',
+    'geometry.clearance_microfeatures': 'The {clearance:.3f} mm clearance crosses contours or collapses region details/openings. Reduce clearance in Custom or select a region without these details. Clearance was not changed.',
+})
 
 
 def get_help_tooltip(topic: str) -> str:
@@ -3050,3 +3241,375 @@ def unregister_translations():
         except ValueError:
             pass
 
+
+MESSAGES['pt_BR'].update({
+    'geometry.contact_gap_infeasible': 'A folga não cabe neste encontro de superfícies. Reduza a folga ou faça outra divisão.',
+    'geometry.contact_gap_miter': 'A folga criaria uma ponta no encontro das superfícies. Reduza a folga.',
+    'geometry.contact_gap_crossing': 'A folga cruza outra superfície. Reduza a folga ou faça outra divisão.',
+    'geometry.contact_gap_corner': 'A folga deixou um canto sem afastamento. Reduza a folga ou faça outra divisão.',
+    'geometry.contact_gap_missing': 'A folga não afastou todas as superfícies de contato.',
+    'geometry.region_ambiguous_completion': 'O contorno exige superfícies internas que não podem ser determinadas com segurança. Use um cortador modelado ou divida a seleção.',
+})
+MESSAGES['en_US'].update({
+    'geometry.contact_gap_infeasible': 'The clearance cannot fit at this surface junction. Reduce the clearance or make another split.',
+    'geometry.contact_gap_miter': 'The clearance would create a spike at the surface junction. Reduce the clearance.',
+    'geometry.contact_gap_crossing': 'The clearance crosses another surface. Reduce the clearance or make another split.',
+    'geometry.contact_gap_corner': 'The clearance left a corner without separation. Reduce the clearance or make another split.',
+    'geometry.contact_gap_missing': 'The clearance did not separate every contact surface.',
+    'geometry.region_ambiguous_completion': 'The boundary requires internal surfaces that cannot be determined safely. Use a modeled cutter or split the selection.',
+})
+
+
+
+# Audited geometry and state errors, bidirectional at presentation time.
+_ERROR_LOCALE_PAIRS = [('A extração com profundidade gerou malha não-manifold.', 'Depth extraction produced a non-manifold mesh.'),
+ ('A face semente não é mais válida para a topologia atual.',
+  'The seed face is no longer valid for the current topology.'),
+ ('A faixa de folga não é fechada.', 'The clearance band is not closed.'),
+ ('A folga deformaria uma face do cortador.', 'Clearance would deform a cutter face.'),
+ ('A folga deixou a superfície de montagem fora do plano. Reduza a folga.',
+  'Clearance moved the mounting surface out of plane. Reduce clearance.'),
+ ('A folga inclinou a superfície de montagem.', 'Clearance tilted the mounting surface.'),
+ ('A folga não mantém as faces deste cortador. Use uma folga menor ou um cortador mais simples.',
+  "Clearance cannot preserve this cutter's faces. Use less clearance or a simpler cutter."),
+ ('A folga não permite manter a área plana sem alterar o exterior.',
+  'Clearance cannot preserve the flat area without changing the exterior.'),
+ ('A folga removeu a superfície plana dos pinos.', 'Clearance removed the flat pin surface.'),
+ ('A folga removeu a área plana de montagem.', 'Clearance removed the flat mounting area.'),
+ ('A folga ultrapassou a peça original.', 'Clearance extends beyond the original part.'),
+ ('A folga é grande demais para os detalhes do cortador.', 'Clearance is too large for the cutter details.'),
+ ('A malha avaliada do cortador deve ser um sólido fechado.',
+  'The evaluated cutter mesh must be a closed solid.'),
+ ('A malha do cortador é compartilhada. Torne-a independente antes de editar.',
+  'The cutter mesh is shared. Make it single-user before editing.'),
+ ('A malha mudou. Selecione e capture as faces novamente.',
+  'The mesh changed. Select and capture the faces again.'),
+ ('A matriz de transformação do objeto é singular (escala nula).',
+  'The object transform is singular (zero scale).'),
+ ('A peça colide com o corpo durante a retirada nesta direção. Escolha outro contato ou faça outra divisão.',
+  'The part collides with the body when removed in this direction. Choose another contact or split it '
+  'again.'),
+ ('A preparação da área plana não conservou o volume.', 'Preparing the flat area did not conserve volume.'),
+ ('A região da Parte A ficou vazia.', 'The Part A region is empty.'),
+ ('A região de material selecionada é completamente coplanar com a base (não possui saliência volumétrica). '
+  "Para recortar superfícies planas, utilize o modo 'Extrair com Profundidade'.",
+  'The selected material region is coplanar with the base and has no raised volume. Use Extract with Depth '
+  'for flat surfaces.'),
+ ('A região precisa de contornos fechados sem bifurcações.',
+  'The region requires closed boundaries without branches.'),
+ ('A transição da área plana contém uma face degenerada.',
+  'The flat-area transition contains a degenerate face.'),
+ ('A área comum do corte possui um contorno ambíguo.', 'The common cut area has an ambiguous boundary.'),
+ ('A área de encaixe não possui contorno contínuo.', 'The connector area has no continuous boundary.'),
+ ('A área de encaixe é estreita demais.', 'The connector area is too narrow.'),
+ ('A área plana com folga ultrapassou a peça original.',
+  'The flat area with clearance extends beyond the original part.'),
+ ('A área plana não preserva as aberturas da seleção.',
+  'The flat area does not preserve the selection openings.'),
+ ('Aplique os modificadores em uma cópia antes de capturar a região de faces.',
+  'Apply modifiers on a copy before capturing the face region.'),
+ ('As duas peças não possuem superfícies de contato correspondentes.',
+  'The two parts have no corresponding contact surfaces.'),
+ ("Centro da interface de corte está fora da peça ou dentro de um furo. Ative 'Ajustar para Área Válida' ou "
+  'use posicionamento manual.',
+  'The cut interface center is outside the part or inside a hole. Enable Snap to Valid Area or use manual '
+  'placement.'),
+ ('A operação booleana dos encaixes gerou um resultado vazio.',
+  'Connector Boolean generated an empty result.'),
+ ('Corrija os defeitos topológicos do alvo antes de fechar a região.',
+  'Fix the target topology before closing the region.'),
+ ('Cortador e alvo devem ser objetos diferentes; escolha um modo de alinhamento válido.',
+  'Cutter and target must be different objects. Choose a valid alignment mode.'),
+ ('Não foi possível avaliar a malha para verificar alterações na entrada.',
+  'Could not evaluate mesh for input fingerprint'),
+ ('Não foi possível localizar uma face preservada contendo a diagonal visível da origem.',
+  'Could not find a retained face containing a source-visible diagonal.'),
+ ('Não foi possível associar a diagonal visível da origem à face preservada da malha.',
+  'Could not map a source-visible diagonal to its retained BMesh face.'),
+ ('Defina a região a separar selecionando uma face semente no modo Loop.',
+  'Define the region to separate by selecting a seed face in Edge Loop mode.'),
+ ('Escolha uma região de material válida.', 'Choose a valid material region.'),
+ ('Escolha uma área de encaixe da prévia atual.', 'Choose a connector area from the current preview.'),
+ ('Espessura da peça não pôde ser determinada no ponto selecionado. Defina a profundidade manualmente ou '
+  "ative a opção 'Corte Passante'.",
+  'Could not determine part thickness at this point. Set depth manually or enable Through Cut.'),
+ ('Esta folga não preserva uma peça fechada. Reduza a folga entre peças.',
+  'This clearance does not preserve a closed part. Reduce part clearance.'),
+ ('Esta superfície não permite um encaixe por inserção reta.',
+  'This surface does not allow straight insertion.'),
+ ('Esta área não permite montagem por inserção reta. Escolha outro contato ou divida a peça novamente.',
+  'This area does not allow straight insertion. Choose another contact or split the part again.'),
+ ('Este corte não possui uma superfície comum para posicionar os pinos.',
+  'This cut has no common surface for placing pins.'),
+ ('Face-semente inválida ou não encontrada.', 'Invalid or missing seed face.'),
+ ('Face-semente inválida ou não selecionada.', 'Invalid or unselected seed face.'),
+ ('Gere a prévia sem pinos e escolha um contato primeiro.',
+  'Generate the preview without pins and choose a contact first.'),
+ ('Nenhum objeto alvo definido para o corte.', 'No target object defined for the cut.'),
+ ('Nenhum objeto cortador sólido foi especificado ou o objeto foi excluído.',
+  'No solid cutter specified, or the cutter was deleted.'),
+ ('Nenhuma interface de corte válida encontrada para posicionamento de encaixes.',
+  'No valid cut interface found for connector placement.'),
+ ('Nenhuma região definida.', 'No region defined.'),
+ ('Neste modo A é a região selecionada. Para trocar o lado do pino use Macho A/B.',
+  'In this mode A is the selected region. Use Male A/B to change the pin side.'),
+ ('Normal do plano inválida.', 'Invalid plane normal.'),
+ ('Não foi possível criar uma transição interna para esta área.',
+  'Could not create an internal transition for this area.'),
+ ('Não foi possível encontrar o contorno fechado correspondente no corpo receptor.',
+  'Could not find the matching closed boundary in the receiving body.'),
+ ('Não foi possível encontrar um ciclo fechado simples na base da saliência.',
+  'Could not find a simple closed boundary at the base of the raised area.'),
+ ('Não foi possível fechar o contorno dentro do corpo. Ajuste a seleção ou use um cortador modelado.',
+  'Could not close the boundary inside the body. Adjust the selection or use a modeled cutter.'),
+ ('Não foi possível preparar a interface de corte para o modelo.',
+  'Could not prepare the cut interface for this model.'),
+ ('Não foi possível produzir uma área de encaixe realmente plana.',
+  'Could not produce a truly flat connector area.'),
+ ('Não foi possível reconstruir um contorno fechado da superfície do corte.',
+  'Could not reconstruct a closed cut-surface boundary.'),
+ ('Não foi possível sair do modo de edição anterior.', 'Could not exit the previous Edit Mode.'),
+ ('Não foi possível triangular a pegada da região para o cortador.',
+  'Could not triangulate the region footprint for the cutter.'),
+ ('Não há espaço útil para dois pinos com essas dimensões e margem.',
+  'Not enough usable space for two pins with these dimensions and margin.'),
+ ('Não há superfícies de contato para aplicar a folga.', 'No contact surfaces available for clearance.'),
+ ('O Blender não ativou a edição do alvo.', 'Blender did not activate target Edit Mode.'),
+ ('O alvo continua oculto ou bloqueado nesta camada de visualização.',
+  'The target remains hidden or locked in this view layer.'),
+ ('O alvo está vinculado a uma biblioteca; torne-o local para editar.',
+  'The target is linked to a library. Make it local before editing.'),
+ ('O alvo não permite entrar no modo de edição.', 'The target cannot enter Edit Mode.'),
+ ('O alvo não possui uma coleção nesta camada de visualização.',
+  'The target has no collection in this view layer.'),
+ ('O alvo possui escala nula.', 'The target has zero scale.'),
+ ('O ciclo de arestas não existe mais na malha (Topologia alterada).',
+  'The edge cycle no longer exists in the mesh (topology changed).'),
+ ('O contato escolhido não existe mais. Escolha novamente na prévia.',
+  'The selected contact no longer exists. Choose it again in the preview.'),
+ ('O contorno tem mais de 128 vértices. Simplifique a borda em uma cópia antes de capturar.',
+  'The boundary has more than 128 vertices. Simplify it on a copy before capturing.'),
+ ('O cortador de pegada gerou geometria inválida; revise o contorno da região.',
+  'The footprint cutter produced invalid geometry. Check the region boundary.'),
+ ('O cortador foi excluído da cena.', 'The cutter was deleted from the scene.'),
+ ('O cortador foi excluído da cena. Selecione ou crie outro sólido.',
+  'The cutter was deleted from the scene. Select or create another solid.'),
+ ('O cortador não pode ser o próprio objeto alvo da divisão.',
+  'The cutter cannot be the split target itself.'),
+ ('O cortador possui escala nula.', 'The cutter has zero scale.'),
+ ('O cortador/folga não produziu duas partes fechadas com volume. Ajuste a interseção ou a folga.',
+  'The cutter/clearance did not produce two closed parts with volume. Adjust intersection or clearance.'),
+ ('O corte mudou. Reescolha o contato na nova prévia antes de editar os pinos.',
+  'The cut changed. Choose the contact in the new preview before editing pins.'),
+ ('O corte mudou. Use Reescolher contato e gere uma prévia sem pinos.',
+  'The cut changed. Choose the contact again and generate a preview without pins.'),
+ ('O corte por material gerou uma peça com volume nulo ou desprezível.',
+  'The material cut produced a part with zero or negligible volume.'),
+ ('O corte por material resultou em uma peça vazia. Verifique a área ou profundidade selecionada.',
+  'The material cut produced an empty part. Check the selected area or depth.'),
+ ('O destaque por material gerou peça com volume nulo ou desprezível.',
+  'Material separation produced a part with zero or negligible volume.'),
+ ('O destaque por material gerou peça vazia.', 'Material separation produced an empty part.'),
+ ('O fechamento atravessa a superfície do modelo. Ajuste a seleção.',
+  'The closure crosses the model surface. Adjust the selection.'),
+ ('O fechamento gerou um vértice não-manifold.', 'The closure produced a non-manifold vertex.'),
+ ('O fechamento não conservou o volume. Ajuste a seleção.',
+  'The closure did not conserve volume. Adjust the selection.'),
+ ('O fechamento não gerou uma peça única fechada com volume. Ajuste a seleção.',
+  'The closure did not produce one closed part with volume. Adjust the selection.'),
+ ('O fechamento possui uma trava na direção de inserção dos pinos.',
+  'The closure is locked in the pin insertion direction.'),
+ ('O fechamento sai do corpo original. Ajuste a seleção.',
+  'The closure extends outside the original body. Adjust the selection.'),
+ ('O loop não separa a malha em duas regiões (Exemplo: está numa alça).',
+  'The loop does not separate the mesh into two regions (for example, it is on a handle).'),
+ ('O modelo de entrada possui aberturas/arestas não-manifold fora do contorno selecionado. Corrija a malha '
+  'de entrada antes de realizar o corte por contorno.',
+  'The source model has openings or non-manifold edges outside the selected boundary. Repair it before '
+  'cutting by boundary.'),
+ ('O objeto alvo não possui materiais para o modo Material.',
+  'The target has no materials for Material mode.'),
+ ('O objeto alvo não possui nenhum material atribuído.', 'The target has no assigned material.'),
+ ('O plano não cortou o objeto em duas partes distintas.',
+  'The plane did not cut the object into two distinct parts.'),
+ ('Objeto alvo não encontrado nesta cena.', 'Target object not found in this scene.'),
+ ('Os fechamentos se cruzam. Ajuste a seleção.', 'The closures intersect. Adjust the selection.'),
+ ('Para pinos escolhidos na prévia use folga entre peças = 0 mm.',
+  'Use zero part clearance for pins chosen in the preview.'),
+ ('Parede receptora inválida ou ausente: a cavidade não encontra corpo sólido suficiente na direção de '
+  'inserção. Verifique a orientação ou integridade da peça receptora.',
+  'Invalid or missing receiving wall: there is not enough solid material in the insertion direction. Check '
+  'the receiving part orientation and integrity.'),
+ ('Selecione um cortador de malha diferente do alvo.', 'Select a mesh cutter different from the target.'),
+ ('Selecione um vértice válido no alvo.', 'Select a valid target vertex.'),
+ ('Selecione um vértice válido no cortador.', 'Select a valid cutter vertex.'),
+ ('Selecione uma região parcial da superfície para fechar.', 'Select a partial surface region to close.'),
+ ('Sobreposição entre encaixes detectada.', 'Overlapping connectors detected.'),
+ ('Topologia alterada. Um vértice do loop não existe mais.',
+  'Topology changed. A loop vertex no longer exists.'),
+ ('Use Material ou Edge Loop para criar encaixes; o cortador sólido faz apenas a divisão.',
+  'Use Material or Edge Loop to create connectors. The solid cutter only splits the model.'),
+ ('Vetor normal do plano inválido (comprimento nulo).', 'Invalid plane normal (zero length).'),
+ ('Gere uma prévia sem pinos e escolha o novo contato.',
+  'Generate a preview without pins and choose the new contact.')]
+for _pt, _en in _ERROR_LOCALE_PAIRS:
+    TRANSLATIONS_DICT["pt_BR"].update({("*", _pt): _pt, ("*", _en): _pt})
+    TRANSLATIONS_DICT["en_US"].update({("*", _pt): _en, ("*", _en): _en})
+
+_DYNAMIC_AUDIT_MESSAGES = [('audit.dynamic.0',
+  'Falta de espaço: a interface ({v0:.1f}x{v1:.1f} mm) não comporta o encaixe com margem de {v2:.1f} mm '
+  '(necessário ao menos {v3:.1f}x{v4:.1f} mm).',
+  'Not enough space: the interface ({v0:.1f}x{v1:.1f} mm) cannot fit the connector with a {v2:.1f} mm margin '
+  '(requires at least {v3:.1f}x{v4:.1f} mm).'),
+ ('audit.dynamic.1',
+  'Falta de espaço: a interface ({v0:.1f} mm) não comporta a cápsula com margem de {v1:.1f} mm (necessário '
+  'ao menos {v2:.1f} mm).',
+  'Not enough space: the interface ({v0:.1f} mm) cannot fit the capsule with a {v1:.1f} mm margin (requires '
+  'at least {v2:.1f} mm).'),
+ ('audit.dynamic.2', 'O encaixe #{v0}: {v1}.', 'Connector #{v0}: {v1}.'),
+ ('audit.dynamic.3',
+  'Sobreposição entre encaixes detectada: distância {v0:.2f} mm < mínimo {v1:.2f} mm.',
+  'Overlapping connectors: distance {v0:.2f} mm < minimum {v1:.2f} mm.'),
+ ('audit.dynamic.4',
+  'Parede fina: a cavidade de {v0:.1f} mm atravessaria a peça receptora (espessura disponível: {v1:.1f} mm). '
+  'Reduza o comprimento de inserção.',
+  'Thin wall: a {v0:.1f} mm cavity would pass through the receiving part (available thickness: {v1:.1f} mm). '
+  'Reduce insertion length.'),
+ ('audit.dynamic.5',
+  'Falta de espaço: a distribuição LINEAR_3 requer vão de ao menos {v0:.1f} mm (disponível: {v1:.1f} mm). '
+  'Reduza a quantidade ou medidas dos encaixes.',
+  'Not enough space: the 3-pin line requires at least {v0:.1f} mm (available: {v1:.1f} mm). Reduce connector '
+  'count or dimensions.'),
+ ('audit.dynamic.6',
+  'EXACT connector result failed validation ({v0}); MANIFOLD retry failed validation ({v1}).',
+  'The EXACT connector result failed validation ({v0}); the MANIFOLD retry also failed ({v1}).'),
+ ('audit.dynamic.7',
+  'Falta de espaço: a distribuição GRID_4 requer ao menos {v0:.1f}x{v1:.1f} mm (disponível: '
+  '{v2:.1f}x{v3:.1f} mm). Reduza a quantidade ou medidas dos encaixes.',
+  'Not enough space: the 4-pin grid requires at least {v0:.1f}x{v1:.1f} mm (available: {v2:.1f}x{v3:.1f} '
+  'mm). Reduce connector count or dimensions.'),
+ ('audit.dynamic.8',
+  'Não foi possível fechar o contorno do loop (restaram {v0} arestas abertas). O contorno possui desvio '
+  'não-planar de {v1:.2f} mm e não é compatível com fechamento direto. Selecione um contorno planar ou na '
+  'ligação da base.',
+  'Could not close the loop ({v0} open edges remain). Its {v1:.2f} mm non-planarity prevents direct closure. '
+  'Select a planar boundary or one at the base junction.'),
+ ('audit.dynamic.9',
+  'A extração com profundidade gerou malha vazia para a Parte {v0}.',
+  'Depth extraction produced an empty mesh for Part {v0}.'),
+ ('audit.dynamic.10',
+  'A extração com profundidade gerou volume nulo ou desprezível para a Parte {v0}.',
+  'Depth extraction produced zero or negligible volume for Part {v0}.'),
+ ('audit.dynamic.11',
+  'O cortador prismático gerou geometria inválida ({v0}). A extração prismática requer uma superfície com '
+  'projeção desimpedida na direção de extração.',
+  'The prismatic cutter produced invalid geometry ({v0}). Prismatic extraction requires an unobstructed '
+  'projection in the extraction direction.'),
+ ('audit.dynamic.12',
+  'O destaque por base gerou peça não-manifold (arestas abertas: Parte A={v0}, Parte B={v1}).',
+  'Base separation produced a non-manifold part (open edges: Part A={v0}, Part B={v1}).'),
+ ('audit.dynamic.13',
+  'O corte por material gerou peça não-manifold (arestas abertas: Parte A={v0}, Parte B={v1}).',
+  'Material cutting produced a non-manifold part (open edges: Part A={v0}, Part B={v1}).'),
+ ('audit.dynamic.14',
+  'Face duplicada conflitante na interface da base da Parte A: face {v0}. A seleção contém faces sobrepostas '
+  'no plano de corte.',
+  'Conflicting duplicate face on the Part A base interface: face {v0}. The selection contains overlapping '
+  'faces on the cutting plane.'),
+ ('audit.dynamic.15',
+  'Face duplicada conflitante na interface da base da Parte B: face {v0}. A seleção contém faces sobrepostas '
+  'no plano de corte.',
+  'Conflicting duplicate face on the Part B base interface: face {v0}. The selection contains overlapping '
+  'faces on the cutting plane.'),
+ ('audit.dynamic.16',
+  'A profundidade ({v0:.2f} mm) não cobre o rebaixo da região ({v1:.2f} mm). Aumente a profundidade.',
+  'Depth ({v0:.2f} mm) does not cover the region recess ({v1:.2f} mm). Increase depth.'),
+ ('audit.dynamic.17',
+  'Falha na criação de tampa da base para a Parte A: {v0}',
+  'Failed to create the Part A base cap: {v0}'),
+ ('audit.dynamic.18',
+  'Falha na criação de tampa da base para a Parte B: {v0}',
+  'Failed to create the Part B base cap: {v0}'),
+ ('audit.dynamic.19',
+  'O plano de corte não intersecta o modelo (lado {v0} ficou vazio).',
+  'The cutting plane does not intersect the model (side {v0} is empty).'),
+ ('audit.dynamic.20',
+  "O cortador '{v0}' deve ser do tipo MESH (malha poligonal).",
+  "Cutter '{v0}' must be a mesh object."),
+ ('audit.dynamic.21',
+  "O cortador '{v0}' possui geometria insuficiente ou vazia.",
+  "Cutter '{v0}' has insufficient or empty geometry."),
+ ('audit.dynamic.22',
+  "O cortador '{v0}' não é um sólido fechado ({v1} arestas abertas/não-manifold detectadas). Cortadores "
+  'sólidos precisam ser volumes 3D perfeitamente estanques.',
+  "Cutter '{v0}' is not a closed solid ({v1} open/non-manifold edges). Solid cutters must be watertight 3D "
+  'volumes.'),
+ ('audit.dynamic.23', "O cortador '{v0}' possui volume nulo.", "Cutter '{v0}' has zero volume."),
+ ('audit.dynamic.24',
+  "O cortador sólido '{v0}' não intercepta o modelo alvo (as caixas delimitadoras não se tocam). Posicione o "
+  'cortador sobre o modelo.',
+  "Solid cutter '{v0}' does not intersect the target (bounding boxes do not touch). Position the cutter over "
+  'the model.'),
+ ('audit.dynamic.25',
+  'Falha durante a publicação dos arquivos no destino: {v0}. Rollback executado com sucesso.',
+  'Failed to publish files to the destination: {v0}. Rollback completed successfully.'),
+ ('audit.dynamic.26',
+  "Exportação falhou: arquivo vazio ou ausente para '{v0}' ({v1})",
+  "Export failed: empty or missing file for '{v0}' ({v1})"),
+ ('audit.dynamic.27',
+  "Falha ao avaliar modificadores de '{v0}': {v1}",
+  "Failed to evaluate modifiers on '{v0}': {v1}"),
+ ('audit.dynamic.28',
+  "Falha ao avaliar modificadores do objeto '{v0}': {v1}",
+  "Failed to evaluate modifiers on object '{v0}': {v1}"),
+ ('audit.dynamic.29', "Exportador STL nativo falhou para '{v0}'", "Native STL export failed for '{v0}'"),
+ ('audit.dynamic.30', "Exportador STL clássico falhou para '{v0}'", "Legacy STL export failed for '{v0}'"),
+ ('audit.dynamic.31',
+  "Falha ao avaliar modificadores de '{v0}': {v1}",
+  "Failed to evaluate modifiers on '{v0}': {v1}"),
+ ('audit.dynamic.32',
+  'Posicionamento manual inválido: {v0}. Corrija a posição antes de aplicar.',
+  'Invalid manual placement: {v0}. Correct the position before applying.'),
+ ('audit.dynamic.33',
+  'A malha mudou ou o contorno é inválido ({v0}). Capture o contorno novamente.',
+  'The mesh changed or the boundary is invalid ({v0}). Capture the boundary again.'),
+ ('audit.dynamic.34',
+  "Arquivo exportado vazio ou ausente para '{v0}' ({v1})",
+  "Exported file is empty or missing for '{v0}' ({v1})"),
+ ('audit.dynamic.35', "Falha ao exportar OBJ '{v0}': {v1}", "Failed to export OBJ '{v0}': {v1}"),
+ ('audit.dynamic.36', "Falha ao exportar STL '{v0}': {v1}", "Failed to export STL '{v0}': {v1}"),
+ ('audit.dynamic.37', "Falha ao exportar STL '{v0}'", "Failed to export STL '{v0}'")]
+for _key, _pt, _en in _DYNAMIC_AUDIT_MESSAGES:
+    MESSAGES["pt_BR"][_key] = _pt
+    MESSAGES["en_US"][_key] = _en
+
+def localized_format(key, **values):
+    values = {k: localize_text(str(v)) if isinstance(v, (str, Exception)) else v for k, v in values.items()}
+    return tr(key, **values)
+
+# Language settings must also be monolingual.
+for _source, _pt, _en in [
+ ('Idioma / Language', 'Idioma', 'Language'),
+ ('Automático / Auto', 'Automático', 'Automatic'),
+ ('Detecta o idioma do Blender / Follows Blender language', 'Usa o idioma do Blender', 'Uses Blender language'),
+ ('Follows Blender language / Detecta o idioma do Blender', 'Usa o idioma do Blender', 'Uses Blender language'),
+ ('Selecione o idioma da extensão / Select extension language', 'Selecione o idioma da extensão', 'Select extension language'),
+ ('Select extension language / Selecione o idioma da extensão', 'Selecione o idioma da extensão', 'Select extension language')]:
+    TRANSLATIONS_DICT['pt_BR'][('*', _source)] = _pt
+    TRANSLATIONS_DICT['en_US'][('*', _source)] = _en
+
+
+def _portuguese_terms(value):
+    return value.replace('Preview', 'Prévia').replace('Edge Loop', 'Contorno').replace('Loop', 'Contorno')
+
+for _key, _value in list(TRANSLATIONS_DICT['pt_BR'].items()):
+    TRANSLATIONS_DICT['pt_BR'][_key] = _portuguese_terms(_value)
+for _key, _value in list(MESSAGES['pt_BR'].items()):
+    MESSAGES['pt_BR'][_key] = _portuguese_terms(_value)
+for _topic in HELP_TOPICS.values():
+    for _field in ('title', 'tooltip', 'popup_lines'):
+        _value = _topic[_field]['pt_BR']
+        _topic[_field]['pt_BR'] = ([_portuguese_terms(v) for v in _value]
+                                 if isinstance(_value, list) else _portuguese_terms(_value))
+TRANSLATIONS_DICT['pt_BR'][('*', 'Interface and messages in English')] = 'Interface e mensagens em inglês'
+TRANSLATIONS_DICT['pt_BR'][('*', 'English (US)')] = 'Inglês (EUA)'

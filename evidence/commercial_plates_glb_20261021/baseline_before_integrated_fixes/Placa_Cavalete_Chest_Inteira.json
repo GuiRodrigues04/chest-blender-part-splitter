@@ -1,0 +1,300 @@
+{
+  "file": "Placa_Cavalete_Chest_Inteira.glb",
+  "path": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Placa_Cavalete_Chest_Inteira.glb",
+  "import": {
+    "operator": "{'FINISHED'}",
+    "mesh_objects": 1,
+    "object_names": [
+      "Placa_Cavalete_Chest_Inteira"
+    ]
+  },
+  "materials": [
+    {
+      "index": 0,
+      "name": "Material_1",
+      "faces": 92,
+      "regions": 1,
+      "region_face_counts": [
+        92
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    },
+    {
+      "index": 1,
+      "name": "Material_2",
+      "faces": 120,
+      "regions": 1,
+      "region_face_counts": [
+        120
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    }
+  ],
+  "cases": [
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.0,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 2,104 mm³ | Part B: 169,909 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 282,
+          "faces": 372,
+          "volume_mm3": 2104.2291484323237,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 296,
+          "faces": 400,
+          "volume_mm3": 169908.6056088577,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 172012.8347575939,
+      "parts_volume_mm3": 172012.83475729002,
+      "volume_delta_mm3": -3.038730937987566e-07,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true,
+      "review_blend": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_glb_20261021\\Placa_Cavalete_Chest_Inteira_MATERIAL_preview.blend"
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.1,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 2,104 mm³ | Part B: 169,909 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 282,
+          "faces": 372,
+          "volume_mm3": 2104.2291484323237,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 296,
+          "faces": 400,
+          "volume_mm3": 169908.6056088577,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 172012.8347575939,
+      "parts_volume_mm3": 172012.83475729002,
+      "volume_delta_mm3": -3.038730937987566e-07,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "mode": "LOOP",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "AUTO",
+      "gap_mm": 0.0,
+      "capture_operator": "{'FINISHED'}",
+      "captured": true,
+      "loop_vertices": 94,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 2,104 mm³ | Part B: 169,909 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 181,
+          "faces": 260,
+          "volume_mm3": 2104.2292246355337,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 195,
+          "faces": 288,
+          "volume_mm3": 169908.6055328925,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 172012.8347575939,
+      "parts_volume_mm3": 172012.83475752803,
+      "volume_delta_mm3": -6.586196832358837e-08,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.0,
+      "exception": "RuntimeError: Error: Preview generation error: Não foi possível fechar o contorno do loop (restaram 10 arestas abertas). O contorno possui desvio não-planar de 0.00 mm e não é compatível com fechamento direto. Selecione um contorno planar ou na ligação da base.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: Não foi possível fechar o contorno do loop (restaram 10 arestas abertas). O contorno possui desvio não-planar de 0.00 mm e não é compatível com fechamento direto. Selecione um contorno planar ou na ligação da base.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.1,
+      "exception": "RuntimeError: Error: Preview generation error: Não foi possível fechar o contorno do loop (restaram 10 arestas abertas). O contorno possui desvio não-planar de 0.00 mm e não é compatível com fechamento direto. Selecione um contorno planar ou na ligação da base.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: Não foi possível fechar o contorno do loop (restaram 10 arestas abertas). O contorno possui desvio não-planar de 0.00 mm e não é compatível com fechamento direto. Selecione um contorno planar ou na ligação da base.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "LOOP",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "AUTO",
+      "gap_mm": 0.0,
+      "capture_operator": "{'FINISHED'}",
+      "captured": true,
+      "loop_vertices": 94,
+      "exception": "RuntimeError: Error: Preview generation error: Não foi possível fechar o contorno do loop (restaram 10 arestas abertas). O contorno possui desvio não-planar de 0.00 mm e não é compatível com fechamento direto. Selecione um contorno planar ou na ligação da base.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: Não foi possível fechar o contorno do loop (restaram 10 arestas abertas). O contorno possui desvio não-planar de 0.00 mm e não é compatível com fechamento direto. Selecione um contorno planar ou na ligação da base.\n\n",
+      "source_unchanged_on_failure": true
+    }
+  ],
+  "raw": {
+    "verts": 319,
+    "edges": 499,
+    "faces": 212,
+    "triangles": 212,
+    "nonmanifold_edges": 362,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 172012.8347575939,
+    "valid": true,
+    "manifold": false,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      109.999999,
+      83.999999,
+      159.999996
+    ],
+    "connected_components": 33
+  },
+  "material_slots": [
+    {
+      "name": "Material_1",
+      "diffuse_color": [
+        0.95686274766922,
+        0.9215686321258545,
+        0.8392156958580017,
+        1.0
+      ]
+    },
+    {
+      "name": "Material_2",
+      "diffuse_color": [
+        0.6627451181411743,
+        0.29411765933036804,
+        0.1882352977991104,
+        1.0
+      ]
+    }
+  ],
+  "raw_mesh_datablock": "Placa_Cavalete_Chest_Inteira",
+  "repair_operator": "{'FINISHED'}",
+  "repair_message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+  "repaired": {
+    "verts": 108,
+    "edges": 318,
+    "faces": 212,
+    "triangles": 212,
+    "nonmanifold_edges": 0,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 172012.8347575939,
+    "valid": true,
+    "manifold": true,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      109.999999,
+      83.999999,
+      159.999996
+    ],
+    "connected_components": 1
+  },
+  "repair_created_separate_datablock": true,
+  "import_merge_vertices": {
+    "operator": "{'FINISHED'}",
+    "stats": {
+      "verts": 234,
+      "edges": 440,
+      "faces": 212,
+      "triangles": 212,
+      "nonmanifold_edges": 244,
+      "loose_edges": 0,
+      "components": null,
+      "volume_mm3": 172012.8347575939,
+      "valid": true,
+      "manifold": false,
+      "degenerate_faces": 0,
+      "bounds_mm": [
+        109.999999,
+        83.999999,
+        159.999996
+      ]
+    },
+    "connected_components": 31
+  },
+  "case_counts": {
+    "total": 6,
+    "closed_solid_previews": 3,
+    "failures": 3
+  }
+}

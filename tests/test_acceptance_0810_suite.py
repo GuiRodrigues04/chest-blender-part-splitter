@@ -333,7 +333,7 @@ class TestAcceptance0810Suite(unittest.TestCase):
                 detach_add_base=True,
                 detach_base_depth_mm=30.0,
             )
-        self.assertIn("ultrapassa a espessura da parede", str(ctx.exception))
+        self.assertEqual(ctx.exception.payload['__splitter_message__'], 'geometry.wall_thickness')
 
     # --- T15: Confirmação e Seleção Semântica com Alerta de Edição Proporcional (DEV-08) ---
     def test_t15_commit_selection_and_proportional_warning(self):
@@ -358,7 +358,7 @@ class TestAcceptance0810Suite(unittest.TestCase):
         self.assertIn(selected_names[0], ("TargetCommit__A", "TargetCommit__B"))
 
         # Valida mensagem de aviso sobre proportional editing
-        self.assertIn("Edição Proporcional", self.settings.last_status)
+        self.assertIn("Proportional Editing", self.settings.last_status)
 
     # --- T20: Overlay GPU do Cortador Sólido (DEV-09) ---
     def test_t20_solid_cutter_gpu_overlay(self):
@@ -377,7 +377,7 @@ class TestAcceptance0810Suite(unittest.TestCase):
     # --- T21: Localização e Idioma (DEV-10) ---
     def test_t21_translations_and_manifest(self):
         # Valida versão e manifesto
-        self.assertIn(ADDON_VERSION, ((0, 8, 10), (0, 8, 11), (0, 8, 12)))
+        self.assertEqual(ADDON_VERSION, tuple(map(int, src.constants.ADDON_VERSION_STR.split("."))))
         # Valida chaves do catálogo
         self.assertIn("pt_BR", TRANSLATIONS_DICT)
         self.assertIn("en_US", TRANSLATIONS_DICT)

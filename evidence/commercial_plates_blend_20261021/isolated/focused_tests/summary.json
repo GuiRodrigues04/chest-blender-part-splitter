@@ -1,0 +1,12 @@
+[
+  {
+    "suite": "test_release_geometry.py",
+    "exit_code": 0,
+    "seconds": 8.38
+  },
+  {
+    "suite": "test_loop_boolean_empty_retry.py",
+    "exit_code": 0,
+    "seconds": 4.27
+  }
+]

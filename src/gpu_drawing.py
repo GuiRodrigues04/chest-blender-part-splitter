@@ -12,6 +12,7 @@ from typing import Optional, List, Tuple
 from mathutils import Vector, Matrix
 import math
 from .constants import ROLE_PREVIEW_A, ROLE_PREVIEW_B
+from .cache_fingerprint import cached_mesh_geometry_fingerprint
 
 _draw_handler = None
 
@@ -78,10 +79,16 @@ def _draw_loop_overlay(context, settings):
         return
 
     line_coords = []
-    n = len(pts)
-    for i in range(n):
-        line_coords.append(pts[i])
-        line_coords.append(pts[(i + 1) % n])
+    loops=[indices]
+    if getattr(settings,'loop_boundary_loops',''):
+        import json
+        try:loops=json.loads(settings.loop_boundary_loops)
+        except (ValueError,TypeError):return
+    try:
+        for loop in loops:
+            points=[mw @ (bm.verts[i].co if target.mode=='EDIT' else target.data.vertices[i].co) for i in loop]
+            for a,b in zip(points,points[1:]+points[:1]):line_coords.extend((a,b))
+    except (IndexError,ReferenceError):return
 
     if not line_coords:
         return
@@ -142,6 +149,18 @@ def clear_cut_line_cache():
     global _CACHED_CUT_LINE_KEY, _CACHED_CUT_LINE_SEGMENTS
     _CACHED_CUT_LINE_KEY = None
     _CACHED_CUT_LINE_SEGMENTS = []
+
+
+def _get_cached_cut_line_segments(target, mw, origin, norm):
+    global _CACHED_CUT_LINE_KEY, _CACHED_CUT_LINE_SEGMENTS
+    mesh = target.data
+    cache_key = (target.as_pointer(), cached_mesh_geometry_fingerprint(mesh),
+                 tuple(tuple(row) for row in mw), tuple(origin), tuple(norm))
+    if _CACHED_CUT_LINE_KEY != cache_key:
+        segments = _compute_cut_line_segments(mesh, mw, origin, norm, is_bmesh=False)
+        _CACHED_CUT_LINE_KEY = cache_key
+        _CACHED_CUT_LINE_SEGMENTS = segments
+    return _CACHED_CUT_LINE_SEGMENTS
 
 
 def _compute_cut_line_segments(mesh_or_bm, matrix_world: Matrix, plane_co: Vector, plane_no: Vector, is_bmesh: bool = False) -> List[Vector]:
@@ -286,6 +305,16 @@ def _draw_plane_overlay(context, settings):
     p2 = proj_center + u_vec * plane_size + v_vec * plane_size
     p3 = proj_center - u_vec * plane_size + v_vec * plane_size
 
+    region = None
+    if getattr(settings, 'plane_extent_mode', 'FULL') == 'LIMITED':
+        from .plane_region import resolve_plane_region
+        try:
+            region = resolve_plane_region(context.scene, settings, with_offset=True)
+        except Exception:
+            # Never display an unbounded fallback when the finite guide is invalid.
+            return
+        p0, p1, p2, p3 = region.corners
+
     quad_tris = [p0, p1, p2, p0, p2, p3]
     quad_border = [p0, p1, p1, p2, p2, p3, p3, p0]
 
@@ -298,22 +327,17 @@ def _draw_plane_overlay(context, settings):
                 bm = bmesh.from_edit_mesh(target.data)
                 cut_line_segments = _compute_cut_line_segments(bm, mw, origin, norm, is_bmesh=True)
             else:
-                mesh = target.data
-                cache_key = (
-                    target.name, len(mesh.vertices), len(mesh.polygons),
-                    tuple(round(v, 4) for row in mw for v in row),
-                    (round(origin.x, 4), round(origin.y, 4), round(origin.z, 4)),
-                    (round(norm.x, 4), round(norm.y, 4), round(norm.z, 4))
-                )
-                global _CACHED_CUT_LINE_KEY, _CACHED_CUT_LINE_SEGMENTS
-                if _CACHED_CUT_LINE_KEY == cache_key:
-                    cut_line_segments = _CACHED_CUT_LINE_SEGMENTS
-                else:
-                    cut_line_segments = _compute_cut_line_segments(mesh, mw, origin, norm, is_bmesh=False)
-                    _CACHED_CUT_LINE_KEY = cache_key
-                    _CACHED_CUT_LINE_SEGMENTS = cut_line_segments
+                cut_line_segments = _get_cached_cut_line_segments(target, mw, origin, norm)
         except Exception:
             cut_line_segments = []
+
+    if region is not None:
+        clipped = []
+        for index in range(0, len(cut_line_segments)-1, 2):
+            segment = region.clip_segment(cut_line_segments[index], cut_line_segments[index+1])
+            if segment:
+                clipped.extend(segment)
+        cut_line_segments = clipped
 
     is_exploded = (getattr(settings, "view_mode", "ASSEMBLED") == 'EXPLODED' and
                    getattr(settings, "session_status", "") in ('PREVIEW_VALID', 'PREVIEW_STALE'))
@@ -620,7 +644,7 @@ def _draw_connector_markers_overlay(context, settings):
         return
 
     mode = getattr(settings, "split_mode", "PLANE")
-    if mode not in ('PLANE', 'LOOP', 'MATERIAL', 'SOLID'):
+    if mode not in ('PLANE', 'LOOP', 'MATERIAL'):
         return
 
     if getattr(settings, "session_status", "") == 'COMMITTED':

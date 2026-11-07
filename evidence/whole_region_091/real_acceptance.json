@@ -1,0 +1,257 @@
+[
+  {
+    "fixture": "simple",
+    "region": 1,
+    "apply": "PART",
+    "min_gap_mm": 0.09999964479357004,
+    "max_gap_mm": 0.09999999403953552,
+    "samples": 4,
+    "volume_A_mm3": 387.61999919132563,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 1,
+    "apply": "CAVITY",
+    "min_gap_mm": 0.09999970300123096,
+    "max_gap_mm": 0.09999999403953552,
+    "samples": 4,
+    "volume_A_mm3": 400.0000011175858,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 1,
+    "apply": "BOTH",
+    "min_gap_mm": 0.09999952837824821,
+    "max_gap_mm": 0.09999999403953552,
+    "samples": 4,
+    "volume_A_mm3": 393.79251177341223,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 2,
+    "apply": "PART",
+    "min_gap_mm": 0.10000022687017918,
+    "max_gap_mm": 0.1000037775374949,
+    "samples": 6,
+    "volume_A_mm3": 385.23984183974096,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 2,
+    "apply": "CAVITY",
+    "min_gap_mm": 0.10000028507784009,
+    "max_gap_mm": 0.1000037775374949,
+    "samples": 6,
+    "volume_A_mm3": 399.9999266117785,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 2,
+    "apply": "BOTH",
+    "min_gap_mm": 0.0999998776242137,
+    "max_gap_mm": 0.1000037775374949,
+    "samples": 6,
+    "volume_A_mm3": 392.5848951702113,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 3,
+    "apply": "PART",
+    "min_gap_mm": 0.09999807318672538,
+    "max_gap_mm": 0.10000366112217307,
+    "samples": 8,
+    "volume_A_mm3": 382.85990782630506,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 3,
+    "apply": "CAVITY",
+    "min_gap_mm": 0.09999807318672538,
+    "max_gap_mm": 0.10000360291451216,
+    "samples": 8,
+    "volume_A_mm3": 399.9999266117786,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 3,
+    "apply": "BOTH",
+    "min_gap_mm": 0.09999993583187461,
+    "max_gap_mm": 0.1000037775374949,
+    "samples": 8,
+    "volume_A_mm3": 391.3773967875503,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 4,
+    "apply": "PART",
+    "min_gap_mm": 0.10000022687017918,
+    "max_gap_mm": 0.10000383574515581,
+    "samples": 10,
+    "volume_A_mm3": 380.47968701205514,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 4,
+    "apply": "CAVITY",
+    "min_gap_mm": 0.10000022687017918,
+    "max_gap_mm": 0.10000371932983398,
+    "samples": 10,
+    "volume_A_mm3": 399.99985210598425,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "region": 4,
+    "apply": "BOTH",
+    "min_gap_mm": 0.09999993583187461,
+    "max_gap_mm": 0.10000383574515581,
+    "samples": 10,
+    "volume_A_mm3": 390.16977986304727,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 1,
+    "apply": "PART",
+    "min_gap_mm": 0.09999952837824821,
+    "max_gap_mm": 0.10006815521046519,
+    "samples": 88,
+    "volume_A_mm3": 414.2714737977809,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 1,
+    "apply": "CAVITY",
+    "min_gap_mm": 0.09999941196292639,
+    "max_gap_mm": 0.10038340790197253,
+    "samples": 88,
+    "volume_A_mm3": 426.6099769781815,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 1,
+    "apply": "BOTH",
+    "min_gap_mm": 0.09999981941655278,
+    "max_gap_mm": 0.10020686406642199,
+    "samples": 88,
+    "volume_A_mm3": 420.4318489009187,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 2,
+    "apply": "PART",
+    "min_gap_mm": 0.0999998776242137,
+    "max_gap_mm": 0.10009813215583563,
+    "samples": 107,
+    "volume_A_mm3": 410.2671340686824,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 2,
+    "apply": "CAVITY",
+    "min_gap_mm": 0.09999964479357004,
+    "max_gap_mm": 0.10077689168974757,
+    "samples": 107,
+    "volume_A_mm3": 424.26667689675963,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 2,
+    "apply": "BOTH",
+    "min_gap_mm": 0.0999998776242137,
+    "max_gap_mm": 0.10042613232508302,
+    "samples": 107,
+    "volume_A_mm3": 417.25119885522616,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 3,
+    "apply": "PART",
+    "min_gap_mm": 0.09999865526333451,
+    "max_gap_mm": 0.10004242742434144,
+    "samples": 125,
+    "volume_A_mm3": 420.8950405449554,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 3,
+    "apply": "CAVITY",
+    "min_gap_mm": 0.09997345134615898,
+    "max_gap_mm": 0.10001122811809182,
+    "samples": 125,
+    "volume_A_mm3": 437.1027392486286,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 3,
+    "apply": "BOTH",
+    "min_gap_mm": 0.09999813139438629,
+    "max_gap_mm": 0.10055075492709875,
+    "samples": 125,
+    "volume_A_mm3": 428.9747450826814,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 4,
+    "apply": "PART",
+    "min_gap_mm": 0.0999973164871335,
+    "max_gap_mm": 0.10010389471426606,
+    "samples": 146,
+    "volume_A_mm3": 449.5733267577969,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 4,
+    "apply": "CAVITY",
+    "min_gap_mm": 0.0999955702573061,
+    "max_gap_mm": 0.10144488280639052,
+    "samples": 146,
+    "volume_A_mm3": 468.04131207413354,
+    "closed": true
+  },
+  {
+    "fixture": "advanced",
+    "region": 4,
+    "apply": "BOTH",
+    "min_gap_mm": 0.09999574488028884,
+    "max_gap_mm": 0.10074813710525632,
+    "samples": 146,
+    "volume_A_mm3": 458.7710882191056,
+    "closed": true
+  },
+  {
+    "fixture": "simple",
+    "workflow": "pins_and_commit",
+    "error": ""
+  },
+  {
+    "fixture": "advanced",
+    "workflow": "pins_and_commit",
+    "passed": true
+  },
+  {
+    "fixture": "simple",
+    "workflow": "four_successive_cuts",
+    "error": "Error: Choose a valid material region on the target.\n"
+  }
+]

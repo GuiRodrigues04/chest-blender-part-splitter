@@ -1,0 +1,331 @@
+{
+  "file": "Placa_Osso_Chest_Inteira.glb",
+  "path": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Placa_Osso_Chest_Inteira.glb",
+  "import": {
+    "operator": "{'FINISHED'}",
+    "mesh_objects": 1,
+    "object_names": [
+      "Placa_Osso_Chest_Inteira"
+    ]
+  },
+  "materials": [
+    {
+      "index": 0,
+      "name": "Material_1",
+      "faces": 3108,
+      "regions": 1,
+      "region_face_counts": [
+        3108
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    },
+    {
+      "index": 1,
+      "name": "Material_2",
+      "faces": 5480,
+      "regions": 1,
+      "region_face_counts": [
+        5480
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    }
+  ],
+  "cases": [
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.0,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 5,281 mm³ | Part B: 64,565 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 3319,
+          "faces": 4482,
+          "volume_mm3": 5281.4965174512345,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 4903,
+          "faces": 7544,
+          "volume_mm3": 64565.49746544524,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 69847.02891662325,
+      "parts_volume_mm3": 69846.99398289647,
+      "volume_delta_mm3": -0.0349337267834926,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true,
+      "review_blend": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_glb_20261021\\Placa_Osso_Chest_Inteira_MATERIAL_preview.blend"
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.1,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 5,281 mm³ | Part B: 64,565 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 3319,
+          "faces": 4482,
+          "volume_mm3": 5281.4965174512345,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 4903,
+          "faces": 7544,
+          "volume_mm3": 64565.49746544524,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 69847.02891662325,
+      "parts_volume_mm3": 69846.99398289647,
+      "volume_delta_mm3": -0.0349337267834926,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "mode": "LOOP",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "AUTO",
+      "gap_mm": 0.0,
+      "capture_operator": "{'FINISHED'}",
+      "captured": true,
+      "loop_vertices": 1044,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 3,521 mm³ | Part B: 66,326 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 2946,
+          "faces": 4281,
+          "volume_mm3": 3520.997457045317,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 4496,
+          "faces": 7081,
+          "volume_mm3": 66326.01730692021,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 69847.02891662325,
+      "parts_volume_mm3": 69847.01476396553,
+      "volume_delta_mm3": -0.014152657720842399,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.0,
+      "exception": "RuntimeError: Error: Preview generation error: O corte da moldura não produziu dois sólidos válidos; ajuste profundidade ou folga.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: O corte da moldura não produziu dois sólidos válidos; ajuste profundidade ou folga.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.1,
+      "exception": "RuntimeError: Error: Preview generation error: O corte da moldura não produziu dois sólidos válidos; ajuste profundidade ou folga.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: O corte da moldura não produziu dois sólidos válidos; ajuste profundidade ou folga.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "LOOP",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "AUTO",
+      "gap_mm": 0.0,
+      "capture_operator": "{'FINISHED'}",
+      "captured": true,
+      "loop_vertices": 1044,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 68,087 mm³ | Part B: 1,760 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 5998,
+          "faces": 7112,
+          "volume_mm3": 68086.52790269053,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 4074,
+          "faces": 3874,
+          "volume_mm3": 1760.4999617761691,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 69847.02891662325,
+      "parts_volume_mm3": 69847.0278644667,
+      "volume_delta_mm3": -0.0010521565563976765,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    }
+  ],
+  "raw": {
+    "verts": 14074,
+    "edges": 19997,
+    "faces": 8588,
+    "triangles": 8588,
+    "nonmanifold_edges": 14230,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 69847.02891662325,
+    "valid": true,
+    "manifold": false,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      180.000007,
+      7.0,
+      90.000004
+    ],
+    "connected_components": 2670
+  },
+  "material_slots": [
+    {
+      "name": "Material_1",
+      "diffuse_color": [
+        0.9450980424880981,
+        0.8980392217636108,
+        0.8117647171020508,
+        1.0
+      ]
+    },
+    {
+      "name": "Material_2",
+      "diffuse_color": [
+        0.6392157077789307,
+        0.2823529541492462,
+        0.16470588743686676,
+        1.0
+      ]
+    }
+  ],
+  "raw_mesh_datablock": "Placa_Osso_Chest_Inteira",
+  "repair_operator": "{'FINISHED'}",
+  "repair_message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+  "repaired": {
+    "verts": 4292,
+    "edges": 12882,
+    "faces": 8588,
+    "triangles": 8588,
+    "nonmanifold_edges": 0,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 69847.02891662325,
+    "valid": true,
+    "manifold": true,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      180.000007,
+      7.0,
+      90.000004
+    ],
+    "connected_components": 1
+  },
+  "repair_created_separate_datablock": true,
+  "import_merge_vertices": {
+    "operator": "{'FINISHED'}",
+    "stats": {
+      "verts": 14074,
+      "edges": 19997,
+      "faces": 8588,
+      "triangles": 8588,
+      "nonmanifold_edges": 14230,
+      "loose_edges": 0,
+      "components": null,
+      "volume_mm3": 69847.02891662325,
+      "valid": true,
+      "manifold": false,
+      "degenerate_faces": 0,
+      "bounds_mm": [
+        180.000007,
+        7.0,
+        90.000004
+      ]
+    },
+    "connected_components": 2670
+  },
+  "case_counts": {
+    "total": 6,
+    "closed_solid_previews": 4,
+    "failures": 2
+  }
+}

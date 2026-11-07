@@ -157,7 +157,7 @@ class Regressions0812(unittest.TestCase):
         self.assertAlmostEqual(q.surface_origin.z-p.surface_origin.z,.002,places=6)
 
     def test_scene_scale_invalidates_cache(self):
-        self.fixture();p=surface.prepare_split_candidates(bpy.context)
+        self.fixture();self.s.part_clearance_mm=0.0;p=surface.prepare_split_candidates(bpy.context)
         self.scene.unit_settings.scale_length=.001
         q=surface.prepare_split_candidates(bpy.context)
         self.assertNotEqual(p.cut_signature,q.cut_signature)
@@ -171,9 +171,10 @@ class Regressions0812(unittest.TestCase):
     def test_loop_base_clearance_invalidates_cache_and_preview(self):
         obj=self.fixture();self.capture(obj);self.s.loop_detach_add_base=True
         self.s.loop_detach_base_depth_mm=5
+        self.s.part_clearance_mm=0.0
         p=surface.prepare_split_candidates(bpy.context)
         sig=operators.compute_session_input_signature(bpy.context)
-        self.s.loop_detach_base_clearance_mm=.2
+        self.s.part_clearance_mm=.2
         q=surface.prepare_split_candidates(bpy.context)
         self.assertNotEqual(p.cut_signature,q.cut_signature)
         self.assertNotEqual(sig,operators.compute_session_input_signature(bpy.context))
@@ -241,16 +242,18 @@ class Regressions0812(unittest.TestCase):
     def test_flat_loop_depth_solid(self):
         obj=self.fixture(False);self.capture(obj);self.s.loop_behavior='EXTRUDE'
         self.s.loop_extrude_depth_mm=5
+        self.s.part_clearance_mm=0.0
         self.assertEqual(bpy.ops.chest.splitter_generate_preview(),{'FINISHED'})
         self.assertAlmostEqual(self.s.part_a_volume_mm3,8000,delta=1)
 
-    def test_nonplanar_depth_rejected_without_leaking_objects(self):
+    def test_supported_nonplanar_depth_without_leaking_objects(self):
         obj=self.fixture();obj.data.vertices[8].co.z-=.003;obj.data.update()
         self.capture(obj);self.s.loop_behavior='EXTRUDE'
-        before=(len(bpy.data.objects),len(bpy.data.meshes))
-        with self.assertRaises(RuntimeError):bpy.ops.chest.splitter_generate_preview()
-        self.assertEqual(self.s.session_status,'PREVIEW_INVALID')
-        # One persistent restoration snapshot is expected; no boolean candidates.
+        self.assertEqual(bpy.ops.chest.splitter_generate_preview(), {'FINISHED'})
+        self.assertEqual(self.s.session_status,'PREVIEW_VALID')
+        self.assertTrue(self.s.part_a_is_manifold)
+        self.assertTrue(self.s.part_b_is_manifold)
+        # Supported nonplanar depth leaves no temporary boolean candidates.
         self.assertFalse(any(o.name.startswith('_cand') for o in bpy.data.objects))
         self.assertFalse(any('loop_prism' in o.name for o in bpy.data.objects))
 
@@ -322,7 +325,7 @@ class Regressions0812(unittest.TestCase):
         from types import SimpleNamespace
         self.fixture()
         state=editor.get_editor_interaction_state()
-        dummy=SimpleNamespace(_generation=state['generation'])
+        dummy=SimpleNamespace(_generation=state['generation'], _timer=None)
         editor.stop_connector_editor(self.scene)
         state['is_active']=True
         result=editor.CHEST_OT_splitter_edit_manual_connectors._modal_impl(

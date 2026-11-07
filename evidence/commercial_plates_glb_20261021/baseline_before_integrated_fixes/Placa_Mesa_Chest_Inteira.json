@@ -1,0 +1,300 @@
+{
+  "file": "Placa_Mesa_Chest_Inteira.glb",
+  "path": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Placa_Mesa_Chest_Inteira.glb",
+  "import": {
+    "operator": "{'FINISHED'}",
+    "mesh_objects": 1,
+    "object_names": [
+      "Placa_Mesa_Chest_Inteira"
+    ]
+  },
+  "materials": [
+    {
+      "index": 0,
+      "name": "Material_1",
+      "faces": 84,
+      "regions": 1,
+      "region_face_counts": [
+        84
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    },
+    {
+      "index": 1,
+      "name": "Material_2",
+      "faces": 100,
+      "regions": 1,
+      "region_face_counts": [
+        100
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    }
+  ],
+  "cases": [
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.0,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 11,286 mm³ | Part B: 348,714 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 268,
+          "faces": 340,
+          "volume_mm3": 11286.057460522039,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 276,
+          "faces": 356,
+          "volume_mm3": 348713.95416221366,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 360000.0116229055,
+      "parts_volume_mm3": 360000.0116227357,
+      "volume_delta_mm3": -1.6979174688458443e-07,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true,
+      "review_blend": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_glb_20261021\\Placa_Mesa_Chest_Inteira_MATERIAL_preview.blend"
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.1,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 11,286 mm³ | Part B: 348,714 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 268,
+          "faces": 340,
+          "volume_mm3": 11286.057460522039,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 276,
+          "faces": 356,
+          "volume_mm3": 348713.95416221366,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 360000.0116229055,
+      "parts_volume_mm3": 360000.0116227357,
+      "volume_delta_mm3": -1.6979174688458443e-07,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "mode": "LOOP",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "AUTO",
+      "gap_mm": 0.0,
+      "capture_operator": "{'FINISHED'}",
+      "captured": true,
+      "loop_vertices": 86,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 11,286 mm³ | Part B: 348,714 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 174,
+          "faces": 254,
+          "volume_mm3": 11286.057267267639,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 182,
+          "faces": 270,
+          "volume_mm3": 348713.9539335046,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 360000.0116229055,
+      "parts_volume_mm3": 360000.01120077225,
+      "volume_delta_mm3": -0.00042213324923068285,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.0,
+      "exception": "RuntimeError: Error: Preview generation error: Espessura da peça não pôde ser determinada no ponto selecionado. Defina a profundidade manualmente ou ative a opção 'Corte Passante'.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: Espessura da peça não pôde ser determinada no ponto selecionado. Defina a profundidade manualmente ou ative a opção 'Corte Passante'.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.1,
+      "exception": "RuntimeError: Error: Preview generation error: Espessura da peça não pôde ser determinada no ponto selecionado. Defina a profundidade manualmente ou ative a opção 'Corte Passante'.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: Espessura da peça não pôde ser determinada no ponto selecionado. Defina a profundidade manualmente ou ative a opção 'Corte Passante'.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "LOOP",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "AUTO",
+      "gap_mm": 0.0,
+      "capture_operator": "{'FINISHED'}",
+      "captured": true,
+      "loop_vertices": 86,
+      "exception": "RuntimeError: Error: Preview generation error: Cut geometry validation failed: Part B: zero or negligible volume (0.0000 mm³).\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: Cut geometry validation failed: Part B: zero or negligible volume (0.0000 mm³).\n\n",
+      "source_unchanged_on_failure": true
+    }
+  ],
+  "raw": {
+    "verts": 327,
+    "edges": 476,
+    "faces": 184,
+    "triangles": 184,
+    "nonmanifold_edges": 400,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 360000.0116229055,
+    "valid": true,
+    "manifold": false,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      180.000007,
+      46.0,
+      79.999998
+    ],
+    "connected_components": 36
+  },
+  "material_slots": [
+    {
+      "name": "Material_1",
+      "diffuse_color": [
+        0.9254902005195618,
+        0.886274516582489,
+        0.8039215803146362,
+        1.0
+      ]
+    },
+    {
+      "name": "Material_2",
+      "diffuse_color": [
+        0.10196078568696976,
+        0.10588235408067703,
+        0.10980392247438431,
+        1.0
+      ]
+    }
+  ],
+  "raw_mesh_datablock": "Placa_Mesa_Chest_Inteira",
+  "repair_operator": "{'FINISHED'}",
+  "repair_message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+  "repaired": {
+    "verts": 94,
+    "edges": 276,
+    "faces": 184,
+    "triangles": 184,
+    "nonmanifold_edges": 0,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 360000.0116229055,
+    "valid": true,
+    "manifold": true,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      180.000007,
+      46.0,
+      79.999998
+    ],
+    "connected_components": 1
+  },
+  "repair_created_separate_datablock": true,
+  "import_merge_vertices": {
+    "operator": "{'FINISHED'}",
+    "stats": {
+      "verts": 254,
+      "edges": 437,
+      "faces": 184,
+      "triangles": 184,
+      "nonmanifold_edges": 322,
+      "loose_edges": 0,
+      "components": null,
+      "volume_mm3": 360000.0116229055,
+      "valid": true,
+      "manifold": false,
+      "degenerate_faces": 0,
+      "bounds_mm": [
+        180.000007,
+        46.0,
+        79.999998
+      ]
+    },
+    "connected_components": 29
+  },
+  "case_counts": {
+    "total": 6,
+    "closed_solid_previews": 3,
+    "failures": 3
+  }
+}

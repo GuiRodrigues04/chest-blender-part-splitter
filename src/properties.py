@@ -54,6 +54,52 @@ def _on_param_change_mark_stale(self, context):
         settings.last_status_level = 'WARNING'
 
 
+# These profiles only change clearances, never connector dimensions or placement.
+_ASSEMBLY_CLEARANCE_VALUES = {
+    0: (0.10, 0.10, 0.15, 0.20),
+    1: (0.0, 0.0, 0.0, 0.0),
+}
+_applying_assembly_clearance = set()
+
+
+def _get_assembly_clearance_preset(self):
+    # Infer on old files without rewriting their saved clearance values.
+    selected = self.get("assembly_clearance_preset", -1)
+    if selected == 2:
+        return 2
+    actual = (self.part_clearance_mm,
+              self.part_clearance_bottom_mm if self.part_clearance_bottom_enable else self.part_clearance_mm,
+              self.clearance_per_side_mm, self.end_clearance_mm)
+    for code, values in _ASSEMBLY_CLEARANCE_VALUES.items():
+        if all(abs(a-b) < 1e-6 for a, b in zip(actual, values)):
+            return code
+    return 2
+
+
+def _set_assembly_clearance_preset(self, value):
+    self["assembly_clearance_preset"] = value
+    if value not in _ASSEMBLY_CLEARANCE_VALUES:
+        return
+    key = self.as_pointer()
+    _applying_assembly_clearance.add(key)
+    try:
+        lateral, bottom, radial, end = _ASSEMBLY_CLEARANCE_VALUES[value]
+        self.part_clearance_mm = lateral
+        self.part_clearance_bottom_mm = bottom
+        self.part_clearance_bottom_enable = False  # Bottom follows the same part clearance.
+        self.clearance_per_side_mm = radial
+        self.end_clearance_mm = end
+    finally:
+        _applying_assembly_clearance.discard(key)
+    _on_param_change_mark_stale(self, bpy.context)
+
+
+def _on_assembly_clearance_edit(self, context):
+    if self.as_pointer() not in _applying_assembly_clearance:
+        self["assembly_clearance_preset"] = 2
+        _on_param_change_mark_stale(self, context)
+
+
 def _on_clearance_preset_update(self, context):
     """Atualiza a folga por lado quando o usuário seleciona um preset."""
     if self.clearance_preset in CLEARANCE_PRESETS:
@@ -63,6 +109,10 @@ def _on_clearance_preset_update(self, context):
 
 def _on_split_mode_update(self, context):
     """Callback ao alterar o modo de divisão."""
+    self.region_selection_enabled = False
+    self.contact_patch_index = -1
+    self.contact_choices = '[]'
+    self.contact_input_signature = ''
     if getattr(self, "split_mode", "") == 'SOLID':
         self.connector_enabled = False
     _on_param_change_mark_stale(self, context)
@@ -70,7 +120,19 @@ def _on_split_mode_update(self, context):
 
 def _poll_mesh_cutter(self, obj):
     """Filtra objetos válidos para atuarem como cortador sólido."""
-    return obj.type == 'MESH' and obj != self.target_object
+    from .constants import ROLE_RESTORE_BACKUP
+    if obj is None or obj.type != 'MESH' or obj == self.target_object:
+        return False
+    if obj.get('chest_role') == ROLE_RESTORE_BACKUP:
+        return False
+    # Include legacy snapshots stored in the extension's backup collection.
+    from .lifecycle import find_collection
+    from .constants import COLLECTION_BACKUPS_NAME
+    for scene in bpy.data.scenes:
+        backups = find_collection(scene, COLLECTION_BACKUPS_NAME)
+        if backups and obj.name in backups.all_objects:
+            return False
+    return True
 
 
 _updating_solid_dims = False
@@ -134,24 +196,8 @@ def _on_cutter_object_update(self, context):
             import bmesh
             scale_to_mm = get_scene_scale_to_mm(context.scene if context else None)
             cutter = self.solid_cutter_object
-            bm = bmesh.new()
-            bm.from_mesh(cutter.data)
-            bm.transform(cutter.matrix_world)
-            self.solid_cutter_is_manifold = all(e.is_manifold for e in bm.edges)
-            self.solid_cutter_non_manifold_edges = len([e for e in bm.edges if not e.is_manifold])
-            self.solid_cutter_triangles = sum(len(f.verts) - 2 for f in bm.faces)
-            vol_bu = bm.calc_volume()
-            self.solid_cutter_volume_mm3 = abs(vol_bu) * (scale_to_mm ** 3)
-            xs = [v.co.x for v in bm.verts]
-            ys = [v.co.y for v in bm.verts]
-            zs = [v.co.z for v in bm.verts]
-            if xs:
-                self.solid_cutter_dims_mm = (
-                    (max(xs) - min(xs)) * scale_to_mm,
-                    (max(ys) - min(ys)) * scale_to_mm,
-                    (max(zs) - min(zs)) * scale_to_mm,
-                )
-            bm.free()
+            from .problem_selection import publish_cutter_diagnostics
+            publish_cutter_diagnostics(self,cutter,context.scene)
 
             # Sincroniza dimensões locais em mm sem recursão (SOL-03)
             global _updating_solid_dims
@@ -185,6 +231,15 @@ def _on_target_object_update(self, context):
     if self.previous_target_object == self.target_object:
         return
     self.previous_target_object = self.target_object
+    from .scene_state import uses_surface_region
+    if uses_surface_region(self):
+        self.connector_enabled = False
+    from .solid_tools import stop_solid_alignment
+    stop_solid_alignment()
+    self.region_selection_enabled = False
+    self.contact_patch_index = -1
+    self.contact_choices = '[]'
+    self.contact_input_signature = ''
     from .geometry_loop import clear_capture
     clear_capture(self, reason="target_change")
     from .connector_surface import clear_prepared_split_cache
@@ -281,6 +336,15 @@ class ChestManualConnector(bpy.types.PropertyGroup):
 
 class ChestSplitterSettings(bpy.types.PropertyGroup):
     """Estado persistente da sessão do Part Splitter na cena."""
+
+    workflow_schema: IntProperty(default=1, options={'HIDDEN'})
+    region_selection_enabled: BoolProperty(default=False, options={'HIDDEN'}, update=_on_param_change_mark_stale)
+    region_target: PointerProperty(type=bpy.types.Object, options={'HIDDEN'})
+    region_face_indices: StringProperty(default='', options={'HIDDEN'}, update=_on_param_change_mark_stale)
+    region_mesh_signature: StringProperty(default='', options={'HIDDEN'}, update=_on_param_change_mark_stale)
+    contact_input_signature: StringProperty(default='', options={'HIDDEN'})
+    contact_choices: StringProperty(default='[]', options={'HIDDEN'})
+    contact_patch_index: IntProperty(default=-1, min=-1, options={'HIDDEN'}, update=_on_param_change_mark_stale)
 
     previous_target_object: PointerProperty(type=bpy.types.Object, options={'HIDDEN'})
     manual_binding: StringProperty(default="", options={'HIDDEN'})
@@ -413,6 +477,34 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     )
 
     # --- Configurações do Plano de Corte (Fase 1) ---
+    plane_extent_mode: EnumProperty(
+        name="Área do corte",
+        items=[('FULL', 'Plano completo', 'Atravessa todo o modelo'),
+               ('LIMITED', 'Área limitada', 'Separa apenas seções completas dentro do retângulo do guia')],
+        default='FULL', update=_on_param_change_mark_stale,
+    )
+
+    def _get_plane_width(self):
+        from .plane_region import dimension_mm
+        return dimension_mm(self, 0)
+
+    def _set_plane_width(self, value):
+        from .plane_region import set_dimension_mm
+        set_dimension_mm(self, 0, value)
+
+    def _get_plane_height(self):
+        from .plane_region import dimension_mm
+        return dimension_mm(self, 1)
+
+    def _set_plane_height(self, value):
+        from .plane_region import set_dimension_mm
+        set_dimension_mm(self, 1, value)
+
+    plane_width_mm: FloatProperty(name='Largura (mm)', min=.01, precision=2,
+        get=_get_plane_width, set=_set_plane_width, update=_on_param_change_mark_stale)
+    plane_height_mm: FloatProperty(name='Altura (mm)', min=.01, precision=2,
+        get=_get_plane_height, set=_set_plane_height, update=_on_param_change_mark_stale)
+
     plane_origin: FloatVectorProperty(
         name="Origem do Plano",
         size=3,
@@ -483,6 +575,8 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         name="Loop é Plano",
         default=False,
     )
+    loop_boundary_loops: StringProperty(name="Contornos da região", default="")
+    loop_region_face_indices: StringProperty(name="Faces da região com aberturas", default="")
     loop_planarity_deviation_mm: FloatProperty(
         name="Desvio de Planicidade (mm)",
         default=0.0,
@@ -515,6 +609,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
             ('AUTO', "Automático", "Detecta automaticamente entre destacar saliência pela base ou extrair com profundidade"),
             ('DETACH', "Pela Base", "Destaca a região fechada pelo loop cortando na base"),
             ('EXTRUDE', "Profundidade", "Projeta o contorno para dentro do sólido até a profundidade especificada"),
+            ('WHOLE', 'Região inteira', 'Separa o volume delimitado pelas faces ou pelo contorno selecionado'),
         ],
         default='AUTO',
         description="Tipo de corte do contorno: automático, pela base ou por profundidade",
@@ -604,7 +699,8 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         name="Tipo de Corte",
         items=[
             ('BASE', "Pela Base", "Localiza a base planar da saliência e separa o volume inteiro acima dela"),
-            ('EXTRUDE', "Profundidade", "Extrai a região superficial projetando um prisma com a profundidade indicada"),
+            ('EXTRUDE', "Profundidade", "Extrai a região inteira e cria a interface de corte na profundidade indicada"),
+            ('WHOLE', 'Região inteira', 'Separa o volume delimitado pela região de material'),
         ],
         default='EXTRUDE',
         description="Tipo de corte da região por material: pela base ou por profundidade (C02)",
@@ -614,9 +710,9 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         name="Material da Interface",
         items=[
             ('SOURCE', "Manter Origem", "Mantém o material herdado do corpo original na tampa"),
-            ('EXTRACTED', "Material da Peça Extraída", "Aplica o material da peça extraída na tampa da interface"),
+            ('EXTRACTED', "Material da Peça Extraída", "Aplica o material da peça na interface; em Região inteira, colore toda a peça extraída, incluindo os encaixes"),
         ],
-        default='SOURCE',
+        default='EXTRACTED',
         description="Material atribuído às novas faces criadas na interface de corte (C03)",
         update=_on_param_change_mark_stale,
     )
@@ -672,6 +768,14 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         description="Formato geométrico da primitiva de corte",
     )
 
+    solid_align_anchor: EnumProperty(
+        name="Ponto de apoio",
+        items=[('SUPPORT_FACE', "Face de apoio", "Encosta a base local do cortador na referência"),
+               ('CENTER', "Centro", "Posiciona o centro geométrico do cortador na referência")],
+        default='SUPPORT_FACE',
+    )
+    solid_align_invert_direction: BoolProperty(name="Inverter direção", default=False)
+
     solid_cutter_object: PointerProperty(
         name="Objeto Cortador",
         type=bpy.types.Object,
@@ -685,8 +789,12 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         default=True,
     )
 
+    solid_cutter_has_problems: BoolProperty(default=False)
+    solid_cutter_diag_evaluated: BoolProperty(default=False)
+    solid_cutter_problem_summary: StringProperty(default='')
+
     solid_cutter_non_manifold_edges: IntProperty(
-        name="Arestas Abertas Cortador",
+        name="Arestas não-manifold do cortador",
         default=0,
     )
 
@@ -855,7 +963,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     connector_diameter_mm: FloatProperty(
         name="Diâmetro Nominal (mm)",
         default=6.0,
-        min=2.0,
+        min=1.0,
         max=40.0,
         precision=2,
         description="Diâmetro ou largura nominal do pino",
@@ -865,7 +973,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     connector_capsule_length_mm: FloatProperty(
         name="Comprimento Lateral (mm)",
         default=14.0,
-        min=2.0,
+        min=1.0,
         max=150.0,
         precision=1,
         description="Comprimento/largura lateral total do encaixe cápsula no plano de corte (mínimo = diâmetro)",
@@ -906,6 +1014,17 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         update=_on_param_change_mark_stale,
     )
 
+    assembly_clearance_preset: EnumProperty(
+        name="Padrão de Folgas",
+        items=[
+            ('FDM', "Impressão FDM", "Valores iniciais; o encaixe pode exigir ajuste para sua impressora", 0),
+            ('NONE', "Sem folgas", "Zera as folgas entre peças e dos pinos, inclusive no fundo", 1),
+            ('CUSTOM', "Personalizado", "Ajuste as folgas individualmente sem alterar os pinos", 2),
+        ],
+        get=_get_assembly_clearance_preset,
+        set=_set_assembly_clearance_preset,
+    )
+
     clearance_preset: EnumProperty(
         name="Preset de Folga",
         items=[
@@ -923,21 +1042,21 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     clearance_per_side_mm: FloatProperty(
         name="Folga por Lado (mm)",
         default=0.15,
-        min=0.05,
+        min=0.0,
         max=1.0,
         precision=3,
         description="Folga radial por lado na cavidade fêmea (folga total no diâmetro = 2x este valor)",
-        update=_on_param_change_mark_stale,
+        update=_on_assembly_clearance_edit,
     )
 
     end_clearance_mm: FloatProperty(
         name="Folga de Fundo (mm)",
-        default=0.5,
-        min=0.1,
+        default=0.20,
+        min=0.0,
         max=3.0,
         precision=2,
         description="Espaço extra no fundo da cavidade fêmea para evitar colisão",
-        update=_on_param_change_mark_stale,
+        update=_on_assembly_clearance_edit,
     )
 
     connector_distribution: EnumProperty(
@@ -957,10 +1076,10 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
 
     connector_edge_margin_mm: FloatProperty(
         name="Margem da Borda (mm)",
-        default=4.0,
-        min=1.0,
+        default=0.4,
+        min=0.4,
         max=30.0,
-        precision=1,
+        precision=2,
         description="Distância mínima de segurança até a casca externa do modelo",
         update=_on_param_change_mark_stale,
     )
@@ -990,26 +1109,26 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     part_clearance_mm: FloatProperty(
         name="Folga entre Peças (mm)",
         description="Folga física calibrada nas interfaces de contato entre as peças (E01)",
-        default=0.0,
+        default=0.1,
         min=0.0,
         max=5.0,
         precision=2,
-        update=_on_param_change_mark_stale,
+        update=_on_assembly_clearance_edit,
     )
     part_clearance_bottom_enable: BoolProperty(
         name="Folga de Fundo Separada",
         description="Usa uma folga de fundo (axial) independente da folga lateral no modo Material",
         default=False,
-        update=_on_param_change_mark_stale,
+        update=_on_assembly_clearance_edit,
     )
     part_clearance_bottom_mm: FloatProperty(
         name="Folga de Fundo (mm)",
         description="Folga axial no fundo da extração, independente da folga lateral",
-        default=0.0,
+        default=0.1,
         min=0.0,
         max=5.0,
         precision=2,
-        update=_on_param_change_mark_stale,
+        update=_on_assembly_clearance_edit,
     )
     part_clearance_apply_to: EnumProperty(
         name="Aplicar Folga em",

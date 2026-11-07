@@ -177,8 +177,9 @@ class TestMaterialManualConnectorsBugfix(unittest.TestCase):
         self.assertEqual(self.settings.session_status, 'PREVIEW_VALID')
 
         preview_objs = [o.name for o in bpy.data.objects if "PREVIEW" in o.name]
-        self.assertIn('CHEST_SPLITTER_PREVIEW_A', preview_objs)
-        self.assertIn('CHEST_SPLITTER_PREVIEW_B', preview_objs)
+        from src.constants import PREVIEW_A_NAME, PREVIEW_B_NAME
+        self.assertTrue(any(PREVIEW_A_NAME in o or 'CHEST_SPLITTER_PREVIEW_A' in o for o in preview_objs))
+        self.assertTrue(any(PREVIEW_B_NAME in o or 'CHEST_SPLITTER_PREVIEW_B' in o for o in preview_objs))
 
 
 if __name__ == '__main__':

@@ -13,6 +13,7 @@ args = (
     else []
 )
 root = Path(args[0]).resolve() if args else Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(root))
 sys.path.insert(0, str(root.parent))
 addon = importlib.import_module(root.name)
 import bpy
@@ -419,14 +420,20 @@ class Regressions(unittest.TestCase):
     def test_plane_manual_preview_cancel_reedit(self):
         self.preview_pins()
 
-    def test_solid_manual_preview_cancel_reedit(self):
-        self.preview_pins(True)
+    def test_solid_rejects_manual_editor(self):
+        self.solid()
+        self.assertFalse(bpy.ops.chest.splitter_edit_manual_connectors.poll())
 
     def test_plane_manual_with_gap(self):
         self.preview_pins(False, 0.2)
 
-    def test_solid_manual_with_gap(self):
-        self.preview_pins(True, 0.2)
+    def test_solid_keeps_cut_without_pins_with_gap(self):
+        self.solid()
+        self.s.part_clearance_mm = 0.2
+        self.s.connector_enabled = False
+        self.assertEqual(bpy.ops.chest.splitter_generate_preview(), {'FINISHED'})
+        self.s.connector_enabled = True
+        self.assertEqual(bpy.ops.chest.splitter_generate_preview(), {'CANCELLED'})
 
     def test_all_automatic_distributions(self):
         obj = box("body", (80, 60, 40))
@@ -461,6 +468,7 @@ class Regressions(unittest.TestCase):
         t, c, *_ = self.solid()
         face = next(f for f in c.data.polygons if f.normal.x > 0.99)
         self.s.solid_interface_face_index = face.index
+        self.s.part_clearance_mm = 0.0
         prep = cs.prepare_split_candidates(bpy.context, True)
         self.assertGreater(prep.surface_normal.x, 0.99)
         self.assertAlmostEqual(prep.surface_origin.x, 12, places=4)
@@ -699,6 +707,7 @@ class Regressions(unittest.TestCase):
         s.connector_enabled = True
         s.connector_distribution = "CENTER"
         s.view_mode = "EXPLODED"
+        s.part_clearance_mm = 0.0
         self.assertEqual(bpy.ops.chest.splitter_generate_preview(), {"FINISHED"})
         self.assertTrue(life.remove_preview(bpy.context, op_id=s.session_id)[0])
         p = cs.prepare_split_candidates(bpy.context, True)
@@ -1011,13 +1020,14 @@ class Regressions(unittest.TestCase):
         res_preview = bpy.ops.chest.splitter_generate_preview()
         self.assertEqual(res_preview, {'FINISHED'})
 
-        obj_a = bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_A")
-        obj_b = bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_B")
+        from src.constants import PREVIEW_A_NAME, PREVIEW_B_NAME
+        obj_a = bpy.data.objects.get(PREVIEW_A_NAME) or bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_A")
+        obj_b = bpy.data.objects.get(PREVIEW_B_NAME) or bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_B")
         self.assertIsNotNone(obj_a)
         self.assertIsNotNone(obj_b)
 
         # O alvo deve estar oculto e desmarcado
-        self.assertTrue(target.hide_viewport)
+        self.assertTrue(target.hide_get())
         self.assertFalse(target.select_get())
 
         # Volumes calculados: Part A = 15^3 = 3375 mm^3, Part B = 40^3 - 3375 = 60625 mm^3
@@ -1052,8 +1062,9 @@ class Regressions(unittest.TestCase):
         self.assertEqual(res_preview, {'FINISHED'})
         self.assertEqual(settings.session_status, 'PREVIEW_VALID')
 
-        obj_a = bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_A")
-        obj_b = bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_B")
+        from src.constants import PREVIEW_A_NAME, PREVIEW_B_NAME
+        obj_a = bpy.data.objects.get(PREVIEW_A_NAME) or bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_A")
+        obj_b = bpy.data.objects.get(PREVIEW_B_NAME) or bpy.data.objects.get("CHEST_SPLITTER_PREVIEW_B")
         self.assertIsNotNone(obj_a)
         self.assertIsNotNone(obj_b)
 

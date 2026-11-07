@@ -1,0 +1,190 @@
+{
+  "comparisons": [
+    {
+      "stem": "Placa_Numero_Chest_Inteira",
+      "blend_path": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Numero_Chest_Inteira.blend",
+      "glb": {
+        "object": "Placa_Numero_Chest_Inteira",
+        "dimensions_mm": [
+          200.00000298023224,
+          7.000000216066837,
+          109.99999940395355
+        ],
+        "mesh_vertices": 2382,
+        "faces": 1556,
+        "polygons_per_material": {
+          "0": 1556
+        },
+        "materials": [
+          {
+            "name": "Material_1",
+            "diffuse_color": [
+              0.08627451211214066,
+              0.2549019753932953,
+              0.20000000298023224,
+              1.0
+            ],
+            "use_nodes": true,
+            "nodes": [
+              {
+                "type": "BSDF_PRINCIPLED",
+                "name": "Principled BSDF",
+                "base_color_default": [
+                  0.08627451211214066,
+                  0.2549019753932953,
+                  0.20000000298023224,
+                  1.0
+                ]
+              },
+              {
+                "type": "OUTPUT_MATERIAL",
+                "name": "Material Output"
+              }
+            ]
+          }
+        ],
+        "color_attributes": [],
+        "uv_layers": [],
+        "vertex_groups": 0
+      },
+      "blend": {
+        "object": "Placa_Numero_Chest_Inteira",
+        "dimensions_mm": [
+          200.00000298023224,
+          7.000000216066837,
+          109.99999940395355
+        ],
+        "mesh_vertices": 776,
+        "faces": 1556,
+        "polygons_per_material": {
+          "0": 1556
+        },
+        "materials": [
+          {
+            "name": "Material_1",
+            "diffuse_color": [
+              0.08627451211214066,
+              0.2549019753932953,
+              0.20000000298023224,
+              1.0
+            ],
+            "use_nodes": true,
+            "nodes": [
+              {
+                "type": "BSDF_PRINCIPLED",
+                "name": "Principled BSDF",
+                "base_color_default": [
+                  0.08627451211214066,
+                  0.2549019753932953,
+                  0.20000000298023224,
+                  1.0
+                ]
+              },
+              {
+                "type": "OUTPUT_MATERIAL",
+                "name": "Material Output"
+              }
+            ]
+          }
+        ],
+        "color_attributes": [],
+        "uv_layers": [],
+        "vertex_groups": 0
+      },
+      "same_dimensions_within_0_01mm": true
+    },
+    {
+      "stem": "Placa_QR_Inclinada_Chest_V2_Inteira",
+      "blend_path": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+      "glb": {
+        "object": "Placa_QR_Inclinada_Chest_V2_Inteira",
+        "dimensions_mm": [
+          129.99999523162842,
+          94.00000423192978,
+          188.1660670042038
+        ],
+        "mesh_vertices": 1723,
+        "faces": 982,
+        "polygons_per_material": {
+          "0": 982
+        },
+        "materials": [
+          {
+            "name": "Material_1",
+            "diffuse_color": [
+              0.08627451211214066,
+              0.2549019753932953,
+              0.20000000298023224,
+              1.0
+            ],
+            "use_nodes": true,
+            "nodes": [
+              {
+                "type": "BSDF_PRINCIPLED",
+                "name": "Principled BSDF",
+                "base_color_default": [
+                  0.08627451211214066,
+                  0.2549019753932953,
+                  0.20000000298023224,
+                  1.0
+                ]
+              },
+              {
+                "type": "OUTPUT_MATERIAL",
+                "name": "Material Output"
+              }
+            ]
+          }
+        ],
+        "color_attributes": [],
+        "uv_layers": [],
+        "vertex_groups": 0
+      },
+      "blend": {
+        "object": "Placa_QR_Inclinada_Chest_V2_Inteira",
+        "dimensions_mm": [
+          129.99999523162842,
+          94.00000423192978,
+          188.1660670042038
+        ],
+        "mesh_vertices": 493,
+        "faces": 982,
+        "polygons_per_material": {
+          "0": 982
+        },
+        "materials": [
+          {
+            "name": "Material_1",
+            "diffuse_color": [
+              0.08627451211214066,
+              0.2549019753932953,
+              0.20000000298023224,
+              1.0
+            ],
+            "use_nodes": true,
+            "nodes": [
+              {
+                "type": "BSDF_PRINCIPLED",
+                "name": "Principled BSDF",
+                "base_color_default": [
+                  0.08627451211214066,
+                  0.2549019753932953,
+                  0.20000000298023224,
+                  1.0
+                ]
+              },
+              {
+                "type": "OUTPUT_MATERIAL",
+                "name": "Material Output"
+              }
+            ]
+          }
+        ],
+        "color_attributes": [],
+        "uv_layers": [],
+        "vertex_groups": 0
+      },
+      "same_dimensions_within_0_01mm": true
+    }
+  ]
+}

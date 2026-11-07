@@ -1,10 +1,10 @@
 schema_version = "1.0.0"
 
 id = "chest_part_splitter"
-version = "0.8.14"
-name = "Part Splitter 0.8.14"
+version = "0.9.4"
+name = "Splitter"
 tagline = "Divisão de modelos em peças e encaixes para 3D"
-maintainer = "Chest Team"
+maintainer = "Splitter Team"
 type = "add-on"
 
 tags = ["Mesh", "3D View", "Object", "Modeling"]

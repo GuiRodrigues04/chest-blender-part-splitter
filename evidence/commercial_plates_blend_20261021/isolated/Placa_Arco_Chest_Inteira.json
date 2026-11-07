@@ -1,0 +1,339 @@
+{
+  "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Vers\u00e3o 1 - Placas Inteiras\\Blender\\Placa_Arco_Chest_Inteira.blend",
+  "status": "ok",
+  "objects": [
+    {
+      "object": "Placa_Arco_Chest_Inteira",
+      "vertices": 1054,
+      "edges": 3156,
+      "faces": 2104,
+      "materials": [
+        "Material_1",
+        "Material_2"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "material": 0,
+      "region": 0,
+      "region_faces": 786,
+      "outcome": "pass",
+      "analysis_valid": true,
+      "analysis_error": null,
+      "depth_mm": 2.0,
+      "trials": [
+        {
+          "label": "EXTRUDE depth=2mm gap=0",
+          "outcome": "pass",
+          "parts": [
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 11351.888170119591,
+              "errors": []
+            },
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 230852.96801254252,
+              "errors": []
+            }
+          ],
+          "interface_loops": 2
+        },
+        {
+          "label": "EXTRUDE depth=2mm gap=0.1mm",
+          "outcome": "pass",
+          "parts": [
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 10626.81287675858,
+              "errors": []
+            },
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 230852.96806659465,
+              "errors": []
+            }
+          ],
+          "interface_loops": 2
+        },
+        {
+          "label": "BASE gap=0",
+          "outcome": "pass",
+          "parts": [
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 5675.943484995401,
+              "errors": []
+            },
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 236528.96446880835,
+              "errors": []
+            }
+          ],
+          "interface_loops": 2
+        }
+      ]
+    },
+    {
+      "material": 1,
+      "region": 0,
+      "region_faces": 665,
+      "outcome": "material_rejected_or_failed",
+      "analysis_valid": true,
+      "analysis_error": null,
+      "depth_mm": 2.0,
+      "trials": [
+        {
+          "label": "EXTRUDE depth=2mm gap=0",
+          "outcome": "rejected_or_failed",
+          "error": "LocalizedGeometryError: The depth (2.00 mm) exceeds the available thickness (1.00 mm). Reduce the depth or bottom clearance."
+        },
+        {
+          "label": "EXTRUDE depth=2mm gap=0.1mm",
+          "outcome": "rejected_or_failed",
+          "error": "LocalizedGeometryError: The depth (2.00 mm) exceeds the available thickness (1.00 mm). Reduce the depth or bottom clearance."
+        },
+        {
+          "label": "BASE gap=0",
+          "outcome": "rejected_or_failed",
+          "error": "RuntimeError: O destaque por base gerou pe\u00e7a n\u00e3o-manifold (arestas abertas: Parte A=0, Parte B=1).",
+          "nonmanifold_edges": [
+            {
+              "link_faces": 4,
+              "is_wire": false,
+              "length_mm": 9.156453423202038,
+              "verts_world": [
+                [
+                  0.07000000029802322,
+                  -0.003000000026077032,
+                  0.11999999731779099
+                ],
+                [
+                  0.06940113753080368,
+                  -0.003000000026077032,
+                  0.1291368454694748
+                ]
+              ],
+              "adjacent_materials": [
+                0,
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "material": 1,
+      "region": 1,
+      "region_faces": 653,
+      "outcome": "pass",
+      "analysis_valid": true,
+      "analysis_error": null,
+      "depth_mm": 2.0,
+      "trials": [
+        {
+          "label": "EXTRUDE depth=2mm gap=0",
+          "outcome": "pass",
+          "parts": [
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 61429.80205248618,
+              "errors": []
+            },
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 180775.12551632785,
+              "errors": []
+            }
+          ],
+          "interface_loops": 1
+        },
+        {
+          "label": "EXTRUDE depth=2mm gap=0.1mm",
+          "outcome": "pass",
+          "parts": [
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 59329.721729961544,
+              "errors": []
+            },
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 180775.12551632785,
+              "errors": []
+            }
+          ],
+          "interface_loops": 1
+        },
+        {
+          "label": "BASE gap=0",
+          "outcome": "pass",
+          "parts": [
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 20469.64982029664,
+              "errors": []
+            },
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 221735.27774851775,
+              "errors": []
+            }
+          ],
+          "interface_loops": 1
+        }
+      ]
+    }
+  ],
+  "loop_cases": [
+    {
+      "material": 0,
+      "region": 0,
+      "face_count": 786,
+      "capture_result": [
+        "FINISHED"
+      ],
+      "captured_faces": 786,
+      "expected_faces": 786,
+      "captured_matches_region": true,
+      "loops": 2,
+      "outcome": "pass"
+    },
+    {
+      "material": 1,
+      "region": 0,
+      "face_count": 665,
+      "capture_result": [
+        "FINISHED"
+      ],
+      "captured_faces": 0,
+      "expected_faces": 665,
+      "captured_matches_region": null,
+      "loops": 1,
+      "outcome": "pass"
+    },
+    {
+      "material": 1,
+      "region": 1,
+      "face_count": 653,
+      "capture_result": [
+        "FINISHED"
+      ],
+      "captured_faces": 0,
+      "expected_faces": 653,
+      "captured_matches_region": null,
+      "loops": 1,
+      "outcome": "pass"
+    }
+  ],
+  "operator_cases": [
+    {
+      "mode": "MATERIAL_after_LOOP_capture",
+      "material": 0,
+      "region": 0,
+      "depth_mm": 2.0,
+      "profile": "FDM",
+      "connectors_requested": true,
+      "captured_loop_retained": true,
+      "fdm_preview_result": [
+        "FINISHED"
+      ],
+      "fdm_status": "Preview generated successfully (+AUTO_SHAPE connectors)! Part A: 10,629 mm\u00b3 | Part B: 230,849 mm\u00b3",
+      "profile_used": "FDM",
+      "pins_used": true,
+      "preview_result": [
+        "FINISHED"
+      ],
+      "preview_current": true,
+      "manifold": [
+        true,
+        true
+      ],
+      "preview_volumes_mm3": [
+        10629.04266127099,
+        230849.28085599642
+      ],
+      "commit_result": [
+        "FINISHED"
+      ],
+      "commit_volumes_mm3": [
+        10629.04266127099,
+        230849.28085599642
+      ],
+      "preview_commit_equal": true,
+      "revert_result": [
+        "FINISHED"
+      ]
+    },
+    {
+      "mode": "LOOP",
+      "material": 0,
+      "region": 0,
+      "depth_mm": 2.0,
+      "profile": "FDM",
+      "connectors_requested": true,
+      "fdm_preview_result": [
+        "FINISHED"
+      ],
+      "fdm_status": "Preview generated successfully (+AUTO_SHAPE connectors)! Part A: 10,629 mm\u00b3 | Part B: 230,849 mm\u00b3",
+      "profile_used": "FDM",
+      "pins_used": true,
+      "preview_result": [
+        "FINISHED"
+      ],
+      "preview_current": true,
+      "manifold": [
+        true,
+        true
+      ],
+      "preview_volumes_mm3": [
+        10629.04266127099,
+        230849.28085599642
+      ],
+      "commit_result": [
+        "FINISHED"
+      ],
+      "commit_volumes_mm3": [
+        10629.04266127099,
+        230849.28085599642
+      ],
+      "preview_commit_equal": true,
+      "revert_result": [
+        "FINISHED"
+      ]
+    }
+  ],
+  "effective_preview_operator_module": "src.operators",
+  "source_diagnostics": {
+    "is_valid": true,
+    "is_manifold": true,
+    "non_manifold_edges": [],
+    "degenerate_faces": [],
+    "zero_area_faces": null,
+    "volume_mm3": 242204.92756881384,
+    "errors": null
+  },
+  "scale_to_mm": 1000.0,
+  "repair": {
+    "status": "not_needed",
+    "usable_copy": false
+  },
+  "source_unchanged": true
+}

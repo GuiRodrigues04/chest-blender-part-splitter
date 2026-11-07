@@ -1,0 +1,200 @@
+[
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Chest_Inteira.blend",
+    "case": "PLANE_X_ZERO",
+    "mode": "PLANE",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 218333.66251520524
+    },
+    "source_volume": 218333.66251520524,
+    "dimensions_mm": [
+      150.0,
+      55.0,
+      190.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 109166.8347170312,
+        "faces": 678
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 109166.82985940283,
+        "faces": 1081
+      }
+    ],
+    "sum_volume": 218333.66457643404,
+    "measured_plane_gap_mm": 0.0,
+    "revert": "pass",
+    "seconds": 0.667
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Chest_Inteira.blend",
+    "case": "PLANE_Z_FDM_PINS",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": true,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 218333.66251520524
+    },
+    "source_volume": 218333.66251520524,
+    "dimensions_mm": [
+      150.0,
+      55.0,
+      190.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 138720.10847390792,
+        "faces": 1389
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 79524.46716249046,
+        "faces": 398
+      }
+    ],
+    "sum_volume": 218244.5756363984,
+    "manual_file": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_planar_solid_20261021\\manual\\Placa_Chest_Inteira_blend_planar_pins.blend",
+    "revert": "pass",
+    "seconds": 0.963
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Chest_Inteira.blend",
+    "case": "PLANE_X_FDM",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": false,
+    "status": "failure",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 218333.66251520524
+    },
+    "source_volume": 218333.66251520524,
+    "dimensions_mm": [
+      150.0,
+      55.0,
+      190.0
+    ],
+    "error": "Error: Preview generation error: Cut geometry validation failed: Part A: has 2 edge(s) with zero length (degenerate geometry).\n",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_planar_solid_20261021.py\", line 107, in asset_run\n    result=bpy.ops.chest.splitter_generate_preview();row['preview_return']=str(result)\nRuntimeError: Error: Preview generation error: Cut geometry validation failed: Part A: has 2 edge(s) with zero length (degenerate geometry).\n\n",
+    "seconds": 0.472
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Chest_Inteira.blend",
+    "case": "PLANE_DIAGONAL_ZERO",
+    "mode": "PLANE",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 218333.66251520524
+    },
+    "source_volume": 218333.66251520524,
+    "dimensions_mm": [
+      150.0,
+      55.0,
+      190.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 155820.75164485077,
+        "faces": 1219
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 62512.913870617784,
+        "faces": 450
+      }
+    ],
+    "sum_volume": 218333.66551546854,
+    "measured_plane_gap_mm": 0.0,
+    "revert": "pass",
+    "seconds": 0.641
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Chest_Inteira.blend",
+    "case": "SOLID_CORNER_ZERO",
+    "mode": "SOLID",
+    "gap": 0.0,
+    "pins": false,
+    "status": "configuration_rejected",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 218333.66251520524
+    },
+    "source_volume": 218333.66251520524,
+    "dimensions_mm": [
+      150.0,
+      55.0,
+      190.0
+    ],
+    "error": "Error: Preview generation error: O cortador/folga não produziu duas partes fechadas com volume. Ajuste a interseção ou a folga.\n",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_planar_solid_20261021.py\", line 107, in asset_run\n    result=bpy.ops.chest.splitter_generate_preview();row['preview_return']=str(result)\nRuntimeError: Error: Preview generation error: O cortador/folga não produziu duas partes fechadas com volume. Ajuste a interseção ou a folga.\n\n",
+    "seconds": 0.781
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Chest_Inteira.blend",
+    "case": "SOLID_CORNER_FDM",
+    "mode": "SOLID",
+    "gap": 0.1,
+    "pins": false,
+    "status": "configuration_rejected",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 218333.66251520524
+    },
+    "source_volume": 218333.66251520524,
+    "dimensions_mm": [
+      150.0,
+      55.0,
+      190.0
+    ],
+    "error": "Error: Preview generation error: O cortador/folga não produziu duas partes fechadas com volume. Ajuste a interseção ou a folga.\n",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_planar_solid_20261021.py\", line 107, in asset_run\n    result=bpy.ops.chest.splitter_generate_preview();row['preview_return']=str(result)\nRuntimeError: Error: Preview generation error: O cortador/folga não produziu duas partes fechadas com volume. Ajuste a interseção ou a folga.\n\n",
+    "seconds": 0.256
+  }
+]

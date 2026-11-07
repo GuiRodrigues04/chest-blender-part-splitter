@@ -6,6 +6,7 @@ Executa cortes determinísticos em coordenadas de mundo (World Space), garantind
 - Independência da ordem dos vértices selecionados no loop.
 - Dimensões físicas reais da interface (sem confundir a interface local com a malha inteira).
 """
+from .translations import localized_format
 
 from typing import List, Tuple, Dict, Any, Optional
 import math
@@ -15,6 +16,7 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 from .diagnostic import get_scene_scale_to_mm
 from .geometry_contract import CutInterface, SplitResult, build_cut_interface
+from .localized_errors import LocalizedGeometryError
 from .geometry_plane import evaluate_bmesh_metrics
 
 
@@ -74,6 +76,8 @@ def clear_capture(settings: Any, reason: str = ""):
     settings.loop_is_captured = False
     settings.loop_vertex_count = 0
     settings.loop_vertex_indices = ""
+    settings.loop_boundary_loops = ""
+    settings.loop_region_face_indices = ""
     settings.loop_is_planar = False
     settings.loop_planarity_deviation_mm = 0.0
     settings.loop_seed_face_index = -1
@@ -139,6 +143,94 @@ def validate_capture(target: Any, settings: Any, context: Optional[bpy.types.Con
     return True, "Captura válida."
 
 
+def _capture_on_copy(obj, scene, capture):
+    """Do not change the live Edit mesh until a repaired contour is valid."""
+    live = bmesh.from_edit_mesh(obj.data)
+    live.verts.index_update()
+    live.edges.index_update()
+    live.faces.index_update()
+    work = live.copy()
+    counts = (len(live.verts), len(live.edges), len(live.faces))
+    try:
+        result = capture(work, obj, scene)
+        if result[0] and counts != (len(work.verts), len(work.edges), len(work.faces)):
+            mesh = bpy.data.meshes.new('_splitter_validated_loop_capture')
+            try:
+                work.to_mesh(mesh)
+                live.clear()
+                live.from_mesh(mesh)
+                live.verts.index_update()
+                live.edges.index_update()
+                live.faces.index_update()
+                bmesh.update_edit_mesh(obj.data, loop_triangles=True, destructive=True)
+            finally:
+                bpy.data.meshes.remove(mesh)
+        return result
+    finally:
+        work.free()
+
+
+def _bridge_micro_selection_gaps(bm, selected_faces, obj, scale_to_mm):
+    """Complete tiny omitted faces joining selected islands, without welding.
+
+    Only an existing same-material patch <= 0.01 mm² and <= 0.05 mm wide
+    may connect islands. Real separate bodies, large omissions and holes are
+    still rejected by the usual single-cycle checks.
+    """
+    groups = {}
+    group_count = 0
+    for seed in sorted(selected_faces, key=lambda f: f.index):
+        if seed in groups:
+            continue
+        group = group_count
+        group_count += 1
+        stack = [seed]
+        groups[seed] = group
+        while stack:
+            face = stack.pop()
+            for edge in face.edges:
+                for neighbor in edge.link_faces:
+                    if neighbor in selected_faces and neighbor not in groups:
+                        groups[neighbor] = group
+                        stack.append(neighbor)
+    if group_count <= 1:
+        return selected_faces
+    selected_materials = {f.material_index for f in selected_faces}
+    candidates = {}
+    for face in bm.faces:
+        if face in selected_faces or face.material_index not in selected_materials:
+            continue
+        points = [obj.matrix_world @ v.co * scale_to_mm for v in face.verts]
+        center = sum(points, Vector()) / len(points)
+        area = sum(((a-center).cross(b-center) for a, b in zip(points, points[1:]+points[:1])), Vector()).length / 2
+        longest = max((b-a).length for a, b in zip(points, points[1:]+points[:1]))
+        if 0 < area <= .01 and longest > 0 and 2 * area / longest <= .05:
+            candidates[face] = area
+    remaining = set(candidates)
+    completed = set(selected_faces)
+    while remaining:
+        seed = min(remaining, key=lambda f: f.index)
+        remaining.remove(seed)
+        patch = {seed}
+        stack = [seed]
+        touches = set()
+        while stack:
+            face = stack.pop()
+            for edge in face.edges:
+                for neighbor in edge.link_faces:
+                    if neighbor.material_index != seed.material_index:
+                        continue
+                    if neighbor in groups:
+                        touches.add(groups[neighbor])
+                    if neighbor in remaining:
+                        remaining.remove(neighbor)
+                        patch.add(neighbor)
+                        stack.append(neighbor)
+        if len(touches) >= 2 and sum(candidates[f] for f in patch) <= .01:
+            completed.update(patch)
+    return completed
+
+
 def capture_edge_loop(obj: bpy.types.Object, scene: Optional[bpy.types.Scene] = None) -> Tuple[bool, List[int], bool, float, str]:
     """Captura e valida um loop fechado de arestas no modo de edição.
     
@@ -148,7 +240,10 @@ def capture_edge_loop(obj: bpy.types.Object, scene: Optional[bpy.types.Scene] = 
     if not obj or obj.mode != 'EDIT':
         return False, [], False, 0.0, "O objeto precisa estar em Edit Mode."
 
-    bm = bmesh.from_edit_mesh(obj.data)
+    return _capture_on_copy(obj, scene, _capture_edge_loop_bmesh)
+
+
+def _capture_edge_loop_bmesh(bm, obj, scene):
 
     bm.verts.index_update()
     bm.edges.index_update()
@@ -170,6 +265,27 @@ def capture_edge_loop(obj: bpy.types.Object, scene: Optional[bpy.types.Scene] = 
             vert_to_edges[v].append(e)
 
     # Validar grau exato 2 para todos os vértices selecionados (ciclo simples 1-manifold)
+    if any(len(edges) != 2 for edges in vert_to_edges.values()):
+        actual_scene = scene if scene else (bpy.context.scene if hasattr(bpy.context, "scene") else None)
+        scale_to_mm = get_scene_scale_to_mm(actual_scene)
+        dist = 0.0001 / scale_to_mm
+        v_before = len(bm.verts)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=dist)
+        v_after = len(bm.verts)
+        if v_after < v_before:
+            bm.verts.ensure_lookup_table()
+            bm.edges.ensure_lookup_table()
+            bm.faces.ensure_lookup_table()
+            bm.verts.index_update()
+            bm.edges.index_update()
+            bm.faces.index_update()
+            selected_edges = [e for e in bm.edges if e.select]
+            if len(selected_edges) >= 3:
+                vert_to_edges = {}
+                for e in selected_edges:
+                    for v in e.verts:
+                        vert_to_edges.setdefault(v, []).append(e)
+
     for v, edges in vert_to_edges.items():
         if len(edges) != 2:
             if len(edges) < 2:
@@ -240,7 +356,17 @@ def capture_face_boundary_loop(obj: bpy.types.Object, scene: Optional[bpy.types.
     if not obj or obj.mode != 'EDIT':
         return False, [], False, 0.0, -1, "O objeto precisa estar em Edit Mode."
 
-    bm = bmesh.from_edit_mesh(obj.data)
+    return _capture_on_copy(obj, scene, _capture_face_boundary_bmesh)
+
+
+class CapturedRegionBoundary(list):
+    def __init__(self, outer, loops, faces):
+        super().__init__(outer)
+        self.boundary_loops = loops
+        self.region_faces = faces
+
+
+def _capture_face_boundary_bmesh(bm, obj, scene):
     bm.faces.ensure_lookup_table()
     bm.edges.ensure_lookup_table()
     bm.verts.ensure_lookup_table()
@@ -251,6 +377,12 @@ def capture_face_boundary_loop(obj: bpy.types.Object, scene: Optional[bpy.types.
     selected_faces = set(f for f in bm.faces if f.select)
     if not selected_faces:
         return False, [], False, 0.0, -1, "Nenhuma face selecionada. Selecione as faces da área desejada."
+
+    actual_scene = scene if scene else bpy.context.scene
+    scale_to_mm = get_scene_scale_to_mm(actual_scene)
+    selected_faces = _bridge_micro_selection_gaps(bm, selected_faces, obj, scale_to_mm)
+    for face in selected_faces:
+        face.select = True
 
     # Determina a face semente da seleção
     if bm.faces.active and bm.faces.active in selected_faces:
@@ -270,6 +402,44 @@ def capture_face_boundary_loop(obj: bpy.types.Object, scene: Optional[bpy.types.
                 if nf in selected_faces and nf not in visited:
                     visited.add(nf)
                     queue.append(nf)
+
+    actual_scene = scene if scene else (bpy.context.scene if hasattr(bpy.context, "scene") else None)
+    scale_to_mm = get_scene_scale_to_mm(actual_scene)
+    dist = 0.0001 / scale_to_mm
+
+    if len(visited) != len(selected_faces):
+        # Auto-cura para modelos de IA / exportações com vértices desmembrados
+        v_before = len(bm.verts)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=dist)
+        v_after = len(bm.verts)
+        if v_after < v_before:
+            bm.faces.ensure_lookup_table()
+            bm.edges.ensure_lookup_table()
+            bm.verts.ensure_lookup_table()
+            bm.verts.index_update()
+            bm.edges.index_update()
+            bm.faces.index_update()
+            # Welding can clear BMFace selection flags when vertex/edge flags
+            # merge. Keep the user's faces, not the incidental post-weld flags.
+            selected_faces = {f for f in selected_faces if f.is_valid}
+            for face in bm.faces:
+                face.select = face in selected_faces
+            if selected_faces:
+                if bm.faces.active and bm.faces.active in selected_faces:
+                    seed_face_idx = bm.faces.active.index
+                else:
+                    seed_face_idx = next(iter(selected_faces)).index
+                visited = set()
+                start_f = next(f for f in selected_faces if f.index == seed_face_idx)
+                queue = [start_f]
+                visited.add(start_f)
+                while queue:
+                    cur = queue.pop(0)
+                    for e in cur.edges:
+                        for nf in e.link_faces:
+                            if nf in selected_faces and nf not in visited:
+                                visited.add(nf)
+                                queue.append(nf)
 
     if len(visited) != len(selected_faces):
         return False, [], False, 0.0, -1, "A seleção contém múltiplas ilhas desconectadas. Selecione uma única região contígua."
@@ -291,6 +461,27 @@ def capture_face_boundary_loop(obj: bpy.types.Object, scene: Optional[bpy.types.
     for e in boundary_edges:
         for v in e.verts:
             vert_to_edges.setdefault(v, []).append(e)
+
+    # Se houver vértice com grau != 2, tenta unificar vértices da malha caso ainda não tenha sido feito
+    if any(len(edges) != 2 for edges in vert_to_edges.values()):
+        v_before = len(bm.verts)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=dist)
+        v_after = len(bm.verts)
+        if v_after < v_before:
+            bm.faces.ensure_lookup_table()
+            bm.edges.ensure_lookup_table()
+            bm.verts.ensure_lookup_table()
+            bm.verts.index_update()
+            bm.edges.index_update()
+            bm.faces.index_update()
+            selected_faces = {f for f in selected_faces if f.is_valid}
+            for face in bm.faces:
+                face.select = face in selected_faces
+            boundary_edges = [e for e in bm.edges if len([lf for lf in e.link_faces if lf in selected_faces]) == 1]
+            vert_to_edges = {}
+            for e in boundary_edges:
+                for v in e.verts:
+                    vert_to_edges.setdefault(v, []).append(e)
 
     for v, edges in vert_to_edges.items():
         if len(edges) != 2:
@@ -316,7 +507,22 @@ def capture_face_boundary_loop(obj: bpy.types.Object, scene: Optional[bpy.types.
         current_e = next_e
 
     if len(ordered_verts) != len(vert_to_edges):
-        return False, [], False, 0.0, -1, "A seleção possui múltiplos ciclos ou furos internos. Selecione uma região contígua simples."
+        from .geometry_material import _order_boundary_loops
+        from .geometry_regions import region_support
+        loops = _order_boundary_loops(boundary_edges)
+        try:
+            face_ids=sorted(f.index for f in selected_faces)
+            support=region_support(obj,face_ids,scale_to_mm,_source_bm=bm)
+        except ValueError as ex:
+            return False, [], False, 0., -1, str(ex)
+        def loop_area(loop):
+            points=[obj.matrix_world @ v.co for v in loop]
+            c=points[0]
+            return sum(((a-c).cross(b-c) for a,b in zip(points,points[1:]+points[:1])),Vector()).length
+        outer=max(loops,key=loop_area)
+        captured=CapturedRegionBoundary([v.index for v in outer],[[v.index for v in lp] for lp in loops],face_ids)
+        deviation=max(abs((obj.matrix_world @ v.co-support['origin']).dot(support['normal'])) for lp in loops for v in lp)*scale_to_mm
+        return True,captured,deviation<=.1,deviation,seed_face_idx,""
 
     coords_world = [obj.matrix_world @ v.co for v in ordered_verts]
     centroid = sum(coords_world, Vector()) / len(coords_world)
@@ -364,6 +570,23 @@ def get_selected_seed_face(obj: bpy.types.Object) -> int:
     return -1
 
 
+def captured_region_faces(obj, indices, seed, scene):
+    """Resolve an explicitly captured multi-boundary selection, never flood a hole."""
+    settings=getattr(scene,'chest_splitter',None)
+    if not settings or settings.split_mode != 'LOOP' or settings.target_object!=obj or not settings.loop_is_captured:
+        return None
+    raw=getattr(settings,'loop_region_face_indices','')
+    if not raw or list(indices)!=[int(i) for i in settings.loop_vertex_indices.split(',') if i.strip()]:
+        return None
+    import json
+    faces=json.loads(raw)
+    if seed not in faces:
+        raise ValueError('A face escolhida não pertence à moldura capturada. Capture a região novamente.')
+    if settings.loop_topology_signature!=get_topology_signature(obj):
+        raise ValueError('A malha mudou; capture os contornos da moldura novamente.')
+    return faces
+
+
 def slice_mesh_by_loop(
     obj: bpy.types.Object,
     target_name: str,
@@ -373,6 +596,10 @@ def slice_mesh_by_loop(
     detach_add_base: bool = False,
     detach_base_depth_mm: float = 0.0,
     detach_base_clearance_mm: float = 0.0,
+    part_clearance_mm: float = 0.0,
+    part_clearance_apply_to: str = 'PART',
+    part_clearance_bottom_mm: Optional[float] = None,
+    _override_step_depth_mm: Optional[float] = None,
 ) -> LoopSliceResult:
     """Realiza a separação da malha usando o contorno (loop) capturado.
     
@@ -380,7 +607,15 @@ def slice_mesh_by_loop(
     Garante malhas manifold em Parte A e Parte B com interface compartilhada idêntica.
     Retorna LoopSliceResult(bm_a, bm_b, split_result).
     """
-    scale_to_mm = get_scene_scale_to_mm(scene if scene is not None else bpy.context.scene)
+    actual_scene=scene if scene is not None else bpy.context.scene
+    multi=captured_region_faces(obj,indices,seed_face_idx,actual_scene)
+    if multi:
+        from .geometry_regions import slice_surface_region
+        return slice_surface_region(obj,multi,detach_base_depth_mm if detach_add_base else 0.,actual_scene,
+                                    'EXTRUDE' if detach_add_base else 'BASE',part_clearance_mm,
+                                    part_clearance_apply_to,part_clearance_bottom_mm,
+                                    obj.data.polygons[seed_face_idx].material_index,source_mode='LOOP')
+    scale_to_mm = get_scene_scale_to_mm(actual_scene)
 
     matrix_world = obj.matrix_world.copy()
     det = matrix_world.determinant()
@@ -501,45 +736,99 @@ def slice_mesh_by_loop(
     created_faces_a = []
     created_faces_b = []
 
-    if detach_add_base and detach_base_depth_mm > 0.0:
-        analysis = analyze_loop_region(obj, indices, seed_face_idx, scene=scene)
+    stepped_res = None
+    # A stepped closure chooses a lateral step from the contour's span; it does
+    # not add the requested base depth. Keep it for direct detachment only.
+    if max_dev_mm > 0.5 and not detach_add_base:
+        if _override_step_depth_mm is not None and _override_step_depth_mm > 0.0:
+            req_step_bu = _override_step_depth_mm / scale_to_mm
+        elif detach_add_base and detach_base_depth_mm > 0.0:
+            req_step_bu = detach_base_depth_mm / scale_to_mm
+        else:
+            req_step_bu = None
+        stepped_res = build_stepped_cap_triangles(loop_coords_world, step_depth_bu=req_step_bu)
+
+    if stepped_res is not None:
+        if detach_add_base and detach_base_depth_mm > 0.0:
+            analysis = analyze_loop_region(obj, indices, seed_face_idx, scene=scene, probe_direct_closure=False)
+            max_avail_mm = analysis.get("max_avail_depth_mm", 0.0)
+            if analysis.get("thickness_determined", False) and max_avail_mm > 0:
+                if detach_base_depth_mm > (max_avail_mm + 1e-3):
+                    bm_a.free()
+                    bm_b.free()
+                    raise LocalizedGeometryError('geometry.wall_thickness', depth=detach_base_depth_mm, available=max_avail_mm)
+
+        all_pts = stepped_res["all_verts_3d"]
+        cap_tris = stepped_res["triangles"]
+        verts_a = list(loop_verts_a) + [bm_a.verts.new(pt) for pt in all_pts[n_loop:]]
+        verts_b = list(loop_verts_b) + [bm_b.verts.new(pt) for pt in all_pts[n_loop:]]
+        bm_a.verts.ensure_lookup_table()
+        bm_b.verts.ensure_lookup_table()
+
+        for i, j, k in cap_tris:
+            va = (verts_a[i], verts_a[j], verts_a[k])
+            try:
+                fa = bm_a.faces.new(va)
+                created_faces_a.append(fa)
+            except ValueError:
+                try:
+                    fa = bm_a.faces.new((va[0], va[2], va[1]))
+                    created_faces_a.append(fa)
+                except Exception:
+                    pass
+
+            vb = (verts_b[i], verts_b[k], verts_b[j])
+            try:
+                fb = bm_b.faces.new(vb)
+                created_faces_b.append(fb)
+            except ValueError:
+                try:
+                    fb = bm_b.faces.new((vb[0], vb[2], vb[1]))
+                    created_faces_b.append(fb)
+                except Exception:
+                    pass
+    elif detach_add_base and detach_base_depth_mm > 0.0:
+        analysis = analyze_loop_region(obj, indices, seed_face_idx, scene=scene, probe_direct_closure=False)
         inward_dir = analysis["inward_dir_world"]
         max_avail_mm = analysis.get("max_avail_depth_mm", 0.0)
         if analysis.get("thickness_determined", False) and max_avail_mm > 0:
             if detach_base_depth_mm > (max_avail_mm + 1e-3):
                 bm_a.free()
                 bm_b.free()
-                raise ValueError(
-                    f"A profundidade da base ({detach_base_depth_mm:.1f} mm) ultrapassa a espessura da parede "
-                    f"({max_avail_mm:.1f} mm). Reduza a profundidade da base."
-                )
+                raise LocalizedGeometryError('geometry.wall_thickness', depth=detach_base_depth_mm, available=max_avail_mm)
 
-        depth_bu = detach_base_depth_mm / scale_to_mm
-        # Folga (A04): aplicada na peca extraida A (fundo da base encolhido), cavidade B nominal.
-        # Boca sem folga; folga cresce com a profundidade, sem rebaixo (encaixe sem prender).
-        clearance_bu = max(0.0, detach_base_clearance_mm) / scale_to_mm
-        vert_offsets_3d = []
-        if clearance_bu > 1e-6:
-            area2 = sum(pts_2d[i].x * pts_2d[(i + 1) % n_loop].y - pts_2d[(i + 1) % n_loop].x * pts_2d[i].y for i in range(n_loop))
-            is_ccw = area2 > 0
-            for i in range(n_loop):
-                p_prev = pts_2d[(i - 1) % n_loop]
-                p_curr = pts_2d[i]
-                p_next = pts_2d[(i + 1) % n_loop]
-                d1 = (p_curr - p_prev).normalized() if (p_curr - p_prev).length > 1e-7 else Vector((1.0, 0.0))
-                d2 = (p_next - p_curr).normalized() if (p_next - p_curr).length > 1e-7 else Vector((1.0, 0.0))
-                n1 = Vector((d1.y, -d1.x)) if is_ccw else Vector((-d1.y, d1.x))
-                n2 = Vector((d2.y, -d2.x)) if is_ccw else Vector((-d2.y, d2.x))
-                n_sum = n1 + n2
-                n_avg = n_sum.normalized() if n_sum.length > 1e-6 else n1
-                cos_half = max(0.5, n_avg.dot(n1))
-                scale_fac = min(2.0, 1.0 / cos_half)
-                offset_3d = (n_avg.x * u_vec + n_avg.y * v_vec) * (clearance_bu * scale_fac)
-                vert_offsets_3d.append(offset_3d)
-        else:
-            vert_offsets_3d = [Vector((0.0, 0.0, 0.0)) for _ in range(n_loop)]
+        p_clear_mm = max(0.0, part_clearance_mm) if max(0.0, part_clearance_mm) > 0.0 else max(0.0, detach_base_clearance_mm)
+        lat_a_mm = (
+            p_clear_mm if part_clearance_apply_to == 'PART' else (0.5 * p_clear_mm if part_clearance_apply_to == 'BOTH' else 0.0)
+        )
+        lat_b_mm = (
+            p_clear_mm if part_clearance_apply_to == 'CAVITY' else (0.5 * p_clear_mm if part_clearance_apply_to == 'BOTH' else 0.0)
+        )
+        bot_mm = max(0.0, part_clearance_bottom_mm) if part_clearance_bottom_mm is not None else p_clear_mm
+        bot_a_mm = bot_mm if part_clearance_apply_to == 'PART' else (0.5 * bot_mm if part_clearance_apply_to == 'BOTH' else 0.0)
+        bot_b_mm = bot_mm if part_clearance_apply_to == 'CAVITY' else (0.5 * bot_mm if part_clearance_apply_to == 'BOTH' else 0.0)
 
-        new_verts_a = [bm_a.verts.new(v.co + inward_dir * depth_bu - vert_offsets_3d[i]) for i, v in enumerate(loop_verts_a)]
+        if bot_a_mm > 0.0 and bot_a_mm >= detach_base_depth_mm - 0.1:
+            bm_a.free()
+            bm_b.free()
+            raise LocalizedGeometryError('geometry.clearance_excessive')
+
+        depth_b_bu = (detach_base_depth_mm + bot_b_mm) / scale_to_mm
+        if analysis.get("thickness_determined", False) and max_avail_mm > 0 and depth_b_bu * scale_to_mm > (max_avail_mm + 1e-3):
+            bm_a.free()
+            bm_b.free()
+            raise LocalizedGeometryError('geometry.clearance_excessive')
+
+        # Independent lateral/axial amounts, applied to the complete contact below.
+        lat_a_bu = lat_a_mm / scale_to_mm
+        lat_b_bu = lat_b_mm / scale_to_mm
+        in_norm = inward_dir.normalized()
+        n_out = -in_norm
+        support = centroid_world + n_out * min((p - centroid_world).dot(n_out) for p in loop_coords_world)
+        footprint_coords = [p - n_out * (p - support).dot(n_out) for p in loop_coords_world]
+        # Build the nominal interface first. Trimming a closed contact band below
+        # offsets the whole insertion wall, with a shoulder at the retained relief.
+        new_verts_a = [bm_a.verts.new(footprint_coords[i] + in_norm * (detach_base_depth_mm / scale_to_mm)) for i in range(n_loop)]
         bm_a.verts.ensure_lookup_table()
         for i in range(n_loop):
             i_next = (i + 1) % n_loop
@@ -564,7 +853,7 @@ def slice_mesh_by_loop(
                 except Exception:
                     pass
 
-        new_verts_b = [bm_b.verts.new(v.co + inward_dir * depth_bu) for i, v in enumerate(loop_verts_b)]
+        new_verts_b = [bm_b.verts.new(footprint_coords[i] + in_norm * (detach_base_depth_mm / scale_to_mm)) for i in range(n_loop)]
         bm_b.verts.ensure_lookup_table()
         for i in range(n_loop):
             i_next = (i + 1) % n_loop
@@ -589,7 +878,12 @@ def slice_mesh_by_loop(
                 except Exception:
                     pass
     else:
-        # Fechamento direto no plano do contorno
+        # Fechamento direto no plano do contorno (com fallback 3D wall-aware para contornos não-planares)
+        if max_dev_mm > 0.5 and _has_wall_colliding_triangles(tri_indices, loop_verts_a, loop_verts_b, bm_a, bm_b):
+            dp_tris = triangulate_loop_3d_wall_aware(loop_coords_world, loop_verts_a, loop_verts_b, bm_a, bm_b, n)
+            if dp_tris:
+                tri_indices = dp_tris
+
         if tri_indices:
             for i, j, k in tri_indices:
                 va = (loop_verts_a[i], loop_verts_a[j], loop_verts_a[k])
@@ -647,9 +941,7 @@ def slice_mesh_by_loop(
         bm_a.free()
         bm_b.free()
         raise ValueError(
-            f"Não foi possível fechar o contorno do loop (restaram {n_open} arestas abertas). "
-            f"O contorno possui desvio não-planar de {max_dev_mm:.2f} mm e não é compatível com fechamento direto. "
-            f"Selecione um contorno planar ou na ligação da base."
+            localized_format('audit.dynamic.8', v0=n_open, v1=max_dev_mm)
         )
 
     # Herança de materiais (A10): faces novas sem vizinho antigo herdam por propagação
@@ -665,12 +957,44 @@ def slice_mesh_by_loop(
     inherit_generated(bm_a, created_faces_a)
     inherit_generated(bm_b, created_faces_b)
 
+    def mark_contact_faces(bm_part, created):
+        bm_part.faces.index_update()
+        indices = [f.index for f in created if f.is_valid]
+        layer = bm_part.faces.layers.int.get('splitter_contact_surface') or bm_part.faces.layers.int.new('splitter_contact_surface')
+        from .interface_history import archive_contact_marks
+        archive_contact_marks(bm_part)
+        bm_part.faces.ensure_lookup_table()
+        faces = [bm_part.faces[i] for i in indices]
+        for face in faces:
+            face[layer] = 1
+        return faces
+    created_faces_a = mark_contact_faces(bm_a, created_faces_a)
+    created_faces_b = mark_contact_faces(bm_b, created_faces_b)
+
     # Recalcula normais da Parte A e Parte B (garante orientação externa no sólido manifold)
     bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
     bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
 
+    # A closure is valid only while it stays inside the two source regions.
+    # Nonadjacent BVH intersections mean the triangulated cap crosses retained
+    # source faces and cannot be treated as a physical mating surface.
+    from .geometry_clearance import cap_crossing_pairs
+    crossing_a = cap_crossing_pairs(bm_a, created_faces_a, 0.0001 / scale_to_mm)
+    crossing_b = cap_crossing_pairs(bm_b, created_faces_b, 0.0001 / scale_to_mm)
+    if crossing_a or crossing_b:
+        bm_a.free(); bm_b.free()
+        part = 'A' if crossing_a else 'B'
+        count = len(crossing_a) if crossing_a else len(crossing_b)
+        raise LocalizedGeometryError('geometry.closing_intersection', part=part, count=count)
+
     # Determina a normal da interface que aponta DE A PARA B
-    if detach_add_base and detach_base_depth_mm > 0.0:
+    if stepped_res is not None:
+        base_n = stepped_res["base_normal"]
+        valid_caps = [f for f in created_faces_a if f.is_valid]
+        avg_cap_norm = sum((f.normal * f.calc_area() for f in valid_caps), Vector()) if valid_caps else n
+        ref_n = avg_cap_norm if avg_cap_norm.length > 1e-5 else n
+        normal_a_to_b = base_n if base_n.dot(ref_n) >= 0 else -base_n
+    elif detach_add_base and detach_base_depth_mm > 0.0:
         normal_a_to_b = inward_dir
     elif created_faces_a:
         valid_caps = [f for f in created_faces_a if f.is_valid]
@@ -685,27 +1009,165 @@ def slice_mesh_by_loop(
     else:
         normal_a_to_b = n
 
+    if stepped_res is None and detach_add_base and detach_base_depth_mm > 0.0:
+        from .geometry_clearance import trim_depth_contact
+        # The selected surface may dip below its boundary support (an undercut).
+        # Start the insertion shoulder below the complete retained relief.
+        generated = set(created_faces_a)
+        retained = {v for f in bm_a.faces if f not in generated for v in f.verts}
+        n_out = -inward_dir.normalized()
+        trim_support = support + n_out * min((v.co - support).dot(n_out) for v in retained)
+        try:
+            if max(lat_a_mm, bot_a_mm) > 0:
+                _triangulate_retained_source_faces(bm_a, obj, range(len(obj.data.polygons)))
+                trimmed = trim_depth_contact(bm_a, created_faces_a, inward_dir, lat_a_bu,
+                                             bot_a_mm / scale_to_mm, scale_to_mm, trim_support)
+                bm_a.free(); bm_a = trimmed
+                _restore_retained_source_faces(bm_a, obj)
+            if max(lat_b_mm, bot_b_mm) > 0:
+                _triangulate_retained_source_faces(bm_b, obj, range(len(obj.data.polygons)))
+                trimmed = trim_depth_contact(bm_b, created_faces_b, inward_dir, lat_b_bu,
+                                             bot_b_mm / scale_to_mm, scale_to_mm, trim_support)
+                bm_b.free(); bm_b = trimmed
+                _restore_retained_source_faces(bm_b, obj)
+        except Exception:
+            bm_a.free(); bm_b.free()
+            raise
+
+    # Aplica folga física de interface (part_clearance_mm) nos modos de fechamento direto e degrau 3D
+    if max(part_clearance_mm, part_clearance_bottom_mm or 0.0) > 0.0 and (stepped_res is not None or not (detach_add_base and detach_base_depth_mm > 0.0)):
+        n_ab = normal_a_to_b.normalized()
+        if part_clearance_apply_to == 'PART':
+            shift_a_mm, shift_b_mm = part_clearance_mm, 0.0
+        elif part_clearance_apply_to == 'CAVITY':
+            shift_a_mm, shift_b_mm = 0.0, part_clearance_mm
+        elif part_clearance_apply_to == 'BOTH':
+            shift_a_mm, shift_b_mm = 0.5 * part_clearance_mm, 0.5 * part_clearance_mm
+        else:
+            shift_a_mm, shift_b_mm = 0.0, 0.0
+
+        projs_a = [v.co.dot(-n_ab) for v in bm_a.verts]
+        span_a_mm = (max(projs_a) - min(projs_a)) * scale_to_mm if projs_a else 0.0
+        projs_b = [v.co.dot(n_ab) for v in bm_b.verts]
+        span_b_mm = (max(projs_b) - min(projs_b)) * scale_to_mm if projs_b else 0.0
+
+        if shift_a_mm > 0.0 and shift_a_mm >= span_a_mm - 0.1:
+            bm_a.free()
+            bm_b.free()
+            raise LocalizedGeometryError('geometry.clearance_excessive')
+        if shift_b_mm > 0.0 and shift_b_mm >= span_b_mm - 0.1:
+            bm_a.free()
+            bm_b.free()
+            raise LocalizedGeometryError('geometry.clearance_excessive')
+
+        shift_a_bu = shift_a_mm / scale_to_mm
+        shift_b_bu = shift_b_mm / scale_to_mm
+
+        def _apply_cap_shift(bm_part, cap_v_list, shift_dir_vec, shift_bu, is_part_a):
+            from .geometry_clearance import offset_contact_surface
+            cap_faces = created_faces_a if is_part_a else created_faces_b
+            bottom_mm = part_clearance_mm if part_clearance_bottom_mm is None else max(0.0, part_clearance_bottom_mm)
+            fraction = 0.5 if part_clearance_apply_to == 'BOTH' else 1.0
+            offset_contact_surface(
+                bm_part, cap_faces, centroid_world, n_ab,
+                shift_bu, bottom_mm * fraction / scale_to_mm,
+                planar=stepped_res is None and max_dev_mm <= 0.15,
+                inward=shift_dir_vec,
+                unit_scale=scale_to_mm,
+            )
+
+        from .geometry_clearance import convex_contact_planes, convex_offset_from_planes, subtract_closed_region
+        convex_planes = convex_contact_planes(bm_a, scale_to_mm) if stepped_res is None and max_dev_mm > 0.15 else None
+        if convex_planes:
+            bottom = (part_clearance_mm if part_clearance_bottom_mm is None else max(0.0,part_clearance_bottom_mm))/scale_to_mm
+            factor_a = 1.0 if part_clearance_apply_to == 'PART' else (0.5 if part_clearance_apply_to == 'BOTH' else 0.0)
+            factor_b = 1.0 if part_clearance_apply_to == 'CAVITY' else (0.5 if part_clearance_apply_to == 'BOTH' else 0.0)
+            original_a = bm_a
+            new_a = new_b = cutter = source = None
+            try:
+                if factor_a:
+                    new_a = convex_offset_from_planes(original_a,convex_planes,n_ab,shift_a_bu,bottom*factor_a,-1,scale_to_mm)
+                if factor_b:
+                    cutter = convex_offset_from_planes(original_a,convex_planes,n_ab,shift_b_bu,bottom*factor_b,1,scale_to_mm,exterior_extension=0.001/scale_to_mm)
+                    source = bmesh.new();source.from_mesh(obj.data);source.transform(matrix_world)
+                    source.normal_update()
+                    new_b = subtract_closed_region(source,cutter,scale_to_mm)
+            except Exception:
+                if new_a is not None:new_a.free()
+                if new_b is not None:new_b.free()
+                raise
+            finally:
+                if cutter is not None:cutter.free()
+                if source is not None:source.free()
+            if new_a is not None:
+                bm_a.free();bm_a=new_a
+            if new_b is not None:
+                bm_b.free();bm_b=new_b
+        else:
+            cap_verts_a = verts_a if stepped_res is not None else loop_verts_a
+            cap_verts_b = verts_b if stepped_res is not None else loop_verts_b
+            if part_clearance_apply_to in ('PART', 'BOTH'):
+                _apply_cap_shift(bm_a, cap_verts_a, -n_ab, shift_a_bu, True)
+            if part_clearance_apply_to in ('CAVITY', 'BOTH'):
+                _apply_cap_shift(bm_b, cap_verts_b, n_ab, shift_b_bu, False)
+
     # Constrói CutInterface formal em World Space
     # A03: com base adicional, a interface efetiva de contato é o fundo da base
     # (deslocado por inward_dir * profundidade), não o contorno original no topo.
-    iface_offset = Vector((0.0, 0.0, 0.0))
-    if detach_add_base and detach_base_depth_mm > 0.0:
-        iface_offset = inward_dir.normalized() * (detach_base_depth_mm / scale_to_mm)
-    iface_loop_coords = [Vector(c) + iface_offset for c in loop_coords_world]
-    iface_origin = Vector(centroid_world) + iface_offset
-    iface_tris = [
-        (iface_loop_coords[i], iface_loop_coords[j], iface_loop_coords[k])
-        for i, j, k in tri_indices
-    ] if tri_indices else None
+    if stepped_res is not None:
+        iface_origin = stepped_res["base_origin"]
+        iface_loop_coords = stepped_res["base_boundary_3d"]
+        iface_tris = stepped_res["base_triangles_3d"]
+    else:
+        iface_offset = Vector((0.0, 0.0, 0.0))
+        if detach_add_base and detach_base_depth_mm > 0.0:
+            iface_offset = inward_dir.normalized() * (detach_base_depth_mm / scale_to_mm)
+        base_coords_for_iface = footprint_coords if (detach_add_base and detach_base_depth_mm > 0.0) else loop_coords_world
+        iface_loop_coords = [Vector(c) + iface_offset for c in base_coords_for_iface]
+        iface_origin = (sum(iface_loop_coords, Vector()) / len(iface_loop_coords)) if (detach_add_base and detach_base_depth_mm > 0.0) else (Vector(centroid_world) + iface_offset)
+        iface_tris = [
+            (iface_loop_coords[i], iface_loop_coords[j], iface_loop_coords[k])
+            for i, j, k in tri_indices
+        ] if tri_indices else None
 
-    cut_interface = build_cut_interface(
-        origin_world=iface_origin,
+    reference_origin_world = Vector(iface_origin).copy()
+    reference_frame = build_cut_interface(
+        origin_world=reference_origin_world,
         normal_a_to_b=normal_a_to_b,
         boundary_points_world=iface_loop_coords,
         interface_triangles=iface_tris,
         unit_scale=scale_to_mm,
         source_mode="LOOP",
     )
+    reference_axis_u_world = reference_frame.axis_u_world.copy()
+
+    # Connector placement uses the actual retained contact patch after clearance.
+    final_a = final_b = None
+    clearance_applied = max(part_clearance_mm, part_clearance_bottom_mm or 0.0) > 0.0
+    if clearance_applied:
+        from .geometry_clearance import final_contact_patch
+        final_a = final_contact_patch(bm_a, normal_a_to_b, scale_to_mm)
+        final_b = final_contact_patch(bm_b, -normal_a_to_b, scale_to_mm)
+        if final_a:
+            iface_origin = reference_origin_world if (detach_add_base and detach_base_depth_mm > 0.0 and stepped_res is None) else final_a['origin']
+            iface_loop_coords = final_a['boundary']
+            iface_tris = final_a['triangles']
+
+    cut_interface = build_cut_interface(
+        origin_world=iface_origin,
+        normal_a_to_b=normal_a_to_b,
+        boundary_loops_world=final_a['loops'] if final_a else None,
+        boundary_points_world=iface_loop_coords,
+        interface_triangles=iface_tris,
+        unit_scale=scale_to_mm,
+        source_mode="LOOP",
+    )
+
+    cut_interface.clearance_applied = clearance_applied
+    cut_interface.final_contact_a = final_a
+    cut_interface.final_contact_b = final_b
+    cut_interface.reference_origin_world = reference_origin_world
+    cut_interface.reference_axis_u_world = reference_axis_u_world
 
     metrics_a = evaluate_bmesh_metrics(bm_a, unit_scale=scale_to_mm)
     metrics_b = evaluate_bmesh_metrics(bm_b, unit_scale=scale_to_mm)
@@ -732,9 +1194,21 @@ def analyze_loop_region(
     indices: List[int],
     seed_face_idx: int,
     scene: Optional[bpy.types.Scene] = None,
+    probe_direct_closure: bool = True,
 ) -> Dict[str, Any]:
     """Analisa a região delimitada pelo loop para decisão automática entre DETACH e EXTRUDE."""
-    scale_to_mm = get_scene_scale_to_mm(scene if scene is not None else bpy.context.scene)
+    actual_scene=scene if scene is not None else bpy.context.scene
+    multi=captured_region_faces(obj,indices,seed_face_idx,actual_scene)
+    if multi:
+        from .geometry_regions import region_support
+        support=region_support(obj,multi,get_scene_scale_to_mm(actual_scene))
+        return dict(detected_mode='DETACH' if support['height']>.001 else 'EXTRUDE',
+                    reason='Região com aberturas internas; o centro será preservado.',
+                    region_face_indices=multi,centroid_world=support['origin'],
+                    loop_normal_world=support['normal'],inward_dir_world=-support['normal'],
+                    protrusion_height_mm=support['height'],is_planar_region=support['height']<=.001,
+                    is_planar_loop=support['deviation']<=.1,has_holes=True)
+    scale_to_mm = get_scene_scale_to_mm(actual_scene)
     matrix_world = obj.matrix_world.copy()
 
     bm = bmesh.new()
@@ -801,6 +1275,7 @@ def analyze_loop_region(
     inward_dir = -n if n.dot(reference) >= 0.0 else n
 
     # Analisa relevo (altura) dos vértices da região A em relação ao plano do loop
+    region_face_indices = sorted(f.index for f in faces_a)
     verts_a = set(v for f in faces_a for v in f.verts)
     coords_a_world = [matrix_world @ v.co for v in verts_a]
     outward_dir = -inward_dir
@@ -826,11 +1301,22 @@ def analyze_loop_region(
         q = (projected[i] + projected[j] + projected[k]) / 3.0
         test_points.append(support + q.x*u_test + q.y*v_test)
     for pt in test_points:
-        hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(pt + inward_dir*offset_bu, inward_dir)
-        if hit_loc is not None and hit_norm.dot(inward_dir) > 0.0:
-            dist = (hit_loc - pt).length
-            sampled_hits += 1
-            min_wall_depth_bu = min(min_wall_depth_bu, dist)
+        start = pt + inward_dir*offset_bu
+        contact = bm_bvh.faces.layers.int.get('splitter_contact_surface')
+        previous_contact = bm_bvh.faces.layers.int.get('splitter_previous_interface')
+        # A cavity made by a previous cut is not the outside wall. Walk past
+        # its tagged interface (and subsequent entries) to the actual shell.
+        for _ in range(len(bm_bvh.faces) + 1):
+            hit_loc, hit_norm, hit_idx, hit_dist = bvh.ray_cast(start, inward_dir)
+            if hit_loc is None:
+                break
+            face = bm_bvh.faces[hit_idx]
+            if hit_norm.dot(inward_dir) > 0.0 and not ((contact and face[contact]) or (previous_contact and face[previous_contact])):
+                dist = (hit_loc - pt).length
+                sampled_hits += 1
+                min_wall_depth_bu = min(min_wall_depth_bu, dist)
+                break
+            start = hit_loc + inward_dir * offset_bu
 
     bm_bvh.free()
     bm.free()
@@ -875,10 +1361,49 @@ def analyze_loop_region(
             )
         is_planar_region = False
 
+    # A non-planar selected patch can straddle its nominal closing cap.  In
+    # AUTO mode that is a signal to use the user's configured extrusion depth,
+    # not to force an invalid DETACH closure or silently alter that depth.  The
+    # nominal loop operation does not call this analysis function, so the probe
+    # is bounded and cannot recurse.  Preserve all other errors as-is.
+    closure_crosses_source = False
+    if detected_mode == 'DETACH' and probe_direct_closure:
+        try:
+            probe = slice_mesh_by_loop(
+                obj, obj.name, indices, seed_face_idx, scene=scene,
+            )
+        except LocalizedGeometryError as error:
+            from .localized_errors import MESSAGE_MARKER
+            if error.payload.get(MESSAGE_MARKER) != 'geometry.closing_intersection':
+                raise
+            closure_crosses_source = True
+            detected_mode = 'EXTRUDE'
+            reason = (
+                "O fechamento direto cruza a geometria existente; "
+                "AUTO usará a profundidade de extração configurada."
+            )
+        else:
+            for probe_part in probe:
+                probe_part.free()
+
+    from .localized_errors import message_payload
+    if closure_crosses_source:
+        reason_message = message_payload('diagnostic.closure_uses_depth')
+        from .localized_errors import render_message
+        reason = render_message(reason_message)
+    elif is_planar_region:
+        reason_message = message_payload('diagnostic.planar_region', height=span_h_mm)
+    elif not can_close_loop and not is_planar_loop:
+        reason_message = message_payload('diagnostic.non_planar_protrusion', deviation=max_dev_loop_mm)
+    else:
+        reason_message = message_payload('diagnostic.protrusion', height=span_h_mm)
     return {
+        "reason_message": reason_message,
         "detected_mode": detected_mode,
+        "closure_crosses_source": closure_crosses_source,
         "reason": reason,
         "protrusion_height_mm": max(0.0, max_h * scale_to_mm),
+        "region_face_indices": region_face_indices,
         "is_planar_region": is_planar_region,
         "inward_dir_world": inward_dir,
         "loop_normal_world": n,
@@ -1118,12 +1643,562 @@ def triangulate_polygon_2d(pts_2d: List[Vector]) -> List[Tuple[int, int, int]]:
     return valid_final
 
 
+def _point_in_poly_2d(pt: Vector, poly: List[Vector]) -> bool:
+    """Retorna True se o ponto 2D estiver estritamente dentro do polígono."""
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        p1 = poly[i]
+        p2 = poly[(i + 1) % n]
+        if (p1.y > pt.y) != (p2.y > pt.y):
+            denom = p2.y - p1.y
+            if abs(denom) > 1e-12:
+                x_int = p1.x + (pt.y - p1.y) * (p2.x - p1.x) / denom
+                if pt.x < x_int:
+                    inside = not inside
+    return inside
+
+
+def _is_simple_polygon_2d(poly: List[Vector], expected_ccw: bool, min_area: float) -> bool:
+    """Verifica se o polígono 2D não possui auto-interseções e mantém orientação e área mínimas."""
+    n = len(poly)
+    if n < 3:
+        return False
+    area2 = 0.0
+    for i in range(n):
+        p1 = poly[i]
+        p2 = poly[(i + 1) % n]
+        if (p2 - p1).length < 1e-6:
+            return False
+        area2 += p1.x * p2.y - p2.x * p1.y
+    if (area2 > 0.0) != expected_ccw or (0.5 * abs(area2)) < min_area:
+        return False
+
+    def ccw_val(a: Vector, b: Vector, c: Vector) -> float:
+        return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+
+    for i in range(n):
+        a = poly[i]
+        b = poly[(i + 1) % n]
+        for j in range(i + 2, n):
+            if i == 0 and j == n - 1:
+                continue
+            c = poly[j]
+            d = poly[(j + 1) % n]
+            d1 = ccw_val(a, b, c)
+            d2 = ccw_val(a, b, d)
+            d3 = ccw_val(c, d, a)
+            d4 = ccw_val(c, d, b)
+            if ((d1 > 1e-9 and d2 < -1e-9) or (d1 < -1e-9 and d2 > 1e-9)) and (
+                (d3 > 1e-9 and d4 < -1e-9) or (d3 < -1e-9 and d4 > 1e-9)
+            ):
+                return True and False
+    return True
+
+
+def build_stepped_cap_triangles(
+    loop_coords_world: List[Vector],
+    step_depth_bu: Optional[float] = None,
+    min_riser_slope: float = 0.45,
+) -> Optional[Dict[str, Any]]:
+    """Constrói uma superfície de partição 3D em degrau (Stepped Parting Surface) para loops não-planares.
+
+    Quando um contorno envolve um sólido em um plano base dominante mas possui um ou mais degraus
+    (excursões verticais ou inclinadas nas paredes laterais), a projeção 2D simples colapsa as
+    paredes verticais e gera abas coplanares à parede externa ou rampas diagonais.
+    Este algoritmo decompõe a interface em:
+      - Base plana principal (P0)
+      - Degraus ortogonais/regrados internos (prateleira superior, parede traseira e bochechas laterais)
+    garantindo uma interface 100% manifold, estanque e complementar entre Parte A e Parte B.
+    """
+    n_loop = len(loop_coords_world)
+    if n_loop < 6:
+        return None
+
+    edges_dir = []
+    edges_len = []
+    for i in range(n_loop):
+        d = loop_coords_world[(i + 1) % n_loop] - loop_coords_world[i]
+        l = d.length
+        edges_len.append(l)
+        edges_dir.append(d / l if l > 1e-9 else Vector((0.0, 0.0, 0.0)))
+
+    total_perim = sum(edges_len)
+    if total_perim < 1e-6:
+        return None
+    avg_edge = total_perim / n_loop
+    plane_tol = max(1e-4, avg_edge * 0.05)
+
+    best_normal = None
+    best_origin = None
+    best_score = -1.0
+
+    candidates = []
+    step_stride = max(1, n_loop // 20)
+    for i in range(0, n_loop, step_stride):
+        if edges_len[i] < 1e-6:
+            continue
+        for j in range(i + 1, n_loop, step_stride):
+            if edges_len[j] < 1e-6:
+                continue
+            cp = edges_dir[i].cross(edges_dir[j])
+            if cp.length > 0.15:
+                n_cand = cp.normalized()
+                for p_orig in (loop_coords_world[i], loop_coords_world[j]):
+                    if abs((loop_coords_world[i] - loop_coords_world[j]).dot(n_cand)) <= plane_tol:
+                        candidates.append((p_orig, n_cand))
+
+    for p_orig, n_cand in candidates:
+        score = 0.0
+        for i in range(n_loop):
+            d1 = abs((loop_coords_world[i] - p_orig).dot(n_cand))
+            d2 = abs((loop_coords_world[(i + 1) % n_loop] - p_orig).dot(n_cand))
+            if d1 <= plane_tol and d2 <= plane_tol:
+                score += edges_len[i]
+        if score > best_score:
+            best_score = score
+            best_normal = n_cand
+            best_origin = p_orig
+
+    if best_normal is None or best_score < 0.40 * total_perim or best_score > 0.995 * total_perim:
+        return None
+
+    from .geometry_contract import boundary_normal
+    newell_n = boundary_normal(loop_coords_world)
+    if best_normal.dot(newell_n) < 0:
+        best_normal = -best_normal
+
+    in_plane_mask = [abs((p - best_origin).dot(best_normal)) <= plane_tol for p in loop_coords_world]
+    if all(in_plane_mask) or not any(in_plane_mask):
+        return None
+
+    base_pts = [loop_coords_world[i] for i in range(n_loop) if in_plane_mask[i]]
+    base_origin = sum(base_pts, Vector()) / len(base_pts)
+    heights = [(p - base_origin).dot(best_normal) for p in loop_coords_world]
+    in_plane_mask = [abs(h) <= plane_tol for h in heights]
+
+    start_idx = next((i for i, m in enumerate(in_plane_mask) if m), None)
+    if start_idx is None:
+        return None
+
+    excursions = []
+    i = 0
+    while i < n_loop:
+        curr = (start_idx + i) % n_loop
+        if not in_plane_mask[curr]:
+            exc_start_base = (curr - 1) % n_loop
+            exc_verts = []
+            while i < n_loop and not in_plane_mask[(start_idx + i) % n_loop]:
+                exc_verts.append((start_idx + i) % n_loop)
+                i += 1
+            exc_end_base = (start_idx + i) % n_loop
+            excursions.append((exc_start_base, exc_verts, exc_end_base))
+        else:
+            i += 1
+
+    if not excursions:
+        return None
+
+    # Exige que pelo menos uma excursão possua subida/descida acentuada (degrau real)
+    has_steep_riser = False
+    for exc_start, exc_verts, exc_end in excursions:
+        full_chain = [exc_start] + exc_verts + [exc_end]
+        for k in range(len(full_chain) - 1):
+            a_idx, b_idx = full_chain[k], full_chain[k + 1]
+            seg = loop_coords_world[b_idx] - loop_coords_world[a_idx]
+            if seg.length > 1e-6:
+                slope = abs(seg.dot(best_normal)) / seg.length
+                if slope >= min_riser_slope:
+                    has_steep_riser = True
+                    break
+    if not has_steep_riser:
+        return None
+
+    u_vec, v_vec = _get_orthonormal_basis(best_normal)
+
+    def proj_3d_to_base(p: Vector) -> Vector:
+        return p - ((p - base_origin).dot(best_normal)) * best_normal
+
+    def to_2d(p: Vector) -> Vector:
+        d = p - base_origin
+        return Vector((d.dot(u_vec), d.dot(v_vec)))
+
+    footprint_2d = [to_2d(p) for p in loop_coords_world]
+    area2 = 0.0
+    for k in range(n_loop):
+        p1, p2 = footprint_2d[k], footprint_2d[(k + 1) % n_loop]
+        area2 += p1.x * p2.y - p2.x * p1.y
+    if abs(area2) < 1e-8:
+        return None
+    is_ccw = area2 > 0.0
+    orig_area_2d = 0.5 * abs(area2)
+
+    # Polígono 2D simplificado do contorno original (sem pontos duplicados de risers verticais)
+    dedup_footprint_2d = []
+    riser_tol = max(1e-4, avg_edge * 0.15)
+    for pt in footprint_2d:
+        if not dedup_footprint_2d or (pt - dedup_footprint_2d[-1]).length > riser_tol:
+            dedup_footprint_2d.append(pt)
+    if len(dedup_footprint_2d) > 1 and (dedup_footprint_2d[0] - dedup_footprint_2d[-1]).length <= riser_tol:
+        dedup_footprint_2d.pop()
+
+    xs = [p.x for p in footprint_2d]
+    ys = [p.y for p in footprint_2d]
+    min_span = min(max(xs) - min(xs), max(ys) - min(ys))
+    if min_span < 1e-5:
+        return None
+
+    for depth_scale in (1.0, 0.7, 0.5, 0.35, 0.2, 0.1):
+        all_verts_3d = list(loop_coords_world)
+        interior_step_meta = []
+        step_tris = []
+        excursion_replacements = {}
+        valid_scale = True
+
+        for exc_start, exc_verts, exc_end in excursions:
+            full_chain = [exc_start] + exc_verts + [exc_end]
+            avg_exc_h = sum(heights[v_idx] for v_idx in exc_verts) / max(1, len(exc_verts))
+            exc_sign = 1.0 if avg_exc_h >= 0.0 else -1.0
+            columns = []
+            for v_idx in full_chain:
+                q_pt = proj_3d_to_base(loop_coords_world[v_idx])
+                if not columns:
+                    columns.append([v_idx])
+                else:
+                    q_prev = proj_3d_to_base(loop_coords_world[columns[-1][0]])
+                    if (q_pt - q_prev).length <= riser_tol:
+                        columns[-1].append(v_idx)
+                    else:
+                        columns.append([v_idx])
+
+            m_cols = len(columns)
+            if m_cols < 2:
+                valid_scale = False
+                break
+
+            max_exc_h = max(abs(heights[v_idx]) for v_idx in full_chain)
+            if step_depth_bu is not None and step_depth_bu > 1e-5:
+                base_d = min(step_depth_bu, 0.45 * min_span)
+            else:
+                base_d = min(max(avg_edge, 0.5 * max_exc_h), 0.25 * min_span)
+            d_step = base_d * depth_scale
+
+            col_2d = [to_2d(loop_coords_world[col[0]]) for col in columns]
+            seg_normals_2d = []
+            for k in range(m_cols - 1):
+                t_vec = col_2d[k + 1] - col_2d[k]
+                if t_vec.length < 1e-7:
+                    valid_scale = False
+                    break
+                t_dir = t_vec.normalized()
+                n_2d = Vector((-t_dir.y, t_dir.x)) if is_ccw else Vector((t_dir.y, -t_dir.x))
+                seg_normals_2d.append(n_2d)
+            if not valid_scale:
+                break
+
+            inward_vecs_3d = []
+            for k in range(m_cols):
+                if k == 0:
+                    w_2d = seg_normals_2d[0]
+                elif k == m_cols - 1:
+                    w_2d = seg_normals_2d[-1]
+                else:
+                    n1 = seg_normals_2d[k - 1]
+                    n2 = seg_normals_2d[k]
+                    n_sum = n1 + n2
+                    n_avg = n_sum.normalized() if n_sum.length > 1e-6 else n1
+                    cos_half = max(0.5, n_avg.dot(n1))
+                    scale_fac = min(2.0, 1.0 / cos_half)
+                    w_2d = n_avg * scale_fac
+                inward_3d = w_2d.x * u_vec + w_2d.y * v_vec
+                inward_vecs_3d.append(inward_3d)
+
+            col_base_idx = []
+            col_enter_top_idx = []
+            col_exit_top_idx = []
+
+            for k, col in enumerate(columns):
+                in_vec = inward_vecs_3d[k]
+                q_base = proj_3d_to_base(loop_coords_world[col[0]])
+                p_base_in = q_base + d_step * in_vec
+                if len(dedup_footprint_2d) >= 3 and not _point_in_poly_2d(to_2d(p_base_in), dedup_footprint_2d):
+                    valid_scale = False
+                    break
+                b_idx = len(all_verts_3d)
+                all_verts_3d.append(p_base_in)
+                interior_step_meta.append((in_vec, exc_sign, d_step))
+                col_base_idx.append(b_idx)
+
+                if k == 0:
+                    if len(col) == 1:
+                        col_enter_top_idx.append(b_idx)
+                        col_exit_top_idx.append(b_idx)
+                    else:
+                        p_top_in = loop_coords_world[col[-1]] + d_step * in_vec
+                        t_idx = len(all_verts_3d)
+                        all_verts_3d.append(p_top_in)
+                        interior_step_meta.append((in_vec, exc_sign, d_step))
+                        col_enter_top_idx.append(b_idx)
+                        col_exit_top_idx.append(t_idx)
+                        for r_i in range(len(col) - 1):
+                            u0, u1 = col[r_i], col[r_i + 1]
+                            step_tris.append((u0, u1, b_idx) if is_ccw else (u0, b_idx, u1))
+                        step_tris.append((col[-1], t_idx, b_idx) if is_ccw else (col[-1], b_idx, t_idx))
+                elif k == m_cols - 1:
+                    if len(col) == 1:
+                        col_enter_top_idx.append(b_idx)
+                        col_exit_top_idx.append(b_idx)
+                    else:
+                        p_top_in = loop_coords_world[col[0]] + d_step * in_vec
+                        t_idx = len(all_verts_3d)
+                        all_verts_3d.append(p_top_in)
+                        interior_step_meta.append((in_vec, exc_sign, d_step))
+                        col_enter_top_idx.append(t_idx)
+                        col_exit_top_idx.append(b_idx)
+                        step_tris.append((col[0], b_idx, t_idx) if is_ccw else (col[0], t_idx, b_idx))
+                        for r_i in range(len(col) - 1):
+                            u0, u1 = col[r_i], col[r_i + 1]
+                            step_tris.append((u0, u1, b_idx) if is_ccw else (u0, b_idx, u1))
+                else:
+                    t_list = []
+                    for v_idx in col:
+                        p_top_in = loop_coords_world[v_idx] + d_step * in_vec
+                        t_idx = len(all_verts_3d)
+                        all_verts_3d.append(p_top_in)
+                        interior_step_meta.append((in_vec, exc_sign, d_step))
+                        t_list.append(t_idx)
+                    col_enter_top_idx.append(t_list[0])
+                    col_exit_top_idx.append(t_list[-1])
+                    for r_i in range(len(col) - 1):
+                        u0, u1 = col[r_i], col[r_i + 1]
+                        v0, v1 = t_list[r_i], t_list[r_i + 1]
+                        if is_ccw:
+                            step_tris.append((u0, u1, v1))
+                            step_tris.append((u0, v1, v0))
+                            step_tris.append((v0, v1, b_idx))
+                        else:
+                            step_tris.append((u0, v1, u1))
+                            step_tris.append((u0, v0, v1))
+                            step_tris.append((v0, b_idx, v1))
+            if not valid_scale:
+                break
+
+            for k in range(m_cols - 1):
+                u0 = columns[k][-1]
+                u1 = columns[k + 1][0]
+                t0 = col_exit_top_idx[k]
+                t1 = col_enter_top_idx[k + 1]
+                b0 = col_base_idx[k]
+                b1 = col_base_idx[k + 1]
+
+                if is_ccw:
+                    step_tris.append((u0, u1, t1))
+                    step_tris.append((u0, t1, t0))
+                else:
+                    step_tris.append((u0, t1, u1))
+                    step_tris.append((u0, t0, t1))
+
+                if t0 != b0 and t1 != b1:
+                    if is_ccw:
+                        step_tris.append((t0, t1, b1))
+                        step_tris.append((t0, b1, b0))
+                    else:
+                        step_tris.append((t0, b1, t1))
+                        step_tris.append((t0, b0, b1))
+                elif t0 == b0 and t1 != b1:
+                    step_tris.append((b0, t1, b1) if is_ccw else (b0, b1, t1))
+                elif t0 != b0 and t1 == b1:
+                    step_tris.append((t0, b1, b0) if is_ccw else (t0, b0, b1))
+
+            excursion_replacements[exc_start] = (exc_end, col_base_idx)
+
+        if not valid_scale:
+            continue
+
+        base_poly_vert_indices = []
+        idx_ptr = start_idx
+        visited = 0
+        while visited < n_loop:
+            base_poly_vert_indices.append(idx_ptr)
+            if idx_ptr in excursion_replacements:
+                exc_end, inner_base_list = excursion_replacements[idx_ptr]
+                base_poly_vert_indices.extend(inner_base_list)
+                steps_advanced = (exc_end - idx_ptr) % n_loop
+                visited += steps_advanced
+                idx_ptr = exc_end
+            else:
+                idx_ptr = (idx_ptr + 1) % n_loop
+                visited += 1
+
+        base_poly_2d = [to_2d(all_verts_3d[idx]) for idx in base_poly_vert_indices]
+        if not _is_simple_polygon_2d(base_poly_2d, is_ccw, 0.15 * orig_area_2d):
+            continue
+
+        base_tris_local = triangulate_polygon_2d(base_poly_2d)
+        if not base_tris_local or len(base_tris_local) < len(base_poly_vert_indices) - 2:
+            continue
+
+        base_tris_3d = []
+        for a, b, c in base_tris_local:
+            ia, ib, ic = base_poly_vert_indices[a], base_poly_vert_indices[b], base_poly_vert_indices[c]
+            tri = (ia, ib, ic) if is_ccw else (ia, ic, ib)
+            step_tris.append(tri)
+            base_tris_3d.append((all_verts_3d[tri[0]], all_verts_3d[tri[1]], all_verts_3d[tri[2]]))
+
+        # Validação topológica estrita: cada aresta de fronteira tem grau 1 e cada aresta interna tem grau 2 oposto
+        directed_edges = {}
+        for a, b, c in step_tris:
+            for u, v in ((a, b), (b, c), (c, a)):
+                directed_edges[(u, v)] = directed_edges.get((u, v), 0) + 1
+
+        topo_ok = True
+        for i_b in range(n_loop):
+            j_b = (i_b + 1) % n_loop
+            if directed_edges.get((i_b, j_b), 0) + directed_edges.get((j_b, i_b), 0) != 1:
+                topo_ok = False
+                break
+        if topo_ok:
+            for (u, v), cnt in directed_edges.items():
+                is_bound = (u < n_loop and v < n_loop and ((u + 1) % n_loop == v or (v + 1) % n_loop == u))
+                if not is_bound and (cnt != 1 or directed_edges.get((v, u), 0) != 1):
+                    topo_ok = False
+                    break
+        if not topo_ok:
+            continue
+
+        base_boundary_3d = [all_verts_3d[idx] for idx in base_poly_vert_indices]
+        return {
+            "all_verts_3d": all_verts_3d,
+            "triangles": step_tris,
+            "base_normal": best_normal,
+            "base_origin": base_origin,
+            "base_boundary_3d": base_boundary_3d,
+            "base_triangles_3d": base_tris_3d,
+            "interior_step_meta": interior_step_meta,
+        }
+
+    return None
+
+
+def _has_wall_colliding_triangles(
+    tri_indices: List[Tuple[int, int, int]],
+    loop_verts_a: List[bmesh.types.BMVert],
+    loop_verts_b: List[bmesh.types.BMVert],
+    bm_a: bmesh.types.BMesh,
+    bm_b: bmesh.types.BMesh,
+) -> bool:
+    """Detecta se a triangulação 2D gerou triângulos que colidem com faces existentes ou são coplanares à parede."""
+    if not tri_indices:
+        return True
+    for i, j, k in tri_indices:
+        va = (loop_verts_a[i], loop_verts_a[j], loop_verts_a[k])
+        vb = (loop_verts_b[i], loop_verts_b[j], loop_verts_b[k])
+        if bm_a.faces.get(va) is not None or bm_b.faces.get(vb) is not None:
+            return True
+        # Verifica se os 3 vértices pertencem a faces de parede externa coplanares
+        p0, p1, p2 = va[0].co, va[1].co, va[2].co
+        n_tri = (p1 - p0).cross(p2 - p0)
+        if n_tri.length < 1e-9:
+            return True
+        n_tri.normalize()
+        for v_set in (va, vb):
+            common_normals = None
+            for v in v_set:
+                v_norms = [f.normal for f in v.link_faces if f.normal.length > 1e-6]
+                if not v_norms:
+                    common_normals = []
+                    break
+                if common_normals is None:
+                    common_normals = v_norms
+                else:
+                    common_normals = [cn for cn in common_normals if any(cn.dot(vn) > 0.995 for vn in v_norms)]
+            if common_normals and any(abs(n_tri.dot(cn)) > 0.985 for cn in common_normals):
+                return True
+    return False
+
+
+def triangulate_loop_3d_wall_aware(
+    loop_coords_world: List[Vector],
+    loop_verts_a: List[bmesh.types.BMVert],
+    loop_verts_b: List[bmesh.types.BMVert],
+    bm_a: bmesh.types.BMesh,
+    bm_b: bmesh.types.BMesh,
+    ref_normal: Vector,
+) -> List[Tuple[int, int, int]]:
+    """Triangulação 3D de peso mínimo (Liepa 2003 DP) com penalização de colisão/coplanaridade com paredes externas."""
+    n = len(loop_coords_world)
+    if n < 3 or n > 96:
+        return []
+
+    def tri_cost(i: int, k: int, j: int) -> float:
+        p0, p1, p2 = loop_coords_world[i], loop_coords_world[k], loop_coords_world[j]
+        cp = (p1 - p0).cross(p2 - p0)
+        area = 0.5 * cp.length
+        if area < 1e-9:
+            return 1e12
+        va = (loop_verts_a[i], loop_verts_a[k], loop_verts_a[j])
+        vb = (loop_verts_b[i], loop_verts_b[k], loop_verts_b[j])
+        if bm_a.faces.get(va) is not None or bm_b.faces.get(vb) is not None:
+            return 1e9 + area
+        n_tri = cp.normalized()
+        penalty = 1.0
+        for v_set in (va, vb):
+            common_normals = None
+            for v in v_set:
+                v_norms = [f.normal for f in v.link_faces if f.normal.length > 1e-6]
+                if not v_norms:
+                    common_normals = []
+                    break
+                if common_normals is None:
+                    common_normals = v_norms
+                else:
+                    common_normals = [cn for cn in common_normals if any(cn.dot(vn) > 0.995 for vn in v_norms)]
+            if common_normals and any(abs(n_tri.dot(cn)) > 0.985 for cn in common_normals):
+                penalty += 1e6
+        align = n_tri.dot(ref_normal)
+        if align < 0.0:
+            penalty += 5.0 * (1.0 - align)
+        return area * penalty
+
+    dp = [[0.0] * n for _ in range(n)]
+    split = [[-1] * n for _ in range(n)]
+
+    for length in range(2, n):
+        for i in range(n - length):
+            j = i + length
+            best_w = 1e18
+            best_k = -1
+            for k in range(i + 1, j):
+                w = dp[i][k] + dp[k][j] + tri_cost(i, k, j)
+                if w < best_w:
+                    best_w = w
+                    best_k = k
+            dp[i][j] = best_w
+            split[i][j] = best_k
+
+    tris = []
+    stack = [(0, n - 1)]
+    while stack:
+        i, j = stack.pop()
+        if j - i < 2:
+            continue
+        k = split[i][j]
+        if k == -1:
+            continue
+        tris.append((i, k, j))
+        stack.append((k, j))
+        stack.append((i, k))
+    return tris
+
+
+
 def create_loop_prism_cutter(
     coords_world: List[Vector],
     inward_dir: Vector,
     depth_bu: float,
     outward_ext_bu: float = 1e-3,
     name: str = "temp_loop_prism",
+    lateral_offset_bu: float = 0.0,
 ) -> bpy.types.Object:
     """Constrói um prisma 3D fechado e manifold a partir de um contorno de coordenadas mundiais (B05)."""
     bm = bmesh.new()
@@ -1146,8 +2221,20 @@ def create_loop_prism_cutter(
     n = len(coords_world)
 
     # Projeta contorno para base 2D ortogonal para triangulação Ear Clipping
+    ref_origin = sum(coords_world, Vector()) / max(1, n)
     u_vec, v_vec = _get_orthonormal_basis(in_norm)
-    pts_2d = [Vector((p.dot(u_vec), p.dot(v_vec))) for p in coords_world]
+    pts_2d = [Vector(((p - ref_origin).dot(u_vec), (p - ref_origin).dot(v_vec))) for p in coords_world]
+    if abs(lateral_offset_bu) > 1e-9:
+        from .geometry_material import offset_polygon_2d
+        new_pts, ok = offset_polygon_2d(pts_2d, lateral_offset_bu)
+        if not ok:
+            scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+            bm.free()
+            raise LocalizedGeometryError('geometry.clearance_excessive')
+        coords_world = [ref_origin + q.x * u_vec + q.y * v_vec for q in new_pts]
+        pts_2d = new_pts
+        n = len(coords_world)
+
     triangles_2d = triangulate_polygon_2d(pts_2d)
 
     top_verts = [bm.verts.new(p - outward_ext_bu * in_norm) for p in coords_world]
@@ -1180,7 +2267,225 @@ def create_loop_prism_cutter(
     return obj
 
 
-def slice_mesh_by_loop_extrude(
+def _selected_region_overhangs_footprint(obj, analysis, scale_to_mm):
+    """Allow a projected fallback only when it covers the selected source shell.
+
+    Test vertices and full visible triangle edges. Endpoints alone cannot detect
+    an edge crossing a narrow concavity of the projected boundary.
+    """
+    coords = analysis['coords_world']
+    center = analysis['centroid_world']
+    u, v = _get_orthonormal_basis(analysis['inward_dir_world'])
+    polygon = [Vector(((p-center).dot(u), (p-center).dot(v))) for p in coords]
+    edges = list(zip(polygon, polygon[1:] + polygon[:1]))
+    tolerance = .001 / scale_to_mm
+
+    def contains(point):
+        if _point_in_poly_2d(point, polygon):
+            return True
+        for a, b in edges:
+            edge = b-a
+            factor = max(0.0, min(1.0, (point-a).dot(edge) / edge.length_squared)) if edge.length_squared else 0.0
+            if (point - (a + factor*edge)).length <= tolerance:
+                return True
+        return False
+
+    region = set(analysis['region_face_indices'])
+    indices = {index for face in region for index in obj.data.polygons[face].vertices}
+    projected = {}
+    for index in indices:
+        point = obj.matrix_world @ obj.data.vertices[index].co - center
+        projected[index] = Vector((point.dot(u), point.dot(v)))
+        if not contains(projected[index]):
+            return True
+
+    obj.data.calc_loop_triangles()
+    selected_edges = {tuple(sorted((a, b)))
+                      for tri in obj.data.loop_triangles if tri.polygon_index in region
+                      for a, b in zip(tri.vertices, (*tri.vertices[1:], tri.vertices[0]))}
+    def cross(a, b):
+        return a.x*b.y - a.y*b.x
+    for ia, ib in selected_edges:
+        a, b = projected[ia], projected[ib]
+        direction = b-a
+        parameters = [0.0, 1.0]
+        for c, d in edges:
+            boundary = d-c
+            denominator = cross(direction, boundary)
+            if abs(denominator) <= 1e-20:
+                continue
+            t = cross(c-a, boundary) / denominator
+            q = cross(c-a, direction) / denominator
+            if 0.0 < t < 1.0 and -1e-8 <= q <= 1.0+1e-8:
+                parameters.append(t)
+        parameters.sort()
+        if any(not contains(a + direction*((lo+hi)*.5))
+               for lo, hi in zip(parameters, parameters[1:])):
+            return True
+    return False
+
+
+def _triangulate_retained_source_faces(bm, source_obj, source_face_indices):
+    """Split retained source faces along Blender's exact visible loop diagonals.
+
+    ``bmesh.utils.face_split`` performs a native face split and carries face and
+    corner custom data across it.  This avoids both an approximate ngon
+    triangulation and rebuilding faces after deleting the original surface.
+    """
+    source_mesh = source_obj.data
+    source_mesh.calc_loop_triangles()
+    selected = set(source_face_indices)
+
+    def coordinate_key(point):
+        return tuple(round(float(value), 7) for value in point)
+
+    expected_by_face = {}
+    boundary_by_face = {}
+    for tri in source_mesh.loop_triangles:
+        if tri.polygon_index not in selected:
+            continue
+        polygon = source_mesh.polygons[tri.polygon_index]
+        face_key = tuple(sorted(
+            coordinate_key(source_obj.matrix_world @ source_mesh.vertices[index].co)
+            for index in polygon.vertices
+        ))
+        triangle_keys = tuple(
+            coordinate_key(source_obj.matrix_world @ source_mesh.vertices[index].co)
+            for index in tri.vertices
+        )
+        expected_by_face.setdefault(face_key, set()).add(frozenset(triangle_keys))
+        boundary_by_face[face_key] = {
+            frozenset((coordinate_key(source_obj.matrix_world @ source_mesh.vertices[a].co),
+                       coordinate_key(source_obj.matrix_world @ source_mesh.vertices[b].co)))
+            for a, b in zip(polygon.vertices, (*polygon.vertices[1:], polygon.vertices[0]))
+        }
+
+    changed = 0
+    for face in list(bm.faces):
+        face_key = tuple(sorted(coordinate_key(vertex.co) for vertex in face.verts))
+        expected = expected_by_face.get(face_key)
+        if not expected or len(face.verts) <= 3:
+            continue
+        source_verts = {coordinate_key(vertex.co): vertex for vertex in face.verts}
+        boundary_edges = boundary_by_face.get(face_key, set())
+        target_edges = set()
+        for triangle in expected:
+            points = tuple(triangle)
+            for index in range(3):
+                edge_key = frozenset((points[index], points[(index + 1) % 3]))
+                if edge_key not in boundary_edges:
+                    target_edges.add(edge_key)
+
+        # Only search fragments of this source polygon. A neighbouring polygon
+        # can share the same vertices, and the whole mesh may be very large.
+        fragments = [face]
+        # Work in deterministic order. After each split, the next diagonal
+        # belongs to exactly one of the resulting faces.
+        for edge_key in sorted(target_edges, key=lambda edge: tuple(sorted(edge))):
+            keys = tuple(sorted(edge_key))
+            va, vb = (source_verts.get(key) for key in keys)
+            if va is None or vb is None:
+                raise RuntimeError('Could not map a source-visible diagonal to its retained BMesh face.')
+            candidates = [candidate for candidate in fragments
+                          if va in candidate.verts and vb in candidate.verts
+                          and bm.edges.get((va, vb)) not in candidate.edges]
+            if not candidates:
+                # It may already be a diagonal introduced by an earlier split.
+                if bm.edges.get((va, vb)) is not None:
+                    continue
+                raise RuntimeError('Could not find a retained face containing a source-visible diagonal.')
+            new_face, _ = bmesh.utils.face_split(candidates[0], va, vb)
+            fragments.append(new_face)
+            changed += 1
+
+    if changed:
+        bm.normal_update()
+    return changed
+
+def _restore_retained_source_faces(bm, source_obj):
+    """Rejoin only complete, untouched source polygons after exact tessellation."""
+    def key(points):
+        return frozenset(tuple(round(float(c), 7) for c in p) for p in points)
+    source = source_obj.data
+    by_key = {key(v.co for v in f.verts): f for f in bm.faces}
+    by_vertex = {}
+    for points, face in by_key.items():
+        for point in points:
+            by_vertex.setdefault(point, []).append((points, face))
+    for polygon in source.polygons:
+        if len(polygon.vertices) <= 3:
+            continue
+        original = key(source_obj.matrix_world @ source.vertices[i].co for i in polygon.vertices)
+        candidates = {face: points for point in original for points, face in by_vertex.get(point, [])}
+        fragments = [face for face, points in candidates.items() if face.is_valid and points <= original]
+        boundary = {key(v.co for v in edge.verts) for f in fragments for edge in f.edges
+                    if sum(other in fragments for other in edge.link_faces) == 1}
+        expected_boundary = {key([source_obj.matrix_world @ source.vertices[a].co,
+                                  source_obj.matrix_world @ source.vertices[b].co])
+                             for a, b in zip(polygon.vertices, (*polygon.vertices[1:], polygon.vertices[0]))}
+        if fragments and boundary == expected_boundary:
+            vertices = {key([v.co]): v for f in fragments for v in f.verts}
+            ordered = [vertices[key([source_obj.matrix_world @ source.vertices[i].co])]
+                       for i in polygon.vertices]
+            material = fragments[0].material_index
+            smooth = fragments[0].smooth
+            normal = fragments[0].normal.copy()
+            attributes = [(layer, fragments[0][layer]) for layer in bm.faces.layers.int.values()]
+            for face in fragments:
+                bm.faces.remove(face)
+            restored = bm.faces.new(ordered)
+            restored.material_index = material
+            restored.smooth = smooth
+            for layer, value in attributes:
+                restored[layer] = value
+            restored.normal_update()
+            if restored.normal.dot(normal) < 0:
+                restored.normal_flip()
+            for uv in source.uv_layers:
+                layer = bm.loops.layers.uv.get(uv.name)
+                if layer is not None:
+                    values = {key([source_obj.matrix_world @ source.vertices[source.loops[i].vertex_index].co]): uv.data[i].uv.copy()
+                              for i in polygon.loop_indices}
+                    for loop in restored.loops:
+                        loop[layer].uv = values[key([loop.vert.co])]
+    from .geometry_clearance import remove_boolean_wires
+    remove_boolean_wires(bm)
+    bm.normal_update()
+
+
+class LoopBooleanError(RuntimeError):
+    """EXACT produced an unusable Boolean result; retry with MANIFOLD if available."""
+
+
+def _raise_for_empty_loop_boolean_result(bm_a, bm_b, scale_to_mm):
+    """Classify empty/zero-volume Boolean output as solver failure, not valid geometry.
+
+    The caller still validates the retried result normally. This only routes an
+    unusable EXACT result through the existing alternate-solver retry path.
+    """
+    for label, bm in (("A", bm_a), ("B", bm_b)):
+        if not bm.verts or not bm.faces:
+            raise LoopBooleanError(
+                localized_format('audit.dynamic.9', v0=label)
+            )
+        volume_mm3 = abs(bm.calc_volume()) * (scale_to_mm ** 3)
+        if volume_mm3 <= 1e-4:
+            raise LoopBooleanError(
+                localized_format('audit.dynamic.10', v0=label)
+            )
+
+
+def slice_mesh_by_loop_extrude(*args, **kwargs):
+    try:
+        return _slice_mesh_by_loop_extrude(*args, **kwargs)
+    except LoopBooleanError:
+        solvers = [item.identifier for item in bpy.types.BooleanModifier.bl_rna.properties['solver'].enum_items]
+        if 'MANIFOLD' in solvers and kwargs.get('_solver', 'EXACT') != 'MANIFOLD':
+            return _slice_mesh_by_loop_extrude(*args, **kwargs, _solver='MANIFOLD')
+        raise
+
+
+def _slice_mesh_by_loop_extrude(
     obj: bpy.types.Object,
     target_name: str,
     indices: List[int],
@@ -1188,16 +2493,27 @@ def slice_mesh_by_loop_extrude(
     depth_mm: float,
     through_cut: bool = False,
     scene: Optional[bpy.types.Scene] = None,
+    part_clearance_mm: float = 0.0,
+    part_clearance_apply_to: str = 'PART',
+    part_clearance_bottom_mm: Optional[float] = None,
+    _solver: str = 'EXACT',
 ) -> LoopSliceResult:
     """Corta o modelo extraindo o volume delimitado pelo contorno até a profundidade especificada.
-    
-    Parte A = volume extraído (prisma ∩ target)
-    Parte B = restante do modelo (target \\ prisma)
+
+    Parte A preserva integralmente a região selecionada e a une ao trecho
+    profundo do prisma quando necessário; o fallback projetado só é permitido
+    quando contém por completo a superfície selecionada. Parte B é o restante.
     """
     actual_scene = scene if scene else bpy.context.scene
+    multi=captured_region_faces(obj,indices,seed_face_idx,actual_scene)
+    if multi:
+        from .geometry_regions import slice_surface_region
+        return slice_surface_region(obj,multi,depth_mm,actual_scene,'EXTRUDE',part_clearance_mm,
+                                    part_clearance_apply_to,part_clearance_bottom_mm,
+                                    obj.data.polygons[seed_face_idx].material_index,source_mode='LOOP',through_cut=through_cut)
     scale_to_mm = get_scene_scale_to_mm(actual_scene)
 
-    analysis = analyze_loop_region(obj, indices, seed_face_idx, scene=actual_scene)
+    analysis = analyze_loop_region(obj, indices, seed_face_idx, scene=actual_scene, probe_direct_closure=False)
     max_avail_mm = analysis["max_avail_depth_mm"]
     coords = analysis['coords_world']
     center = analysis['centroid_world']
@@ -1214,11 +2530,32 @@ def slice_mesh_by_loop_extrude(
         )
 
     if depth_mm > (max_avail_mm + 1e-3) and not through_cut:
-        raise ValueError(
-            f"A profundidade de extração ({depth_mm:.1f} mm) ultrapassa a espessura da peça "
-            f"({max_avail_mm:.1f} mm). Reduza a profundidade ou ative a opção 'Corte Passante'."
-        )
+        raise LocalizedGeometryError('geometry.wall_thickness', depth=depth_mm, available=max_avail_mm)
 
+    # Explicit depth must use the base/volume engine. Direct stepped closure
+    # can otherwise silently keep the same cap for different depth values.
+    has_protrusion = (not analysis.get("is_planar_region", False)) or (analysis.get("protrusion_height_mm", 0.0) >= 0.2)
+    if has_protrusion and (not through_cut or depth_mm < max_avail_mm):
+        try:
+            return slice_mesh_by_loop(
+                obj,
+                target_name,
+                indices,
+                seed_face_idx,
+                scene=actual_scene,
+                detach_add_base=True,
+                detach_base_depth_mm=depth_mm,
+                detach_base_clearance_mm=0.0,
+                part_clearance_mm=part_clearance_mm,
+                part_clearance_apply_to=part_clearance_apply_to,
+                part_clearance_bottom_mm=part_clearance_bottom_mm,
+            )
+        except LocalizedGeometryError as error:
+            from .localized_errors import MESSAGE_MARKER
+            if error.payload.get(MESSAGE_MARKER) != 'geometry.closing_intersection':
+                raise
+        except ValueError:
+            pass
     coords_world = footprint
     inward_dir = analysis["inward_dir_world"]
     depth_bu = depth_mm / scale_to_mm
@@ -1229,6 +2566,40 @@ def slice_mesh_by_loop_extrude(
     if through_cut and depth_mm >= max_avail_mm:
         depth_bu = max(depth_bu, (max_avail_mm / scale_to_mm) + (1.0 / scale_to_mm))
 
+    clearance_bu = (part_clearance_mm / scale_to_mm) if part_clearance_mm > 0.0 else 0.0
+    if through_cut:
+        bottom_bu = 0.0
+    elif part_clearance_bottom_mm is None:
+        bottom_bu = clearance_bu
+    else:
+        bottom_bu = max(0.0, part_clearance_bottom_mm) / scale_to_mm
+
+    if part_clearance_apply_to == 'PART':
+        depth_a_bu = depth_bu if through_cut else max(0.05 / scale_to_mm, depth_bu - bottom_bu)
+        depth_b_bu = depth_bu
+        lat_off_a = clearance_bu
+        lat_off_b = 0.0
+    elif part_clearance_apply_to == 'CAVITY':
+        depth_a_bu = depth_bu
+        depth_b_bu = depth_bu if through_cut else (depth_bu + bottom_bu)
+        lat_off_a = 0.0
+        lat_off_b = -clearance_bu
+    elif part_clearance_apply_to == 'BOTH':
+        depth_a_bu = depth_bu if through_cut else max(0.05 / scale_to_mm, depth_bu - 0.5 * bottom_bu)
+        depth_b_bu = depth_bu if through_cut else (depth_bu + 0.5 * bottom_bu)
+        lat_off_a = 0.5 * clearance_bu
+        lat_off_b = -0.5 * clearance_bu
+    else:
+        depth_a_bu = depth_bu
+        depth_b_bu = depth_bu
+        lat_off_a = 0.0
+        lat_off_b = 0.0
+
+    if not through_cut and bottom_bu > 0 and depth_a_bu * scale_to_mm <= .1:
+        raise LocalizedGeometryError('geometry.clearance_excessive')
+    if not through_cut and depth_b_bu > depth_bu and (depth_b_bu * scale_to_mm) > (max_avail_mm + 1e-3):
+        raise LocalizedGeometryError('geometry.clearance_excessive')
+
     prism_obj = None
     prism_b = None
     temp_obj_a = None
@@ -1237,14 +2608,48 @@ def slice_mesh_by_loop_extrude(
     eval_obj_b = None
     eval_a = None
     eval_b = None
+    temp_obj_plug = None
+    starter_bm_a = None
+    starter_bm_b = None
+    if has_protrusion and through_cut and depth_mm >= max_avail_mm and max_avail_mm > 0.4:
+        starter_mm = min(1.0, max(0.2, 0.25 * max_avail_mm))
+        try:
+            starter_res = slice_mesh_by_loop(
+                obj,
+                target_name,
+                indices,
+                seed_face_idx,
+                scene=actual_scene,
+                detach_add_base=True,
+                detach_base_depth_mm=starter_mm,
+                detach_base_clearance_mm=0.0,
+                part_clearance_mm=part_clearance_mm,
+                part_clearance_apply_to=part_clearance_apply_to,
+                part_clearance_bottom_mm=0.0,
+            )
+            starter_bm_a, starter_bm_b = starter_res[0], starter_res[1]
+            outward_ext_bu = -0.5 * (starter_mm / scale_to_mm)
+        except Exception:
+            starter_bm_a = None
+            starter_bm_b = None
 
     try:
+        if starter_bm_a is None and _selected_region_overhangs_footprint(obj, analysis, scale_to_mm):
+            from .geometry_projection import projected_region_outline
+            coords_world = projected_region_outline(obj, analysis, scale_to_mm)
+            # Break coincidence between the silhouette and imported relief
+            # edges on the receiver, far below printable clearance resolution.
+            lat_off_b -= 0.00002 / scale_to_mm
+            projected_analysis = dict(analysis, coords_world=coords_world)
+            if _selected_region_overhangs_footprint(obj, projected_analysis, scale_to_mm):
+                raise LocalizedGeometryError('geometry.depth_region_overhang')
         prism_obj = create_loop_prism_cutter(
             coords_world=coords_world,
             inward_dir=inward_dir,
-            depth_bu=depth_bu,
+            depth_bu=depth_a_bu,
             outward_ext_bu=outward_ext_bu,
-            name=f"{target_name}_loop_prism",
+            name=f"{target_name}_loop_prism_a",
+            lateral_offset_bu=lat_off_a,
         )
 
         for mat in obj.data.materials:
@@ -1255,33 +2660,85 @@ def slice_mesh_by_loop_extrude(
         bpy.context.view_layer.update()
 
         temp_obj_a = obj.copy()
-        temp_obj_a.data = obj.data.copy()
+        from .geometry_clearance import triangulated_source_mesh
+        temp_obj_a.data = triangulated_source_mesh(obj.data)
         temp_obj_a.hide_viewport = False
         temp_obj_a.hide_render = False
         actual_scene.collection.objects.link(temp_obj_a)
         mod_a = temp_obj_a.modifiers.new(name="Extrude_Intersect", type='BOOLEAN')
         mod_a.operation = 'INTERSECT'
-        mod_a.solver = 'EXACT'
+        mod_a.solver = _solver
         mod_a.object = prism_obj
+        if starter_bm_a is not None and starter_bm_b is not None:
+            from mathutils import Matrix
+            m_plug = bpy.data.meshes.new(f"{target_name}_plug_mesh")
+            for mat in obj.data.materials:
+                m_plug.materials.append(mat)
+            bpy.data.meshes.remove(m_plug, do_unlink=True)
+            m_plug = triangulated_source_mesh(obj.data)
+            for face in m_plug.polygons:
+                face.material_index = source_mat
+            temp_obj_plug = bpy.data.objects.new(f"{target_name}_plug_obj", m_plug)
+            temp_obj_plug.matrix_world = obj.matrix_world.copy()
+            actual_scene.collection.objects.link(temp_obj_plug)
+            mod_p = temp_obj_plug.modifiers.new(name="Plug_Intersect", type='BOOLEAN')
+            mod_p.operation = 'INTERSECT'
+            mod_p.solver = _solver
+            mod_p.object = prism_obj
 
-        # Independent operand to preserve receiver color on the cavity.
-        prism_b = prism_obj.copy()
-        prism_b.data = prism_obj.data.copy()
-        actual_scene.collection.objects.link(prism_b)
+            old_m_a = temp_obj_a.data
+            m_top_a = bpy.data.meshes.new(f"{target_name}_top_a_mesh")
+            for mat in obj.data.materials:
+                m_top_a.materials.append(mat)
+            _triangulate_retained_source_faces(
+                starter_bm_a,
+                obj,
+                analysis.get('region_face_indices', ()),
+            )
+            starter_bm_a.to_mesh(m_top_a)
+            temp_obj_a.data = m_top_a
+            temp_obj_a.matrix_world = Matrix.Identity(4)
+            if old_m_a and old_m_a.users == 0:
+                bpy.data.meshes.remove(old_m_a, do_unlink=True)
+            mod_a.operation = 'UNION'
+            mod_a.object = temp_obj_plug
+
+        # Independent operand for Part B cavity (with its own lateral/axial clearance and receiver material).
+        prism_b = create_loop_prism_cutter(
+            coords_world=coords_world,
+            inward_dir=inward_dir,
+            depth_bu=depth_b_bu,
+            outward_ext_bu=outward_ext_bu,
+            name=f"{target_name}_loop_prism_b",
+            lateral_offset_bu=lat_off_b,
+        )
+        for mat in obj.data.materials:
+            prism_b.data.materials.append(mat)
         from collections import Counter
         body_mats = [f.material_index for f in obj.data.polygons if f.index != seed_face_idx]
         body_mat = Counter(body_mats).most_common(1)[0][0] if body_mats else source_mat
         for face in prism_b.data.polygons:
             face.material_index = body_mat
         temp_obj_b = obj.copy()
-        temp_obj_b.data = obj.data.copy()
+        temp_obj_b.data = triangulated_source_mesh(obj.data)
         temp_obj_b.hide_viewport = False
         temp_obj_b.hide_render = False
         actual_scene.collection.objects.link(temp_obj_b)
         mod_b = temp_obj_b.modifiers.new(name="Extrude_Difference", type='BOOLEAN')
         mod_b.operation = 'DIFFERENCE'
-        mod_b.solver = 'EXACT'
+        mod_b.solver = _solver
         mod_b.object = prism_b
+        if starter_bm_b is not None:
+            from mathutils import Matrix
+            old_m_b = temp_obj_b.data
+            m_body_b = bpy.data.meshes.new(f"{target_name}_body_b_mesh")
+            for mat in obj.data.materials:
+                m_body_b.materials.append(mat)
+            starter_bm_b.to_mesh(m_body_b)
+            temp_obj_b.data = m_body_b
+            temp_obj_b.matrix_world = Matrix.Identity(4)
+            if old_m_b and old_m_b.users == 0:
+                bpy.data.meshes.remove(old_m_b, do_unlink=True)
 
         bpy.context.view_layer.update()
         dg = bpy.context.evaluated_depsgraph_get()
@@ -1302,24 +2759,59 @@ def slice_mesh_by_loop_extrude(
         bm_b.transform(temp_obj_b.matrix_world)
         bm_b.normal_update()
 
-        if len(bm_a.verts) == 0 or len(bm_b.verts) == 0:
+        # EXACT may retain coincident intersection endpoints at coplanar source edges.
+        # Collapse only connected edges below 0.0001 mm, then keep strict validation.
+        from .geometry_clearance import weld_boolean_roundoff
+        weld_boolean_roundoff(bm_a, scale_to_mm)
+        weld_boolean_roundoff(bm_b, scale_to_mm)
+        bmesh.ops.dissolve_degenerate(bm_a, edges=bm_a.edges[:], dist=max(0.0001 / scale_to_mm, 5e-7))
+        bmesh.ops.dissolve_degenerate(bm_b, edges=bm_b.edges[:], dist=max(0.0001 / scale_to_mm, 5e-7))
+        bm_a.normal_update()
+        bm_b.normal_update()
+
+        if any(not e.is_manifold for e in bm_a.edges) or any(not e.is_manifold for e in bm_b.edges):
             bm_a.free()
             bm_b.free()
-            raise RuntimeError("A extração com profundidade gerou malha vazia para uma das partes.")
+            raise LoopBooleanError("A extração com profundidade gerou malha não-manifold.")
 
         bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
         bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
+        try:
+            _raise_for_empty_loop_boolean_result(bm_a, bm_b, scale_to_mm)
+        except LoopBooleanError:
+            bm_a.free()
+            bm_b.free()
+            raise
 
-        if through_cut:
+        # Keep old cavity walls identifiable for subsequent thickness checks,
+        # but mark only THIS cut for interface materials and connector seats.
+        for bm_part, actual_depth, direction in ((bm_a, depth_a_bu, inward_dir), (bm_b, depth_b_bu, -inward_dir)):
+            layer = bm_part.faces.layers.int.get('splitter_contact_surface') or bm_part.faces.layers.int.new('splitter_contact_surface')
+            from .interface_history import archive_contact_marks
+            archive_contact_marks(bm_part)
+            bottom_anchor = support + inward_dir * actual_depth
+            for face in bm_part.faces:
+                face[layer] = int(face.normal.dot(direction) > .99 and
+                                  all(abs((v.co-bottom_anchor).dot(inward_dir))*scale_to_mm < .001 for v in face.verts))
+
+        iface_tris = None
+        through_hole = through_cut and (depth_mm >= max_avail_mm - 1e-3)
+        if through_hole:
             interface_origin = support
             interface_boundary = coords_world
         else:
             interface_origin = support + (depth_mm / scale_to_mm) * inward_dir
             interface_boundary = [p + (depth_mm / scale_to_mm) * inward_dir for p in coords_world]
+            u_i, v_i = _get_orthonormal_basis(inward_dir)
+            pts_i = [Vector(((p - interface_origin).dot(u_i), (p - interface_origin).dot(v_i))) for p in interface_boundary]
+            tris_i = triangulate_polygon_2d(pts_i)
+            if tris_i:
+                iface_tris = [(interface_boundary[t[0]], interface_boundary[t[1]], interface_boundary[t[2]]) for t in tris_i]
         cut_interface = build_cut_interface(
             origin_world=interface_origin,
             normal_a_to_b=inward_dir,
             boundary_points_world=interface_boundary,
+            interface_triangles=iface_tris,
             unit_scale=scale_to_mm,
             source_mode="LOOP",
         )
@@ -1356,7 +2848,13 @@ def slice_mesh_by_loop_extrude(
             except Exception:
                 pass
 
-        for temp_o in (temp_obj_a, temp_obj_b, prism_b):
+        for st_bm in (starter_bm_a, starter_bm_b):
+            if st_bm is not None:
+                try:
+                    st_bm.free()
+                except Exception:
+                    pass
+        for temp_o in (temp_obj_a, temp_obj_b, temp_obj_plug, prism_b):
             if temp_o:
                 m_data = temp_o.data
                 if temp_o.name in actual_scene.collection.objects:

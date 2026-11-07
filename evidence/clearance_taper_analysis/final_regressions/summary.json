@@ -1,0 +1,42 @@
+[
+  {
+    "suite": "test_clearance_uniformity.py",
+    "exit_code": 0,
+    "seconds": 6.04
+  },
+  {
+    "suite": "test_release_depth_region.py",
+    "exit_code": 0,
+    "seconds": 6.35
+  },
+  {
+    "suite": "test_release_depth_guard.py",
+    "exit_code": 0,
+    "seconds": 4.0
+  },
+  {
+    "suite": "test_release_connector_frames.py",
+    "exit_code": 0,
+    "seconds": 4.02
+  },
+  {
+    "suite": "test_stepped_frame_support.py",
+    "exit_code": 0,
+    "seconds": 4.18
+  },
+  {
+    "suite": "test_region_release.py",
+    "exit_code": 0,
+    "seconds": 20.76
+  },
+  {
+    "suite": "test_release_interface.py",
+    "exit_code": 0,
+    "seconds": 4.16
+  },
+  {
+    "suite": "test_release_material_patch.py",
+    "exit_code": 0,
+    "seconds": 4.02
+  }
+]

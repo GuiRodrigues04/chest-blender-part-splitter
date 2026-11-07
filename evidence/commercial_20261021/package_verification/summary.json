@@ -1,0 +1,12 @@
+[
+  {
+    "suite": "test_release_package.py",
+    "exit_code": 0,
+    "seconds": 7.47
+  },
+  {
+    "suite": "test_chest_connector_solver_retry.py",
+    "exit_code": 0,
+    "seconds": 7.93
+  }
+]

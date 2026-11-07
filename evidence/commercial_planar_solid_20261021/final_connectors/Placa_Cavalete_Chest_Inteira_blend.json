@@ -1,0 +1,42 @@
+[
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Cavalete_Chest_Inteira.blend",
+    "case": "PLANE_Z_FDM_PINS",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": true,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 172012.8347575939
+    },
+    "source_volume": 172012.8347575939,
+    "dimensions_mm": [
+      110.0,
+      84.0,
+      160.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 89891.21362496894,
+        "faces": 278
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 82009.49238150967,
+        "faces": 107
+      }
+    ],
+    "sum_volume": 171900.7060064786,
+    "manual_file": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_planar_solid_20261021\\final_connectors\\manual\\Placa_Cavalete_Chest_Inteira_blend_planar_pins.blend",
+    "revert": "pass",
+    "seconds": 0.386
+  }
+]

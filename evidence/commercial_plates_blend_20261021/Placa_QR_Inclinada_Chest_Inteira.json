@@ -1,0 +1,233 @@
+{
+  "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Vers\u00e3o 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_Inteira.blend",
+  "status": "ok",
+  "objects": [
+    {
+      "object": "Placa_QR_Inclinada_Chest_Inteira",
+      "vertices": 945,
+      "edges": 2829,
+      "faces": 1886,
+      "materials": [
+        "Material_1",
+        "Material_2"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "material": 0,
+      "region": 0,
+      "region_faces": 441,
+      "outcome": "pass",
+      "analysis_valid": true,
+      "analysis_error": null,
+      "depth_mm": 2.0,
+      "trials": [
+        {
+          "label": "EXTRUDE depth=2mm gap=0",
+          "outcome": "pass",
+          "parts": [
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 19978.96971669925,
+              "errors": []
+            },
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 199445.69468748447,
+              "errors": []
+            }
+          ],
+          "interface_loops": 3
+        },
+        {
+          "label": "EXTRUDE depth=2mm gap=0.1mm",
+          "outcome": "rejected_or_failed",
+          "error": "LocalizedGeometryError: The 0.100 mm clearance crosses contours or collapses region details/openings. Reduce clearance in Custom or select a region without these details. Clearance was not changed."
+        },
+        {
+          "label": "BASE gap=0",
+          "outcome": "rejected_or_failed",
+          "error": "ValueError: A moldura \u00e9 plana: escolha Profundidade para criar uma pe\u00e7a s\u00f3lida."
+        }
+      ]
+    },
+    {
+      "material": 0,
+      "region": 1,
+      "region_faces": 2,
+      "outcome": "micro_island_recorded_not_a_success"
+    },
+    {
+      "material": 0,
+      "region": 2,
+      "region_faces": 4,
+      "outcome": "micro_island_recorded_not_a_success"
+    },
+    {
+      "material": 1,
+      "region": 0,
+      "region_faces": 1433,
+      "outcome": "expected_invalid_configuration",
+      "analysis_valid": false,
+      "analysis_error": "A sele\u00e7\u00e3o possui regi\u00f5es externas desconectadas."
+    },
+    {
+      "material": 1,
+      "region": 1,
+      "region_faces": 2,
+      "outcome": "micro_island_recorded_not_a_success"
+    },
+    {
+      "material": 1,
+      "region": 2,
+      "region_faces": 2,
+      "outcome": "micro_island_recorded_not_a_success"
+    }
+  ],
+  "loop_cases": [
+    {
+      "material": 0,
+      "region": 0,
+      "face_count": 441,
+      "capture_result": [
+        "FINISHED"
+      ],
+      "captured_faces": 441,
+      "expected_faces": 441,
+      "captured_matches_region": true,
+      "loops": 3,
+      "outcome": "pass"
+    }
+  ],
+  "operator_cases": [
+    {
+      "mode": "MATERIAL_after_LOOP_capture",
+      "material": 0,
+      "region": 0,
+      "depth_mm": 2.0,
+      "profile": "FDM",
+      "connectors_requested": true,
+      "captured_loop_retained": true,
+      "fdm_error": "RuntimeError: Error: Preview generation error: The 0.100 mm clearance crosses contours or collapses region details/openings. Reduce clearance in Custom or select a region without these details. Clearance was not changed.\n",
+      "fdm_preview_result": [
+        "CANCELLED"
+      ],
+      "fdm_status": "Preview generation error: The 0.100 mm clearance crosses contours or collapses region details/openings. Reduce clearance in Custom or select a region without these details. Clearance was not changed.",
+      "zero_gap_with_pins_result": [
+        "FINISHED"
+      ],
+      "zero_gap_with_pins_status": "Preview generated successfully (+AUTO_SHAPE connectors)! Part A: 19,981 mm\u00b3 | Part B: 199,443 mm\u00b3",
+      "profile_used": "NONE",
+      "pins_used": true,
+      "preview_result": [
+        "FINISHED"
+      ],
+      "preview_current": true,
+      "manifold": [
+        true,
+        true
+      ],
+      "preview_volumes_mm3": [
+        19981.198534147432,
+        199443.44832024755
+      ],
+      "commit_result": [
+        "FINISHED"
+      ],
+      "commit_volumes_mm3": [
+        19981.198534147432,
+        199443.44832024755
+      ],
+      "preview_commit_equal": true,
+      "revert_result": [
+        "FINISHED"
+      ]
+    },
+    {
+      "mode": "LOOP",
+      "material": 0,
+      "region": 0,
+      "depth_mm": 2.0,
+      "profile": "FDM",
+      "connectors_requested": true,
+      "fdm_error": "RuntimeError: Error: Preview generation error: The 0.100 mm clearance crosses contours or collapses region details/openings. Reduce clearance in Custom or select a region without these details. Clearance was not changed.\n",
+      "fdm_preview_result": [
+        "CANCELLED"
+      ],
+      "fdm_status": "Preview generation error: The 0.100 mm clearance crosses contours or collapses region details/openings. Reduce clearance in Custom or select a region without these details. Clearance was not changed.",
+      "zero_gap_with_pins_result": [
+        "FINISHED"
+      ],
+      "zero_gap_with_pins_status": "Preview generated successfully (+AUTO_SHAPE connectors)! Part A: 19,981 mm\u00b3 | Part B: 199,443 mm\u00b3",
+      "profile_used": "NONE",
+      "pins_used": true,
+      "preview_result": [
+        "FINISHED"
+      ],
+      "preview_current": true,
+      "manifold": [
+        true,
+        true
+      ],
+      "preview_volumes_mm3": [
+        19981.198534147432,
+        199443.44832024755
+      ],
+      "commit_result": [
+        "FINISHED"
+      ],
+      "commit_volumes_mm3": [
+        19981.198534147432,
+        199443.44832024755
+      ],
+      "preview_commit_equal": true,
+      "revert_result": [
+        "FINISHED"
+      ]
+    }
+  ],
+  "source_diagnostics": {
+    "is_valid": false,
+    "is_manifold": true,
+    "non_manifold_edges": [],
+    "degenerate_faces": [
+      236,
+      440
+    ],
+    "zero_area_faces": null,
+    "volume_mm3": 219424.66626052096,
+    "errors": null
+  },
+  "scale_to_mm": 1000.0,
+  "repair": {
+    "operator": [
+      "FINISHED"
+    ],
+    "status": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+    "before": {
+      "vertices": 945,
+      "faces": 1886,
+      "materials": [
+        "Material_1",
+        "Material_2"
+      ]
+    },
+    "after": {
+      "vertices": 945,
+      "faces": 1884,
+      "materials": [
+        "Material_1",
+        "Material_2"
+      ],
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 219424.66626025262,
+      "errors": []
+    },
+    "usable_copy": true
+  },
+  "source_unchanged": true
+}

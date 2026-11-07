@@ -1,0 +1,334 @@
+{
+  "file": "Placa_Chest_Inteira.glb",
+  "path": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Placa_Chest_Inteira.glb",
+  "import": {
+    "operator": "{'FINISHED'}",
+    "mesh_objects": 1,
+    "object_names": [
+      "Placa_Chest_Inteira"
+    ]
+  },
+  "materials": [
+    {
+      "index": 0,
+      "name": "Material_1",
+      "faces": 181,
+      "regions": 1,
+      "region_face_counts": [
+        181
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    },
+    {
+      "index": 1,
+      "name": "Material_2",
+      "faces": 178,
+      "regions": 1,
+      "region_face_counts": [
+        178
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    },
+    {
+      "index": 2,
+      "name": "Material_3",
+      "faces": 1091,
+      "regions": 1,
+      "region_face_counts": [
+        1091
+      ],
+      "largest_region_analysis": {
+        "valid": true,
+        "error": null,
+        "has_holes": null,
+        "boundary_loops": [],
+        "area_mm2": null,
+        "deviation_mm": null,
+        "region_face_count": null
+      }
+    }
+  ],
+  "cases": [
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.0,
+      "exception": "RuntimeError: Error: Preview generation error: O corte por material resultou em uma peça vazia. Verifique a área ou profundidade selecionada.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: O corte por material resultou em uma peça vazia. Verifique a área ou profundidade selecionada.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.1,
+      "exception": "RuntimeError: Error: Preview generation error: O corte por material resultou em uma peça vazia. Verifique a área ou profundidade selecionada.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: O corte por material resultou em uma peça vazia. Verifique a área ou profundidade selecionada.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "LOOP",
+      "material_index": 0,
+      "region_index": 0,
+      "behavior": "AUTO",
+      "gap_mm": 0.0,
+      "capture_operator": "{'FINISHED'}",
+      "captured": true,
+      "loop_vertices": 183,
+      "exception": "RuntimeError: Error: Preview generation error: A extração com profundidade gerou malha vazia para uma das partes.\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_plates_glb_20261021.py\", line 97, in attempt_cut\n    result=bpy.ops.chest.splitter_generate_preview()\nRuntimeError: Error: Preview generation error: A extração com profundidade gerou malha vazia para uma das partes.\n\n",
+      "source_unchanged_on_failure": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.0,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 3,116 mm³ | Part B: 215,217 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 540,
+          "faces": 713,
+          "volume_mm3": 3116.3370815689764,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 1087,
+          "faces": 1805,
+          "volume_mm3": 215217.32436068938,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 218333.66251520524,
+      "parts_volume_mm3": 218333.66144225837,
+      "volume_delta_mm3": -0.0010729468776844442,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true,
+      "review_blend": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_glb_20261021\\Placa_Chest_Inteira_MATERIAL_preview.blend"
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "EXTRUDE",
+      "gap_mm": 0.1,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 3,116 mm³ | Part B: 215,217 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 540,
+          "faces": 713,
+          "volume_mm3": 3116.3370815689764,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 1087,
+          "faces": 1805,
+          "volume_mm3": 215217.32436068397,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 218333.66251520524,
+      "parts_volume_mm3": 218333.66144225295,
+      "volume_delta_mm3": -0.0010729522909969091,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "mode": "LOOP",
+      "material_index": 1,
+      "region_index": 0,
+      "behavior": "AUTO",
+      "gap_mm": 0.0,
+      "capture_operator": "{'FINISHED'}",
+      "captured": true,
+      "loop_vertices": 180,
+      "preview_operator": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "message": "Preview generated successfully! Part A: 3,116 mm³ | Part B: 215,217 mm³",
+      "preview_current": true,
+      "parts": [
+        {
+          "object": "SPLITTER_PREVIEW_A",
+          "verts": 328,
+          "faces": 476,
+          "volume_mm3": 3116.33789598161,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        },
+        {
+          "object": "SPLITTER_PREVIEW_B",
+          "verts": 872,
+          "faces": 1534,
+          "volume_mm3": 215217.32388762015,
+          "manifold": true,
+          "valid": true,
+          "nonmanifold_edges": 0,
+          "components": 1
+        }
+      ],
+      "closed_solid_parts": true,
+      "source_volume_mm3": 218333.66251520524,
+      "parts_volume_mm3": 218333.66178360177,
+      "volume_delta_mm3": -0.0007316034752875566,
+      "commit_operator": "{'FINISHED'}",
+      "source_unchanged_after_commit": true,
+      "revert_operator": "{'FINISHED'}",
+      "source_unchanged_after_revert": true
+    },
+    {
+      "mode": "MATERIAL",
+      "material_index": 2,
+      "region_index": 0,
+      "classification": "expected_rejection_invalid_material_region",
+      "reason": "A seleção possui regiões externas desconectadas."
+    }
+  ],
+  "raw": {
+    "verts": 1966,
+    "edges": 3172,
+    "faces": 1450,
+    "triangles": 1450,
+    "nonmanifold_edges": 1994,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 218333.66251520524,
+    "valid": true,
+    "manifold": false,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      150.000006,
+      55.0,
+      189.999998
+    ],
+    "connected_components": 247
+  },
+  "material_slots": [
+    {
+      "name": "Material_1",
+      "diffuse_color": [
+        0.9254902005195618,
+        0.8823529481887817,
+        0.800000011920929,
+        1.0
+      ]
+    },
+    {
+      "name": "Material_2",
+      "diffuse_color": [
+        0.9254902005195618,
+        0.8823529481887817,
+        0.800000011920929,
+        1.0
+      ]
+    },
+    {
+      "name": "Material_3",
+      "diffuse_color": [
+        0.09803921729326248,
+        0.10588235408067703,
+        0.11372549086809158,
+        1.0
+      ]
+    }
+  ],
+  "raw_mesh_datablock": "Placa_Chest_Inteira",
+  "repair_operator": "{'FINISHED'}",
+  "repair_message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+  "repaired": {
+    "verts": 727,
+    "edges": 2175,
+    "faces": 1450,
+    "triangles": 1450,
+    "nonmanifold_edges": 0,
+    "loose_edges": 0,
+    "components": null,
+    "volume_mm3": 218333.66251520524,
+    "valid": true,
+    "manifold": true,
+    "degenerate_faces": 0,
+    "bounds_mm": [
+      150.000006,
+      55.0,
+      189.999998
+    ],
+    "connected_components": 1
+  },
+  "repair_created_separate_datablock": true,
+  "import_merge_vertices": {
+    "operator": "{'FINISHED'}",
+    "stats": {
+      "verts": 1618,
+      "edges": 2861,
+      "faces": 1450,
+      "triangles": 1450,
+      "nonmanifold_edges": 1372,
+      "loose_edges": 0,
+      "components": null,
+      "volume_mm3": 218333.66251520524,
+      "valid": true,
+      "manifold": false,
+      "degenerate_faces": 0,
+      "bounds_mm": [
+        150.000006,
+        55.0,
+        189.999998
+      ]
+    },
+    "connected_components": 245
+  },
+  "case_counts": {
+    "total": 7,
+    "closed_solid_previews": 3,
+    "failures": 3
+  }
+}

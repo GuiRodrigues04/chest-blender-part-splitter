@@ -1,0 +1,763 @@
+[
+  {
+    "name": "test_acceptance_0810_suite.py",
+    "code": 1,
+    "seconds": 4.4,
+    "ran": [
+      "8"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_acceptance_089_suite.py",
+    "code": 1,
+    "seconds": 4.5,
+    "ran": [
+      "10"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_acceptance_etapa2.py",
+    "code": 0,
+    "seconds": 3.9,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_acceptance_etapa3.py",
+    "code": 1,
+    "seconds": 4.5,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_acceptance_etapa4.py",
+    "code": 0,
+    "seconds": 4.2,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_acceptance_etapa5_ui.py",
+    "code": 0,
+    "seconds": 3.8,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_acceptance_etapa6_material.py",
+    "code": 0,
+    "seconds": 3.6,
+    "ran": [
+      "6"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_acceptance_etapa7_delivery.py",
+    "code": 0,
+    "seconds": 3.5,
+    "ran": [
+      "4"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_b01_b07.py",
+    "code": 0,
+    "seconds": 3.8,
+    "ran": [
+      "4"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_capsule_lateral_size.py",
+    "code": 0,
+    "seconds": 4,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_cat_depth.py",
+    "code": 0,
+    "seconds": 3.5,
+    "ran": [
+      "1"
+    ],
+    "skipped": [
+      "1"
+    ]
+  },
+  {
+    "name": "test_chest_connector_solver_retry.py",
+    "code": 0,
+    "seconds": 3.6,
+    "ran": [
+      "1"
+    ],
+    "skipped": [
+      "1"
+    ]
+  },
+  {
+    "name": "test_clearance_profiles.py",
+    "code": 0,
+    "seconds": 4.7,
+    "ran": [
+      "6"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_clearance_uniformity.py",
+    "code": 0,
+    "seconds": 7.2,
+    "ran": [
+      "4"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_commercial_audit.py",
+    "code": 1,
+    "seconds": 4.9,
+    "ran": [
+      "9"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_commercial_audit_fixes_20261021.py",
+    "code": 0,
+    "seconds": 4.4,
+    "ran": [
+      "5"
+    ],
+    "skipped": [
+      "3"
+    ]
+  },
+  {
+    "name": "test_commit_selection_bugfix.py",
+    "code": 0,
+    "seconds": 3.9,
+    "ran": [
+      "2"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_cutter_problem_selection.py",
+    "code": 0,
+    "seconds": 4.5,
+    "ran": [
+      "9"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_connector_clearance_slivers.py",
+    "code": 0,
+    "seconds": 7.2,
+    "ran": [
+      "4"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_final_plan_corrections.py",
+    "code": 0,
+    "seconds": 4,
+    "ran": [
+      "8"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_grid_positioning_points.py",
+    "code": 0,
+    "seconds": 3.8,
+    "ran": [
+      "7"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_history.py",
+    "code": 0,
+    "seconds": 3.8,
+    "ran": [
+      "4"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_installed_zip_0812.py",
+    "code": 0,
+    "seconds": 4.7,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_frame_regions.py",
+    "code": 0,
+    "seconds": 17.7,
+    "ran": [
+      "10"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_interface_history.py",
+    "code": 0,
+    "seconds": 5.5,
+    "ran": [
+      "13"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_inv_001_003_material.py",
+    "code": 0,
+    "seconds": 5,
+    "ran": [
+      "6"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_inv_002_material_base.py",
+    "code": 0,
+    "seconds": 4.5,
+    "ran": [
+      "4"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_inv_004_explosion.py",
+    "code": 0,
+    "seconds": 3.9,
+    "ran": [
+      "5"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_inv_005_loop.py",
+    "code": 0,
+    "seconds": 3.5,
+    "ran": [
+      "5"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_inv_006_thickness.py",
+    "code": 0,
+    "seconds": 3.6,
+    "ran": [
+      "3"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_loop_boolean_empty_retry.py",
+    "code": 0,
+    "seconds": 3.9,
+    "ran": [
+      "2"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_loop_capture_selection_gaps.py",
+    "code": 0,
+    "seconds": 4.1,
+    "ran": [
+      "7"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_loop_cut_plate_bone.py",
+    "code": 0,
+    "seconds": 3.5,
+    "ran": [
+      "2"
+    ],
+    "skipped": [
+      "1"
+    ]
+  },
+  {
+    "name": "test_loop_panel.py",
+    "code": 0,
+    "seconds": 3.7,
+    "ran": [
+      "2"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_loopcut_scenario.py",
+    "code": 0,
+    "seconds": 3.6,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_manual_connectors_workflow.py",
+    "code": 0,
+    "seconds": 4.4,
+    "ran": [
+      "11"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_material_manual_connectors_bugfix.py",
+    "code": 0,
+    "seconds": 3.5,
+    "ran": [
+      "4"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_material_region_connectivity.py",
+    "code": 0,
+    "seconds": 3.4,
+    "ran": [
+      "2"
+    ],
+    "skipped": [
+      "1"
+    ]
+  },
+  {
+    "name": "test_material_regions.py",
+    "code": 0,
+    "seconds": 3.5,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_microface_repair.py",
+    "code": 0,
+    "seconds": 3.9,
+    "ran": [
+      "5"
+    ],
+    "skipped": [
+      "3"
+    ]
+  },
+  {
+    "name": "test_multicolor_support.py",
+    "code": 0,
+    "seconds": 3.9,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_phase3a_loop.py",
+    "code": 0,
+    "seconds": 3.6,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_plan_086_commercial.py",
+    "code": 0,
+    "seconds": 4.3,
+    "ran": [
+      "22"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_plan_087.py",
+    "code": 0,
+    "seconds": 3.7,
+    "ran": [
+      "14"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_plan_088.py",
+    "code": 0,
+    "seconds": 4.5,
+    "ran": [
+      "36"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_plane_contact_contours.py",
+    "code": 0,
+    "seconds": 4.3,
+    "ran": [
+      "11"
+    ],
+    "skipped": [
+      "3"
+    ]
+  },
+  {
+    "name": "test_plane_create_on_delete.py",
+    "code": 0,
+    "seconds": 3.3,
+    "ran": [
+      "2"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_plane_limited.py",
+    "code": 0,
+    "seconds": 4.1,
+    "ran": [
+      "9"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_plane_limited_pose.py",
+    "code": 0,
+    "seconds": 7.6,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_pos_testes_087.py",
+    "code": 0,
+    "seconds": 3.7,
+    "ran": [
+      "18"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_preview_selection_recovery.py",
+    "code": 0,
+    "seconds": 9.2,
+    "ran": [
+      "21"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_problem_selection.py",
+    "code": 0,
+    "seconds": 3.5,
+    "ran": [
+      "5"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_qr_boolean_wires.py",
+    "code": 0,
+    "seconds": 3.6,
+    "ran": [
+      "3"
+    ],
+    "skipped": [
+      "1"
+    ]
+  },
+  {
+    "name": "test_reedit_after_preview_bugfix.py",
+    "code": 0,
+    "seconds": 3.8,
+    "ran": [
+      "3"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_region_inherited_slivers.py",
+    "code": 0,
+    "seconds": 3.8,
+    "ran": [
+      "3"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_region_multicontact_091.py",
+    "code": 0,
+    "seconds": 8.9,
+    "ran": [
+      "6"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_region_release.py",
+    "code": 0,
+    "seconds": 24.1,
+    "ran": [
+      "28"
+    ],
+    "skipped": [
+      "1"
+    ]
+  },
+  {
+    "name": "test_regressions.py",
+    "code": 1,
+    "seconds": 6.1,
+    "ran": [
+      "55"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_regressions_0812.py",
+    "code": 1,
+    "seconds": 9.3,
+    "ran": [
+      "31"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_release_connector_frames.py",
+    "code": 0,
+    "seconds": 4.1,
+    "ran": [
+      "4"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_release_depth_guard.py",
+    "code": 0,
+    "seconds": 5.8,
+    "ran": [
+      "4"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_release_depth_region.py",
+    "code": 0,
+    "seconds": 10.1,
+    "ran": [
+      "3"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_planar_seats.py",
+    "code": 0,
+    "seconds": 124.2,
+    "ran": [
+      "16"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_release_geometry.py",
+    "code": 0,
+    "seconds": 10.8,
+    "ran": [
+      "6"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_release_interface.py",
+    "code": 0,
+    "seconds": 4.5,
+    "ran": [
+      "9"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_release_material_patch.py",
+    "code": 0,
+    "seconds": 3.9,
+    "ran": [
+      "1"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_release_package.py",
+    "code": 0,
+    "seconds": 4.7,
+    "ran": [
+      "2"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_release_state.py",
+    "code": 0,
+    "seconds": 4.9,
+    "ran": [
+      "10"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_reproduce_extrude_bug.py",
+    "code": 0,
+    "seconds": 4,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_reproduce_flaws.py",
+    "code": 0,
+    "seconds": 3.5,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_reproduce_operator.py",
+    "code": 0,
+    "seconds": 4,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_release_workflows.py",
+    "code": 1,
+    "seconds": 18,
+    "ran": [
+      "9"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_reversion_086.py",
+    "code": 0,
+    "seconds": 4.1,
+    "ran": [
+      "12"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_run_0811_comprehensive.py",
+    "code": 0,
+    "seconds": 4.5,
+    "ran": [
+      "8"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_safe_mesh_repair.py",
+    "code": 0,
+    "seconds": 4.5,
+    "ran": [
+      "7"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_smoke_phase0.py",
+    "code": 0,
+    "seconds": 4.4,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_smoke_phase1.py",
+    "code": 1,
+    "seconds": 4,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_smoke_phase2.py",
+    "code": 1,
+    "seconds": 4.3,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_smoke_phase3.py",
+    "code": 1,
+    "seconds": 4.6,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_solid_backup_localization.py",
+    "code": 0,
+    "seconds": 5,
+    "ran": [
+      "3"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_solid_edit_tools.py",
+    "code": 0,
+    "seconds": 5.5,
+    "ran": [
+      "16"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_stepped_frame_support.py",
+    "code": 0,
+    "seconds": 4.8,
+    "ran": [
+      "4"
+    ],
+    "skipped": [
+      "1"
+    ]
+  },
+  {
+    "name": "test_transforms_extrude.py",
+    "code": 0,
+    "seconds": 5.3,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_stress_phases0_3.py",
+    "code": 1,
+    "seconds": 14.3,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_user_mesh_0812.py",
+    "code": 0,
+    "seconds": 6.6,
+    "ran": [
+      "3"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_verify_bug_and_fix.py",
+    "code": 0,
+    "seconds": 4.5,
+    "ran": [],
+    "skipped": []
+  },
+  {
+    "name": "test_whole_region_material.py",
+    "code": 0,
+    "seconds": 14.2,
+    "ran": [
+      "5"
+    ],
+    "skipped": []
+  }
+]

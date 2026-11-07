@@ -1,0 +1,12 @@
+[
+  {
+    "suite": "test_frame_regions.py",
+    "exit_code": 0,
+    "seconds": 12.89
+  },
+  {
+    "suite": "test_release_state.py",
+    "exit_code": 0,
+    "seconds": 4.95
+  }
+]

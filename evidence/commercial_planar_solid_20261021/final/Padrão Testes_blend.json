@@ -1,0 +1,240 @@
+[
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Padrão Testes.blend",
+    "case": "PLANE_X_ZERO",
+    "mode": "PLANE",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 26,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 13501967.359744359
+    },
+    "source_volume": 13501967.359744359,
+    "dimensions_mm": [
+      1106.9051513671875,
+      164.5146942138672,
+      192.72390747070312
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 6718063.042549798,
+        "faces": 726
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 6783899.761767907,
+        "faces": 742
+      }
+    ],
+    "sum_volume": 13501962.804317705,
+    "measured_plane_gap_mm": 0.0,
+    "revert": "pass",
+    "seconds": 0.681
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Padrão Testes.blend",
+    "case": "PLANE_Z_FDM_PINS",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": true,
+    "status": "pass",
+    "import_mesh_objects": 26,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 13501967.359744359
+    },
+    "source_volume": 13501967.359744359,
+    "dimensions_mm": [
+      1106.9051513671875,
+      164.5146942138672,
+      192.72390747070312
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 5594552.293734464,
+        "faces": 918
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 7899122.048020509,
+        "faces": 709
+      }
+    ],
+    "sum_volume": 13493674.341754973,
+    "manual_file": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_planar_solid_20261021\\final\\manual\\Padrão Testes_blend_planar_pins.blend",
+    "revert": "pass",
+    "seconds": 1.361
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Padrão Testes.blend",
+    "case": "PLANE_X_FDM",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 26,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 13501967.359744359
+    },
+    "source_volume": 13501967.359744359,
+    "dimensions_mm": [
+      1106.9051513671875,
+      164.5146942138672,
+      192.72390747070312
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 6715313.031138568,
+        "faces": 726
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 6783899.761767907,
+        "faces": 742
+      }
+    ],
+    "sum_volume": 13499212.792906474,
+    "measured_plane_gap_mm": 0.09999994755733412,
+    "revert": "pass",
+    "seconds": 0.732
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Padrão Testes.blend",
+    "case": "PLANE_DIAGONAL_ZERO",
+    "mode": "PLANE",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 26,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 13501967.359744359
+    },
+    "source_volume": 13501967.359744359,
+    "dimensions_mm": [
+      1106.9051513671875,
+      164.5146942138672,
+      192.72390747070312
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 8628359.355679354,
+        "faces": 990
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 4873608.026848728,
+        "faces": 471
+      }
+    ],
+    "sum_volume": 13501967.382528082,
+    "measured_plane_gap_mm": 0.0,
+    "revert": "pass",
+    "seconds": 0.651
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Padrão Testes.blend",
+    "case": "SOLID_CORNER_ZERO",
+    "mode": "SOLID",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 26,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 13501967.359744359
+    },
+    "source_volume": 13501967.359744359,
+    "dimensions_mm": [
+      1106.9051513671875,
+      164.5146942138672,
+      192.72390747070312
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 8016161.834343787,
+        "faces": 946
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 5485673.0869366,
+        "faces": 513
+      }
+    ],
+    "sum_volume": 13501834.921280388,
+    "revert": "pass",
+    "seconds": 1.752
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Padrão Testes.blend",
+    "case": "SOLID_CORNER_FDM",
+    "mode": "SOLID",
+    "gap": 0.1,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 26,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 13501967.359744359
+    },
+    "source_volume": 13501967.359744359,
+    "dimensions_mm": [
+      1106.9051513671875,
+      164.5146942138672,
+      192.72390747070312
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 8013455.280185218,
+        "faces": 946
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 5485673.0869366,
+        "faces": 513
+      }
+    ],
+    "sum_volume": 13499128.367121818,
+    "revert": "pass",
+    "seconds": 0.858
+  }
+]

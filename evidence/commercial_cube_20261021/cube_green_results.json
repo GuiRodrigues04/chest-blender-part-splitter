@@ -1,0 +1,1657 @@
+[
+  {
+    "case": "inventory:Cubo Teste",
+    "status": "PASS",
+    "hidden": false,
+    "green_material": "Funciona",
+    "regions": [
+      {
+        "region": 0,
+        "faces": 20,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 7.473405123914478e-06,
+        "err": null
+      },
+      {
+        "region": 1,
+        "faces": 16,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 1.9400848982886743e-08,
+        "err": null
+      },
+      {
+        "region": 2,
+        "faces": 146,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 4.045508905647921e-05,
+        "err": null
+      },
+      {
+        "region": 3,
+        "faces": 15,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 7.481298604922193e-06,
+        "err": null
+      },
+      {
+        "region": 4,
+        "faces": 16,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 1.9400848982886743e-08,
+        "err": null
+      },
+      {
+        "region": 5,
+        "faces": 12,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 2.9101273474330114e-08,
+        "err": null
+      },
+      {
+        "region": 6,
+        "faces": 76,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 7.93970827972501e-06,
+        "err": null
+      },
+      {
+        "region": 7,
+        "faces": 1,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 7.760340980933478e-08,
+        "err": null
+      },
+      {
+        "region": 8,
+        "faces": 9,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 7.472137094829967e-06,
+        "err": null
+      },
+      {
+        "region": 9,
+        "faces": 3,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 7.528183992855375e-06,
+        "err": null
+      }
+    ]
+  },
+  {
+    "case": "inventory:Cubo Teste 2",
+    "status": "PASS",
+    "hidden": true,
+    "green_material": "Funciona",
+    "regions": [
+      {
+        "region": 0,
+        "faces": 14,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 10.795369162224233,
+        "err": null
+      },
+      {
+        "region": 1,
+        "faces": 113,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 0.16034760116310706,
+        "err": null
+      },
+      {
+        "region": 2,
+        "faces": 12,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 1.8642270006239414,
+        "err": null
+      },
+      {
+        "region": 3,
+        "faces": 12,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 18.106164236087352,
+        "err": null
+      }
+    ]
+  },
+  {
+    "case": "inventory:Cube.001__B__A",
+    "status": "PASS",
+    "hidden": false,
+    "green_material": "Funciona",
+    "regions": [
+      {
+        "region": 0,
+        "faces": 127,
+        "valid": false,
+        "type": null,
+        "deviation_mm": null,
+        "err": "Todas as faces do modelo já utilizam este material."
+      }
+    ]
+  },
+  {
+    "case": "inventory:Cubo Teste 2__B",
+    "status": "PASS",
+    "hidden": false,
+    "green_material": "Funciona",
+    "regions": [
+      {
+        "region": 0,
+        "faces": 14,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 10.795369162224233,
+        "err": null
+      },
+      {
+        "region": 1,
+        "faces": 116,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 0.16035254517630676,
+        "err": null
+      },
+      {
+        "region": 2,
+        "faces": 12,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 1.8642270006239414,
+        "err": null
+      },
+      {
+        "region": 3,
+        "faces": 12,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 18.74094901722856,
+        "err": null
+      },
+      {
+        "region": 4,
+        "faces": 74,
+        "valid": true,
+        "type": "SURFACE_PATCH",
+        "deviation_mm": 12.774025555700064,
+        "err": null
+      }
+    ]
+  },
+  {
+    "case": "material:Cubo Teste:region0:extrude:none",
+    "status": "PASS",
+    "faces": 20,
+    "A": {
+      "verts": 110,
+      "faces": 148,
+      "volume_mm3": 16915.648412076433,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 108,
+        "2": 40
+      }
+    },
+    "B": {
+      "verts": 759,
+      "faces": 1442,
+      "volume_mm3": 4579868.556420902,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 824,
+        "1": 6,
+        "2": 612
+      }
+    },
+    "volume_sum": 4596784.204832979,
+    "iface": {
+      "clearance": false,
+      "area": 8457.838332619605
+    }
+  },
+  {
+    "case": "material:Cubo Teste:region1:extrude:none",
+    "status": "PASS",
+    "faces": 16,
+    "A": {
+      "verts": 41,
+      "faces": 46,
+      "volume_mm3": 89783.01066377708,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 30,
+        "2": 16
+      }
+    },
+    "B": {
+      "verts": 698,
+      "faces": 669,
+      "volume_mm3": 4506975.078990739,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 368,
+        "1": 3,
+        "2": 298
+      }
+    },
+    "volume_sum": 4596758.0896545155,
+    "iface": {
+      "clearance": false,
+      "area": 6766.270858895363
+    }
+  },
+  {
+    "case": "material:Cubo Teste:region2:extrude:none",
+    "status": "PASS",
+    "faces": 146,
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 66277.15124381824,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 122,
+        "2": 146
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530480.938410716,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum": 4596758.089654534,
+    "iface": {
+      "clearance": false,
+      "area": 2541.4171279364004
+    }
+  },
+  {
+    "case": "material:Cubo Teste:region3:extrude:none",
+    "status": "PASS",
+    "faces": 15,
+    "A": {
+      "verts": 96,
+      "faces": 124,
+      "volume_mm3": 12686.736309022395,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 94,
+        "2": 30
+      }
+    },
+    "B": {
+      "verts": 755,
+      "faces": 1438,
+      "volume_mm3": 4584097.46852396,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 810,
+        "1": 6,
+        "2": 622
+      }
+    },
+    "volume_sum": 4596784.204832982,
+    "iface": {
+      "clearance": false,
+      "area": 6343.378727893385
+    }
+  },
+  {
+    "case": "material:Cubo Teste:region4:extrude:none",
+    "status": "PASS",
+    "faces": 16,
+    "A": {
+      "verts": 66,
+      "faces": 96,
+      "volume_mm3": 13532.518729623936,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 64,
+        "2": 32
+      }
+    },
+    "B": {
+      "verts": 723,
+      "faces": 1406,
+      "volume_mm3": 4583251.686103352,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 780,
+        "1": 6,
+        "2": 620
+      }
+    },
+    "volume_sum": 4596784.204832977,
+    "iface": {
+      "clearance": false,
+      "area": 6766.270858895363
+    }
+  },
+  {
+    "case": "material:Cubo Teste:region5:extrude:none",
+    "status": "PASS",
+    "faces": 12,
+    "A": {
+      "verts": 58,
+      "faces": 80,
+      "volume_mm3": 10149.389047217965,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 56,
+        "2": 24
+      }
+    },
+    "B": {
+      "verts": 723,
+      "faces": 1406,
+      "volume_mm3": 4586634.815785764,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 772,
+        "1": 6,
+        "2": 628
+      }
+    },
+    "volume_sum": 4596784.204832981,
+    "iface": {
+      "clearance": false,
+      "area": 5074.702824843501
+    }
+  },
+  {
+    "case": "material:Cubo Teste:region6:extrude:none",
+    "status": "PASS",
+    "faces": 76,
+    "A": {
+      "verts": 105,
+      "faces": 98,
+      "volume_mm3": 9669.682459694246,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 22,
+        "2": 76
+      }
+    },
+    "B": {
+      "verts": 622,
+      "faces": 601,
+      "volume_mm3": 4587088.407194831,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 360,
+        "1": 3,
+        "2": 238
+      }
+    },
+    "volume_sum": 4596758.089654526,
+    "iface": {
+      "clearance": false,
+      "area": 1480.1217886874201
+    }
+  },
+  {
+    "case": "material:Cubo Teste:region7:extrude:none",
+    "status": "PASS",
+    "faces": 1,
+    "A": {
+      "verts": 12,
+      "faces": 12,
+      "volume_mm3": 845.782420601498,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 10,
+        "2": 2
+      }
+    },
+    "B": {
+      "verts": 699,
+      "faces": 1382,
+      "volume_mm3": 4595938.422412394,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 726,
+        "1": 6,
+        "2": 650
+      }
+    },
+    "volume_sum": 4596784.204832995,
+    "iface": {
+      "clearance": false,
+      "area": 422.8919286809602
+    }
+  },
+  {
+    "case": "material:Cubo Teste:region8:extrude:none",
+    "status": "PASS",
+    "faces": 9,
+    "A": {
+      "verts": 64,
+      "faces": 80,
+      "volume_mm3": 7612.041785413419,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 62,
+        "2": 18
+      }
+    },
+    "B": {
+      "verts": 728,
+      "faces": 1406,
+      "volume_mm3": 4589172.1630475735,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 766,
+        "1": 6,
+        "2": 634
+      }
+    },
+    "volume_sum": 4596784.204832987,
+    "iface": {
+      "clearance": false,
+      "area": 3806.027487463309
+    }
+  },
+  {
+    "case": "material:Cubo Teste:region9:extrude:none",
+    "status": "PASS",
+    "faces": 3,
+    "A": {
+      "verts": 24,
+      "faces": 28,
+      "volume_mm3": 2537.347261804484,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 22,
+        "2": 6
+      }
+    },
+    "B": {
+      "verts": 707,
+      "faces": 1390,
+      "volume_mm3": 4594246.8575711865,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 738,
+        "1": 6,
+        "2": 646
+      }
+    },
+    "volume_sum": 4596784.204832991,
+    "iface": {
+      "clearance": false,
+      "area": 1268.6757860428804
+    }
+  },
+  {
+    "case": "material:Cubo Teste 2:region0:extrude:none",
+    "status": "PASS",
+    "faces": 14,
+    "A": {
+      "verts": 48,
+      "faces": 56,
+      "volume_mm3": 72736.53281353664,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 42,
+        "2": 14
+      }
+    },
+    "B": {
+      "verts": 942,
+      "faces": 828,
+      "volume_mm3": 4016260.877479293,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 691,
+        "2": 137
+      }
+    },
+    "volume_sum": 4088997.4102928294,
+    "iface": {
+      "clearance": false,
+      "area": 6205.500454504049
+    }
+  },
+  {
+    "case": "material:Cubo Teste 2:region1:extrude:none",
+    "status": "EXPECTED_REJECTION",
+    "faces": 113,
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "trace": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_cube_20261021.py\", line 65, in <module>\n    result=slice_mesh_by_material(o,2,depth_mm=2,scene=bpy.context.scene,region_index=r['index'],extraction_mode='EXTRUDE',part_clearance_mm=0.0)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_material.py\", line 763, in slice_mesh_by_material\n    return _slice_mesh_by_material(**args)\nsrc.localized_errors.LocalizedGeometryError: The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth.\n"
+  },
+  {
+    "case": "material:Cubo Teste 2:region2:extrude:none",
+    "status": "PASS",
+    "faces": 12,
+    "A": {
+      "verts": 34,
+      "faces": 38,
+      "volume_mm3": 2220.4458861578087,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 26,
+        "2": 12
+      }
+    },
+    "B": {
+      "verts": 932,
+      "faces": 814,
+      "volume_mm3": 4086776.9644066626,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 675,
+        "2": 139
+      }
+    },
+    "volume_sum": 4088997.4102928205,
+    "iface": {
+      "clearance": false,
+      "area": 1058.5229211263747
+    }
+  },
+  {
+    "case": "material:Cubo Teste 2:region3:extrude:none",
+    "status": "PASS",
+    "faces": 12,
+    "A": {
+      "verts": 52,
+      "faces": 62,
+      "volume_mm3": 5680.985414629822,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 50,
+        "2": 12
+      }
+    },
+    "B": {
+      "verts": 950,
+      "faces": 838,
+      "volume_mm3": 4083316.4248781917,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 699,
+        "2": 139
+      }
+    },
+    "volume_sum": 4088997.4102928215,
+    "iface": {
+      "clearance": false,
+      "area": 881.9966010936087
+    }
+  },
+  {
+    "case": "material:Cube.001__B__A:region0:extrude:none",
+    "status": "EXPECTED_REJECTION",
+    "faces": 127,
+    "error": "ValueError('Todas as faces do modelo já utilizam este material.')",
+    "trace": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_cube_20261021.py\", line 65, in <module>\n    result=slice_mesh_by_material(o,2,depth_mm=2,scene=bpy.context.scene,region_index=r['index'],extraction_mode='EXTRUDE',part_clearance_mm=0.0)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_material.py\", line 763, in slice_mesh_by_material\n    return _slice_mesh_by_material(**args)\nValueError: Todas as faces do modelo já utilizam este material.\n"
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region0:extrude:none",
+    "status": "PASS",
+    "faces": 14,
+    "A": {
+      "verts": 48,
+      "faces": 56,
+      "volume_mm3": 72736.53281353664,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 42,
+        "2": 14
+      }
+    },
+    "B": {
+      "verts": 1452,
+      "faces": 1374,
+      "volume_mm3": 3739939.5813462404,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 1160,
+        "2": 214
+      }
+    },
+    "volume_sum": 3812676.114159777,
+    "iface": {
+      "clearance": false,
+      "area": 6205.500454504049
+    }
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region1:extrude:none",
+    "status": "EXPECTED_REJECTION",
+    "faces": 116,
+    "error": "LocalizedGeometryError('geometry.depth_region_overhang')",
+    "trace": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_cube_20261021.py\", line 65, in <module>\n    result=slice_mesh_by_material(o,2,depth_mm=2,scene=bpy.context.scene,region_index=r['index'],extraction_mode='EXTRUDE',part_clearance_mm=0.0)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_material.py\", line 763, in slice_mesh_by_material\n    return _slice_mesh_by_material(**args)\nsrc.localized_errors.LocalizedGeometryError: The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth.\n"
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region2:extrude:none",
+    "status": "PASS",
+    "faces": 12,
+    "A": {
+      "verts": 34,
+      "faces": 38,
+      "volume_mm3": 2220.4458861578087,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 26,
+        "2": 12
+      }
+    },
+    "B": {
+      "verts": 1442,
+      "faces": 1360,
+      "volume_mm3": 3810455.6682736236,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 1144,
+        "2": 216
+      }
+    },
+    "volume_sum": 3812676.1141597815,
+    "iface": {
+      "clearance": false,
+      "area": 1058.5229211263747
+    }
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region3:extrude:none",
+    "status": "PASS",
+    "faces": 12,
+    "A": {
+      "verts": 58,
+      "faces": 68,
+      "volume_mm3": 5680.986407698055,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 56,
+        "2": 12
+      }
+    },
+    "B": {
+      "verts": 1463,
+      "faces": 1390,
+      "volume_mm3": 3806995.1277520754,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 1174,
+        "2": 216
+      }
+    },
+    "volume_sum": 3812676.1141597736,
+    "iface": {
+      "clearance": false,
+      "area": 881.9966938638868
+    }
+  },
+  {
+    "case": "material:Cubo Teste 2__B:region4:extrude:none",
+    "status": "PASS",
+    "faces": 74,
+    "A": {
+      "verts": 104,
+      "faces": 160,
+      "volume_mm3": 14248.159709470296,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 86,
+        "2": 74
+      }
+    },
+    "B": {
+      "verts": 1462,
+      "faces": 1358,
+      "volume_mm3": 3798427.95445031,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 1204,
+        "2": 154
+      }
+    },
+    "volume_sum": 3812676.1141597806,
+    "iface": {
+      "clearance": false,
+      "area": 1566.8280772604226
+    }
+  },
+  {
+    "case": "material:Cubo Teste:region2:gap0.0:PART:bottom0.0",
+    "status": "PASS",
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 66277.15124381824,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 122,
+        "2": 146
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530480.938410716,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum_mm3": 4596758.089654534,
+    "requested_gap_mm": 0.0,
+    "apply": "PART",
+    "bottom_mm": 0.0,
+    "measured_contact_gap": null,
+    "interface_clearance_applied": false
+  },
+  {
+    "case": "material:Cubo Teste:region2:gap0.1:PART:bottom0.1",
+    "status": "PASS",
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 65993.5550914147,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 122,
+        "2": 146
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530480.938410716,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum_mm3": 4596474.493502131,
+    "requested_gap_mm": 0.1,
+    "apply": "PART",
+    "bottom_mm": 0.1,
+    "measured_contact_gap": {
+      "count": 62,
+      "min_mm": 0.0999942421913147,
+      "mean_mm": 0.0999942421913147,
+      "max_mm": 0.0999942421913147
+    },
+    "interface_clearance_applied": true
+  },
+  {
+    "case": "material:Cubo Teste:region2:gap0.1:CAVITY:bottom0.1",
+    "status": "PASS",
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 66277.15124381824,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 122,
+        "2": 146
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530194.179475311,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum_mm3": 4596471.330719129,
+    "requested_gap_mm": 0.1,
+    "apply": "CAVITY",
+    "bottom_mm": 0.1,
+    "measured_contact_gap": {
+      "count": 62,
+      "min_mm": 0.10000169277191162,
+      "mean_mm": 0.10000169277191162,
+      "max_mm": 0.10000169277191162
+    },
+    "interface_clearance_applied": true
+  },
+  {
+    "case": "material:Cubo Teste:region2:gap0.1:BOTH:bottom0.1",
+    "status": "PASS",
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 66134.9699117623,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 122,
+        "2": 146
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530337.952205396,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum_mm3": 4596472.922117159,
+    "requested_gap_mm": 0.1,
+    "apply": "BOTH",
+    "bottom_mm": 0.1,
+    "measured_contact_gap": {
+      "count": 62,
+      "min_mm": 0.0999942421913147,
+      "mean_mm": 0.0999942421913147,
+      "max_mm": 0.0999942421913147
+    },
+    "interface_clearance_applied": true
+  },
+  {
+    "case": "material:Cubo Teste:region2:gap0.1:BOTH:bottom0.2",
+    "status": "PASS",
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 66008.28478108255,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 122,
+        "2": 146
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530210.491056883,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum_mm3": 4596218.775837965,
+    "requested_gap_mm": 0.1,
+    "apply": "BOTH",
+    "bottom_mm": 0.2,
+    "measured_contact_gap": {
+      "count": 62,
+      "min_mm": 0.19999593496322632,
+      "mean_mm": 0.19999593496322632,
+      "max_mm": 0.19999593496322632
+    },
+    "interface_clearance_applied": true
+  },
+  {
+    "case": "loop:capture-real-green-island",
+    "status": "PASS",
+    "target": "Cubo Teste",
+    "region": 2,
+    "faces": 146,
+    "capture": {
+      "op": [
+        "FINISHED"
+      ],
+      "is_captured": true,
+      "count": 62,
+      "seed": 13,
+      "indices": [
+        521,
+        22,
+        551,
+        500,
+        529,
+        180,
+        554,
+        503,
+        532,
+        326,
+        553,
+        502,
+        531,
+        549,
+        498,
+        527,
+        690,
+        629,
+        630,
+        678,
+        641,
+        661,
+        681,
+        649,
+        669,
+        660,
+        640,
+        648,
+        645,
+        632,
+        651,
+        679,
+        654,
+        631,
+        639,
+        638,
+        688,
+        672,
+        628,
+        652,
+        677,
+        671,
+        633,
+        666,
+        682,
+        687,
+        535,
+        506,
+        557,
+        556,
+        505,
+        534,
+        232,
+        559,
+        508,
+        537,
+        334,
+        558,
+        507,
+        536,
+        543,
+        492
+      ]
+    },
+    "source_selection_preserved": true
+  },
+  {
+    "case": "loop-direct:region2:gap0.0:PART:bottom0.0",
+    "status": "PASS",
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 66277.15124381824,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "2": 268
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530480.938410716,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum_mm3": 4596758.089654534,
+    "requested_gap_mm": 0.0,
+    "apply": "PART",
+    "bottom_mm": 0.0,
+    "measured_contact_gap": null,
+    "interface_clearance_applied": false
+  },
+  {
+    "case": "loop-direct:region2:gap0.1:PART:bottom0.1",
+    "status": "PASS",
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 65993.5550914147,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "2": 268
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530480.938410716,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum_mm3": 4596474.493502131,
+    "requested_gap_mm": 0.1,
+    "apply": "PART",
+    "bottom_mm": 0.1,
+    "measured_contact_gap": {
+      "count": 62,
+      "min_mm": 0.0999942421913147,
+      "mean_mm": 0.0999942421913147,
+      "max_mm": 0.0999942421913147
+    },
+    "interface_clearance_applied": true
+  },
+  {
+    "case": "loop-direct:region2:gap0.1:CAVITY:bottom0.1",
+    "status": "PASS",
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 66277.15124381824,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "2": 268
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530194.179475311,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum_mm3": 4596471.330719129,
+    "requested_gap_mm": 0.1,
+    "apply": "CAVITY",
+    "bottom_mm": 0.1,
+    "measured_contact_gap": {
+      "count": 62,
+      "min_mm": 0.10000169277191162,
+      "mean_mm": 0.10000169277191162,
+      "max_mm": 0.10000169277191162
+    },
+    "interface_clearance_applied": true
+  },
+  {
+    "case": "loop-direct:region2:gap0.1:BOTH:bottom0.1",
+    "status": "PASS",
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 66134.9699117623,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "2": 268
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530337.952205396,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum_mm3": 4596472.922117159,
+    "requested_gap_mm": 0.1,
+    "apply": "BOTH",
+    "bottom_mm": 0.1,
+    "measured_contact_gap": {
+      "count": 62,
+      "min_mm": 0.0999942421913147,
+      "mean_mm": 0.0999942421913147,
+      "max_mm": 0.0999942421913147
+    },
+    "interface_clearance_applied": true
+  },
+  {
+    "case": "loop-direct:region2:gap0.1:BOTH:bottom0.2",
+    "status": "PASS",
+    "A": {
+      "verts": 242,
+      "faces": 268,
+      "volume_mm3": 66008.28478108255,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "2": 268
+      }
+    },
+    "B": {
+      "verts": 635,
+      "faces": 631,
+      "volume_mm3": 4530210.491056883,
+      "closed": true,
+      "valid": true,
+      "degenerate": 0,
+      "nonmanifold": 0,
+      "material_counts": {
+        "0": 460,
+        "1": 3,
+        "2": 168
+      }
+    },
+    "volume_sum_mm3": 4596218.775837965,
+    "requested_gap_mm": 0.1,
+    "apply": "BOTH",
+    "bottom_mm": 0.2,
+    "measured_contact_gap": {
+      "count": 62,
+      "min_mm": 0.19999593496322632,
+      "mean_mm": 0.19999593496322632,
+      "max_mm": 0.19999593496322632
+    },
+    "interface_clearance_applied": true
+  },
+  {
+    "case": "loop:2:gap0.0:PART:bottom0.0",
+    "status": "PASS",
+    "operator": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "verts": 242,
+        "faces": 268,
+        "volume_mm3": 66277.15124381824,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "2": 268
+        }
+      },
+      {
+        "verts": 635,
+        "faces": 631,
+        "volume_mm3": 4530480.938410716,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "0": 460,
+          "1": 3,
+          "2": 168
+        }
+      }
+    ],
+    "selected_preserved": true,
+    "gap_requested_mm": 0.0,
+    "profile": "NONE",
+    "bottom_enable": false,
+    "apply": "PART",
+    "bottom": 0.0
+  },
+  {
+    "case": "loop:2:gap0.0:PART:bottom0.0:commit-revert",
+    "status": "PASS",
+    "commit": [
+      "FINISHED"
+    ],
+    "revert": [
+      "FINISHED"
+    ],
+    "source_restored": true,
+    "mesh_datablock_identity_preserved": false
+  },
+  {
+    "case": "loop:2:gap0.1:PART:bottom0.1",
+    "status": "PASS",
+    "operator": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "verts": 242,
+        "faces": 268,
+        "volume_mm3": 65993.55509115398,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "2": 268
+        }
+      },
+      {
+        "verts": 635,
+        "faces": 631,
+        "volume_mm3": 4530480.938410716,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "0": 460,
+          "1": 3,
+          "2": 168
+        }
+      }
+    ],
+    "selected_preserved": true,
+    "gap_requested_mm": 0.1,
+    "profile": "FDM",
+    "bottom_enable": false,
+    "apply": "PART",
+    "bottom": 0.1
+  },
+  {
+    "case": "loop:2:gap0.1:PART:bottom0.1:commit-revert",
+    "status": "PASS",
+    "commit": [
+      "FINISHED"
+    ],
+    "revert": [
+      "FINISHED"
+    ],
+    "source_restored": true,
+    "mesh_datablock_identity_preserved": false
+  },
+  {
+    "case": "loop:2:gap0.1:CAVITY:bottom0.1",
+    "status": "PASS",
+    "operator": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "verts": 242,
+        "faces": 268,
+        "volume_mm3": 66277.15124381824,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "2": 268
+        }
+      },
+      {
+        "verts": 635,
+        "faces": 631,
+        "volume_mm3": 4530194.1794750225,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "0": 460,
+          "1": 3,
+          "2": 168
+        }
+      }
+    ],
+    "selected_preserved": true,
+    "gap_requested_mm": 0.1,
+    "profile": "FDM",
+    "bottom_enable": false,
+    "apply": "CAVITY",
+    "bottom": 0.1
+  },
+  {
+    "case": "loop:2:gap0.1:CAVITY:bottom0.1:commit-revert",
+    "status": "PASS",
+    "commit": [
+      "FINISHED"
+    ],
+    "revert": [
+      "FINISHED"
+    ],
+    "source_restored": true,
+    "mesh_datablock_identity_preserved": false
+  },
+  {
+    "case": "loop:2:gap0.1:BOTH:bottom0.1",
+    "status": "PASS",
+    "operator": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "verts": 242,
+        "faces": 268,
+        "volume_mm3": 66134.96991162853,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "2": 268
+        }
+      },
+      {
+        "verts": 635,
+        "faces": 631,
+        "volume_mm3": 4530337.9522052575,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "0": 460,
+          "1": 3,
+          "2": 168
+        }
+      }
+    ],
+    "selected_preserved": true,
+    "gap_requested_mm": 0.1,
+    "profile": "FDM",
+    "bottom_enable": false,
+    "apply": "BOTH",
+    "bottom": 0.1
+  },
+  {
+    "case": "loop:2:gap0.1:BOTH:bottom0.1:commit-revert",
+    "status": "PASS",
+    "commit": [
+      "FINISHED"
+    ],
+    "revert": [
+      "FINISHED"
+    ],
+    "source_restored": true,
+    "mesh_datablock_identity_preserved": false
+  },
+  {
+    "case": "loop:2:gap0.1:BOTH:bottom0.2",
+    "status": "PASS",
+    "operator": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "verts": 242,
+        "faces": 268,
+        "volume_mm3": 66008.28478095225,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "2": 268
+        }
+      },
+      {
+        "verts": 635,
+        "faces": 631,
+        "volume_mm3": 4530210.4910567375,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "0": 460,
+          "1": 3,
+          "2": 168
+        }
+      }
+    ],
+    "selected_preserved": true,
+    "gap_requested_mm": 0.1,
+    "profile": "CUSTOM",
+    "bottom_enable": true,
+    "apply": "BOTH",
+    "bottom": 0.2
+  },
+  {
+    "case": "loop:2:gap0.1:BOTH:bottom0.2:commit-revert",
+    "status": "PASS",
+    "commit": [
+      "FINISHED"
+    ],
+    "revert": [
+      "FINISHED"
+    ],
+    "source_restored": true,
+    "mesh_datablock_identity_preserved": false
+  },
+  {
+    "case": "loop:green-island:center-pin-fdm",
+    "status": "PASS",
+    "operator": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "verts": 340,
+        "faces": 335,
+        "volume_mm3": 66023.42217989381,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "2": 335
+        }
+      },
+      {
+        "verts": 701,
+        "faces": 664,
+        "volume_mm3": 4530311.607988799,
+        "closed": true,
+        "valid": true,
+        "degenerate": 0,
+        "nonmanifold": 0,
+        "material_counts": {
+          "0": 493,
+          "1": 3,
+          "2": 168
+        }
+      }
+    ],
+    "pin_objects": 0,
+    "connector_type": "CYLINDER",
+    "distribution": "CENTER",
+    "diameter_setting_mm": 3.0,
+    "length_setting_mm": 3.0,
+    "radial_clearance_setting_mm": 0.15000000596046448,
+    "end_clearance_setting_mm": 0.20000000298023224,
+    "pin_geometry_measured": {
+      "positions": 1,
+      "sampled_rays": 32,
+      "male_radius_mm": {
+        "min": 1.497362987697606,
+        "mean": 1.497363567969486,
+        "max": 1.497364268926394
+      },
+      "female_bore_radius_mm": {
+        "min": 1.6470994523800861,
+        "mean": 1.6470997996829175,
+        "max": 1.6471003561425281
+      },
+      "radial_clearance_mm": {
+        "min": 0.14973529561516785,
+        "mean": 0.14973623171343126,
+        "max": 0.14973698407617086
+      },
+      "male_tip_s_mm": 2.99999862909317,
+      "female_floor_s_mm": 3.2000020146369934,
+      "axial_clearance_mm": 0.20000338554382324
+    }
+  }
+]

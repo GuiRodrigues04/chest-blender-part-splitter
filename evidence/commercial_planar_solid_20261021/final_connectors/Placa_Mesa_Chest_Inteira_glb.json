@@ -1,0 +1,43 @@
+[
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Placa_Mesa_Chest_Inteira.glb",
+    "case": "PLANE_Z_FDM_PINS",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": true,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 400,
+      "is_manifold": false,
+      "volume_mm3": 360000.0116229055
+    },
+    "repair_result": "{'FINISHED'}",
+    "source_volume": 360000.0116229055,
+    "dimensions_mm": [
+      180.0,
+      46.0,
+      80.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 255161.77847591846,
+        "faces": 235
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 104382.66640213823,
+        "faces": 208
+      }
+    ],
+    "sum_volume": 359544.4448780567,
+    "manual_file": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_planar_solid_20261021\\final_connectors\\manual\\Placa_Mesa_Chest_Inteira_glb_planar_pins.blend",
+    "revert": "pass",
+    "seconds": 1.622
+  }
+]

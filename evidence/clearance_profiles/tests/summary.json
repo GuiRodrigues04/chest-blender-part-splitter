@@ -1,0 +1,17 @@
+[
+  {
+    "suite": "test_clearance_profiles.py",
+    "exit_code": 0,
+    "seconds": 6.65
+  },
+  {
+    "suite": "test_release_interface.py",
+    "exit_code": 0,
+    "seconds": 4.75
+  },
+  {
+    "suite": "test_release_state.py",
+    "exit_code": 0,
+    "seconds": 4.86
+  }
+]

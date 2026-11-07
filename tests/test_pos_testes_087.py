@@ -362,7 +362,7 @@ class TestPosTestes087(unittest.TestCase):
                 part_clearance_mm=25.0,
                 scene=self.scene,
             )
-        self.assertIn("excede ou elimina a altura útil", str(ctx.exception))
+        self.assertEqual(ctx.exception.payload['__splitter_message__'], 'geometry.clearance_excessive')
 
     def test_r08_unilateral_vs_bilateral_clearance_and_signature(self):
         """R08: Aplicações PART, CAVITY e BOTH produzem alívios físicos corretos e atualizam assinatura."""

@@ -1,0 +1,112 @@
+[
+  {
+    "suite": "test_commercial_audit_fixes_20261021.py",
+    "exit_code": 0,
+    "seconds": 8.25
+  },
+  {
+    "suite": "test_release_state.py",
+    "exit_code": 0,
+    "seconds": 8.52
+  },
+  {
+    "suite": "test_release_geometry.py",
+    "exit_code": 0,
+    "seconds": 12.81
+  },
+  {
+    "suite": "test_release_depth_guard.py",
+    "exit_code": 0,
+    "seconds": 7.13
+  },
+  {
+    "suite": "test_release_depth_region.py",
+    "exit_code": 0,
+    "seconds": 11.25
+  },
+  {
+    "suite": "test_release_material_patch.py",
+    "exit_code": 0,
+    "seconds": 6.68
+  },
+  {
+    "suite": "test_release_connector_frames.py",
+    "exit_code": 0,
+    "seconds": 9.61
+  },
+  {
+    "suite": "test_release_workflows.py",
+    "exit_code": 0,
+    "seconds": 43.08
+  },
+  {
+    "suite": "test_release_interface.py",
+    "exit_code": 0,
+    "seconds": 8.59
+  },
+  {
+    "suite": "test_frame_regions.py",
+    "exit_code": 0,
+    "seconds": 32.08
+  },
+  {
+    "suite": "test_stepped_frame_support.py",
+    "exit_code": 0,
+    "seconds": 29.7
+  },
+  {
+    "suite": "test_microface_repair.py",
+    "exit_code": 0,
+    "seconds": 27.79
+  },
+  {
+    "suite": "test_safe_mesh_repair.py",
+    "exit_code": 0,
+    "seconds": 8.65
+  },
+  {
+    "suite": "test_material_region_connectivity.py",
+    "exit_code": 0,
+    "seconds": 8.8
+  },
+  {
+    "suite": "test_qr_boolean_wires.py",
+    "exit_code": 0,
+    "seconds": 16.33
+  },
+  {
+    "suite": "test_clearance_profiles.py",
+    "exit_code": 0,
+    "seconds": 5.96
+  },
+  {
+    "suite": "test_connector_clearance_slivers.py",
+    "exit_code": 0,
+    "seconds": 7.91
+  },
+  {
+    "suite": "test_loop_capture_selection_gaps.py",
+    "exit_code": 0,
+    "seconds": 4.48
+  },
+  {
+    "suite": "test_loop_cut_plate_bone.py",
+    "exit_code": 0,
+    "seconds": 4.64
+  },
+  {
+    "suite": "test_plane_create_on_delete.py",
+    "exit_code": 0,
+    "seconds": 3.44
+  },
+  {
+    "suite": "test_manual_connectors_workflow.py",
+    "exit_code": 0,
+    "seconds": 4.51
+  },
+  {
+    "suite": "test_material_manual_connectors_bugfix.py",
+    "exit_code": 0,
+    "seconds": 3.57
+  }
+]

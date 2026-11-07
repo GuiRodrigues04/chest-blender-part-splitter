@@ -1,0 +1,209 @@
+[
+  {
+    "apply_to": "PART",
+    "clearance_mm": 0.0,
+    "sections": [
+      {
+        "side": "A",
+        "widths_mm": {
+          "-2.0": 20.0,
+          "0.0": 20.0,
+          "3.0": 20.0
+        },
+        "manifold": true
+      },
+      {
+        "side": "B",
+        "widths_mm": {
+          "-2.0": 20.0,
+          "0.0": 20.0
+        },
+        "manifold": true
+      }
+    ]
+  },
+  {
+    "apply_to": "PART",
+    "clearance_mm": 0.1,
+    "sections": [
+      {
+        "side": "A",
+        "widths_mm": {
+          "-1.9": 19.8,
+          "0.0": 20.0,
+          "3.0": 20.0
+        },
+        "manifold": true
+      },
+      {
+        "side": "B",
+        "widths_mm": {
+          "-2.0": 20.0,
+          "0.0": 20.0
+        },
+        "manifold": true
+      }
+    ]
+  },
+  {
+    "apply_to": "PART",
+    "clearance_mm": 1.0,
+    "sections": [
+      {
+        "side": "A",
+        "widths_mm": {
+          "-1.0": 18.0,
+          "0.0": 20.0,
+          "3.0": 20.0
+        },
+        "manifold": true
+      },
+      {
+        "side": "B",
+        "widths_mm": {
+          "-2.0": 20.0,
+          "0.0": 20.0
+        },
+        "manifold": true
+      }
+    ]
+  },
+  {
+    "apply_to": "CAVITY",
+    "clearance_mm": 0.0,
+    "sections": [
+      {
+        "side": "A",
+        "widths_mm": {
+          "-2.0": 20.0,
+          "0.0": 20.0,
+          "3.0": 20.0
+        },
+        "manifold": true
+      },
+      {
+        "side": "B",
+        "widths_mm": {
+          "-2.0": 20.0,
+          "0.0": 20.0
+        },
+        "manifold": true
+      }
+    ]
+  },
+  {
+    "apply_to": "CAVITY",
+    "clearance_mm": 0.1,
+    "sections": [
+      {
+        "side": "A",
+        "widths_mm": {
+          "-2.0": 20.0,
+          "0.0": 20.0,
+          "3.0": 20.0
+        },
+        "manifold": true
+      },
+      {
+        "side": "B",
+        "widths_mm": {
+          "-2.1": 20.2,
+          "0.0": 20.2
+        },
+        "manifold": true
+      }
+    ]
+  },
+  {
+    "apply_to": "CAVITY",
+    "clearance_mm": 1.0,
+    "sections": [
+      {
+        "side": "A",
+        "widths_mm": {
+          "-2.0": 20.0,
+          "0.0": 20.0,
+          "3.0": 20.0
+        },
+        "manifold": true
+      },
+      {
+        "side": "B",
+        "widths_mm": {
+          "-3.0": 22.0,
+          "0.0": 22.0
+        },
+        "manifold": true
+      }
+    ]
+  },
+  {
+    "apply_to": "BOTH",
+    "clearance_mm": 0.0,
+    "sections": [
+      {
+        "side": "A",
+        "widths_mm": {
+          "-2.0": 20.0,
+          "0.0": 20.0,
+          "3.0": 20.0
+        },
+        "manifold": true
+      },
+      {
+        "side": "B",
+        "widths_mm": {
+          "-2.0": 20.0,
+          "0.0": 20.0
+        },
+        "manifold": true
+      }
+    ]
+  },
+  {
+    "apply_to": "BOTH",
+    "clearance_mm": 0.1,
+    "sections": [
+      {
+        "side": "A",
+        "widths_mm": {
+          "-1.95": 19.9,
+          "0.0": 20.0,
+          "3.0": 20.0
+        },
+        "manifold": true
+      },
+      {
+        "side": "B",
+        "widths_mm": {
+          "-2.05": 20.1,
+          "0.0": 20.1
+        },
+        "manifold": true
+      }
+    ]
+  },
+  {
+    "apply_to": "BOTH",
+    "clearance_mm": 1.0,
+    "sections": [
+      {
+        "side": "A",
+        "widths_mm": {
+          "-1.5": 19.0,
+          "0.0": 20.0,
+          "3.0": 20.0
+        },
+        "manifold": true
+      },
+      {
+        "side": "B",
+        "widths_mm": {
+          "-2.5": 21.0,
+          "0.0": 21.0
+        },
+        "manifold": true
+      }
+    ]
+  }
+]

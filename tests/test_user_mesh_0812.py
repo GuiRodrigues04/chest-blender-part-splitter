@@ -41,8 +41,13 @@ class UserMesh0812(unittest.TestCase):
                     self.assertTrue(result.split_result.part_a_metrics['is_manifold'])
                     self.assertTrue(result.split_result.part_b_metrics['is_manifold'])
                 finally:result[0].free();result[1].free()
-    def test_nonplanar_critical_region_rejected(self):
-        with self.assertRaisesRegex(ValueError,'planar'):
-            gm.slice_mesh_by_material(self.obj,3,3,scene=bpy.context.scene,region_index=0)
+    def test_supported_nonplanar_critical_region_is_closed(self):
+        result=gm.slice_mesh_by_material(self.obj,3,3,scene=bpy.context.scene,region_index=0)
+        try:
+            for metrics in (result.split_result.part_a_metrics, result.split_result.part_b_metrics):
+                self.assertTrue(metrics['is_manifold'])
+                self.assertGreater(metrics['volume_mm3'], 0)
+        finally:
+            result[0].free();result[1].free()
 
 if __name__=='__main__':unittest.main(argv=[sys.argv[0]],verbosity=2)

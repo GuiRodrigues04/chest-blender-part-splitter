@@ -1,0 +1,42 @@
+[
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Osso_Chest_Inteira.blend",
+    "case": "PLANE_Z_FDM_PINS",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": true,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 69847.02891662325
+    },
+    "source_volume": 69847.02891662325,
+    "dimensions_mm": [
+      180.0,
+      7.0,
+      90.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 34841.59618492772,
+        "faces": 4493
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 34906.17483566597,
+        "faces": 4427
+      }
+    ],
+    "sum_volume": 69747.77102059369,
+    "manual_file": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_planar_solid_20261021\\final_connectors\\manual\\Placa_Osso_Chest_Inteira_blend_planar_pins.blend",
+    "revert": "pass",
+    "seconds": 2.466
+  }
+]

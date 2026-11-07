@@ -1,0 +1,526 @@
+[
+  {
+    "case": "full_relief_2mm/MATERIAL/depth=0.1",
+    "A": {
+      "min_mm": 9.900000877678394,
+      "max_mm": 12.000000104308128,
+      "span_mm": 2.099999226629734,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 33.5999908179034
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.000000707805157,
+      "span_mm": 10.000000707805157,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 998.400214907542
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      9.90000057220459
+    ],
+    "below_support_mm": 0.09999912232160568
+  },
+  {
+    "case": "full_relief_2mm/LOOP/depth=0.1",
+    "A": {
+      "min_mm": 9.900000877678394,
+      "max_mm": 12.000000104308128,
+      "span_mm": 2.099999226629734,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 33.5999908179034
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.000000707805157,
+      "span_mm": 10.000000707805157,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 998.400214907542
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      9.90000057220459
+    ],
+    "below_support_mm": 0.09999912232160568
+  },
+  {
+    "case": "full_relief_2mm/MATERIAL/depth=0.5",
+    "A": {
+      "min_mm": 9.50000062584877,
+      "max_mm": 12.000000104308128,
+      "span_mm": 2.499999478459358,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 39.99999545514516
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.000000707805157,
+      "span_mm": 10.000000707805157,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 992.0002102703004
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      9.500000953674316
+    ],
+    "below_support_mm": 0.49999937415122986
+  },
+  {
+    "case": "full_relief_2mm/LOOP/depth=0.5",
+    "A": {
+      "min_mm": 9.50000062584877,
+      "max_mm": 12.000000104308128,
+      "span_mm": 2.499999478459358,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 39.99999545514516
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.000000707805157,
+      "span_mm": 10.000000707805157,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 992.0002102703004
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      9.500000953674316
+    ],
+    "below_support_mm": 0.49999937415122986
+  },
+  {
+    "case": "full_relief_2mm/MATERIAL/depth=1.0",
+    "A": {
+      "min_mm": 9.000000543892384,
+      "max_mm": 12.000000104308128,
+      "span_mm": 2.999999560415745,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 47.99999752640667
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.000000707805157,
+      "span_mm": 10.000000707805157,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 984.0002081990391
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      9.000000953674316
+    ],
+    "below_support_mm": 0.9999994561076164
+  },
+  {
+    "case": "full_relief_2mm/LOOP/depth=1.0",
+    "A": {
+      "min_mm": 9.000000543892384,
+      "max_mm": 12.000000104308128,
+      "span_mm": 2.999999560415745,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 47.99999752640667
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.000000707805157,
+      "span_mm": 10.000000707805157,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 984.0002081990391
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      9.000000953674316
+    ],
+    "below_support_mm": 0.9999994561076164
+  },
+  {
+    "case": "full_relief_2mm/MATERIAL/BASE/ignored_depth=.1",
+    "A": {
+      "min_mm": 10.000000707805157,
+      "max_mm": 12.000000104308128,
+      "span_mm": 1.9999993965029716,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 31.999993383883595
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.000000707805157,
+      "span_mm": 10.000000707805157,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 1000.0002123415621
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      10.000000953674316
+    ],
+    "below_support_mm": -7.078051567077637e-07
+  },
+  {
+    "case": "full_relief_2mm/LOOP/DETACH/add_base_default=2",
+    "A": {
+      "min_mm": 8.00000037997961,
+      "max_mm": 12.000000104308128,
+      "span_mm": 3.999999724328518,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 64.00000166892977
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.000000707805157,
+      "span_mm": 10.000000707805157,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 968.0002040565159
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      8.0
+    ],
+    "below_support_mm": 1.9999996200203896
+  },
+  {
+    "case": "full_relief_2mm/MATERIAL/depth=.1/explicit_bottom=0",
+    "A": {
+      "min_mm": 9.900000877678394,
+      "max_mm": 12.000000104308128,
+      "span_mm": 2.099999226629734,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 33.5999908179034
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.000000707805157,
+      "span_mm": 10.000000707805157,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 998.400214907542
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      9.90000057220459
+    ],
+    "below_support_mm": 0.09999912232160568
+  },
+  {
+    "case": "full_relief_2mm/LOOP/depth=.1/explicit_bottom=0",
+    "A": {
+      "min_mm": 9.900000877678394,
+      "max_mm": 12.000000104308128,
+      "span_mm": 2.099999226629734,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 33.5999908179034
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.000000707805157,
+      "span_mm": 10.000000707805157,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 998.400214907542
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      9.90000057220459
+    ],
+    "below_support_mm": 0.09999912232160568
+  },
+  {
+    "case": "top_face_only/MATERIAL/depth=0.1",
+    "A": {
+      "min_mm": 11.900000274181366,
+      "max_mm": 12.000000104308128,
+      "span_mm": 0.09999983012676239,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 1.5999974340197916
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 11.900000274181366,
+      "span_mm": 11.900000274181366,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 1030.400208291426
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      11.90000057220459
+    ],
+    "below_support_mm": 0.09999972581863403
+  },
+  {
+    "case": "top_face_only/LOOP/depth=0.1",
+    "A": {
+      "min_mm": 11.900000274181366,
+      "max_mm": 12.000000104308128,
+      "span_mm": 0.09999983012676239,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 1.5999974340197782
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 11.900000274181366,
+      "span_mm": 11.900000274181366,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 1030.400208291426
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      11.90000057220459
+    ],
+    "below_support_mm": 0.09999972581863403
+  },
+  {
+    "case": "top_face_only/MATERIAL/depth=0.5",
+    "A": {
+      "min_mm": 11.500000022351742,
+      "max_mm": 12.000000104308128,
+      "span_mm": 0.5000000819563866,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 8.000002071261562
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 11.500000022351742,
+      "span_mm": 11.500000022351742,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 1024.0002036541837
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      11.5
+    ],
+    "below_support_mm": 0.4999999776482582
+  },
+  {
+    "case": "top_face_only/LOOP/depth=0.5",
+    "A": {
+      "min_mm": 11.500000022351742,
+      "max_mm": 12.000000104308128,
+      "span_mm": 0.5000000819563866,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 8.000002071261536
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 11.500000022351742,
+      "span_mm": 11.500000022351742,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 1024.0002036541837
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      11.5
+    ],
+    "below_support_mm": 0.4999999776482582
+  },
+  {
+    "case": "top_face_only/MATERIAL/depth=1.0",
+    "A": {
+      "min_mm": 10.999999940395355,
+      "max_mm": 12.000000104308128,
+      "span_mm": 1.0000001639127731,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 16.000004142523096
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.999999940395355,
+      "span_mm": 10.999999940395355,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 1016.0002015829226
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      11.0
+    ],
+    "below_support_mm": 1.0000000596046448
+  },
+  {
+    "case": "top_face_only/LOOP/depth=1.0",
+    "A": {
+      "min_mm": 10.999999940395355,
+      "max_mm": 12.000000104308128,
+      "span_mm": 1.0000001639127731,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 16.000004142523096
+    },
+    "B": {
+      "min_mm": 0.0,
+      "max_mm": 10.999999940395355,
+      "span_mm": 10.999999940395355,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 1016.0002015829226
+    },
+    "interface_mm": [
+      5.0,
+      5.0,
+      11.0
+    ],
+    "below_support_mm": 1.0000000596046448
+  },
+  {
+    "case": "top_face_only/MATERIAL/BASE/ignored_depth=.1",
+    "error": "A região de material selecionada é completamente coplanar com a base (não possui saliência volumétrica). Para recortar superfícies planas, utilize o modo 'Extrair com Profundidade'."
+  },
+  {
+    "case": "top_face_only/MATERIAL/depth=.1/explicit_bottom=0",
+    "error": "The configured clearance is too large for the selected boundary details. Reduce the clearance."
+  },
+  {
+    "case": "top_face_only/LOOP/depth=.1/explicit_bottom=0",
+    "error": "The configured clearance is too large for the selected boundary details. Reduce the clearance."
+  },
+  {
+    "case": "Arco_frame/MATERIAL/depth=0.1",
+    "A": {
+      "min_mm": -4.000000189989805,
+      "max_mm": -1.9000000320374966,
+      "span_mm": 2.1000001579523087,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 5959.74074386
+    },
+    "B": {
+      "min_mm": -3.000000026077032,
+      "max_mm": 48.00000041723251,
+      "span_mm": 51.000000443309546,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 236245.16438900595
+    },
+    "interface_mm": [
+      -7.393706482616835e-07,
+      -1.9000000953674316,
+      121.38497924804688
+    ]
+  },
+  {
+    "case": "Arco_frame/MATERIAL/depth=0.5",
+    "A": {
+      "min_mm": -4.000000189989805,
+      "max_mm": -1.500000013038516,
+      "span_mm": 2.500000176951289,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 7094.929712147956
+    },
+    "B": {
+      "min_mm": -3.000000026077032,
+      "max_mm": 48.00000041723251,
+      "span_mm": 51.000000443309546,
+      "valid": true,
+      "manifold": true,
+      "volume_mm3": 235109.96507177743
+    },
+    "interface_mm": [
+      -7.393706482616835e-07,
+      -1.5,
+      121.38497924804688
+    ]
+  },
+  {
+    "case": "UI/full_relief/MATERIAL/depth=.1/bottom=0.0",
+    "stored_depth": 0.10000000149011612,
+    "stored_bottom": 0.0,
+    "operator_result": [
+      "FINISHED"
+    ],
+    "status": "Preview generated successfully! Part A: 34 mm³ | Part B: 998 mm³"
+  },
+  {
+    "case": "UI/full_relief/MATERIAL/depth=.1/bottom=0.01",
+    "stored_depth": 0.10000000149011612,
+    "stored_bottom": 0.009999999776482582,
+    "error": "Error: Preview generation error: The configured clearance is too large for the selected boundary details. Reduce the clearance.\n",
+    "status": "Preview generation error: The configured clearance is too large for the selected boundary details. Reduce the clearance."
+  },
+  {
+    "case": "UI/full_relief/LOOP/depth=.1/bottom=0.0",
+    "stored_depth": 0.10000000149011612,
+    "stored_bottom": 0.0,
+    "operator_result": [
+      "FINISHED"
+    ],
+    "status": "Preview generated successfully! Part A: 34 mm³ | Part B: 998 mm³"
+  },
+  {
+    "case": "UI/full_relief/LOOP/depth=.1/bottom=0.01",
+    "stored_depth": 0.10000000149011612,
+    "stored_bottom": 0.009999999776482582,
+    "error": "Error: Preview generation error: The configured clearance is too large for the selected boundary details. Reduce the clearance.\n",
+    "status": "Preview generation error: The configured clearance is too large for the selected boundary details. Reduce the clearance."
+  },
+  {
+    "case": "UI/top_only/MATERIAL/depth=.1/bottom=0.0",
+    "stored_depth": 0.10000000149011612,
+    "stored_bottom": 0.0,
+    "operator_result": [
+      "FINISHED"
+    ],
+    "status": "Preview generated successfully! Part A: 2 mm³ | Part B: 1,030 mm³"
+  },
+  {
+    "case": "UI/top_only/MATERIAL/depth=.1/bottom=0.01",
+    "stored_depth": 0.10000000149011612,
+    "stored_bottom": 0.009999999776482582,
+    "error": "Error: Preview generation error: The configured clearance is too large for the selected boundary details. Reduce the clearance.\n",
+    "status": "Preview generation error: The configured clearance is too large for the selected boundary details. Reduce the clearance."
+  },
+  {
+    "case": "UI/top_only/LOOP/depth=.1/bottom=0.0",
+    "stored_depth": 0.10000000149011612,
+    "stored_bottom": 0.0,
+    "operator_result": [
+      "FINISHED"
+    ],
+    "status": "Preview generated successfully! Part A: 2 mm³ | Part B: 1,030 mm³"
+  },
+  {
+    "case": "UI/top_only/LOOP/depth=.1/bottom=0.01",
+    "stored_depth": 0.10000000149011612,
+    "stored_bottom": 0.009999999776482582,
+    "error": "Error: Preview generation error: The configured clearance is too large for the selected boundary details. Reduce the clearance.\n",
+    "status": "Preview generation error: The configured clearance is too large for the selected boundary details. Reduce the clearance."
+  }
+]

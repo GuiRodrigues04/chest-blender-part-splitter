@@ -1,0 +1,67 @@
+[
+  {
+    "name": "test_region_multicontact_091.py",
+    "code": 0,
+    "seconds": 9.9,
+    "ran": [
+      "9"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_region_release.py",
+    "code": 0,
+    "seconds": 23.1,
+    "ran": [
+      "28"
+    ],
+    "skipped": [
+      "1"
+    ]
+  },
+  {
+    "name": "test_whole_region_material.py",
+    "code": 0,
+    "seconds": 13.9,
+    "ran": [
+      "5"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_interface_history.py",
+    "code": 0,
+    "seconds": 4.2,
+    "ran": [
+      "13"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_release_depth_region.py",
+    "code": 0,
+    "seconds": 6.0,
+    "ran": [
+      "3"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_region_inherited_slivers.py",
+    "code": 0,
+    "seconds": 3.6,
+    "ran": [
+      "3"
+    ],
+    "skipped": []
+  },
+  {
+    "name": "test_acceptance_089_suite.py",
+    "code": 0,
+    "seconds": 3.7,
+    "ran": [
+      "10"
+    ],
+    "skipped": []
+  }
+]

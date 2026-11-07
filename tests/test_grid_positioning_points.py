@@ -182,6 +182,7 @@ class TestGridPositioningPoints(unittest.TestCase):
         )
 
         mock_prep = PreparedSplit(
+            configuration=(),
             cut_signature="mock_sig",
             target_name="MockTarget",
             split_mode="PLANE",
@@ -221,6 +222,7 @@ class TestGridPositioningPoints(unittest.TestCase):
             deviation_mm=2.5,
         )
         mock_prep = PreparedSplit(
+            configuration=(),
             cut_signature="non_planar_sig",
             target_name="MockTarget",
             split_mode="LOOP",
@@ -249,6 +251,7 @@ class TestGridPositioningPoints(unittest.TestCase):
             is_planar=True,
         )
         mock_prep = PreparedSplit(
+            configuration=(),
             cut_signature="huge_sig",
             target_name="HugeTarget",
             split_mode="PLANE",

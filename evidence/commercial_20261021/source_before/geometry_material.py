@@ -1,0 +1,1394 @@
+"""Motor geométrico para divisão por materiais com contrato de sólidos estanques (Fase 4 / Etapa 6).
+
+Implementa os requisitos da Seção 9 do plano:
+1. Componentes fechados (manifold) já definidos por slots de materiais são separados
+   diretamente em sólidos fechados (manifold) para impressão 3D.
+2. Fronteiras de materiais em superfícies contínuas são identificadas via loops de contorno
+   e convertidas em sólidos estanques através do motor de extração prismática com profundidade,
+   deixando a cavidade correspondente na peça receptora.
+3. Preservação estrita de slots de materiais e índices de faces (Critério M1).
+"""
+
+import bpy
+import bmesh
+from mathutils import Vector
+from typing import List, Dict, Any, Tuple, Optional
+from .geometry_contract import CutInterface, SplitResult, build_cut_interface
+from .localized_errors import LocalizedGeometryError
+from .geometry_loop import create_loop_prism_cutter, LoopSliceResult, triangulate_polygon_2d
+from .geometry_plane import evaluate_bmesh_metrics
+from .diagnostic import get_scene_scale_to_mm
+
+
+def _get_orthonormal_basis(normal: Vector) -> Tuple[Vector, Vector]:
+    """Retorna dois vetores unitários ortogonais à normal fornecida."""
+    n = normal.normalized()
+    if abs(n.z) < 0.9:
+        u = n.cross(Vector((0.0, 0.0, 1.0))).normalized()
+    else:
+        u = n.cross(Vector((0.0, 1.0, 0.0))).normalized()
+    v = n.cross(u).normalized()
+    return u, v
+
+
+def offset_polygon_2d(pts_2d: List[Vector], offset: float) -> Tuple[List[Vector], bool]:
+    """Desloca um polígono 2D fechado para dentro (offset > 0) ou para fora (offset < 0).
+
+    Usa algoritmo de miter offset determinístico com limitação de espículas.
+    Retorna (novos_pontos, sucesso).
+    """
+    n = len(pts_2d)
+    if n < 3 or abs(offset) < 1e-9:
+        return [p.copy() for p in pts_2d], True
+
+    # 1. Área com sinal para determinar orientação (CCW vs CW)
+    signed_area = 0.0
+    for i in range(n):
+        p1 = pts_2d[i]
+        p2 = pts_2d[(i + 1) % n]
+        signed_area += (p1.x * p2.y - p2.x * p1.y)
+    signed_area *= 0.5
+
+    if abs(signed_area) < 1e-12:
+        return [p.copy() for p in pts_2d], False
+
+    is_ccw = signed_area > 0.0
+
+    # 2. Normais das arestas apontando para dentro
+    edge_in_normals = []
+    for i in range(n):
+        p1 = pts_2d[i]
+        p2 = pts_2d[(i + 1) % n]
+        e = p2 - p1
+        length = e.length
+        if length < 1e-9:
+            edge_in_normals.append(Vector((0.0, 0.0)))
+            continue
+        if is_ccw:
+            in_norm = Vector((-e.y / length, e.x / length))
+        else:
+            in_norm = Vector((e.y / length, -e.x / length))
+        edge_in_normals.append(in_norm)
+
+    # 3. Miter offset por vértice
+    new_pts = []
+    for i in range(n):
+        n_prev = edge_in_normals[(i - 1 + n) % n]
+        n_curr = edge_in_normals[i]
+        dot = n_prev.dot(n_curr)
+        denom = 1.0 + dot
+        if denom < 1e-4:
+            v_dir = n_curr
+        else:
+            v_dir = (n_prev + n_curr) / denom
+
+        if v_dir.length > 2.5:
+            v_dir.normalize()
+            v_dir *= 2.5
+
+        new_pts.append(pts_2d[i] + v_dir * offset)
+
+    # 4. Verificação de integridade e não-colapso
+    new_area = 0.0
+    for i in range(n):
+        p1 = new_pts[i]
+        p2 = new_pts[(i + 1) % n]
+        new_area += (p1.x * p2.y - p2.x * p1.y)
+    new_area *= 0.5
+
+    if (new_area * signed_area) <= 0.0 or abs(new_area) < (0.05 * abs(signed_area)):
+        return new_pts, False
+
+    return new_pts, True
+
+
+def get_material_regions(bm, material_index: int, tol: float = 1e-4) -> List[List[int]]:
+    """Agrupa as faces de um material em regiões conectadas (ilhas) por arestas compartilhadas ou coincidentes.
+
+    Retorna listas de índices de faces, ordenadas pelo menor índice de face (ordem estável).
+    """
+    bm.faces.ensure_lookup_table()
+    mat_faces = [f for f in bm.faces if f.material_index == material_index]
+    if not mat_faces:
+        return []
+
+    visited = set()
+    initial_regions: List[List[int]] = []
+    for f in mat_faces:
+        if f.index in visited:
+            continue
+        stack = [f]
+        visited.add(f.index)
+        region = []
+        while stack:
+            cur = stack.pop()
+            region.append(cur.index)
+            for e in cur.edges:
+                for nf in e.link_faces:
+                    if nf.material_index == material_index and nf.index not in visited:
+                        visited.add(nf.index)
+                        stack.append(nf)
+        initial_regions.append(sorted(region))
+
+    if len(initial_regions) <= 1:
+        initial_regions.sort(key=lambda r: r[0])
+        return initial_regions
+
+    # Se houver múltiplas regiões topológicas, verifica se há vértices coincidentes (malha desunida/split)
+    from mathutils.kdtree import KDTree
+    kd = KDTree(len(bm.verts))
+    for i, v in enumerate(bm.verts):
+        kd.insert(v.co, i)
+    kd.balance()
+
+    vert_cluster = {}
+    has_doubles = False
+    for i, v in enumerate(bm.verts):
+        if i in vert_cluster:
+            continue
+        near = kd.find_range(v.co, tol)
+        if len(near) > 1:
+            has_doubles = True
+        for _, idx, _ in near:
+            vert_cluster[idx] = i
+
+    if not has_doubles:
+        initial_regions.sort(key=lambda r: r[0])
+        return initial_regions
+
+    # Mescla regiões que compartilham arestas geométricas coincidentes
+    edge_to_faces = {}
+    for f in mat_faces:
+        c_verts = [vert_cluster[v.index] for v in f.verts]
+        n = len(c_verts)
+        for j in range(n):
+            v1, v2 = c_verts[j], c_verts[(j + 1) % n]
+            if v1 == v2:
+                continue
+            key = (min(v1, v2), max(v1, v2))
+            edge_to_faces.setdefault(key, []).append(f.index)
+
+    parent = {}
+    def find_root(i):
+        root = i
+        while parent.setdefault(root, root) != root:
+            root = parent[root]
+        while i != root:
+            next_index = parent[i]
+            parent[i] = root
+            i = next_index
+        return root
+
+    def union_roots(i, j):
+        ri, rj = find_root(i), find_root(j)
+        if ri != rj:
+            parent[max(ri, rj)] = min(ri, rj)
+
+    # Geometric coincidence can merge existing topological islands, never
+    # split them. Short imported edges may collapse to one spatial cluster;
+    # rebuilding connectivity only from clustered edges discards those links.
+    for region in initial_regions:
+        for face_index in region[1:]:
+            union_roots(region[0], face_index)
+
+    for f_indices in edge_to_faces.values():
+        for i in range(1, len(f_indices)):
+            union_roots(f_indices[0], f_indices[i])
+
+    merged_groups = {}
+    for f in mat_faces:
+        root = find_root(f.index)
+        merged_groups.setdefault(root, []).append(f.index)
+
+    regions = [sorted(grp) for grp in merged_groups.values()]
+    regions.sort(key=lambda r: r[0])
+    return regions
+
+
+def _order_boundary_loops(boundary_edges):
+    """Ordena arestas de fronteira em um ou mais ciclos fechados de vértices.
+
+    Retorna None se houver bifurcações (vértice com número de arestas diferente de 2).
+    """
+    vert_to_edges: Dict[Any, List[Any]] = {}
+    for e in boundary_edges:
+        for v in e.verts:
+            vert_to_edges.setdefault(v, []).append(e)
+    if not vert_to_edges or any(len(es) != 2 for es in vert_to_edges.values()):
+        return None
+
+    loops = []
+    used_edges = set()
+    for start_v in list(vert_to_edges.keys()):
+        if all(e in used_edges for e in vert_to_edges[start_v]):
+            continue
+        ordered = [start_v]
+        curr_v = start_v
+        curr_e = next(e for e in vert_to_edges[start_v] if e not in used_edges)
+        while True:
+            used_edges.add(curr_e)
+            next_v = curr_e.other_vert(curr_v)
+            if next_v == start_v:
+                break
+            ordered.append(next_v)
+            es = vert_to_edges[next_v]
+            curr_e = es[0] if es[1] == curr_e else es[1]
+            curr_v = next_v
+        loops.append(ordered)
+    return loops
+
+
+def list_material_regions(obj: bpy.types.Object, material_index: int, _source_bm=None) -> List[Dict[str, Any]]:
+    """Resumo das regiões (ilhas) de um material, para exibição na interface."""
+    if not obj or obj.type != 'MESH':
+        return []
+    bm = _source_bm.copy() if _source_bm is not None else bmesh.new()
+    if _source_bm is None:
+        bm.from_mesh(obj.data)
+    bm.faces.index_update()
+    regions = get_material_regions(bm, material_index)
+    bm.free()
+    return [{"index": i, "face_count": len(r), "first_face": r[0]} for i, r in enumerate(regions)]
+
+
+def find_region_of_face(obj: bpy.types.Object, face_index: int) -> Tuple[int, int]:
+    """Retorna (material_index, region_index) da face informada, ou (-1, -1)."""
+    if not obj or obj.type != 'MESH' or face_index < 0 or face_index >= len(obj.data.polygons):
+        return (-1, -1)
+    mat_idx = obj.data.polygons[face_index].material_index
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    regions = get_material_regions(bm, mat_idx)
+    bm.free()
+    for i, r in enumerate(regions):
+        if face_index in r:
+            return (mat_idx, i)
+    return (mat_idx, -1)
+
+
+def analyze_material_structure(obj: bpy.types.Object, material_index: int, region_index: int = 0, _precise_normals: bool = False, _source_bm=None) -> Dict[str, Any]:
+    """Analisa a topologia de UMA região conectada (ilha) de faces de um material.
+
+    Um mesmo material pode aparecer em várias áreas separadas do modelo (ex: dois quadrados
+    rosa em lados diferentes). Cada área é tratada como uma região independente, com seu
+    próprio contorno e direção de extração.
+    """
+    if not obj or obj.type != 'MESH':
+        return {"valid": False, "error": "Objeto inválido."}
+
+    bm = _source_bm.copy() if _source_bm is not None else bmesh.new()
+    if _source_bm is None:
+        bm.from_mesh(obj.data)
+    bm.verts.index_update()
+    bm.edges.index_update()
+    bm.faces.index_update()
+    bm.transform(obj.matrix_world)
+    bm.normal_update()
+    bm.verts.ensure_lookup_table()
+    bm.edges.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
+
+    total_faces = len(bm.faces)
+    regions = get_material_regions(bm, material_index)
+
+    if not regions:
+        bm.free()
+        return {"valid": False, "error": f"Nenhuma face com o material #{material_index} encontrada.", "region_count": 0}
+
+    region_count = len(regions)
+    region_index = max(0, min(region_index, region_count - 1))
+    region_faces = set(regions[region_index])
+
+    if len(region_faces) == total_faces:
+        bm.free()
+        return {"valid": False, "error": "Todas as faces do modelo já utilizam este material.", "region_count": region_count}
+
+    target_faces = [bm.faces[i] for i in region_faces]
+
+    # Arestas de fronteira da região: uma face dentro e outra fora da região
+    boundary_edges = []
+    for e in bm.edges:
+        inside = [f for f in e.link_faces if f.index in region_faces]
+        if inside and len(inside) != len(e.link_faces):
+            boundary_edges.append(e)
+
+    base_info = {
+        "region_count": region_count,
+        "region_index": region_index,
+        "region_face_indices": sorted(region_faces),
+        "face_count": len(region_faces),
+    }
+
+    # Caso 1: região sem fronteira com outras faces -> componente fechado isolado
+    if not boundary_edges:
+        open_edges = [e for e in bm.edges
+                      if any(f.index in region_faces for f in e.link_faces) and not e.is_manifold]
+        is_manifold = len(open_edges) == 0
+        bm.free()
+        info = dict(base_info)
+        info.update({
+            "valid": True,
+            "type": "CLOSED_COMPONENT",
+            "description": "Componente 3D Fechado (Sólido estanque)",
+            "is_manifold": is_manifold,
+            "boundary_loops": [],
+        })
+        return info
+
+    # Caso 2: região superficial com contorno
+    loops = _order_boundary_loops(boundary_edges)
+    if loops is None:
+        bm.free()
+        info = dict(base_info)
+        info.update({
+            "valid": False,
+            "type": "COMPLEX_BOUNDARY",
+            "error": "O contorno desta região tem bifurcações (cantos tocando outras regiões).",
+        })
+        return info
+
+    if len(loops) > 1:
+        bm.free()
+        try:
+            from .geometry_regions import region_support
+            support=region_support(obj, sorted(region_faces), get_scene_scale_to_mm(bpy.context.scene),_source_bm=_source_bm)
+            return dict(base_info,valid=True,type='SURFACE_PATCH',has_holes=True,
+                        boundary_loops_world=support['loops'],coords_world=support['loops'][0],
+                        centroid_world=support['origin'],normal_world=support['normal'],
+                        inward_dir_world=-support['normal'],is_planar_base=True,
+                        body_mat_index=support['body_material'],base_deviation_mm=support['deviation'])
+        except ValueError as ex:
+            return dict(base_info,valid=False,type='COMPLEX_BOUNDARY',error=str(ex))
+
+    ordered_verts = loops[0]
+    boundary_vertex_indices = [v.index for v in ordered_verts]
+    coords_world = [v.co.copy() for v in ordered_verts]
+    centroid = sum(coords_world, Vector()) / len(coords_world)
+
+    # Preserve the established frame first. A bounded retry uses double
+    # accumulation if EXACT produces a non-manifold result from cancellation.
+    if _precise_normals:
+        from .geometry_contract import boundary_normal
+        n = boundary_normal(coords_world)
+    else:
+        n = Vector((0.0, 0.0, 0.0))
+        for i in range(len(coords_world)):
+            a, b = coords_world[i], coords_world[(i+1) % len(coords_world)]
+            n.x += (a.y-b.y)*(a.z+b.z)
+            n.y += (a.z-b.z)*(a.x+b.x)
+            n.z += (a.x-b.x)*(a.y+b.y)
+        n.normalize()
+    if n.length < 1e-12:
+        n = Vector((0.0, 0.0, 1.0))
+
+    # Direção para dentro a partir da média ponderada por área em espaço de mundo
+    avg_norm = sum((f.normal * f.calc_area() for f in target_faces), Vector())
+    if avg_norm.length > 1e-9:
+        avg_norm.normalize()
+    else:
+        avg_norm = n
+    inward_dir = -n if n.dot(avg_norm) >= 0.0 else n
+
+    # Material adjacente predominante fora da região (corpo receptor)
+    adj_outside_mats = []
+    for e in boundary_edges:
+        for f in e.link_faces:
+            if f.index not in region_faces:
+                adj_outside_mats.append(f.material_index)
+    body_mat_index = max(sorted(set(adj_outside_mats)), key=lambda m: (adj_outside_mats.count(m), -m)) if adj_outside_mats else 0
+
+    scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+    dists = [abs((p - centroid).dot(n)) for p in coords_world]
+    max_dev_mm = (max(dists) if dists else 0.0) * scale_to_mm
+    is_planar_base = (max_dev_mm <= 0.25)
+
+    # Classificação de faces: saliência volumétrica vs faces coplanares da base
+    tol_planar_bu = 0.25 / scale_to_mm
+    protrusion_face_indices = []
+    coplanar_base_face_indices = []
+    for f in target_faces:
+        face_dists = [abs((v.co - centroid).dot(n)) for v in f.verts]
+        if max(face_dists) <= tol_planar_bu and abs(abs(f.normal.dot(n)) - 1.0) <= 0.05:
+            coplanar_base_face_indices.append(f.index)
+        else:
+            protrusion_face_indices.append(f.index)
+
+    bm.free()
+
+    info = dict(base_info)
+    info.update({
+        "valid": True,
+        "type": "SURFACE_PATCH",
+        "description": "Fronteira na Superfície (Requer profundidade de extração)",
+        "boundary_vertex_indices": boundary_vertex_indices,
+        "coords_world": coords_world,
+        "centroid_world": centroid,
+        "normal_world": n,
+        "inward_dir_world": inward_dir,
+        "is_planar_base": is_planar_base,
+        "base_deviation_mm": max_dev_mm,
+        "base_normal_world": n,
+        "body_mat_index": body_mat_index,
+        "protrusion_face_indices": protrusion_face_indices,
+        "coplanar_base_face_indices": coplanar_base_face_indices,
+    })
+    return info
+
+
+def create_material_patch_prism_cutter(
+    obj: bpy.types.Object,
+    region_face_indices: List[int],
+    inward_dir: Vector,
+    depth_bu: float,
+    outward_ext_bu: float = 1e-3,
+    name: str = "temp_mat_prism",
+    material_index: int = 0,
+    interface_mat_mode: str = 'SOURCE',
+    body_mat_index: int = 0,
+    lateral_offset_bu: float = 0.0,
+) -> bpy.types.Object:
+    """Constrói um prisma 3D estanque a partir das faces exatas da região de material (B06).
+    
+    Preserva a tesselação e concavidades reais da região (ex: silhuetas em U ou reentrâncias),
+    evitando tampas em n-gons planos que cruzam aberturas e geram películas/membranas espúrias.
+    Valida a estanqueidade e ausência de degeneração antes da publicação (D01).
+    Aplica offset lateral determinístico por lado no domínio de contato (INV-008).
+    """
+    bm_src = bmesh.new()
+    bm_src.from_mesh(obj.data)
+    bm_src.transform(obj.matrix_world)
+    bm_src.normal_update()
+    bm_src.verts.ensure_lookup_table()
+    bm_src.edges.ensure_lookup_table()
+    bm_src.faces.ensure_lookup_table()
+    bm_src.verts.index_update()
+    bm_src.faces.index_update()
+
+    # Use the same visible tessellation as the Boolean source shell. A warped
+    # quad's BMesh BEAUTY diagonal can differ from Mesh.loop_triangles; if its
+    # translated bottom cap uses that other diagonal, the cutter's interface
+    # is not an offset copy of the source's piecewise-planar surface.
+    obj.data.calc_loop_triangles()
+    triangles_by_face = {}
+    for tri in obj.data.loop_triangles:
+        triangles_by_face.setdefault(tri.polygon_index, []).append(tuple(tri.vertices))
+
+    region_set = set(region_face_indices)
+    region_faces = [bm_src.faces[i] for i in region_face_indices if i < len(bm_src.faces)]
+
+    in_norm = inward_dir.normalized()
+    bm_prism = bmesh.new()
+
+    top_map = {}
+    bot_map = {}
+    used_verts = {v for f in region_faces for v in f.verts}
+
+    vert_offsets = {}
+    if abs(lateral_offset_bu) > 1e-9:
+        boundary_edges = [e for e in bm_src.edges if sum(1 for f in e.link_faces if f.index in region_set) == 1]
+        loops = _order_boundary_loops(boundary_edges)
+        if loops and len(loops) == 1:
+            ordered_bverts = loops[0]
+            u_vec, v_vec = _get_orthonormal_basis(in_norm)
+            pts_2d = [Vector((v.co.dot(u_vec), v.co.dot(v_vec))) for v in ordered_bverts]
+            new_pts_2d, ok = offset_polygon_2d(pts_2d, lateral_offset_bu)
+            if not ok:
+                scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+                bm_src.free()
+                bm_prism.free()
+                raise LocalizedGeometryError('geometry.clearance_excessive')
+            for i, bv in enumerate(ordered_bverts):
+                delta_2d = new_pts_2d[i] - pts_2d[i]
+                vert_offsets[bv] = delta_2d.x * u_vec + delta_2d.y * v_vec
+
+    for v in used_verts:
+        shift = vert_offsets.get(v, Vector((0.0, 0.0, 0.0)))
+        top_map[v] = bm_prism.verts.new(v.co + shift - outward_ext_bu * in_norm)
+        bot_map[v] = bm_prism.verts.new(v.co + shift + depth_bu * in_norm)
+
+    bm_prism.verts.ensure_lookup_table()
+
+    target_iface_mat = material_index if interface_mat_mode == 'EXTRACTED' else body_mat_index
+
+    # Top and bottom caps use the exact visible source triangles, translated
+    # by the same vector. This also preserves warped-quad diagonals at depth.
+    for f in region_faces:
+        triangles = triangles_by_face.get(f.index, ())
+        if not triangles:
+            bm_src.free()
+            bm_prism.free()
+            raise LocalizedGeometryError('geometry.patch_tessellation', face=f.index)
+        for tri in triangles:
+            tri_verts = [bm_src.verts[i] for i in tri]
+            f_top = bm_prism.faces.new([top_map[v] for v in tri_verts])
+            f_top.material_index = material_index
+            f_bot = bm_prism.faces.new(reversed([bot_map[v] for v in tri_verts]))
+            f_bot.material_index = target_iface_mat
+
+    # Paredes laterais apenas nas arestas de fronteira da região
+    for e in bm_src.edges:
+        inc = [f for f in e.link_faces if f.index in region_set]
+        if len(inc) == 1:
+            f = inc[0]
+            v1, v2 = e.verts[0], e.verts[1]
+            f_v = list(f.verts)
+            idx1 = f_v.index(v1)
+            if f_v[(idx1 + 1) % len(f_v)] == v2:
+                va, vb = v1, v2
+            else:
+                va, vb = v2, v1
+            f_side = bm_prism.faces.new((top_map[vb], top_map[va], bot_map[va], bot_map[vb]))
+            f_side.material_index = target_iface_mat
+
+    bm_src.free()
+
+    bmesh.ops.triangulate(bm_prism, faces=bm_prism.faces[:])
+    from .geometry_solid import ensure_solid_outward_normals
+    ensure_solid_outward_normals(bm_prism)
+
+    # Validação do cortador antes de qualquer operação booleana (D01)
+    scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+    from .diagnostic import validate_bmesh_mesh_geometry
+    geom_check = validate_bmesh_mesh_geometry(bm_prism, scale_to_mm)
+    if not geom_check["is_manifold"] or abs(geom_check["volume_mm3"]) <= 1e-4 or geom_check["degenerate_faces"] or geom_check["null_edges"]:
+        reasons = []
+        if not geom_check["is_manifold"]:
+            reasons.append(f"{len(geom_check['non_manifold_edges'])} arestas não-manifold")
+        if abs(geom_check["volume_mm3"]) <= 1e-4:
+            reasons.append("volume nulo")
+        if geom_check["degenerate_faces"]:
+            reasons.append(f"{len(geom_check['degenerate_faces'])} faces degeneradas/área zero")
+        if geom_check["null_edges"]:
+            reasons.append(f"{len(geom_check['null_edges'])} arestas nulas")
+        reason_str = ", ".join(reasons)
+        bm_prism.free()
+        raise ValueError(
+            f"O cortador prismático gerou geometria inválida ({reason_str}). "
+            "A extração prismática requer uma superfície com projeção desimpedida na direção de extração."
+        )
+
+    mesh = bpy.data.meshes.new(f"{name}_Mesh")
+    # Copia os slots de material do objeto original para o cortador evitar faces com slot 0 genérico
+    for mat in obj.data.materials:
+        mesh.materials.append(mat)
+
+    bm_prism.to_mesh(mesh)
+    bm_prism.free()
+
+    prism_obj = bpy.data.objects.new(name, mesh)
+    prism_obj.hide_viewport = False
+    prism_obj.hide_render = False
+    bpy.context.scene.collection.objects.link(prism_obj)
+    return prism_obj
+
+
+def _material_support_frame(obj, analysis, scale_to_mm):
+    """A03: referência de apoio planar da região (plano, normal para fora, alturas do relevo).
+
+    Retorna dict ou None quando não há relevo com apoio planar confiável.
+    """
+    if not analysis.get("is_planar_base", False) or not analysis.get("protrusion_face_indices"):
+        return None
+    n = Vector(analysis["normal_world"]).normalized()
+    inward = Vector(analysis["inward_dir_world"]).normalized()
+    if n.dot(inward) > 0.0:
+        n = -n  # n aponta para fora (lado do relevo/ar)
+    c = Vector(analysis["centroid_world"])
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.transform(obj.matrix_world)
+    bm.normal_update()
+    bm.faces.ensure_lookup_table()
+    heights = []
+    for i in analysis["region_face_indices"]:
+        if i < len(bm.faces):
+            heights.extend((v.co - c).dot(n) for v in bm.faces[i].verts)
+    bm.free()
+    if not heights:
+        return None
+    return {
+        "n_out": n,
+        "centroid": c,
+        "h_max_bu": max(0.0, max(heights)),
+        "h_min_bu": min(0.0, min(heights)),
+    }
+
+
+def _check_wall_thickness(obj, sample_points_world, inward_dir, depth_mm, scale_to_mm, region_face_indices=None):
+    """A03: levanta erro se a parede for mais fina que a profundidade pedida (sem perfurar em silêncio).
+
+    Usa raycast físico a partir de pontos do domínio. Sem acerto (malha aberta) = inconclusivo,
+    não bloqueia, mas também não é tratado como espessura comprovada.
+    """
+    from mathutils.bvhtree import BVHTree
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.transform(obj.matrix_world)
+    if region_face_indices:
+        bm.faces.ensure_lookup_table()
+        del_faces = [bm.faces[i] for i in region_face_indices if i < len(bm.faces)]
+        if del_faces:
+            bmesh.ops.delete(bm, geom=del_faces, context='FACES')
+    bm.normal_update()
+    tree = BVHTree.FromBMesh(bm)
+    bm.free()
+    d = inward_dir.normalized()
+    eps_bu = 0.01 / scale_to_mm
+    min_thick_mm = None
+    for p in sample_points_world:
+        hit = tree.ray_cast(p + d * eps_bu, d)
+        if hit[0] is None:
+            continue
+        # Ignora faces de entrada para não registrar espessura nula na fronteira
+        if hit[1] is not None and hit[1].dot(d) < -1e-5:
+            continue
+        thick = (hit[3] + eps_bu) * scale_to_mm
+        if min_thick_mm is None or thick < min_thick_mm:
+            min_thick_mm = thick
+    if min_thick_mm is not None and min_thick_mm < depth_mm - 0.05:
+        raise LocalizedGeometryError('geometry.wall_thickness', depth=depth_mm, available=min_thick_mm)
+    return min_thick_mm
+
+
+def create_material_footprint_prism_cutter(
+    obj: bpy.types.Object,
+    coords_world: List[Vector],
+    centroid: Vector,
+    n_out: Vector,
+    top_bu: float,
+    depth_bu: float,
+    name: str,
+    material_index: int,
+    interface_mat_mode: str,
+    body_mat_index: int,
+    lateral_offset_bu: float = 0.0,
+):
+    """A03: prisma definido pela pegada da região sobre o plano de apoio.
+
+    Vai de top_bu acima do apoio (cobre todo o relevo) até depth_bu abaixo dele; as paredes são
+    perpendiculares ao apoio. A profundidade começa no apoio, não no topo do relevo.
+    Retorna (objeto, triângulos da pegada projetados no apoio).
+    """
+    n = n_out.normalized()
+    inward = -n
+    u_vec, v_vec = _get_orthonormal_basis(n)
+    footprint = [p - ((p - centroid).dot(n)) * n for p in coords_world]
+    pts_2d = [Vector(((p - centroid).dot(u_vec), (p - centroid).dot(v_vec))) for p in footprint]
+    if abs(lateral_offset_bu) > 1e-9:
+        new_pts, ok = offset_polygon_2d(pts_2d, lateral_offset_bu)
+        if not ok:
+            scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+            raise LocalizedGeometryError('geometry.clearance_excessive')
+        footprint = [centroid + q.x * u_vec + q.y * v_vec for q in new_pts]
+        pts_2d = new_pts
+    tris = triangulate_polygon_2d(pts_2d)
+    if not tris:
+        raise ValueError("Não foi possível triangular a pegada da região para o cortador.")
+
+    target_iface_mat = material_index if interface_mat_mode == 'EXTRACTED' else body_mat_index
+    bm_prism = bmesh.new()
+    top = [bm_prism.verts.new(p + n * top_bu) for p in footprint]
+    bot = [bm_prism.verts.new(p + inward * depth_bu) for p in footprint]
+    n_pts = len(footprint)
+    for i, j, k in tris:
+        ft = bm_prism.faces.new((top[i], top[j], top[k]))
+        ft.material_index = material_index
+        fb = bm_prism.faces.new((bot[k], bot[j], bot[i]))
+        fb.material_index = target_iface_mat
+    for i in range(n_pts):
+        j = (i + 1) % n_pts
+        fs = bm_prism.faces.new((top[j], top[i], bot[i], bot[j]))
+        fs.material_index = target_iface_mat
+    bmesh.ops.triangulate(bm_prism, faces=bm_prism.faces[:])
+    bmesh.ops.recalc_face_normals(bm_prism, faces=bm_prism.faces[:])
+
+    scale_to_mm = get_scene_scale_to_mm(bpy.context.scene)
+    from .diagnostic import validate_bmesh_mesh_geometry
+    chk = validate_bmesh_mesh_geometry(bm_prism, scale_to_mm)
+    if not chk["is_manifold"] or abs(chk["volume_mm3"]) <= 1e-4 or chk["degenerate_faces"] or chk["null_edges"]:
+        bm_prism.free()
+        raise ValueError("O cortador de pegada gerou geometria inválida; revise o contorno da região.")
+
+    mesh = bpy.data.meshes.new(f"{name}_Mesh")
+    for mat in obj.data.materials:
+        mesh.materials.append(mat)
+    bm_prism.to_mesh(mesh)
+    bm_prism.free()
+    prism_obj = bpy.data.objects.new(name, mesh)
+    prism_obj.hide_viewport = False
+    prism_obj.hide_render = False
+    bpy.context.scene.collection.objects.link(prism_obj)
+    bot_centroid = centroid + inward * depth_bu
+    iface_tris = [(pts_2d_to_world(pts_2d, i, bot_centroid, u_vec, v_vec), pts_2d_to_world(pts_2d, j, bot_centroid, u_vec, v_vec),
+                   pts_2d_to_world(pts_2d, k, bot_centroid, u_vec, v_vec)) for i, j, k in tris]
+    return prism_obj, iface_tris
+
+
+def pts_2d_to_world(pts_2d, idx, centroid, u_vec, v_vec):
+    q = pts_2d[idx]
+    return centroid + q.x * u_vec + q.y * v_vec
+
+
+def _region_has_relief(obj, analysis, scale_to_mm):
+    """Distinguish an attached volumetric selection from a flat painted patch."""
+    outward = -Vector(analysis['inward_dir_world'])
+    center = Vector(analysis['centroid_world'])
+    heights = [(obj.matrix_world @ obj.data.vertices[index].co - center).dot(outward)
+               for face_index in analysis['region_face_indices']
+               for index in obj.data.polygons[face_index].vertices]
+    return bool(heights) and (max(heights) - min(heights)) * scale_to_mm >= 0.2
+
+
+class MaterialBooleanError(RuntimeError):
+    """EXACT produced a non-manifold result; no candidates may be published."""
+
+
+def slice_mesh_by_material(
+    obj, material_index, depth_mm=5.0, scene=None, through_cut=False,
+    region_index=0, extraction_mode='EXTRUDE', interface_mat_mode='SOURCE',
+    part_clearance_mm=0.0, part_clearance_apply_to='PART', part_clearance_bottom_mm=None,
+):
+    """Transactional material cut, retaining the original API and frame.
+
+    Retry only numerical boolean failure, using a mathematically equivalent
+    double-precision support normal. No tolerance offsets, hole filling, solver
+    substitution or relaxed manifold checks are used.
+    """
+    args = dict(obj=obj, material_index=material_index, depth_mm=depth_mm, scene=scene,
+                through_cut=through_cut, region_index=region_index,
+                extraction_mode=extraction_mode, interface_mat_mode=interface_mat_mode,
+                part_clearance_mm=part_clearance_mm, part_clearance_apply_to=part_clearance_apply_to,
+                part_clearance_bottom_mm=part_clearance_bottom_mm)
+    try:
+        return _slice_mesh_by_material(**args)
+    except MaterialBooleanError:
+        try:
+            return _slice_mesh_by_material(**args, _precise_normals=True)
+        except MaterialBooleanError:
+            try:
+                avail_solvers = [it.identifier for it in bpy.types.BooleanModifier.bl_rna.properties['solver'].enum_items]
+            except Exception:
+                avail_solvers = []
+            if 'MANIFOLD' in avail_solvers:
+                return _slice_mesh_by_material(**args, _solver='MANIFOLD')
+            raise
+
+
+def _slice_mesh_by_material(
+    obj: bpy.types.Object,
+    material_index: int,
+    depth_mm: float = 5.0,
+    scene: Optional[bpy.types.Scene] = None,
+    through_cut: bool = False,
+    region_index: int = 0,
+    extraction_mode: str = 'EXTRUDE',
+    interface_mat_mode: str = 'SOURCE',
+    part_clearance_mm: float = 0.0,
+    part_clearance_apply_to: str = 'PART',
+    part_clearance_bottom_mm: Optional[float] = None,
+    _precise_normals: bool = False,
+    _solver: str = 'EXACT',
+) -> LoopSliceResult:
+    """Realiza a separação da malha com base em uma região do material selecionado.
+    
+    Suporta os modos:
+    - 'BASE': Destaca a saliência volumétrica inteira pela base com tampas planas (C01),
+              conservação estrita de volume (C02) e alívio dimensional calibrado (C03).
+    - 'EXTRUDE': Preserva regiões volumétricas inteiras e adiciona uma base
+                 na profundidade escolhida; superfícies planas usam prisma local.
+    """
+    actual_scene = scene if scene else bpy.context.scene
+    scale_to_mm = get_scene_scale_to_mm(actual_scene)
+
+    analysis = analyze_material_structure(obj, material_index, region_index, _precise_normals)
+    if not analysis["valid"]:
+        raise ValueError(analysis.get("error", "Estrutura de material não suportada."))
+
+    mat_type = analysis["type"]
+
+    if mat_type == "CLOSED_COMPONENT":
+        region_set = set(analysis["region_face_indices"])
+        # Separação direta de componente estanque já fechado
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.transform(obj.matrix_world)
+        bm.normal_update()
+
+        bm_a = bm.copy()
+        bm_a.faces.ensure_lookup_table()
+        bmesh.ops.delete(bm_a, geom=[f for f in bm_a.faces if f.index not in region_set], context='FACES')
+
+        bm_b = bm.copy()
+        bm_b.faces.ensure_lookup_table()
+        bmesh.ops.delete(bm_b, geom=[f for f in bm_b.faces if f.index in region_set], context='FACES')
+
+        bm.free()
+
+        # Direção de separação A->B: do centro do componente para o centro do corpo
+        ca = sum((v.co for v in bm_a.verts), Vector()) / max(1, len(bm_a.verts))
+        cb = sum((v.co for v in bm_b.verts), Vector()) / max(1, len(bm_b.verts))
+        sep = cb - ca
+        sep_norm = sep.normalized() if sep.length > 1e-9 else Vector((0.0, 0.0, -1.0))
+
+        cut_iface = CutInterface(
+            origin_world=ca.copy(),
+            normal_a_to_b_world=sep_norm,
+            axis_u_world=Vector((1.0, 0.0, 0.0)),
+            axis_v_world=Vector((0.0, 1.0, 0.0)),
+            outer_contours_uv=[],
+            hole_contours_uv=[],
+            interface_triangles_world=[],
+            is_planar=True,
+            deviation_mm=0.0,
+            source_mode='MATERIAL',
+        )
+
+        metrics_a = evaluate_bmesh_metrics(bm_a, scale_to_mm)
+        metrics_b = evaluate_bmesh_metrics(bm_b, scale_to_mm)
+
+        split_res = SplitResult(
+            part_a_metrics=metrics_a,
+            part_b_metrics=metrics_b,
+            interface=cut_iface,
+            diagnostics_before_connectors={
+                "part_a_volume_mm3": metrics_a["volume_mm3"],
+                "part_b_volume_mm3": metrics_b["volume_mm3"],
+                "sum_volume_mm3": metrics_a["volume_mm3"] + metrics_b["volume_mm3"],
+            },
+            success=True,
+        )
+        return LoopSliceResult(bm_a, bm_b, split_res)
+
+    elif analysis.get('has_holes'):
+        from .geometry_regions import slice_surface_region
+        return slice_surface_region(obj,analysis['region_face_indices'],depth_mm,actual_scene,
+                                    extraction_mode,part_clearance_mm,part_clearance_apply_to,
+                                    part_clearance_bottom_mm,material_index,interface_mat_mode,
+                                    'MATERIAL',through_cut)
+
+    elif extraction_mode == 'EXTRUDE' and _region_has_relief(obj, analysis, scale_to_mm):
+        # A painted volumetric region is a topological selection, not a column.
+        # Share Loop's depth engine so inclined/overhanging surfaces remain A.
+        from .geometry_loop import slice_mesh_by_loop_extrude
+        result = slice_mesh_by_loop_extrude(
+            obj, obj.name, analysis['boundary_vertex_indices'],
+            analysis['region_face_indices'][0], depth_mm, through_cut, actual_scene,
+            part_clearance_mm, part_clearance_apply_to, part_clearance_bottom_mm,
+        )
+        result.interface.source_mode = 'MATERIAL'
+        for side, bm_part in enumerate(result):
+            layer = bm_part.faces.layers.int.get('splitter_contact_surface')
+            if layer:
+                interface_material = material_index if side == 0 and interface_mat_mode == 'EXTRACTED' else analysis['body_mat_index']
+                for face in bm_part.faces:
+                    if face[layer]:
+                        face.material_index = interface_material
+        return result
+
+    elif extraction_mode == 'BASE':
+        # C01 / C02 / C03: Destacar saliência pela base com fechamento planar e conservação volumétrica
+        if not analysis.get("is_planar_base", True):
+            # A nonplanar painted patch does not identify a unique physical base.
+            # Depth extraction uses the explicit depth chosen by the user.
+            raise LocalizedGeometryError(
+                'geometry.non_planar', deviation=analysis.get('base_deviation_mm', 0.0), limit=0.25)
+
+        protrusion_indices = analysis.get("protrusion_face_indices")
+        coplanar_indices = analysis.get("coplanar_base_face_indices", [])
+
+        # Se a região contém saliência E faces coplanares da base, extrai a saliência e mantém as faces coplanares no corpo (C01/C02)
+        if protrusion_indices and len(protrusion_indices) > 0:
+            target_indices = protrusion_indices
+        elif not protrusion_indices and len(coplanar_indices) > 0:
+            raise ValueError(
+                "A região de material selecionada é completamente coplanar com a base (não possui saliência volumétrica). "
+                "Para recortar superfícies planas, utilize o modo 'Extrair com Profundidade'."
+            )
+        else:
+            target_indices = analysis["region_face_indices"]
+
+        region_set = set(target_indices)
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.transform(obj.matrix_world)
+        bm.normal_update()
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
+        centroid_base = analysis["centroid_world"]
+        n_base = analysis["base_normal_world"].copy()
+
+        # Determina a direção normal da base apontando para a saliência (+n_base)
+        protrusion_center = sum((f.calc_center_median() for f in bm.faces if f.index in region_set), Vector()) / max(1, len(region_set))
+        if (protrusion_center - centroid_base).dot(n_base) < 0.0:
+            n_base = -n_base
+
+        # Altura útil da saliência para validação prévia de folga
+        protrusion_height_mm = max(
+            0.0,
+            max(((v.co - centroid_base).dot(n_base) for f in bm.faces if f.index in region_set for v in f.verts), default=0.0) * scale_to_mm
+        )
+
+        if part_clearance_mm > 0.0:
+            if part_clearance_mm >= protrusion_height_mm - 0.1:
+                bm.free()
+                raise LocalizedGeometryError('geometry.clearance_excessive')
+
+        u_vec, v_vec = _get_orthonormal_basis(n_base)
+
+        # 1. PARTE A: Saliência destacada sólida com tampa na base
+        bm_a = bm.copy()
+        bm_a.faces.ensure_lookup_table()
+        bm_a.verts.ensure_lookup_table()
+        bm_a.edges.ensure_lookup_table()
+        bmesh.ops.delete(bm_a, geom=[f for f in bm_a.faces if f.index not in region_set], context='FACES')
+
+        boundary_edges_a = [e for e in bm_a.edges if len(e.link_faces) == 1]
+        loops_a = _order_boundary_loops(boundary_edges_a)
+        if not loops_a or len(loops_a) != 1:
+            bm.free()
+            bm_a.free()
+            raise ValueError("Não foi possível encontrar um ciclo fechado simples na base da saliência.")
+
+        ordered_verts_a = loops_a[0]
+        pts_2d_a = [Vector(((v.co - centroid_base).dot(u_vec), (v.co - centroid_base).dot(v_vec))) for v in ordered_verts_a]
+        tris_a = triangulate_polygon_2d(pts_2d_a)
+
+        cap_faces_a = []
+        for i, j, k in tris_a:
+            v_tri = (ordered_verts_a[i], ordered_verts_a[j], ordered_verts_a[k])
+            existing_f = bm_a.faces.get(v_tri) or bm_a.faces.get((v_tri[0], v_tri[2], v_tri[1]))
+            if existing_f is not None:
+                if all(len(e.link_faces) <= 1 for e in existing_f.edges):
+                    cap_faces_a.append(existing_f)
+                    continue
+                else:
+                    bm.free()
+                    bm_a.free()
+                    raise RuntimeError(
+                        f"Face duplicada conflitante na interface da base da Parte A: face {existing_f.index}. "
+                        "A seleção contém faces sobrepostas no plano de corte."
+                    )
+            try:
+                f = bm_a.faces.new(v_tri)
+                cap_faces_a.append(f)
+            except ValueError:
+                try:
+                    f = bm_a.faces.new((v_tri[0], v_tri[2], v_tri[1]))
+                    cap_faces_a.append(f)
+                except Exception as ex:
+                    bm.free()
+                    bm_a.free()
+                    raise RuntimeError(f"Falha na criação de tampa da base para a Parte A: {ex}")
+
+        # Aplica folga na base de Parte A (encurtamento axial da saliência)
+        clearance_bu = part_clearance_mm / scale_to_mm
+        if clearance_bu > 1e-7 and part_clearance_apply_to in ('PART', 'BOTH'):
+            shift_a = clearance_bu if part_clearance_apply_to == 'PART' else (0.5 * clearance_bu)
+            for v in ordered_verts_a:
+                v.co += n_base * shift_a
+
+        bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
+
+        # Material da tampa de Parte A
+        for f in cap_faces_a:
+            f.material_index = material_index
+
+        # 2. PARTE B: Corpo receptor com parede plana restaurada
+        bm_b = bm.copy()
+        bm.free()
+        bm_b.faces.ensure_lookup_table()
+        bm_b.verts.ensure_lookup_table()
+        bm_b.edges.ensure_lookup_table()
+        bmesh.ops.delete(bm_b, geom=[f for f in bm_b.faces if f.index in region_set], context='FACES')
+
+        boundary_edges_b = [e for e in bm_b.edges if len(e.link_faces) == 1]
+        loops_b = _order_boundary_loops(boundary_edges_b)
+        if not loops_b or len(loops_b) != 1:
+            bm_a.free()
+            bm_b.free()
+            raise ValueError("Não foi possível encontrar o contorno fechado correspondente no corpo receptor.")
+
+        ordered_verts_b = loops_b[0]
+        pts_2d_b = [Vector(((v.co - centroid_base).dot(u_vec), (v.co - centroid_base).dot(v_vec))) for v in ordered_verts_b]
+        tris_b = triangulate_polygon_2d(pts_2d_b)
+
+        cap_faces_b = []
+        for i, j, k in tris_b:
+            v_tri = (ordered_verts_b[i], ordered_verts_b[j], ordered_verts_b[k])
+            existing_f = bm_b.faces.get(v_tri) or bm_b.faces.get((v_tri[0], v_tri[2], v_tri[1]))
+            if existing_f is not None:
+                if all(len(e.link_faces) <= 1 for e in existing_f.edges):
+                    cap_faces_b.append(existing_f)
+                    continue
+                else:
+                    bm_a.free()
+                    bm_b.free()
+                    raise RuntimeError(
+                        f"Face duplicada conflitante na interface da base da Parte B: face {existing_f.index}. "
+                        "A seleção contém faces sobrepostas no plano de corte."
+                    )
+            try:
+                f = bm_b.faces.new(v_tri)
+                cap_faces_b.append(f)
+            except ValueError:
+                try:
+                    f = bm_b.faces.new((v_tri[0], v_tri[2], v_tri[1]))
+                    cap_faces_b.append(f)
+                except Exception as ex:
+                    bm_a.free()
+                    bm_b.free()
+                    raise RuntimeError(f"Falha na criação de tampa da base para a Parte B: {ex}")
+
+        # Aplica folga na base de Parte B (recesso axial no corpo)
+        if clearance_bu > 1e-7 and part_clearance_apply_to in ('CAVITY', 'BOTH'):
+            shift_b = clearance_bu if part_clearance_apply_to == 'CAVITY' else (0.5 * clearance_bu)
+            for v in ordered_verts_b:
+                v.co -= n_base * shift_b
+
+        bmesh.ops.recalc_face_normals(bm_b, faces=bm_b.faces[:])
+
+        # Material da tampa de Parte B: herda material predominante das faces adjacentes do corpo
+        body_mat = analysis.get("body_mat_index", 0)
+        for f in cap_faces_b:
+            f.material_index = body_mat
+
+        # Interface de corte formal: normal aponta para fora de A (saliência) e para dentro de B (corpo): -n_base (C03)
+        cut_iface = build_cut_interface(
+            origin_world=centroid_base,
+            normal_a_to_b=-n_base,
+            boundary_points_world=[v.co.copy() for v in ordered_verts_a],
+            unit_scale=scale_to_mm,
+            source_mode='MATERIAL',
+        )
+        cut_iface.interface_triangles_world = [
+            tuple(ordered_verts_a[idx].co.copy() for idx in tri) for tri in tris_a
+        ]
+
+        metrics_a = evaluate_bmesh_metrics(bm_a, scale_to_mm)
+        metrics_b = evaluate_bmesh_metrics(bm_b, scale_to_mm)
+
+        if metrics_a["faces"] == 0 or metrics_b["faces"] == 0:
+            raise RuntimeError("O destaque por material gerou peça vazia.")
+        if metrics_a["volume_mm3"] <= 1e-4 or metrics_b["volume_mm3"] <= 1e-4:
+            raise RuntimeError("O destaque por material gerou peça com volume nulo ou desprezível.")
+        if not metrics_a["is_manifold"] or not metrics_b["is_manifold"]:
+            raise RuntimeError(
+                f"O destaque por base gerou peça não-manifold "
+                f"(arestas abertas: Parte A={metrics_a['non_manifold_edges']}, Parte B={metrics_b['non_manifold_edges']})."
+            )
+
+        split_res = SplitResult(
+            part_a_metrics=metrics_a,
+            part_b_metrics=metrics_b,
+            interface=cut_iface,
+            diagnostics_before_connectors={
+                "part_a_volume_mm3": metrics_a["volume_mm3"],
+                "part_b_volume_mm3": metrics_b["volume_mm3"],
+                "sum_volume_mm3": metrics_a["volume_mm3"] + metrics_b["volume_mm3"],
+            },
+            success=True,
+        )
+        return LoopSliceResult(bm_a, bm_b, split_res)
+
+    else:
+        # Extração superficial com profundidade (M03)
+        if not analysis.get('is_planar_base', False):
+            n = -analysis["inward_dir_world"]
+            c = analysis["centroid_world"]
+            boundary = analysis["coords_world"]
+            support = c + n * min((p-c).dot(n) for p in boundary)
+            analysis["coords_world"] = [p - n*(p-support).dot(n) for p in boundary]
+            analysis["centroid_world"] = support
+            analysis["normal_world"] = n
+            analysis["is_planar_base"] = True
+            analysis["protrusion_face_indices"] = analysis["region_face_indices"]
+        if part_clearance_mm > 0.0:
+            if part_clearance_mm >= depth_mm - 0.1:
+                raise LocalizedGeometryError('geometry.clearance_excessive')
+
+        inward_dir = analysis["inward_dir_world"]
+        depth_bu = depth_mm / scale_to_mm
+        outward_ext_bu = max(0.5 / scale_to_mm, 1.0 / scale_to_mm)
+
+        clearance_bu = (part_clearance_mm / scale_to_mm) if part_clearance_mm > 0.0 else 0.0
+        # Folga de fundo (axial) independente da lateral; None = igual à lateral (legado)
+        if part_clearance_bottom_mm is None:
+            bottom_bu = clearance_bu
+        else:
+            bottom_bu = max(0.0, part_clearance_bottom_mm) / scale_to_mm
+            if bottom_bu * scale_to_mm >= depth_mm - 0.1:
+                raise LocalizedGeometryError('geometry.clearance_excessive')
+        if part_clearance_apply_to == 'PART':
+            depth_a_bu = max(0.05 / scale_to_mm, depth_bu - bottom_bu)
+            depth_b_bu = depth_bu
+            lat_off_a = clearance_bu
+            lat_off_b = 0.0
+        elif part_clearance_apply_to == 'CAVITY':
+            depth_a_bu = depth_bu
+            depth_b_bu = depth_bu + bottom_bu
+            lat_off_a = 0.0
+            lat_off_b = -clearance_bu
+        elif part_clearance_apply_to == 'BOTH':
+            depth_a_bu = max(0.05 / scale_to_mm, depth_bu - 0.5 * bottom_bu)
+            depth_b_bu = depth_bu + 0.5 * bottom_bu
+            lat_off_a = 0.5 * clearance_bu
+            lat_off_b = -0.5 * clearance_bu
+        else:
+            depth_a_bu = depth_bu
+            depth_b_bu = depth_bu
+            lat_off_a = 0.0
+            lat_off_b = 0.0
+
+        temp_obj_a = None
+        temp_obj_b = None
+        prism_obj_a = None
+        prism_obj_b = None
+        eval_a = None
+        eval_b = None
+        mesh_a = None
+        mesh_b = None
+
+        bm_a = bm_b = None
+        result_ready = False
+        try:
+            body_mat_idx = analysis.get("body_mat_index", 0)
+            depth_mm_eff = depth_mm
+            frame = _material_support_frame(obj, analysis, scale_to_mm)
+            iface_tris_world = None
+            if frame is not None:
+                # A03: relevo com apoio planar -> prisma de pegada; profundidade parte do apoio
+                n_out = frame["n_out"]
+                inward_dir = -n_out
+                dip_mm = -frame["h_min_bu"] * scale_to_mm
+                if dip_mm > 0.0 and depth_mm <= dip_mm + 0.1:
+                    raise ValueError(
+                        f"A profundidade ({depth_mm:.2f} mm) não cobre o rebaixo da região ({dip_mm:.2f} mm). Aumente a profundidade."
+                    )
+                top_bu = frame["h_max_bu"] + outward_ext_bu
+                coords = [Vector(c) for c in analysis["coords_world"]]
+                u_c, v_c = _get_orthonormal_basis(n_out)
+                pts_c = [Vector(((c - frame["centroid"]).dot(u_c), (c - frame["centroid"]).dot(v_c))) for c in coords]
+                tri_c = triangulate_polygon_2d(pts_c)
+                # amostras no INTERIOR da pegada (centros dos triângulos), longe de arestas do corpo
+                fp_samples = []
+                for t in tri_c:
+                    q = (pts_c[t[0]] + pts_c[t[1]] + pts_c[t[2]]) / 3.0
+                    fp_samples.append(frame["centroid"] + q.x * u_c + q.y * v_c)
+                if not through_cut and fp_samples:
+                    step_c = max(1, len(fp_samples) // 64)
+                    _check_wall_thickness(obj, fp_samples[::step_c], inward_dir, depth_mm, scale_to_mm, region_face_indices=analysis.get("region_face_indices"))
+                prism_obj_a, _ = create_material_footprint_prism_cutter(
+                    obj, coords, frame["centroid"], n_out, top_bu, depth_a_bu,
+                    f"{obj.name}_mat_prism_a", material_index, interface_mat_mode, body_mat_idx, lat_off_a)
+                prism_obj_b, _ = create_material_footprint_prism_cutter(
+                    obj, coords, frame["centroid"], n_out, top_bu, depth_b_bu,
+                    f"{obj.name}_mat_prism_b", body_mat_idx, 'SOURCE', body_mat_idx, lat_off_b)
+                # Interface de contato = fundo da base (nominal), sem folga
+                u_i, v_i = _get_orthonormal_basis(n_out)
+                pts_i = [Vector(((c - frame["centroid"]).dot(u_i), (c - frame["centroid"]).dot(v_i))) for c in coords]
+                tri_i = triangulate_polygon_2d(pts_i)
+                shift_i = inward_dir * depth_bu
+                iface_tris_world = [tuple(frame["centroid"] + pts_i[x].x * u_i + pts_i[x].y * v_i + shift_i for x in t)
+                                    for t in tri_i]
+            else:
+                if not through_cut:
+                    sample_bm = bmesh.new()
+                    sample_bm.from_mesh(obj.data)
+                    sample_bm.transform(obj.matrix_world)
+                    sample_bm.normal_update()
+                    sample_bm.faces.ensure_lookup_table()
+                    samples = [sample_bm.faces[i].calc_center_median() for i in analysis["region_face_indices"]
+                               if i < len(sample_bm.faces)]
+                    sample_bm.free()
+                    # amostragem limitada para manter o desempenho
+                    step = max(1, len(samples) // 64)
+                    _check_wall_thickness(obj, samples[::step], inward_dir, depth_mm, scale_to_mm, region_face_indices=analysis.get("region_face_indices"))
+                prism_obj_a = create_material_patch_prism_cutter(
+                    obj=obj,
+                    region_face_indices=analysis["region_face_indices"],
+                    inward_dir=inward_dir,
+                    depth_bu=depth_a_bu,
+                    outward_ext_bu=outward_ext_bu,
+                    name=f"{obj.name}_mat_prism_a",
+                    material_index=material_index,
+                    interface_mat_mode=interface_mat_mode,
+                    body_mat_index=body_mat_idx,
+                    lateral_offset_bu=lat_off_a,
+                )
+                prism_obj_b = create_material_patch_prism_cutter(
+                    obj=obj,
+                    region_face_indices=analysis["region_face_indices"],
+                    inward_dir=inward_dir,
+                    depth_bu=depth_b_bu,
+                    outward_ext_bu=outward_ext_bu,
+                    name=f"{obj.name}_mat_prism_b",
+                    material_index=body_mat_idx,
+                    interface_mat_mode='SOURCE',
+                    body_mat_index=body_mat_idx,
+                    lateral_offset_bu=lat_off_b,
+                )
+
+                if iface_tris_world is None:
+                    if analysis.get("is_planar_base", False):
+                        coords = [Vector(c) for c in analysis.get("coords_world", [])]
+                        if coords and len(coords) >= 3:
+                            n_norm = inward_dir.normalized()
+                            u_i, v_i = _get_orthonormal_basis(n_norm)
+                            c_ref = Vector(analysis["centroid_world"])
+                            pts_i = [Vector(((c - c_ref).dot(u_i), (c - c_ref).dot(v_i))) for c in coords]
+                            tri_i = triangulate_polygon_2d(pts_i)
+                            shift_i = n_norm * depth_bu
+                            iface_tris_world = [
+                                tuple(c_ref + pts_i[x].x * u_i + pts_i[x].y * v_i + shift_i for x in t)
+                                for t in tri_i
+                            ]
+                    else:
+                        mw = obj.matrix_world
+                        shift_i = inward_dir.normalized() * depth_bu
+                        obj.data.calc_loop_triangles()
+                        region_face_set = set(analysis.get("region_face_indices", []))
+                        tris = [
+                            tuple(mw @ obj.data.vertices[v_idx].co + shift_i for v_idx in tri.vertices)
+                            for tri in obj.data.loop_triangles
+                            if tri.polygon_index in region_face_set
+                        ]
+                        if tris:
+                            iface_tris_world = tris
+
+            bpy.context.view_layer.update()
+
+            # Both operands must intersect the same visible triangulated shell.
+            # Independent n-gon tessellation can otherwise change the source
+            # surface between INTERSECT and DIFFERENCE.
+            from .geometry_clearance import triangulated_source_mesh, weld_boolean_roundoff
+            temp_obj_a = obj.copy()
+            temp_obj_a.data = triangulated_source_mesh(obj.data)
+            temp_obj_a.hide_viewport = False
+            temp_obj_a.hide_render = False
+            actual_scene.collection.objects.link(temp_obj_a)
+            mod_a = temp_obj_a.modifiers.new(name="Mat_Intersect", type='BOOLEAN')
+            mod_a.operation = 'INTERSECT'
+            mod_a.solver = _solver
+            mod_a.object = prism_obj_a
+
+            temp_obj_b = obj.copy()
+            temp_obj_b.data = triangulated_source_mesh(obj.data)
+            temp_obj_b.hide_viewport = False
+            temp_obj_b.hide_render = False
+            actual_scene.collection.objects.link(temp_obj_b)
+            mod_b = temp_obj_b.modifiers.new(name="Mat_Difference", type='BOOLEAN')
+            mod_b.operation = 'DIFFERENCE'
+            mod_b.solver = _solver
+            mod_b.object = prism_obj_b
+
+            bpy.context.view_layer.update()
+            dg = bpy.context.evaluated_depsgraph_get()
+
+            eval_a = temp_obj_a.evaluated_get(dg)
+            mesh_a = eval_a.to_mesh()
+            eval_b = temp_obj_b.evaluated_get(dg)
+            mesh_b = eval_b.to_mesh()
+
+            bm_a = bmesh.new()
+            bm_a.from_mesh(mesh_a)
+            bm_b = bmesh.new()
+            bm_b.from_mesh(mesh_b)
+
+            # Transforma para World Space
+            bm_a.transform(obj.matrix_world)
+            bm_a.normal_update()
+            bm_b.transform(obj.matrix_world)
+            bm_b.normal_update()
+
+            # Merge only connected, sub-0.0001 mm Boolean roundoff. The normal
+            # strict area, manifold and volume checks remain in force below and
+            # in the publishing operator.
+            weld_boolean_roundoff(bm_a, scale_to_mm)
+            weld_boolean_roundoff(bm_b, scale_to_mm)
+
+            # Preserva materiais exteriores originais em A e B (INV-012)
+            # A interface gerada pelo prism_obj_a já herdou material_index, enquanto prism_obj_b gerou a cavidade com body_mat_idx
+
+            # Extrai contorno da fronteira para a CutInterface formal (B08 / C08)
+            mw = obj.matrix_world
+            boundary_pts_world = [mw @ p for p in analysis.get("boundary_coords", [])]
+            if not boundary_pts_world:
+                boundary_pts_world = [Vector(v) for v in analysis.get("coords_world", [])]
+
+            # A03: interface efetiva = fundo da base/extração (deslocada pela profundidade nominal)
+            iface_shift = inward_dir.normalized() * depth_bu
+            cut_iface = build_cut_interface(
+                origin_world=Vector(analysis["centroid_world"]) + iface_shift,
+                normal_a_to_b=inward_dir,
+                boundary_points_world=[Vector(p) + iface_shift for p in boundary_pts_world],
+                interface_triangles=iface_tris_world,
+                unit_scale=scale_to_mm,
+                source_mode='MATERIAL',
+            )
+
+            metrics_a = evaluate_bmesh_metrics(bm_a, scale_to_mm)
+            metrics_b = evaluate_bmesh_metrics(bm_b, scale_to_mm)
+
+            # Validação geométrica estrita para sólidos imprimíveis (Seção 6)
+            if metrics_a["faces"] == 0 or metrics_b["faces"] == 0:
+                raise RuntimeError("O corte por material resultou em uma peça vazia. Verifique a área ou profundidade selecionada.")
+            if metrics_a["volume_mm3"] <= 1e-4 or metrics_b["volume_mm3"] <= 1e-4:
+                raise RuntimeError("O corte por material gerou uma peça com volume nulo ou desprezível.")
+            if not metrics_a["is_manifold"] or not metrics_b["is_manifold"]:
+                raise MaterialBooleanError(
+                    f"O corte por material gerou peça não-manifold "
+                    f"(arestas abertas: Parte A={metrics_a['non_manifold_edges']}, Parte B={metrics_b['non_manifold_edges']})."
+                )
+
+            split_res = SplitResult(
+                part_a_metrics=metrics_a,
+                part_b_metrics=metrics_b,
+                interface=cut_iface,
+                diagnostics_before_connectors={
+                    "part_a_volume_mm3": metrics_a["volume_mm3"],
+                    "part_b_volume_mm3": metrics_b["volume_mm3"],
+                    "sum_volume_mm3": metrics_a["volume_mm3"] + metrics_b["volume_mm3"],
+                },
+                success=True,
+            )
+            result_ready = True
+            return LoopSliceResult(bm_a, bm_b, split_res)
+
+        finally:
+            if not result_ready:
+                for bm in (bm_a, bm_b):
+                    if bm is not None and bm.is_valid:
+                        bm.free()
+            # Liberação estrita no mesmo objeto avaliado (B03)
+            if eval_a and mesh_a:
+                try:
+                    eval_a.to_mesh_clear()
+                except Exception:
+                    pass
+            if eval_b and mesh_b:
+                try:
+                    eval_b.to_mesh_clear()
+                except Exception:
+                    pass
+
+            for t_o in (temp_obj_a, temp_obj_b):
+                if t_o:
+                    t_mesh = t_o.data
+                    if t_o.name in actual_scene.collection.objects:
+                        actual_scene.collection.objects.unlink(t_o)
+                    if t_o.name in bpy.data.objects:
+                        bpy.data.objects.remove(t_o, do_unlink=True)
+                    if t_mesh and t_mesh.users == 0:
+                        bpy.data.meshes.remove(t_mesh, do_unlink=True)
+
+            for p_o in (prism_obj_a, prism_obj_b):
+                if p_o:
+                    p_mesh = p_o.data
+                    if p_o.name in actual_scene.collection.objects:
+                        actual_scene.collection.objects.unlink(p_o)
+                    if p_o.name in bpy.data.objects:
+                        bpy.data.objects.remove(p_o, do_unlink=True)
+                    if p_mesh and p_mesh.users == 0:
+                        bpy.data.meshes.remove(p_mesh, do_unlink=True)

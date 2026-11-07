@@ -101,14 +101,7 @@ class StringVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-target_files = [
-    "ui.py",
-    "properties.py",
-    "operators.py",
-    "connector_editor.py",
-    "diagnostic.py",
-    "io_export.py",
-]
+target_files = [p.name for p in SRC.glob('*.py') if p.name not in ('translations.py', 'localized_errors.py')]
 
 for fname in target_files:
     fpath = SRC / fname

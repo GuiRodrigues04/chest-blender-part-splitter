@@ -1,0 +1,126 @@
+{
+  "files": [
+    {
+      "source": "GLB",
+      "before_repair": {
+        "verts": 3887,
+        "faces": 1886,
+        "nonmanifold": 4218
+      },
+      "repair": {
+        "operator": "{'FINISHED'}",
+        "message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0."
+      },
+      "after_repair": {
+        "verts": 945,
+        "faces": 1884,
+        "nonmanifold": 0
+      },
+      "material_slots": 2,
+      "region0": {
+        "valid": true,
+        "error": null,
+        "region_face_count": null,
+        "boundary_loops": null,
+        "has_holes": true,
+        "area_mm2": null
+      },
+      "cases": [
+        {
+          "depth_mm": 0.1,
+          "gap_mm": 0.0,
+          "parts": [
+            {
+              "verts": 996,
+              "faces": 1315,
+              "volume_mm3": 998.9788001170981,
+              "manifold": true,
+              "valid": true,
+              "nonmanifold_edges": 0
+            },
+            {
+              "verts": 1437,
+              "faces": 2318,
+              "volume_mm3": 218425.68737650308,
+              "manifold": true,
+              "valid": true,
+              "nonmanifold_edges": 0
+            }
+          ],
+          "success": true,
+          "total_volume_mm3": 219424.66617662017,
+          "source_unchanged": true
+        },
+        {
+          "depth_mm": 5.0,
+          "gap_mm": 0.1,
+          "success": false,
+          "exception": "LocalizedGeometryError: The 0.100 mm clearance crosses contours or collapses region details/openings. Reduce clearance in Custom or select a region without these details. Clearance was not changed.",
+          "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\compare_qr_glb_fdm_20261021.py\", line 51, in <module>\n    result=slice_mesh_by_material(obj,0,depth_mm=depth,extraction_mode='EXTRUDE',part_clearance_mm=gap)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_material.py\", line 765, in slice_mesh_by_material\n    return _slice_mesh_by_material(**args)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_material.py\", line 866, in _slice_mesh_by_material\n    return slice_surface_region(obj,analysis['region_face_indices'],depth_mm,actual_scene,\n                                extraction_mode,part_clearance_mm,part_clearance_apply_to,\n                                part_clearance_bottom_mm,material_index,interface_mat_mode,\n                                'MATERIAL',through_cut)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_regions.py\", line 268, in slice_surface_region\n    return _slice_surface_region(*args, **kwargs)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_regions.py\", line 201, in _slice_surface_region\n    prism,_,actual_loops=ring_prism(support,depth-sign*fraction*bottom,support['height']+1.,sign*fraction*clearance_mm-guard,scale,'_frame_'+side)\n                         ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nsrc.localized_errors.LocalizedGeometryError: The 0.100 mm clearance crosses contours or collapses region details/openings. Reduce clearance in Custom or select a region without these details. Clearance was not changed.\n",
+          "source_unchanged": true
+        }
+      ]
+    },
+    {
+      "source": "BLEND",
+      "before_repair": {
+        "verts": 945,
+        "faces": 1886,
+        "nonmanifold": 0
+      },
+      "repair": {
+        "operator": "{'FINISHED'}",
+        "message": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0."
+      },
+      "after_repair": {
+        "verts": 945,
+        "faces": 1884,
+        "nonmanifold": 0
+      },
+      "material_slots": 2,
+      "region0": {
+        "valid": true,
+        "error": null,
+        "region_face_count": null,
+        "boundary_loops": null,
+        "has_holes": true,
+        "area_mm2": null
+      },
+      "cases": [
+        {
+          "depth_mm": 0.1,
+          "gap_mm": 0.0,
+          "parts": [
+            {
+              "verts": 996,
+              "faces": 1315,
+              "volume_mm3": 998.9788001170981,
+              "manifold": true,
+              "valid": true,
+              "nonmanifold_edges": 0
+            },
+            {
+              "verts": 1437,
+              "faces": 2318,
+              "volume_mm3": 218425.68737650308,
+              "manifold": true,
+              "valid": true,
+              "nonmanifold_edges": 0
+            }
+          ],
+          "success": true,
+          "total_volume_mm3": 219424.66617662017,
+          "source_unchanged": true
+        },
+        {
+          "depth_mm": 5.0,
+          "gap_mm": 0.1,
+          "success": false,
+          "exception": "LocalizedGeometryError: The 0.100 mm clearance crosses contours or collapses region details/openings. Reduce clearance in Custom or select a region without these details. Clearance was not changed.",
+          "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\compare_qr_glb_fdm_20261021.py\", line 51, in <module>\n    result=slice_mesh_by_material(obj,0,depth_mm=depth,extraction_mode='EXTRUDE',part_clearance_mm=gap)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_material.py\", line 765, in slice_mesh_by_material\n    return _slice_mesh_by_material(**args)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_material.py\", line 866, in _slice_mesh_by_material\n    return slice_surface_region(obj,analysis['region_face_indices'],depth_mm,actual_scene,\n                                extraction_mode,part_clearance_mm,part_clearance_apply_to,\n                                part_clearance_bottom_mm,material_index,interface_mat_mode,\n                                'MATERIAL',through_cut)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_regions.py\", line 268, in slice_surface_region\n    return _slice_surface_region(*args, **kwargs)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_regions.py\", line 201, in _slice_surface_region\n    prism,_,actual_loops=ring_prism(support,depth-sign*fraction*bottom,support['height']+1.,sign*fraction*clearance_mm-guard,scale,'_frame_'+side)\n                         ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nsrc.localized_errors.LocalizedGeometryError: The 0.100 mm clearance crosses contours or collapses region details/openings. Reduce clearance in Custom or select a region without these details. Clearance was not changed.\n",
+          "source_unchanged": true
+        }
+      ]
+    }
+  ]
+}

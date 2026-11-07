@@ -1,0 +1,131 @@
+{
+  "moves": [
+    {
+      "from": "Part_Splitter_0_8_9_Revisado_Codigo_Atual",
+      "to": "docs/archive/legacy/Part_Splitter_0_8_9_Revisado_Codigo_Atual",
+      "files": 120
+    },
+    {
+      "from": "Part_Splitter_Plano_0.8.10",
+      "to": "docs/archive/legacy/Part_Splitter_Plano_0.8.10",
+      "files": 16
+    },
+    {
+      "from": "Part_Splitter_Plano_Gemini",
+      "to": "docs/archive/legacy/Part_Splitter_Plano_Gemini",
+      "files": 49
+    },
+    {
+      "from": "pkg",
+      "to": "docs/archive/legacy/pkg",
+      "files": 48
+    },
+    {
+      "from": "integracao",
+      "to": "docs/archive/integracao_0.8.13/integracao",
+      "files": 3
+    },
+    {
+      "from": "LEIA_PRIMEIRO_ANTIGRAVITY.md",
+      "to": "docs/archive/integracao_0.8.13/LEIA_PRIMEIRO_ANTIGRAVITY.md",
+      "files": 1
+    },
+    {
+      "from": "crop_ears_full.png",
+      "to": "docs/imagens/diagnosticos/crop_ears_full.png",
+      "files": 1
+    },
+    {
+      "from": "crop_error.png",
+      "to": "docs/imagens/diagnosticos/crop_error.png",
+      "files": 1
+    },
+    {
+      "from": "crop_mesh_edit.png",
+      "to": "docs/imagens/diagnosticos/crop_mesh_edit.png",
+      "files": 1
+    },
+    {
+      "from": "crop_panel.png",
+      "to": "docs/imagens/diagnosticos/crop_panel.png",
+      "files": 1
+    },
+    {
+      "from": "crop_spike.png",
+      "to": "docs/imagens/diagnosticos/crop_spike.png",
+      "files": 1
+    },
+    {
+      "from": "crop_topleft.png",
+      "to": "docs/imagens/diagnosticos/crop_topleft.png",
+      "files": 1
+    },
+    {
+      "from": "chest_part_splitter-0.8.11.zip",
+      "to": "dist/archive/chest_part_splitter-0.8.11.zip",
+      "files": 1
+    },
+    {
+      "from": "tests/audit_base_open_edge_20261021.py",
+      "to": "scripts/audits/audit_base_open_edge_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/audit_chest_glb_followup_20261021.py",
+      "to": "scripts/audits/audit_chest_glb_followup_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/audit_cube_20261021.py",
+      "to": "scripts/audits/audit_cube_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/audit_green_followup_20261021.py",
+      "to": "scripts/audits/audit_green_followup_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/audit_planar_solid_20261021.py",
+      "to": "scripts/audits/audit_planar_solid_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/audit_plates_blend_20261021.py",
+      "to": "scripts/audits/audit_plates_blend_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/audit_plates_glb_20261021.py",
+      "to": "scripts/audits/audit_plates_glb_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/compare_plate_glb_blend_20261021.py",
+      "to": "scripts/audits/compare_plate_glb_blend_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/compare_qr_glb_fdm_20261021.py",
+      "to": "scripts/audits/compare_qr_glb_fdm_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/experiment_arco_base_intersect_20261021.py",
+      "to": "scripts/audits/experiment_arco_base_intersect_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/probe_chest_connector_solver_20261021.py",
+      "to": "scripts/audits/probe_chest_connector_solver_20261021.py",
+      "files": 1
+    },
+    {
+      "from": "tests/save_plate_glb_review_previews_20261021.py",
+      "to": "scripts/audits/save_plate_glb_review_previews_20261021.py",
+      "files": 1
+    }
+  ],
+  "runtime_sources_unchanged": true,
+  "historical_files_hash_verified": true
+}

@@ -1,0 +1,240 @@
+[
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Cavalete_Chest_Inteira.blend",
+    "case": "PLANE_X_ZERO",
+    "mode": "PLANE",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 172012.8347575939
+    },
+    "source_volume": 172012.8347575939,
+    "dimensions_mm": [
+      110.0,
+      84.0,
+      160.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 86006.40789867521,
+        "faces": 118
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 86006.4137386562,
+        "faces": 158
+      }
+    ],
+    "sum_volume": 172012.82163733142,
+    "measured_plane_gap_mm": 0.0,
+    "revert": "pass",
+    "seconds": 0.19
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Cavalete_Chest_Inteira.blend",
+    "case": "PLANE_Z_FDM_PINS",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": true,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 172012.8347575939
+    },
+    "source_volume": 172012.8347575939,
+    "dimensions_mm": [
+      110.0,
+      84.0,
+      160.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 89891.21362496894,
+        "faces": 278
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 82009.49238150967,
+        "faces": 107
+      }
+    ],
+    "sum_volume": 171900.7060064786,
+    "manual_file": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_planar_solid_20261021\\final\\manual\\Placa_Cavalete_Chest_Inteira_blend_planar_pins.blend",
+    "revert": "pass",
+    "seconds": 0.343
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Cavalete_Chest_Inteira.blend",
+    "case": "PLANE_X_FDM",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 172012.8347575939
+    },
+    "source_volume": 172012.8347575939,
+    "dimensions_mm": [
+      110.0,
+      84.0,
+      160.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 85850.03441043882,
+        "faces": 118
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 86006.4137386562,
+        "faces": 158
+      }
+    ],
+    "sum_volume": 171856.44814909503,
+    "measured_plane_gap_mm": 0.10000145243060204,
+    "revert": "pass",
+    "seconds": 0.121
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Cavalete_Chest_Inteira.blend",
+    "case": "PLANE_DIAGONAL_ZERO",
+    "mode": "PLANE",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 172012.8347575939
+    },
+    "source_volume": 172012.8347575939,
+    "dimensions_mm": [
+      110.0,
+      84.0,
+      160.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 107543.96972272269,
+        "faces": 211
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 64468.84709814474,
+        "faces": 68
+      }
+    ],
+    "sum_volume": 172012.81682086742,
+    "measured_plane_gap_mm": 0.0,
+    "revert": "pass",
+    "seconds": 0.136
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Cavalete_Chest_Inteira.blend",
+    "case": "SOLID_CORNER_ZERO",
+    "mode": "SOLID",
+    "gap": 0.0,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 172012.8347575939
+    },
+    "source_volume": 172012.8347575939,
+    "dimensions_mm": [
+      110.0,
+      84.0,
+      160.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 92886.92997310279,
+        "faces": 158
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 79125.90331042094,
+        "faces": 118
+      }
+    ],
+    "sum_volume": 172012.83328352374,
+    "revert": "pass",
+    "seconds": 0.673
+  },
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Cavalete_Chest_Inteira.blend",
+    "case": "SOLID_CORNER_FDM",
+    "mode": "SOLID",
+    "gap": 0.1,
+    "pins": false,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 172012.8347575939
+    },
+    "source_volume": 172012.8347575939,
+    "dimensions_mm": [
+      110.0,
+      84.0,
+      160.0
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 92730.55131514929,
+        "faces": 158
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 79125.90331042094,
+        "faces": 118
+      }
+    ],
+    "sum_volume": 171856.45462557022,
+    "revert": "pass",
+    "seconds": 0.164
+  }
+]

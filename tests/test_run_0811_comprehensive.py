@@ -346,7 +346,8 @@ class TestPartSplitter0811(unittest.TestCase):
 
         if os.path.exists(teste3_blend):
             bpy.ops.wm.open_mainfile(filepath=teste3_blend)
-            corner_box = bpy.data.objects.get("CHEST_SPLITTER_SOLID_CUTTER_CornerBox")
+            from src.constants import SOLID_CUTTER_NAME
+            corner_box = bpy.data.objects.get(f"{SOLID_CUTTER_NAME}_CornerBox") or bpy.data.objects.get("CHEST_SPLITTER_SOLID_CUTTER_CornerBox")
             self.assertIsNotNone(corner_box, "Corner box em Teste_3.blend não encontrado.")
             self.assertEqual(len(corner_box.data.vertices), 8)
 

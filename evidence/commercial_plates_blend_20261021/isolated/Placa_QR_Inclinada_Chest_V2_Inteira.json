@@ -1,0 +1,43 @@
+{
+  "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Vers\u00e3o 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+  "status": "ok",
+  "objects": [
+    {
+      "object": "Placa_QR_Inclinada_Chest_V2_Inteira",
+      "vertices": 493,
+      "edges": 1473,
+      "faces": 982,
+      "materials": [
+        "Material_1"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "material": 0,
+      "region": 0,
+      "region_faces": 982,
+      "outcome": "expected_invalid_configuration",
+      "analysis_valid": false,
+      "analysis_error": "Todas as faces do modelo j\u00e1 utilizam este material."
+    }
+  ],
+  "loop_cases": [],
+  "operator_cases": [],
+  "effective_preview_operator_module": "src.operators",
+  "source_diagnostics": {
+    "is_valid": true,
+    "is_manifold": true,
+    "non_manifold_edges": [],
+    "degenerate_faces": [],
+    "zero_area_faces": null,
+    "volume_mm3": 219424.6647351252,
+    "errors": null
+  },
+  "scale_to_mm": 1000.0,
+  "repair": {
+    "status": "not_needed",
+    "usable_copy": false
+  },
+  "source_unchanged": true
+}

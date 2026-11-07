@@ -88,8 +88,9 @@ def run_loop_tests():
     res = bpy.ops.chest.splitter_generate_preview()
     assert_true('FINISHED' in res, "Preview de loop gerado com sucesso")
 
-    part_A = bpy.context.scene.objects.get("CHEST_SPLITTER_PREVIEW_A")
-    part_B = bpy.context.scene.objects.get("CHEST_SPLITTER_PREVIEW_B")
+    from src.constants import PREVIEW_A_NAME, PREVIEW_B_NAME
+    part_A = bpy.context.scene.objects.get(PREVIEW_A_NAME) or bpy.context.scene.objects.get("CHEST_SPLITTER_PREVIEW_A")
+    part_B = bpy.context.scene.objects.get(PREVIEW_B_NAME) or bpy.context.scene.objects.get("CHEST_SPLITTER_PREVIEW_B")
     assert_true(part_A is not None and part_B is not None, "Partes de preview criadas")
 
     # Checagem de Manifoldness e Volume

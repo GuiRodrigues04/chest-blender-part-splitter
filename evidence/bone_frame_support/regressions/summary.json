@@ -1,0 +1,12 @@
+[
+  {
+    "suite": "test_frame_regions.py",
+    "exit_code": 0,
+    "seconds": 18.25
+  },
+  {
+    "suite": "test_clearance_profiles.py",
+    "exit_code": 0,
+    "seconds": 4.4
+  }
+]

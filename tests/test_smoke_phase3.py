@@ -124,6 +124,7 @@ def run_tests():
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
 
     # Gera preview sólido
+    settings.part_clearance_mm = 0.0
     bpy.ops.chest.splitter_generate_preview()
     assert_test(settings.session_status == 'PREVIEW_VALID', "Preview com cortador sólido gerado com sucesso")
 
@@ -256,8 +257,9 @@ def run_tests():
 
     col = bpy.context.scene.collection.children_recursive
     prev_col = next((c for c in col if c.name == COLLECTION_PREVIEWS_NAME), None)
-    obj_a = prev_col.objects.get("CHEST_SPLITTER_PREVIEW_A")
-    obj_b = prev_col.objects.get("CHEST_SPLITTER_PREVIEW_B")
+    from src.constants import PREVIEW_A_NAME, PREVIEW_B_NAME
+    obj_a = prev_col.objects.get(PREVIEW_A_NAME) or prev_col.objects.get("CHEST_SPLITTER_PREVIEW_A")
+    obj_b = prev_col.objects.get(PREVIEW_B_NAME) or prev_col.objects.get("CHEST_SPLITTER_PREVIEW_B")
 
     dist_between = (obj_a.location - obj_b.location).length * 1000.0
     assert_test(abs(dist_between - 40.0) < 1.0, f"Distância explodida entre partes = {dist_between:.2f} mm (~40.0 mm)")
@@ -266,6 +268,7 @@ def run_tests():
     # Teste 12: Confirmação Definitiva (Commit) e Restauração
     # -------------------------------------------------------------
     print("\n--- Teste 12: Confirmação Definitiva e Restauração em Modo Sólido ---")
+    bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
     bpy.ops.chest.splitter_commit_parts()
     assert_test(settings.session_status == 'COMMITTED', "Status avançou para COMMITTED")
 

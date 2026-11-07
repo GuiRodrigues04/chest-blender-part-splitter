@@ -10,13 +10,14 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-REQUIRED = ('__init__.py', 'blender_manifest.toml', 'LICENSE', 'README.md', 'CHANGELOG.md')
+REQUIRED = ('__init__.py', 'blender_manifest.toml', 'LICENSE', 'README.md', 'CHANGELOG.md', 'docs/GUIA_RAPIDO_PT_EN.md')
 
 def prepare_stage(stage):
     for name in REQUIRED:
         source = ROOT / name
         if not source.is_file():
             raise FileNotFoundError(f'Missing required file: {name}')
+        (stage / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, stage / name)
     shutil.copytree(ROOT / 'src', stage / 'src', ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '*.pyo'))
     return tomllib.loads((stage / 'blender_manifest.toml').read_text(encoding='utf-8'))
@@ -68,10 +69,10 @@ def main():
         stage.mkdir()
         manifest = prepare_stage(stage)
         candidate = work / f"{manifest['id']}-{manifest['version']}.zip"
-        subprocess.run([args.blender, '--command', 'extension', 'validate', str(stage)], check=True)
-        subprocess.run([args.blender, '--command', 'extension', 'build', '--source-dir', str(stage), '--output-filepath', str(candidate)], check=True)
+        subprocess.run([args.blender, '--factory-startup', '--command', 'extension', 'validate', str(stage)], check=True)
+        subprocess.run([args.blender, '--factory-startup', '--command', 'extension', 'build', '--source-dir', str(stage), '--output-filepath', str(candidate)], check=True)
         inspect_package(candidate)
-        subprocess.run([args.blender, '--command', 'extension', 'validate', str(candidate)], check=True)
+        subprocess.run([args.blender, '--factory-startup', '--command', 'extension', 'validate', str(candidate)], check=True)
         destination = dist / candidate.name
         os.replace(candidate, destination)
         print(f'Package: {destination}')

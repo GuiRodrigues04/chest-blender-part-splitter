@@ -6,6 +6,8 @@ Implementa a separação de responsabilidades (Etapa B / Seção 5 do Plano):
 3. Raycast e picking precisos sobre a superfície física de contato.
 4. Avaliação determinística por ID de cada conector manual.
 """
+from .scene_state import uses_surface_region
+
 
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Any, Optional
@@ -59,7 +61,7 @@ _CACHED_PREPARED_SPLIT: Optional[PreparedSplit] = None
 
 def compute_cut_signature(settings: Any, target: bpy.types.Object, scene=None) -> str:
     """Gera hash determinístico dos parâmetros que alteram a geometria do corte sem pinos."""
-    from .input_state import cut_signature
+    from .input_state import cut_signature, contact_signature
     return cut_signature(settings, target, scene or bpy.context.scene)
 
 
@@ -103,9 +105,12 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
     if target.mode == 'EDIT':
         target.update_from_editmode()
 
+    from .interface_history import recover_previous_interfaces
+    recover_previous_interfaces(context.scene, target)
+
     sig = compute_cut_signature(settings, target, context.scene)
     if mode_has_modifiers := (settings.split_mode == 'PLANE' and any(m.show_viewport for m in target.modifiers)):
-        from .input_state import cut_signature
+        from .input_state import cut_signature, contact_signature
         evaluated = target.evaluated_get(context.evaluated_depsgraph_get())
         try:
             evaluated_mesh = evaluated.to_mesh()
@@ -123,11 +128,25 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
         unit_scale = 1000.0
 
     mode = getattr(settings, "split_mode", "PLANE")
+    if uses_surface_region(settings) and settings.contact_patch_index >= 0:
+        from .input_state import cut_signature, contact_signature
+        if settings.contact_input_signature != contact_signature(settings, target, context.scene):
+            raise ValueError('O corte mudou. Reescolha o contato na nova prévia antes de editar os pinos.')
     male_side = getattr(settings, "connector_male_part", "A")
 
     cut_iface: Optional[CutInterface] = None
-    if mode == 'PLANE':
+    if uses_surface_region(settings):
+        from .geometry_region import slice_region
+        mesh_a = bpy.data.meshes.new('_region_interface_a')
+        mesh_b = bpy.data.meshes.new('_region_interface_b')
+        try:
+            cut_iface = slice_region(target, settings, context.scene, mesh_a, mesh_b)['interface']
+        finally:
+            bpy.data.meshes.remove(mesh_a)
+            bpy.data.meshes.remove(mesh_b)
+    elif mode == 'PLANE':
         from .plane_state import resolve_plane_state
+        from .plane_region import resolve_plane_region
         from .geometry_plane import slice_mesh_by_plane
         plane_origin, plane_normal = resolve_plane_state(context.scene, settings)
         mesh_a = bpy.data.meshes.new('_chest_interface_a')
@@ -144,6 +163,7 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
                 unit_scale=unit_scale, plane_offset_mm=settings.plane_offset_mm,
                 part_clearance_mm=settings.part_clearance_mm,
                 part_clearance_apply_to=settings.part_clearance_apply_to,
+                plane_region=resolve_plane_region(context.scene, settings),
             )
             cut_iface = report['interface']
         finally:
@@ -169,10 +189,16 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
                                         part_clearance_mm=settings.part_clearance_mm,
                                         part_clearance_apply_to=settings.part_clearance_apply_to,
                                         interface_face_index=settings.solid_interface_face_index)
+            if settings.contact_patch_index >= 0:
+                if settings.part_clearance_mm > 0:
+                    raise ValueError('Para pinos escolhidos na prévia use folga entre peças = 0 mm.')
+                from .geometry_region import attach_contacts, mesh_tree
+                attach_contacts(report, mesh_a, mesh_b, unit_scale, settings.contact_patch_index,
+                                mesh_tree(source, target.matrix_world))
             cut_iface = report['interfaces'].get(male_side)
             if cut_iface is not None and settings.solid_interface_face_index < 0:
                 settings.solid_interface_face_index = report['interface_face_index']
-                from .input_state import cut_signature
+                from .input_state import cut_signature, contact_signature
                 sig = cut_signature(settings, target, context.scene) + ':' + male_side
         finally:
             if evaluated is not None:
@@ -202,6 +228,10 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             from .geometry_loop import analyze_loop_region
             analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, context.scene)
             behavior = analysis["detected_mode"]
+        loop_bottom_mm = (
+            getattr(settings, "part_clearance_bottom_mm", 0.0)
+            if getattr(settings, "part_clearance_bottom_enable", False) else None
+        )
         if behavior == 'EXTRUDE':
             loop_res = slice_mesh_by_loop_extrude(
                 target,
@@ -211,6 +241,9 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
                 depth_mm=settings.loop_extrude_depth_mm,
                 through_cut=settings.loop_through_cut,
                 scene=context.scene,
+                part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
+                part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
+                part_clearance_bottom_mm=loop_bottom_mm,
             )
         else:
             loop_res = slice_mesh_by_loop(
@@ -221,7 +254,9 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
                 context.scene,
                 detach_add_base=settings.loop_detach_add_base,
                 detach_base_depth_mm=settings.loop_detach_base_depth_mm,
-                detach_base_clearance_mm=settings.loop_detach_base_clearance_mm,
+                part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
+                part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
+                part_clearance_bottom_mm=loop_bottom_mm,
             )
 
         bm_a, bm_b = loop_res[0], loop_res[1]
@@ -247,7 +282,7 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             scene=context.scene,
             region_index=settings.material_region_index,
             extraction_mode=getattr(settings, "material_extraction_mode", 'EXTRUDE'),
-            interface_mat_mode=getattr(settings, "material_interface_mat_mode", 'SOURCE'),
+            interface_mat_mode=getattr(settings, "material_interface_mat_mode", 'EXTRACTED'),
             part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
             part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
             part_clearance_bottom_mm=(
@@ -285,7 +320,55 @@ def cache_prepared_interface(context, cut_iface, sig=None):
     if not cut_iface.outer_contours_uv:
         raise RuntimeError("Este corte não possui uma superfície comum para posicionar os pinos.")
 
-    if mode == 'PLANE':
+    if getattr(cut_iface, 'clearance_applied', False):
+        # Spatial clearance can split topology. Use the actual retained patch
+        # on the selected pin side rather than shifting the nominal interface.
+        # Keep the nominal UV frame: the patch origin is a mesh-derived anchor
+        # (often a triangle centroid), and rebuilding the frame from it can
+        # move stored manual UV coordinates sideways or rotate them on a flip.
+        patch = getattr(cut_iface, 'final_contact_a' if male_side == 'A' else 'final_contact_b', None)
+        if patch is None:
+            from .localized_errors import LocalizedGeometryError
+            raise LocalizedGeometryError('connectors.no_contact_patch')
+        from .geometry_contract import build_cut_interface, orient_interface
+        previous = cut_iface
+        normal = previous.normal_a_to_b_world.normalized()
+        reference_origin = getattr(previous, 'reference_origin_world', None)
+        if reference_origin is None:
+            reference_origin = previous.origin_world
+        reference_axis_u = getattr(previous, 'reference_axis_u_world', None)
+        if reference_axis_u is None:
+            reference_axis_u = previous.axis_u_world
+        patch_normal = patch['normal'].normalized()
+        # Preserve the interface's A-to-B convention even when B is selected.
+        if patch_normal.dot(normal) < 0.0:
+            patch_normal = -patch_normal
+        # Move the canonical origin only along the patch normal. This places
+        # UV (0, 0) on the physical retained surface while preserving its
+        # tangential coordinates across clearance changes and male-side flips.
+        origin = reference_origin + patch_normal * (
+            (patch['origin'] - reference_origin).dot(patch_normal)
+        )
+        cut_iface = build_cut_interface(
+            origin, normal, patch['boundary'],
+            interface_triangles=patch['triangles'],
+            boundary_loops_world=patch.get('loops'),
+            unit_scale=unit_scale, source_mode=previous.source_mode)
+        cut_iface = orient_interface(cut_iface, reference_axis_u)
+        # A retained patch can itself be locally planar while belonging to a
+        # nonplanar nominal interface. Keep the source surface classification.
+        cut_iface.is_planar = previous.is_planar
+        cut_iface.deviation_mm = previous.deviation_mm
+        # Keep the reference when this prepared interface is cached/reused.
+        if hasattr(previous, 'reference_origin_world'):
+            cut_iface.reference_origin_world = reference_origin.copy()
+        if hasattr(previous, 'reference_axis_u_world'):
+            cut_iface.reference_axis_u_world = reference_axis_u.copy()
+        cut_iface.clearance_applied = True
+        cut_iface.final_contact_a = previous.final_contact_a
+        cut_iface.final_contact_b = previous.final_contact_b
+        contact_tris = list(cut_iface.interface_triangles_world)
+    elif mode == 'PLANE':
         from dataclasses import replace
         distance = max(0.0, settings.part_clearance_mm)/unit_scale
         fraction = (1.0 if settings.part_clearance_apply_to == ('PART' if male_side == 'A' else 'CAVITY')
@@ -300,6 +383,24 @@ def cache_prepared_interface(context, cut_iface, sig=None):
         shift = cut_iface.normal_a_to_b_world * (bottom/unit_scale)*fraction*(-1 if male_side == 'A' else 1)
         cut_iface = replace(cut_iface, origin_world=cut_iface.origin_world+shift,
                             interface_triangles_world=[tuple(p+shift for p in tri) for tri in cut_iface.interface_triangles_world])
+        contact_tris = cut_iface.interface_triangles_world
+    elif mode == 'LOOP':
+        from dataclasses import replace
+        loop_beh = settings.loop_behavior
+        if loop_beh == 'AUTO':
+            loop_beh = getattr(settings, "loop_detected_mode", "DETACH") or "DETACH"
+        if loop_beh == 'EXTRUDE' and not settings.loop_through_cut:
+            bottom = settings.part_clearance_bottom_mm if settings.part_clearance_bottom_enable else settings.part_clearance_mm
+        elif loop_beh == 'DETACH' and settings.loop_detach_add_base:
+            bottom = settings.part_clearance_bottom_mm if settings.part_clearance_bottom_enable else settings.part_clearance_mm
+        else:
+            bottom = settings.part_clearance_mm
+        fraction = (1.0 if settings.part_clearance_apply_to == ('PART' if male_side == 'A' else 'CAVITY')
+                    else 0.5 if settings.part_clearance_apply_to == 'BOTH' else 0.0)
+        shift = cut_iface.normal_a_to_b_world * (max(0.0, bottom)/unit_scale)*fraction*(-1 if male_side == 'A' else 1)
+        shifted_tris = [tuple(p+shift for p in tri) for tri in cut_iface.interface_triangles_world] if cut_iface.interface_triangles_world else []
+        cut_iface = replace(cut_iface, origin_world=cut_iface.origin_world+shift,
+                            interface_triangles_world=shifted_tris)
         contact_tris = cut_iface.interface_triangles_world
 
     # Pin UVs belong to a selected region, never to whichever loop was used before.
@@ -317,9 +418,12 @@ def cache_prepared_interface(context, cut_iface, sig=None):
     cutter_id = _get_persistent_id(settings.solid_cutter_object) if (mode == 'SOLID' and settings.solid_cutter_object) else None
     binding = repr((target_id, mode,
                     settings.loop_vertex_indices if mode == 'LOOP' else None,
+                    getattr(settings,'loop_boundary_loops','') if mode == 'LOOP' else None,
+                    getattr(settings,'loop_region_face_indices','') if mode == 'LOOP' else None,
                     settings.loop_seed_face_index if mode == 'LOOP' else None,
                     (settings.material_split_index, settings.material_region_index) if mode == 'MATERIAL' else None,
-                    (cutter_id, settings.solid_interface_face_index)
+                    (settings.region_face_indices, settings.contact_patch_index) if uses_surface_region(settings) else None,
+                    (cutter_id, settings.solid_interface_face_index, settings.contact_patch_index)
                     if mode == 'SOLID' else None))
     if settings.manual_binding and settings.manual_binding != binding:
         settings.manual_connectors.clear()

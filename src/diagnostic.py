@@ -96,8 +96,7 @@ def analyze_target_mesh(obj: bpy.types.Object, scene: bpy.types.Scene) -> dict:
             )
 
         # Checagem de faces degeneradas
-        min_area_bu = MIN_FACE_AREA_BU
-        degenerate_faces = sum(1 for f in bm.faces if f.calc_area() < min_area_bu)
+        degenerate_faces = len(validate_bmesh_mesh_geometry(bm, scale_to_mm)['degenerate_faces'])
         if degenerate_faces > 0:
             warnings.append(
                 f"Malha possui {degenerate_faces} face(s) com área nula ou degenerada."
@@ -138,17 +137,56 @@ def analyze_target_mesh(obj: bpy.types.Object, scene: bpy.types.Scene) -> dict:
     }
 
 
+def stable_signed_volume_mm3(bm, scale_to_mm):
+    """Double-precision signed volume, independent of BMesh float summation.
+
+    Translation near one source vertex limits cancellation. Signed fans also
+    handle concave planar polygons; no coordinate or topology is modified.
+    """
+    import math
+    if not bm.verts:
+        return 0.0
+    reference = tuple(next(iter(bm.verts)).co)
+    terms = []
+    for face in bm.faces:
+        points = [tuple((float(v.co[i])-reference[i])*scale_to_mm for i in range(3)) for v in face.verts]
+        if len(points) < 3:
+            continue
+        a = points[0]
+        for b, c in zip(points[1:-1], points[2:]):
+            terms.append((a[0]*(b[1]*c[2]-b[2]*c[1]) +
+                          a[1]*(b[2]*c[0]-b[0]*c[2]) +
+                          a[2]*(b[0]*c[1]-b[1]*c[0]))/6.0)
+    return math.fsum(terms)
+
+
 def sanitize_mesh_micro_degeneracies(bm: bmesh.types.BMesh, scale_to_mm: float = 1000.0) -> bool:
-    """Saneamento restrito e transacional de micro-arestas causadas por arredondamento no solver booleano (DEV-01 / DEV-02 / A08).
-    
-    Solda vértices separados por distâncias sub-micrométricas (< 0.1 µm), resolvendo cadeias de mapeamento
-    de forma determinística (Union-Find) e realizando rollback se o saneamento quebrar integridade manifold.
-    Retorna True se houve saneamento bem-sucedido e a malha permaneceu manifold.
+    """Repair local Boolean roundoff, including long, nearly collinear slivers.
+
+    Only connected micro-edges or invalid faces thinner than 0.0001 mm may be
+    dissolved. Small real facets are retained. Roll back unless strict geometry,
+    manifoldness, bounds and volume checks accept the complete repair.
     """
     eps_bu = 1e-4 / max(1e-6, scale_to_mm)
-    bm.edges.ensure_lookup_table()
+    before = validate_bmesh_mesh_geometry(bm, scale_to_mm)
+    before_volume = stable_signed_volume_mm3(bm, scale_to_mm)
+    bm.faces.ensure_lookup_table()
+    def sliver_edges():
+        bm.faces.index_update()
+        report = validate_bmesh_mesh_geometry(bm, scale_to_mm)
+        bm.faces.ensure_lookup_table()
+        edges = set()
+        for index in report['degenerate_faces']:
+            face = bm.faces[index]
+            longest = max((e.calc_length() for e in face.edges), default=0.0)
+            # Area alone also flags small but well-shaped facets. Require a
+            # sub-micrometre height before touching a face, regardless of size.
+            if longest > 0 and 2 * face.calc_area() / longest <= eps_bu:
+                edges.update(face.edges)
+        return list(edges)
+
     micro_edges = [e for e in bm.edges if e.is_valid and e.calc_length() < eps_bu]
-    if not micro_edges:
+    if not micro_edges and not sliver_edges():
         return False
     
     parent = {}
@@ -175,34 +213,80 @@ def sanitize_mesh_micro_degeneracies(bm: bmesh.types.BMesh, scale_to_mm: float =
         if v != root:
             targetmap[v] = root
 
-    if not targetmap:
-        return False
-
-    orig_had_nm = any(not e.is_manifold for e in bm.edges)
-
-    # Cria malha temporária para rollback determinístico
-    tmp_msh = bpy.data.meshes.new("_tmp_rollback")
-    bm.to_mesh(tmp_msh)
+    bounds = [(min(v.co[i] for v in bm.verts), max(v.co[i] for v in bm.verts)) for i in range(3)]
+    backup = bm.copy()
+    accepted = False
 
     try:
-        bmesh.ops.weld_verts(bm, targetmap=targetmap)
-        bm.edges.ensure_lookup_table()
-        bm.faces.ensure_lookup_table()
+        if targetmap:
+            bmesh.ops.weld_verts(bm, targetmap=targetmap)
+        # One dissolve can expose another collinear triangle in the same fan.
+        for _ in range(4):
+            edges = sliver_edges()
+            if not edges:
+                break
+            bmesh.ops.dissolve_degenerate(bm, edges=edges, dist=eps_bu)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
-        
-        now_has_nm = any(not e.is_manifold for e in bm.edges)
-        if now_has_nm and not orig_had_nm:
-            # Rollback: restaura topologia anterior
-            bm.clear()
-            bm.from_mesh(tmp_msh)
+        after = validate_bmesh_mesh_geometry(bm, scale_to_mm)
+        if not after['is_valid'] or not bm.faces or not bm.verts:
             return False
+        if len(after['non_manifold_edges']) > len(before['non_manifold_edges']):
+            return False
+        volume_tolerance = max(1e-5, abs(before_volume) * 1e-8)
+        if abs(stable_signed_volume_mm3(bm, scale_to_mm) - before_volume) > volume_tolerance:
+            return False
+        for i, (low, high) in enumerate(bounds):
+            if abs(min(v.co[i] for v in bm.verts) - low) > eps_bu or abs(max(v.co[i] for v in bm.verts) - high) > eps_bu:
+                return False
+        accepted = True
         return True
     except Exception:
-        bm.clear()
-        bm.from_mesh(tmp_msh)
         return False
     finally:
-        bpy.data.meshes.remove(tmp_msh, do_unlink=True)
+        if not accepted:
+            # Copy through a temporary Mesh because BMesh has no from_bmesh API.
+            tmp_mesh = bpy.data.meshes.new('_splitter_cleanup_rollback')
+            try:
+                backup.to_mesh(tmp_mesh)
+                bm.clear()
+                bm.from_mesh(tmp_mesh)
+            finally:
+                bpy.data.meshes.remove(tmp_mesh)
+        backup.free()
+
+
+def validate_mesh_repair_change(before, after, scale_to_mm):
+    """Accept only closed repairs within 0.0001 mm, including material areas.
+
+    Candidate generation is local welding/dissolving only; these checks never
+    authorize filling holes, remeshing or removing small colour islands.
+    """
+    from collections import defaultdict
+    report = validate_bmesh_mesh_geometry(after, scale_to_mm)
+    if not after.faces or not report['is_valid'] or not report['is_manifold']:
+        return False
+    old_volume = abs(before.calc_volume()) * scale_to_mm ** 3
+    new_volume = abs(after.calc_volume()) * scale_to_mm ** 3
+    if new_volume <= 1e-9 or abs(new_volume-old_volume) > max(1e-5, old_volume*1e-8):
+        return False
+    def areas(bm):
+        result = defaultdict(float)
+        for face in bm.faces:
+            result[face.material_index] += face.calc_area()*scale_to_mm**2
+        return result
+    original, candidate = areas(before), areas(after)
+    if set(original) != set(candidate):
+        return False
+    if any(abs(candidate[k]-value) > max(1e-6, value*1e-10) for k,value in original.items()):
+        return False
+    tolerance = 0.0001 / scale_to_mm
+    for axis in range(3):
+        for bound in (min, max):
+            if abs(bound(v.co[axis] for v in before.verts)-bound(v.co[axis] for v in after.verts)) > tolerance:
+                return False
+    from .repair_surface import surface_samples_within
+    return surface_samples_within(before, after, tolerance)
+
 
 
 def validate_bmesh_mesh_geometry(bm: bmesh.types.BMesh, scale_to_mm: float = 1000.0) -> Dict[str, Any]:
@@ -221,7 +305,15 @@ def validate_bmesh_mesh_geometry(bm: bmesh.types.BMesh, scale_to_mm: float = 100
     degenerate_faces = []
     for f in bm.faces:
         area_mm2 = f.calc_area() * (scale_to_mm ** 2)
-        if area_mm2 < min_face_area_mm2:
+        # Small area alone does not imply degeneracy: imported meshes may
+        # contain tiny, well-shaped facets at colour boundaries. Require a
+        # sub-tolerance altitude as well, using the same physical tolerance
+        # as the coincident-vertex/zero-edge checks.
+        longest_mm = max((e.calc_length() * scale_to_mm for e in f.edges), default=0.0)
+        collapsed = (area_mm2 <= 0.0 or longest_mm <= 0.0 or
+                     (area_mm2 < min_face_area_mm2 and
+                      2.0 * area_mm2 / longest_mm <= eps_length_bu * scale_to_mm))
+        if collapsed:
             degenerate_faces.append(f.index)
         else:
             coords = [v.co for v in f.verts]

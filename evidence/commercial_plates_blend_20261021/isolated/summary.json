@@ -1,0 +1,60 @@
+{
+  "models_directory": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Vers\u00e3o 1 - Placas Inteiras\\Blender",
+  "blender": "C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe",
+  "files": [
+    {
+      "file": "Placa_Cavalete_Chest_Inteira.blend",
+      "returncode": 0,
+      "json": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Cavalete_Chest_Inteira.json",
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Cavalete_Chest_Inteira.log"
+    },
+    {
+      "file": "Placa_Arco_Chest_Inteira.blend",
+      "returncode": 0,
+      "json": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Arco_Chest_Inteira.json",
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Arco_Chest_Inteira.log"
+    },
+    {
+      "file": "Placa_Mesa_Chest_Inteira.blend",
+      "returncode": 0,
+      "json": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Mesa_Chest_Inteira.json",
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Mesa_Chest_Inteira.log"
+    },
+    {
+      "file": "Placa_Chest_Inteira.blend",
+      "returncode": 0,
+      "json": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Chest_Inteira.json",
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Chest_Inteira.log"
+    },
+    {
+      "file": "Placa_Numero_Chest_Inteira.blend",
+      "returncode": 0,
+      "json": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Numero_Chest_Inteira.json",
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Numero_Chest_Inteira.log"
+    },
+    {
+      "file": "Placa_Osso_Chest_Inteira.blend",
+      "returncode": 0,
+      "json": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Osso_Chest_Inteira.json",
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Osso_Chest_Inteira.log"
+    },
+    {
+      "file": "Placa_QR_Inclinada_Chest_Inteira.blend",
+      "returncode": 0,
+      "json": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_QR_Inclinada_Chest_Inteira.json",
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_QR_Inclinada_Chest_Inteira.log"
+    },
+    {
+      "file": "Placa_Osso_Chest_V2_Inteira.blend",
+      "returncode": 0,
+      "json": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Osso_Chest_V2_Inteira.json",
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_Osso_Chest_V2_Inteira.log"
+    },
+    {
+      "file": "Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+      "returncode": 0,
+      "json": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_QR_Inclinada_Chest_V2_Inteira.json",
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\isolated\\Placa_QR_Inclinada_Chest_V2_Inteira.log"
+    }
+  ]
+}

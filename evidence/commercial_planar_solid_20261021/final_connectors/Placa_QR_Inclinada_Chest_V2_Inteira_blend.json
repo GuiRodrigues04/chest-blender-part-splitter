@@ -1,0 +1,42 @@
+[
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+    "case": "PLANE_Z_FDM_PINS",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": true,
+    "status": "pass",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 219424.6647351252
+    },
+    "source_volume": 219424.6647351252,
+    "dimensions_mm": [
+      130.0,
+      94.00000762939453,
+      188.1660614013672
+    ],
+    "preview_return": "{'FINISHED'}",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "volume": 144218.54916052383,
+        "faces": 857
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "volume": 75120.25659389932,
+        "faces": 406
+      }
+    ],
+    "sum_volume": 219338.80575442314,
+    "manual_file": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_planar_solid_20261021\\final_connectors\\manual\\Placa_QR_Inclinada_Chest_V2_Inteira_blend_planar_pins.blend",
+    "revert": "pass",
+    "seconds": 0.688
+  }
+]

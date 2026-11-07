@@ -1,0 +1,157 @@
+{
+  "models_directory": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender",
+  "blender": "C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe",
+  "threads": 2,
+  "files": [
+    {
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Arco_Chest_Inteira.blend",
+      "status": "ok",
+      "returncode": 0,
+      "source_unchanged": true,
+      "repair": {
+        "status": "not_needed",
+        "usable_copy": false
+      },
+      "material_cases": 3,
+      "loop_cases": 3,
+      "operator_cases": 2,
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\Placa_Arco_Chest_Inteira.log"
+    },
+    {
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Cavalete_Chest_Inteira.blend",
+      "status": "ok",
+      "returncode": 0,
+      "source_unchanged": true,
+      "repair": {
+        "status": "not_needed",
+        "usable_copy": false
+      },
+      "material_cases": 2,
+      "loop_cases": 2,
+      "operator_cases": 2,
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\Placa_Cavalete_Chest_Inteira.log"
+    },
+    {
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Chest_Inteira.blend",
+      "status": "ok",
+      "returncode": 0,
+      "source_unchanged": true,
+      "repair": {
+        "status": "not_needed",
+        "usable_copy": false
+      },
+      "material_cases": 3,
+      "loop_cases": 2,
+      "operator_cases": 3,
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\Placa_Chest_Inteira.log"
+    },
+    {
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Mesa_Chest_Inteira.blend",
+      "status": "ok",
+      "returncode": 0,
+      "source_unchanged": true,
+      "repair": {
+        "status": "not_needed",
+        "usable_copy": false
+      },
+      "material_cases": 2,
+      "loop_cases": 2,
+      "operator_cases": 2,
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\Placa_Mesa_Chest_Inteira.log"
+    },
+    {
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Numero_Chest_Inteira.blend",
+      "status": "ok",
+      "returncode": 0,
+      "source_unchanged": true,
+      "repair": {
+        "status": "not_needed",
+        "usable_copy": false
+      },
+      "material_cases": 1,
+      "loop_cases": 0,
+      "operator_cases": 0,
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\Placa_Numero_Chest_Inteira.log"
+    },
+    {
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Osso_Chest_Inteira.blend",
+      "status": "ok",
+      "returncode": 0,
+      "source_unchanged": true,
+      "repair": {
+        "status": "not_needed",
+        "usable_copy": false
+      },
+      "material_cases": 2,
+      "loop_cases": 2,
+      "operator_cases": 2,
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\Placa_Osso_Chest_Inteira.log"
+    },
+    {
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Osso_Chest_V2_Inteira.blend",
+      "status": "ok",
+      "returncode": 0,
+      "source_unchanged": true,
+      "repair": {
+        "status": "not_needed",
+        "usable_copy": false
+      },
+      "material_cases": 2,
+      "loop_cases": 2,
+      "operator_cases": 2,
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\Placa_Osso_Chest_V2_Inteira.log"
+    },
+    {
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_Inteira.blend",
+      "status": "ok",
+      "returncode": 0,
+      "source_unchanged": true,
+      "repair": {
+        "operator": [
+          "FINISHED"
+        ],
+        "status": "Safe repair completed on a validated copy (0.0001 mm tolerance). Shape, volume and materials checked. Open edges: 0.",
+        "before": {
+          "vertices": 945,
+          "faces": 1886,
+          "materials": [
+            "Material_1",
+            "Material_2"
+          ]
+        },
+        "after": {
+          "vertices": 945,
+          "faces": 1884,
+          "materials": [
+            "Material_1",
+            "Material_2"
+          ],
+          "valid": true,
+          "manifold": true,
+          "volume_mm3": 219424.66626025262,
+          "errors": []
+        },
+        "usable_copy": true
+      },
+      "material_cases": 6,
+      "loop_cases": 1,
+      "operator_cases": 2,
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\Placa_QR_Inclinada_Chest_Inteira.log"
+    },
+    {
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_QR_Inclinada_Chest_V2_Inteira.blend",
+      "status": "ok",
+      "returncode": 0,
+      "source_unchanged": true,
+      "repair": {
+        "status": "not_needed",
+        "usable_copy": false
+      },
+      "material_cases": 1,
+      "loop_cases": 0,
+      "operator_cases": 0,
+      "log": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\Placa_QR_Inclinada_Chest_V2_Inteira.log"
+    }
+  ],
+  "manual_review_directory": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_blend_20261021\\manual_review"
+}

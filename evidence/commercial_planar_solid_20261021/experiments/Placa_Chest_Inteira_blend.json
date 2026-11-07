@@ -1,0 +1,28 @@
+[
+  {
+    "asset": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Versão 1 - Placas Inteiras\\Blender\\Placa_Chest_Inteira.blend",
+    "case": "PLANE_X_FDM",
+    "mode": "PLANE",
+    "gap": 0.1,
+    "pins": false,
+    "status": "failure",
+    "import_mesh_objects": 1,
+    "source_before": {
+      "is_valid": true,
+      "null_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "is_manifold": true,
+      "volume_mm3": 218333.66251520524
+    },
+    "source_volume": 218333.66251520524,
+    "dimensions_mm": [
+      150.0,
+      55.0,
+      190.0
+    ],
+    "error": "Error: Preview generation error: Cut geometry validation failed: Part A: has 2 edge(s) with zero length (degenerate geometry).\n",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\audit_planar_solid_20261021.py\", line 107, in asset_run\n    result=bpy.ops.chest.splitter_generate_preview();row['preview_return']=str(result)\nRuntimeError: Error: Preview generation error: Cut geometry validation failed: Part A: has 2 edge(s) with zero length (degenerate geometry).\n\n",
+    "seconds": 1.336
+  }
+]

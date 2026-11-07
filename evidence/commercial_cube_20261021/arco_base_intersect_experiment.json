@@ -1,0 +1,928 @@
+{
+  "source_volume_mm3": 242204.92756881384,
+  "nominal_A": {
+    "volume_mm3": 239377.37755368493,
+    "dims_mm": [
+      140.00000059604645,
+      51.000000443309546,
+      189.9999976158142
+    ],
+    "triangles": 532,
+    "faces": 532,
+    "verts": 268,
+    "is_manifold": true,
+    "non_manifold_edges": 0,
+    "components": 1
+  },
+  "nominal_A_material_faces": {
+    "1": 532
+  },
+  "nominal_B": {
+    "volume_mm3": 2827.550015129403,
+    "dims_mm": [
+      140.00000059604645,
+      2.0000000949949026,
+      189.9999976158142
+    ],
+    "triangles": 1830,
+    "faces": 1830,
+    "verts": 917,
+    "is_manifold": false,
+    "non_manifold_edges": 1,
+    "components": 1
+  },
+  "nominal_B_material_faces": {
+    "0": 915,
+    "1": 915
+  },
+  "source_minus_nominal_A": {
+    "volume_mm3": 2837.973787511276,
+    "dims_mm": [
+      136.04000210762024,
+      1.0000001639127731,
+      186.04000005871058
+    ],
+    "triangles": 1394,
+    "faces": 807,
+    "verts": 697,
+    "is_manifold": true,
+    "non_manifold_edges": 0,
+    "components": 1
+  },
+  "nominal_volume_sum_mm3": 242204.92756881434,
+  "nominal_volume_delta_mm3": 4.94765117764473e-10,
+  "nominal_selected_exterior_sample_coverage": {
+    "target_face_count": 403,
+    "max_distance_mm": 0.012379148756735958,
+    "samples_over_0_001mm": 13,
+    "target_face_signatures_missing_from_nominalA": [],
+    "missing_count": 0
+  },
+  "solver_experiments": [
+    {
+      "intersect_solver": "EXACT",
+      "difference_solver": "EXACT",
+      "intersect_A": {
+        "volume_mm3": 239366.9536408689,
+        "dims_mm": [
+          140.00000059604645,
+          51.000000443309546,
+          189.9999976158142
+        ],
+        "triangles": 4164,
+        "faces": 2726,
+        "verts": 2084,
+        "is_manifold": true,
+        "non_manifold_edges": 0,
+        "components": 1
+      },
+      "intersect_material_faces": {
+        "0": 262,
+        "1": 2464
+      },
+      "remainder_B": {
+        "volume_mm3": 2627.9608031846524,
+        "dims_mm": [
+          136.04000210762024,
+          2.0000000949949026,
+          186.04000005871058
+        ],
+        "triangles": 1592,
+        "faces": 909,
+        "verts": 792,
+        "is_manifold": false,
+        "non_manifold_edges": 39,
+        "components": 6
+      },
+      "remainder_material_faces": {
+        "0": 883,
+        "1": 26
+      },
+      "volume_sum_mm3": 241994.91444405355,
+      "volume_delta_mm3": -210.01312476029852,
+      "volume_delta_pct": -0.08670885719310183,
+      "nonmanifold_edges": {
+        "A": [],
+        "B": [
+          {
+            "index": 120,
+            "nfaces": 4
+          },
+          {
+            "index": 220,
+            "nfaces": 4
+          },
+          {
+            "index": 231,
+            "nfaces": 4
+          },
+          {
+            "index": 262,
+            "nfaces": 4
+          },
+          {
+            "index": 332,
+            "nfaces": 4
+          },
+          {
+            "index": 353,
+            "nfaces": 4
+          },
+          {
+            "index": 417,
+            "nfaces": 4
+          },
+          {
+            "index": 447,
+            "nfaces": 4
+          },
+          {
+            "index": 451,
+            "nfaces": 4
+          },
+          {
+            "index": 526,
+            "nfaces": 4
+          },
+          {
+            "index": 535,
+            "nfaces": 4
+          },
+          {
+            "index": 583,
+            "nfaces": 4
+          },
+          {
+            "index": 594,
+            "nfaces": 4
+          },
+          {
+            "index": 649,
+            "nfaces": 4
+          },
+          {
+            "index": 887,
+            "nfaces": 4
+          },
+          {
+            "index": 1099,
+            "nfaces": 4
+          },
+          {
+            "index": 1109,
+            "nfaces": 4
+          },
+          {
+            "index": 1113,
+            "nfaces": 4
+          },
+          {
+            "index": 1326,
+            "nfaces": 4
+          },
+          {
+            "index": 1399,
+            "nfaces": 1
+          },
+          {
+            "index": 1400,
+            "nfaces": 1
+          },
+          {
+            "index": 1401,
+            "nfaces": 1
+          },
+          {
+            "index": 1402,
+            "nfaces": 1
+          },
+          {
+            "index": 1403,
+            "nfaces": 1
+          },
+          {
+            "index": 1404,
+            "nfaces": 1
+          },
+          {
+            "index": 1405,
+            "nfaces": 1
+          },
+          {
+            "index": 1406,
+            "nfaces": 1
+          },
+          {
+            "index": 1407,
+            "nfaces": 1
+          },
+          {
+            "index": 1408,
+            "nfaces": 1
+          },
+          {
+            "index": 1409,
+            "nfaces": 1
+          },
+          {
+            "index": 1410,
+            "nfaces": 1
+          },
+          {
+            "index": 1411,
+            "nfaces": 1
+          },
+          {
+            "index": 1412,
+            "nfaces": 1
+          },
+          {
+            "index": 1413,
+            "nfaces": 1
+          },
+          {
+            "index": 1414,
+            "nfaces": 1
+          },
+          {
+            "index": 1415,
+            "nfaces": 1
+          },
+          {
+            "index": 1416,
+            "nfaces": 1
+          },
+          {
+            "index": 1417,
+            "nfaces": 1
+          },
+          {
+            "index": 1418,
+            "nfaces": 1
+          }
+        ]
+      },
+      "selected_exterior_sample_coverage": {
+        "target_face_count": 403,
+        "target_area_mm2": 34866.67107159746,
+        "centroid_sample_max_distance_mm": 0.012379148756735958,
+        "samples_over_0_001mm": 5,
+        "outlier_faces": [
+          {
+            "face": 934,
+            "source_material": 1,
+            "distance_mm": 0.006366105480992701,
+            "area_mm2": 0.44300514900896815,
+            "centroid_mm": [
+              -50.79735442996025,
+              3.000000026077032,
+              0.006420364570658421
+            ]
+          },
+          {
+            "face": 1568,
+            "source_material": 1,
+            "distance_mm": 0.0014528823157888837,
+            "area_mm2": 9.809105904423632,
+            "centroid_mm": [
+              69.74107027053833,
+              3.000000026077032,
+              41.527893394231796
+            ]
+          },
+          {
+            "face": 1569,
+            "source_material": 1,
+            "distance_mm": 0.0046826958168821875,
+            "area_mm2": 7.714970706729218,
+            "centroid_mm": [
+              69.84110176563263,
+              3.000000026077032,
+              41.76937788724899
+            ]
+          },
+          {
+            "face": 1571,
+            "source_material": 1,
+            "distance_mm": 0.012379148756735958,
+            "area_mm2": 3.347900928929448,
+            "centroid_mm": [
+              69.96795535087585,
+              3.000000026077032,
+              42.27585718035698
+            ]
+          },
+          {
+            "face": 1572,
+            "source_material": 1,
+            "distance_mm": 0.006400053280231077,
+            "area_mm2": 1.1172123777214438,
+            "centroid_mm": [
+              69.99357789754868,
+              3.000000026077032,
+              42.53597557544708
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "intersect_solver": "EXACT",
+      "difference_solver": "MANIFOLD",
+      "intersect_A": {
+        "volume_mm3": 239366.9536408689,
+        "dims_mm": [
+          140.00000059604645,
+          51.000000443309546,
+          189.9999976158142
+        ],
+        "triangles": 4164,
+        "faces": 2726,
+        "verts": 2084,
+        "is_manifold": true,
+        "non_manifold_edges": 0,
+        "components": 1
+      },
+      "intersect_material_faces": {
+        "0": 262,
+        "1": 2464
+      },
+      "remainder_B": {
+        "volume_mm3": 2837.973867484196,
+        "dims_mm": [
+          136.04000210762024,
+          2.0000000949949026,
+          186.04000005871058
+        ],
+        "triangles": 1584,
+        "faces": 905,
+        "verts": 792,
+        "is_manifold": true,
+        "non_manifold_edges": 0,
+        "components": 1
+      },
+      "remainder_material_faces": {
+        "0": 884,
+        "1": 21
+      },
+      "volume_sum_mm3": 242204.92750835308,
+      "volume_delta_mm3": -6.0460763052105904e-05,
+      "volume_delta_pct": -2.496264781191462e-08,
+      "nonmanifold_edges": {
+        "A": [],
+        "B": []
+      },
+      "selected_exterior_sample_coverage": {
+        "target_face_count": 403,
+        "target_area_mm2": 34866.67107159746,
+        "centroid_sample_max_distance_mm": 0.012379148756735958,
+        "samples_over_0_001mm": 5,
+        "outlier_faces": [
+          {
+            "face": 934,
+            "source_material": 1,
+            "distance_mm": 0.006366105480992701,
+            "area_mm2": 0.44300514900896815,
+            "centroid_mm": [
+              -50.79735442996025,
+              3.000000026077032,
+              0.006420364570658421
+            ]
+          },
+          {
+            "face": 1568,
+            "source_material": 1,
+            "distance_mm": 0.0014528823157888837,
+            "area_mm2": 9.809105904423632,
+            "centroid_mm": [
+              69.74107027053833,
+              3.000000026077032,
+              41.527893394231796
+            ]
+          },
+          {
+            "face": 1569,
+            "source_material": 1,
+            "distance_mm": 0.0046826958168821875,
+            "area_mm2": 7.714970706729218,
+            "centroid_mm": [
+              69.84110176563263,
+              3.000000026077032,
+              41.76937788724899
+            ]
+          },
+          {
+            "face": 1571,
+            "source_material": 1,
+            "distance_mm": 0.012379148756735958,
+            "area_mm2": 3.347900928929448,
+            "centroid_mm": [
+              69.96795535087585,
+              3.000000026077032,
+              42.27585718035698
+            ]
+          },
+          {
+            "face": 1572,
+            "source_material": 1,
+            "distance_mm": 0.006400053280231077,
+            "area_mm2": 1.1172123777214438,
+            "centroid_mm": [
+              69.99357789754868,
+              3.000000026077032,
+              42.53597557544708
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "intersect_solver": "MANIFOLD",
+      "difference_solver": "EXACT",
+      "intersect_A": {
+        "volume_mm3": 239366.95364141007,
+        "dims_mm": [
+          140.00000059604645,
+          51.000000443309546,
+          189.9999976158142
+        ],
+        "triangles": 2188,
+        "faces": 1601,
+        "verts": 1096,
+        "is_manifold": true,
+        "non_manifold_edges": 0,
+        "components": 1
+      },
+      "intersect_material_faces": {
+        "0": 262,
+        "1": 1339
+      },
+      "remainder_B": {
+        "volume_mm3": 2837.973988855792,
+        "dims_mm": [
+          136.04000210762024,
+          2.0000000949949026,
+          186.04000005871058
+        ],
+        "triangles": 1596,
+        "faces": 905,
+        "verts": 778,
+        "is_manifold": false,
+        "non_manifold_edges": 20,
+        "components": 1
+      },
+      "remainder_material_faces": {
+        "0": 884,
+        "1": 21
+      },
+      "volume_sum_mm3": 242204.92763026585,
+      "volume_delta_mm3": 6.14520104136318e-05,
+      "volume_delta_pct": 2.537190759513859e-08,
+      "nonmanifold_edges": {
+        "A": [],
+        "B": [
+          {
+            "index": 120,
+            "nfaces": 4
+          },
+          {
+            "index": 136,
+            "nfaces": 4
+          },
+          {
+            "index": 222,
+            "nfaces": 4
+          },
+          {
+            "index": 233,
+            "nfaces": 4
+          },
+          {
+            "index": 264,
+            "nfaces": 4
+          },
+          {
+            "index": 334,
+            "nfaces": 4
+          },
+          {
+            "index": 355,
+            "nfaces": 4
+          },
+          {
+            "index": 419,
+            "nfaces": 4
+          },
+          {
+            "index": 449,
+            "nfaces": 4
+          },
+          {
+            "index": 453,
+            "nfaces": 4
+          },
+          {
+            "index": 528,
+            "nfaces": 4
+          },
+          {
+            "index": 537,
+            "nfaces": 4
+          },
+          {
+            "index": 586,
+            "nfaces": 4
+          },
+          {
+            "index": 597,
+            "nfaces": 4
+          },
+          {
+            "index": 652,
+            "nfaces": 4
+          },
+          {
+            "index": 892,
+            "nfaces": 4
+          },
+          {
+            "index": 1108,
+            "nfaces": 4
+          },
+          {
+            "index": 1118,
+            "nfaces": 4
+          },
+          {
+            "index": 1122,
+            "nfaces": 4
+          },
+          {
+            "index": 1335,
+            "nfaces": 4
+          }
+        ]
+      },
+      "selected_exterior_sample_coverage": {
+        "target_face_count": 403,
+        "target_area_mm2": 34866.67107159746,
+        "centroid_sample_max_distance_mm": 0.012379148756735958,
+        "samples_over_0_001mm": 13,
+        "outlier_faces": [
+          {
+            "face": 934,
+            "source_material": 1,
+            "distance_mm": 0.006366105480992701,
+            "area_mm2": 0.44300514900896815,
+            "centroid_mm": [
+              -50.79735442996025,
+              3.000000026077032,
+              0.006420364570658421
+            ]
+          },
+          {
+            "face": 1568,
+            "source_material": 1,
+            "distance_mm": 0.0014528823157888837,
+            "area_mm2": 9.809105904423632,
+            "centroid_mm": [
+              69.74107027053833,
+              3.000000026077032,
+              41.527893394231796
+            ]
+          },
+          {
+            "face": 1569,
+            "source_material": 1,
+            "distance_mm": 0.0046826958168821875,
+            "area_mm2": 7.714970706729218,
+            "centroid_mm": [
+              69.84110176563263,
+              3.000000026077032,
+              41.76937788724899
+            ]
+          },
+          {
+            "face": 1571,
+            "source_material": 1,
+            "distance_mm": 0.012379148756735958,
+            "area_mm2": 3.347900928929448,
+            "centroid_mm": [
+              69.96795535087585,
+              3.000000026077032,
+              42.27585718035698
+            ]
+          },
+          {
+            "face": 1572,
+            "source_material": 1,
+            "distance_mm": 0.006400053280231077,
+            "area_mm2": 1.1172123777214438,
+            "centroid_mm": [
+              69.99357789754868,
+              3.000000026077032,
+              42.53597557544708
+            ]
+          },
+          {
+            "face": 1891,
+            "source_material": 1,
+            "distance_mm": 0.001495030005571607,
+            "area_mm2": 38.94488327205181,
+            "centroid_mm": [
+              47.321584075689316,
+              3.000000026077032,
+              160.02199053764343
+            ]
+          },
+          {
+            "face": 1895,
+            "source_material": 1,
+            "distance_mm": 0.0010775559076137142,
+            "area_mm2": 34.53553654253483,
+            "centroid_mm": [
+              49.88778755068779,
+              3.000000026077032,
+              158.36738049983978
+            ]
+          },
+          {
+            "face": 1896,
+            "source_material": 1,
+            "distance_mm": 0.0014639774690294871,
+            "area_mm2": 30.321767553687096,
+            "centroid_mm": [
+              52.34028026461601,
+              3.000000026077032,
+              156.54850006103516
+            ]
+          },
+          {
+            "face": 2008,
+            "source_material": 1,
+            "distance_mm": 0.001031205897561449,
+            "area_mm2": 20.758016034960747,
+            "centroid_mm": [
+              57.90642648935318,
+              3.000000026077032,
+              151.3352245092392
+            ]
+          },
+          {
+            "face": 2009,
+            "source_material": 1,
+            "distance_mm": 0.0012565884617288248,
+            "area_mm2": 19.02785152196884,
+            "centroid_mm": [
+              58.913178741931915,
+              3.000000026077032,
+              150.18725395202637
+            ]
+          },
+          {
+            "face": 2010,
+            "source_material": 1,
+            "distance_mm": 0.0021099256173329195,
+            "area_mm2": 17.363810911774635,
+            "centroid_mm": [
+              59.881821274757385,
+              3.000000026077032,
+              149.0069478750229
+            ]
+          },
+          {
+            "face": 2013,
+            "source_material": 1,
+            "distance_mm": 0.0011482841273391386,
+            "area_mm2": 12.78100535273552,
+            "centroid_mm": [
+              62.549009919166565,
+              3.000000026077032,
+              145.28489112854004
+            ]
+          },
+          {
+            "face": 2015,
+            "source_material": 1,
+            "distance_mm": 0.001054362428476452,
+            "area_mm2": 14.23829235136509,
+            "centroid_mm": [
+              61.700716614723206,
+              3.000000026077032,
+              146.55445516109467
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "intersect_solver": "MANIFOLD",
+      "difference_solver": "MANIFOLD",
+      "intersect_A": {
+        "volume_mm3": 239366.95364141007,
+        "dims_mm": [
+          140.00000059604645,
+          51.000000443309546,
+          189.9999976158142
+        ],
+        "triangles": 2188,
+        "faces": 1601,
+        "verts": 1096,
+        "is_manifold": true,
+        "non_manifold_edges": 0,
+        "components": 1
+      },
+      "intersect_material_faces": {
+        "0": 262,
+        "1": 1339
+      },
+      "remainder_B": {
+        "volume_mm3": 2837.973866524321,
+        "dims_mm": [
+          136.04000210762024,
+          2.0000000949949026,
+          186.04000005871058
+        ],
+        "triangles": 1596,
+        "faces": 905,
+        "verts": 798,
+        "is_manifold": true,
+        "non_manifold_edges": 0,
+        "components": 1
+      },
+      "remainder_material_faces": {
+        "0": 884,
+        "1": 21
+      },
+      "volume_sum_mm3": 242204.9275079344,
+      "volume_delta_mm3": -6.0879450757056475e-05,
+      "volume_delta_pct": -2.5135512876698087e-08,
+      "nonmanifold_edges": {
+        "A": [],
+        "B": []
+      },
+      "selected_exterior_sample_coverage": {
+        "target_face_count": 403,
+        "target_area_mm2": 34866.67107159746,
+        "centroid_sample_max_distance_mm": 0.012379148756735958,
+        "samples_over_0_001mm": 13,
+        "outlier_faces": [
+          {
+            "face": 934,
+            "source_material": 1,
+            "distance_mm": 0.006366105480992701,
+            "area_mm2": 0.44300514900896815,
+            "centroid_mm": [
+              -50.79735442996025,
+              3.000000026077032,
+              0.006420364570658421
+            ]
+          },
+          {
+            "face": 1568,
+            "source_material": 1,
+            "distance_mm": 0.0014528823157888837,
+            "area_mm2": 9.809105904423632,
+            "centroid_mm": [
+              69.74107027053833,
+              3.000000026077032,
+              41.527893394231796
+            ]
+          },
+          {
+            "face": 1569,
+            "source_material": 1,
+            "distance_mm": 0.0046826958168821875,
+            "area_mm2": 7.714970706729218,
+            "centroid_mm": [
+              69.84110176563263,
+              3.000000026077032,
+              41.76937788724899
+            ]
+          },
+          {
+            "face": 1571,
+            "source_material": 1,
+            "distance_mm": 0.012379148756735958,
+            "area_mm2": 3.347900928929448,
+            "centroid_mm": [
+              69.96795535087585,
+              3.000000026077032,
+              42.27585718035698
+            ]
+          },
+          {
+            "face": 1572,
+            "source_material": 1,
+            "distance_mm": 0.006400053280231077,
+            "area_mm2": 1.1172123777214438,
+            "centroid_mm": [
+              69.99357789754868,
+              3.000000026077032,
+              42.53597557544708
+            ]
+          },
+          {
+            "face": 1891,
+            "source_material": 1,
+            "distance_mm": 0.001495030005571607,
+            "area_mm2": 38.94488327205181,
+            "centroid_mm": [
+              47.321584075689316,
+              3.000000026077032,
+              160.02199053764343
+            ]
+          },
+          {
+            "face": 1895,
+            "source_material": 1,
+            "distance_mm": 0.0010775559076137142,
+            "area_mm2": 34.53553654253483,
+            "centroid_mm": [
+              49.88778755068779,
+              3.000000026077032,
+              158.36738049983978
+            ]
+          },
+          {
+            "face": 1896,
+            "source_material": 1,
+            "distance_mm": 0.0014639774690294871,
+            "area_mm2": 30.321767553687096,
+            "centroid_mm": [
+              52.34028026461601,
+              3.000000026077032,
+              156.54850006103516
+            ]
+          },
+          {
+            "face": 2008,
+            "source_material": 1,
+            "distance_mm": 0.001031205897561449,
+            "area_mm2": 20.758016034960747,
+            "centroid_mm": [
+              57.90642648935318,
+              3.000000026077032,
+              151.3352245092392
+            ]
+          },
+          {
+            "face": 2009,
+            "source_material": 1,
+            "distance_mm": 0.0012565884617288248,
+            "area_mm2": 19.02785152196884,
+            "centroid_mm": [
+              58.913178741931915,
+              3.000000026077032,
+              150.18725395202637
+            ]
+          },
+          {
+            "face": 2010,
+            "source_material": 1,
+            "distance_mm": 0.0021099256173329195,
+            "area_mm2": 17.363810911774635,
+            "centroid_mm": [
+              59.881821274757385,
+              3.000000026077032,
+              149.0069478750229
+            ]
+          },
+          {
+            "face": 2013,
+            "source_material": 1,
+            "distance_mm": 0.0011482841273391386,
+            "area_mm2": 12.78100535273552,
+            "centroid_mm": [
+              62.549009919166565,
+              3.000000026077032,
+              145.28489112854004
+            ]
+          },
+          {
+            "face": 2015,
+            "source_material": 1,
+            "distance_mm": 0.001054362428476452,
+            "area_mm2": 14.23829235136509,
+            "centroid_mm": [
+              61.700716614723206,
+              3.000000026077032,
+              146.55445516109467
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "original_failure_B_edges": [
+    {
+      "index": 1299,
+      "nfaces": 4
+    }
+  ],
+  "decision": {
+    "integrate_fallback": false,
+    "reason": "MANIFOLD/ MANIFOLD and EXACT/MANIFOLD close both solids and conserve total volume, but selected exterior faces/material ownership and BASE clearance/interface behavior are not fully validated. Keep the original BASE rejection until preservation is proven.",
+    "case": "Placa_Arco_Chest_Inteira, material slot 1, region 0, BASE, gap 0"
+  }
+}

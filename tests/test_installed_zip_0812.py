@@ -3,7 +3,9 @@ Checks preferences PT/EN, registration, cut, commit, revert and unregister.
 """
 import bpy,sys,types,importlib,pathlib,tempfile,zipfile
 root_dir=pathlib.Path(__file__).resolve().parents[1]
-archive=root_dir/'dist/chest_part_splitter-0.8.12.zip'
+import tomllib
+manifest=tomllib.loads((root_dir/'blender_manifest.toml').read_text(encoding='utf-8'))
+archive=root_dir/'dist'/f"{manifest['id']}-{manifest['version']}.zip"
 temporary=tempfile.TemporaryDirectory()
 base=pathlib.Path(temporary.name)
 with zipfile.ZipFile(archive) as z:

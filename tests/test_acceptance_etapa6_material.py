@@ -227,6 +227,7 @@ class TestAcceptanceEtapa6Material(unittest.TestCase):
         bpy.ops.chest.splitter_generate_preview()
         self.assertEqual(self.settings.session_status, 'PREVIEW_VALID')
 
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
         self.assertEqual(self.settings.session_status, 'COMMITTED')
 
@@ -234,8 +235,8 @@ class TestAcceptanceEtapa6Material(unittest.TestCase):
         res = bpy.ops.chest.splitter_separate_by_material()
         self.assertEqual(res, {'FINISHED'})
         self.assertEqual(self.settings.last_status_level, 'WARNING')
-        self.assertIn("casca superficial aberta", self.settings.last_status)
-        self.assertIn("Profundidade", self.settings.last_status)
+        self.assertIn("open surface shell", self.settings.last_status)
+        self.assertIn("Depth", self.settings.last_status)
 
 
 if __name__ == '__main__':

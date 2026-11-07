@@ -4,6 +4,7 @@ Permite dividir modelos 3D usando sólidos fechados e manifold (primitivas como
 caixa, cilindro, esfera e cápsula, ou qualquer objeto fechado da cena) através
 de operações booleanas exatas (Interseção e Diferença).
 """
+from .translations import localized_format
 
 import math
 from typing import List, Tuple, Dict, Any, Optional
@@ -61,19 +62,26 @@ def create_bmesh_capsule(
             ring_verts.append(bm.verts.new((x, y, z)))
         verts_grid.append(ring_verts)
 
-    # 3. Equador inferior
-    eq_bot = []
-    for s in range(segments):
-        theta = 2.0 * math.pi * s / segments
-        eq_bot.append(bm.verts.new((r * math.cos(theta), r * math.sin(theta), -half_h)))
-    verts_grid.append(eq_bot)
+    # 3. Equador (único quando cyl_h é desprezível, ou inferior + superior quando há corpo cilíndrico)
+    if cyl_h > max(1e-4, 0.01 * r):
+        eq_bot = []
+        for s in range(segments):
+            theta = 2.0 * math.pi * s / segments
+            eq_bot.append(bm.verts.new((r * math.cos(theta), r * math.sin(theta), -half_h)))
+        verts_grid.append(eq_bot)
 
-    # 4. Equador superior
-    eq_top = []
-    for s in range(segments):
-        theta = 2.0 * math.pi * s / segments
-        eq_top.append(bm.verts.new((r * math.cos(theta), r * math.sin(theta), half_h)))
-    verts_grid.append(eq_top)
+        eq_top = []
+        for s in range(segments):
+            theta = 2.0 * math.pi * s / segments
+            eq_top.append(bm.verts.new((r * math.cos(theta), r * math.sin(theta), half_h)))
+        verts_grid.append(eq_top)
+    else:
+        half_h = 0.0
+        eq_mid = []
+        for s in range(segments):
+            theta = 2.0 * math.pi * s / segments
+            eq_mid.append(bm.verts.new((r * math.cos(theta), r * math.sin(theta), 0.0)))
+        verts_grid.append(eq_mid)
 
     # 5. Anéis do hemisfério superior
     for ring in range(1, rings):
@@ -212,14 +220,14 @@ def validate_solid_cutter(
         raise SolidCutterValidationError("Nenhum objeto cortador sólido foi especificado ou o objeto foi excluído.")
 
     if cutter_obj.type != 'MESH':
-        raise SolidCutterValidationError(f"O cortador '{cutter_obj.name}' deve ser do tipo MESH (malha poligonal).")
+        raise SolidCutterValidationError(localized_format('audit.dynamic.20', v0=cutter_obj.name))
 
     if target_obj and cutter_obj == target_obj:
         raise SolidCutterValidationError("O cortador não pode ser o próprio objeto alvo da divisão.")
 
     mesh = cutter_obj.data
     if not mesh or len(mesh.vertices) < 4 or len(mesh.polygons) < 4:
-        raise SolidCutterValidationError(f"O cortador '{cutter_obj.name}' possui geometria insuficiente ou vazia.")
+        raise SolidCutterValidationError(localized_format('audit.dynamic.21', v0=cutter_obj.name))
 
     # Avaliação com BMesh em espaço global
     bm = bmesh.new()
@@ -233,9 +241,7 @@ def validate_solid_cutter(
         count_open = len(non_manifold)
         bm.free()
         raise SolidCutterValidationError(
-            f"O cortador '{cutter_obj.name}' não é um sólido fechado "
-            f"({count_open} arestas abertas/não-manifold detectadas). "
-            "Cortadores sólidos precisam ser volumes 3D perfeitamente estanques."
+            localized_format('audit.dynamic.22', v0=cutter_obj.name, v1=count_open)
         )
 
     vol_bu = abs(bm.calc_volume())
@@ -250,7 +256,7 @@ def validate_solid_cutter(
     bm.free()
 
     if vol_mm3 < 1e-4:
-        raise SolidCutterValidationError(f"O cortador '{cutter_obj.name}' possui volume nulo.")
+        raise SolidCutterValidationError(localized_format('audit.dynamic.23', v0=cutter_obj.name))
 
     # Verificação de colisão de bounding box com o alvo
     if target_obj and target_obj.type == 'MESH':
@@ -268,8 +274,7 @@ def validate_solid_cutter(
         )
         if no_overlap:
             raise SolidCutterValidationError(
-                f"O cortador sólido '{cutter_obj.name}' não intercepta o modelo alvo "
-                "(as caixas delimitadoras não se tocam). Posicione o cortador sobre o modelo."
+                localized_format('audit.dynamic.24', v0=cutter_obj.name)
             )
 
     return {
@@ -296,23 +301,36 @@ def _cutter_snapshot(cutter, offset_bu, scene):
         planes = [(f.index, f.verts[0].co.copy(), f.normal.copy(), (f.verts[1].co-f.verts[0].co).normalized()) for f in bm.faces]
         if abs(offset_bu) > 1e-12:
             changes = []
+            deltas_by_vert = {}
             for vert in bm.verts:
                 normals = np.array([tuple(f.normal) for f in vert.link_faces], dtype=float)
                 delta, *_ = np.linalg.lstsq(normals, np.full(len(normals), offset_bu), rcond=None)
                 error = np.max(np.abs(normals @ delta - offset_bu))
                 if error > max(1e-8, abs(offset_bu)*0.01):
                     raise SolidSliceError("A folga não mantém as faces deste cortador. Use uma folga menor ou um cortador mais simples.")
-                if Vector(delta).length > min(e.calc_length() for e in vert.link_edges)*0.45:
-                    raise SolidSliceError("A folga é grande demais para os detalhes do cortador.")
-                changes.append((vert, Vector(delta)))
+                vec_delta = Vector(delta)
+                changes.append((vert, vec_delta))
+                deltas_by_vert[vert] = vec_delta
+            for edge in bm.edges:
+                v0, v1 = edge.verts
+                e0 = v1.co - v0.co
+                len0_sq = e0.length_squared
+                if len0_sq > 1e-12:
+                    e1 = e0 + (deltas_by_vert[v1] - deltas_by_vert[v0])
+                    if e1.dot(e0) < len0_sq * 0.15:
+                        raise SolidSliceError("A folga é grande demais para os detalhes do cortador.")
             for vert, delta in changes:
                 vert.co += delta
             ensure_solid_outward_normals(bm)
-            if any(abs((v.co-p).dot(n)-offset_bu) > max(1e-7, abs(offset_bu)*0.02)
+            if any(abs((v.co-p).dot(n)-offset_bu) > max(1e-5, abs(offset_bu)*0.05)
                    for (idx,p,n,u), f in zip(planes, bm.faces) for v in f.verts):
                 raise SolidSliceError("A folga deformaria uma face do cortador.")
         data = bpy.data.meshes.new('_solid_operand_mesh')
         bm.to_mesh(data)
+        from .geometry_clearance import triangulated_source_mesh
+        triangulated = triangulated_source_mesh(data)
+        bpy.data.meshes.remove(data)
+        data = triangulated
         for mat in cutter.data.materials:
             data.materials.append(mat)
         obj = bpy.data.objects.new('_solid_operand', data)
@@ -331,41 +349,74 @@ def _solid_contact_interface(mesh, planes, offset_bu, inside, unit_scale, face_i
     try:
         bm.from_mesh(mesh)
         bm.normal_update()
-        tolerance = max(1e-7, 0.002/unit_scale)
+        tolerance = max(1e-5, 0.05 / unit_scale)
         best, best_area, best_index = None, -1, -1
-        for index, p, n, axis_u in planes:
-            if face_index >= 0 and index != face_index:
-                continue
-            point = p + n*offset_bu
-            normal = n if inside else -n
-            faces = {f for f in bm.faces if f.normal.dot(normal) > 0.9999
-                     and all(abs((v.co-point).dot(n)) < tolerance for v in f.verts)}
-            if not faces:
-                continue
-            area = sum(f.calc_area() for f in faces)
-            edges = {e for f in faces for e in f.edges
-                     if sum(g in faces for g in e.link_faces) == 1}
-            loops = _order_boundary_loops(list(edges))
-            if not loops or area <= best_area:
-                continue
-            coords = [[v.co.copy() for v in loop] for loop in loops]
-            origin = sum((v.co*f.calc_area()/len(f.verts) for f in faces for v in f.verts), Vector()) / area
-            # Keep the winding axis A->B even when this patch is taken from B.
-            normal_a_to_b = n
-            iface = build_cut_interface(origin, normal_a_to_b, [], unit_scale=unit_scale,
-                                        source_mode='SOLID', boundary_loops_world=coords)
-            from .geometry_contract import orient_interface
-            iface = orient_interface(iface, axis_u)
-            best, best_area, best_index = iface, area, index
+
+        def _scan(target_face_idx):
+            nonlocal best, best_area, best_index
+            for index, p, n, axis_u in planes:
+                if target_face_idx >= 0 and index != target_face_idx:
+                    continue
+                point = p + n * offset_bu
+                normal = n if inside else -n
+                faces = {f for f in bm.faces if f.normal.dot(normal) > 0.999
+                         and all(abs((v.co - point).dot(n)) < tolerance for v in f.verts)}
+                if not faces:
+                    continue
+                area = sum(f.calc_area() for f in faces)
+                edges = {e for f in faces for e in f.edges
+                         if sum(g in faces for g in e.link_faces) == 1}
+                loops = _order_boundary_loops(list(edges))
+                if not loops or area <= best_area:
+                    continue
+                coords = [[v.co.copy() for v in loop] for loop in loops]
+                origin = sum((v.co * f.calc_area() / len(f.verts) for f in faces for v in f.verts), Vector()) / area
+                # Keep the winding axis A->B even when this patch is taken from B.
+                normal_a_to_b = n
+                iface = build_cut_interface(origin, normal_a_to_b, [], unit_scale=unit_scale,
+                                            source_mode='SOLID', boundary_loops_world=coords)
+                from .geometry_contract import orient_interface
+                iface = orient_interface(iface, axis_u)
+                best, best_area, best_index = iface, area, index
+
+        if face_index >= 0:
+            _scan(face_index)
+        if best is None:
+            _scan(-1)
+
         return best, best_index
     finally:
         bm.free()
+
+
+class SolidBooleanError(SolidSliceError):
+    """An invalid Boolean result can be retried without changing parameters."""
 
 
 def slice_mesh_by_solid(
     source_mesh, matrix_world, cutter_obj, target_mesh_a, target_mesh_b,
     invert_sides=False, unit_scale=1000.0, part_clearance_mm=0.0,
     part_clearance_apply_to='PART', interface_face_index=-1,
+):
+    arguments = dict(source_mesh=source_mesh, matrix_world=matrix_world,
+                     cutter_obj=cutter_obj, target_mesh_a=target_mesh_a,
+                     target_mesh_b=target_mesh_b, invert_sides=invert_sides,
+                     unit_scale=unit_scale, part_clearance_mm=part_clearance_mm,
+                     part_clearance_apply_to=part_clearance_apply_to,
+                     interface_face_index=interface_face_index)
+    try:
+        return _slice_mesh_by_solid(**arguments)
+    except SolidBooleanError:
+        solvers = bpy.types.BooleanModifier.bl_rna.properties['solver'].enum_items
+        if 'MANIFOLD' not in {item.identifier for item in solvers}:
+            raise
+        return _slice_mesh_by_solid(**arguments, _solver='MANIFOLD')
+
+
+def _slice_mesh_by_solid(
+    source_mesh, matrix_world, cutter_obj, target_mesh_a, target_mesh_b,
+    invert_sides=False, unit_scale=1000.0, part_clearance_mm=0.0,
+    part_clearance_apply_to='PART', interface_face_index=-1, _solver='EXACT',
 ):
     """Exact transactional booleans with independent physical A/B clearance operands."""
     from .scene_state import object_in_scene
@@ -384,7 +435,8 @@ def slice_mesh_by_solid(
         for side, destination, offset in (('A',target_mesh_a,offsets[0]),('B',target_mesh_b,offsets[1])):
             operand, planes = _cutter_snapshot(cutter_obj, offset, scene)
             created.append(operand)
-            data = source_mesh.copy()
+            from .geometry_clearance import triangulated_source_mesh
+            data = triangulated_source_mesh(source_mesh)
             work = bpy.data.objects.new('_solid_work', data)
             created.append(work)
             scene.collection.objects.link(work)
@@ -392,7 +444,7 @@ def slice_mesh_by_solid(
             mod = work.modifiers.new('Solid boolean', 'BOOLEAN')
             inside = (side == 'A') != invert_sides
             mod.operation = 'INTERSECT' if inside else 'DIFFERENCE'
-            mod.solver = 'EXACT'
+            mod.solver = _solver
             mod.material_mode = 'INDEX'
             mod.object = operand
             bpy.context.view_layer.update()
@@ -404,9 +456,15 @@ def slice_mesh_by_solid(
                 bm.from_mesh(result_mesh)
                 bm.transform(matrix_world)
                 bm.normal_update()
+                from .diagnostic import sanitize_mesh_micro_degeneracies, validate_bmesh_mesh_geometry
+                from .geometry_clearance import remove_boolean_wires
+                remove_boolean_wires(bm)
+                sanitize_mesh_micro_degeneracies(bm, unit_scale)
+                remove_boolean_wires(bm)
+                check = validate_bmesh_mesh_geometry(bm, unit_scale)
                 metrics = evaluate_bmesh_metrics(bm, unit_scale)
-                if not metrics['is_manifold'] or metrics['volume_mm3'] <= 1e-4:
-                    raise SolidSliceError("O cortador/folga não produziu duas partes fechadas com volume. Ajuste a interseção ou a folga.")
+                if not check['is_valid'] or not metrics['is_manifold'] or metrics['volume_mm3'] <= 1e-4:
+                    raise SolidBooleanError("O cortador/folga não produziu duas partes fechadas com volume. Ajuste a interseção ou a folga.")
                 destination.materials.clear()
                 for mat in source_mesh.materials:
                     destination.materials.append(mat)
@@ -450,8 +508,10 @@ def slice_mesh_by_solid(
                 bpy.data.meshes.remove(mesh)
 
 
-def align_vertices(cutter, target, cutter_index, target_index):
+def align_vertices(cutter, target, cutter_index, target_index, move_mode='OBJECT'):
     """World translation only; also works with parent transforms and unapplied scale."""
+    if cutter == target or move_mode not in {'OBJECT', 'VERTEX'}:
+        raise ValueError("Cortador e alvo devem ser objetos diferentes; escolha um modo de alinhamento válido.")
     if cutter.mode == 'EDIT':
         bm_c = bmesh.from_edit_mesh(cutter.data)
         bm_c.verts.ensure_lookup_table()
@@ -474,9 +534,28 @@ def align_vertices(cutter, target, cutter_index, target_index):
             raise ValueError("Selecione um vértice válido no alvo.")
         destination = target.matrix_world @ target.data.vertices[target_index].co
 
-    matrix = cutter.matrix_world.copy()
-    matrix.translation += destination - source
-    cutter.matrix_world = matrix
+    if move_mode == 'VERTEX':
+        if abs(cutter.matrix_world.determinant()) < 1e-12:
+            raise ValueError("O cortador possui escala nula.")
+        local_destination = cutter.matrix_world.inverted() @ destination
+        if cutter.data.users > 1:
+            if cutter.mode == 'EDIT':
+                raise ValueError("A malha do cortador é compartilhada. Torne-a independente antes de editar.")
+            cutter.data = cutter.data.copy()
+        if cutter.mode == 'EDIT':
+            bm_c.verts[cutter_index].co = local_destination
+            bm_c.normal_update()
+            bmesh.update_edit_mesh(cutter.data, loop_triangles=True, destructive=False)
+        else:
+            cutter.data.vertices[cutter_index].co = local_destination
+            cutter.data.update()
+        for key in ('chest_align_anchor_local', 'chest_align_ref_pos'):
+            if key in cutter:
+                del cutter[key]
+    else:
+        matrix = cutter.matrix_world.copy()
+        matrix.translation += destination - source
+        cutter.matrix_world = matrix
 
 
 def compute_solid_explosion_offsets(

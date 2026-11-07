@@ -268,6 +268,7 @@ def run_tests():
     # Teste 9: Confirmação Definitiva (Commit) com Encaixes
     # -------------------------------------------------------------
     print("\n--- Teste 9: Confirmação Definitiva com Encaixes ---")
+    bpy.context.scene.chest_splitter.commit_next_target = 'NONE'
     bpy.ops.chest.splitter_commit_parts()
     assert_test(settings.session_status == 'COMMITTED', "Status avançou para COMMITTED com encaixes")
 

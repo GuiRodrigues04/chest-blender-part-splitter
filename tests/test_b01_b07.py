@@ -43,6 +43,7 @@ class TestCorrecoesB01B07(unittest.TestCase):
         cube_x.select_set(True)
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
         
         settings = bpy.context.scene.chest_splitter
@@ -53,6 +54,7 @@ class TestCorrecoesB01B07(unittest.TestCase):
         cube_y.select_set(True)
         bpy.ops.chest.splitter_set_target()
         bpy.ops.chest.splitter_generate_preview()
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
         
         id_y = settings.session_id
@@ -110,6 +112,7 @@ class TestCorrecoesB01B07(unittest.TestCase):
         bm.free()
         
         with self.assertRaises(RuntimeError, msg="Deve rejeitar peça editada manualmente com face aberta (B05)"):
+            bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
             bpy.ops.chest.splitter_commit_parts()
 
     def test_b06_b07_separacao_material(self):
@@ -121,10 +124,12 @@ class TestCorrecoesB01B07(unittest.TestCase):
         with self.assertRaises(RuntimeError, msg="Não deve permitir separar por material na prévia (B07)"):
             bpy.ops.chest.splitter_separate_by_material()
         
+        bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
         bpy.ops.chest.splitter_commit_parts()
         
         # Adicionar segundo material e face colorida
-        parts_col = bpy.data.collections.get("CHEST_SPLITTER_PARTS")
+        from src.constants import COLLECTION_PARTS_NAME
+        parts_col = bpy.data.collections.get(COLLECTION_PARTS_NAME) or bpy.data.collections.get("CHEST_SPLITTER_PARTS")
         part_a = parts_col.objects[0]
         
         mat1 = bpy.data.materials.new("Mat1")

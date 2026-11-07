@@ -1,0 +1,208 @@
+{
+  "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Placas - Modelos 3D\\Modelos_Chest\\Modelos Vers\u00e3o 1 - Placas Inteiras\\Blender\\Placa_Cavalete_Chest_Inteira.blend",
+  "status": "ok",
+  "objects": [
+    {
+      "object": "Placa_Cavalete_Chest_Inteira",
+      "vertices": 108,
+      "edges": 318,
+      "faces": 212,
+      "materials": [
+        "Material_1",
+        "Material_2"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "material": 0,
+      "region": 0,
+      "region_faces": 92,
+      "outcome": "pass",
+      "analysis_valid": true,
+      "analysis_error": null,
+      "depth_mm": 2.0,
+      "trials": [
+        {
+          "label": "EXTRUDE depth=2mm gap=0",
+          "outcome": "pass",
+          "parts": [
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 4208.457044837372,
+              "errors": []
+            },
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 167804.37771116124,
+              "errors": []
+            }
+          ],
+          "interface_loops": 1
+        },
+        {
+          "label": "EXTRUDE depth=2mm gap=0.1mm",
+          "outcome": "pass",
+          "parts": [
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 3956.513746784823,
+              "errors": []
+            },
+            {
+              "valid": true,
+              "manifold": true,
+              "volume_mm3": 167804.37771116124,
+              "errors": []
+            }
+          ],
+          "interface_loops": 1
+        },
+        {
+          "label": "BASE gap=0",
+          "outcome": "rejected_or_failed",
+          "error": "ValueError: A regi\u00e3o de material selecionada \u00e9 completamente coplanar com a base (n\u00e3o possui sali\u00eancia volum\u00e9trica). Para recortar superf\u00edcies planas, utilize o modo 'Extrair com Profundidade'."
+        }
+      ]
+    },
+    {
+      "material": 1,
+      "region": 0,
+      "region_faces": 120,
+      "outcome": "material_rejected_or_failed",
+      "analysis_valid": true,
+      "analysis_error": null,
+      "depth_mm": 2.0,
+      "trials": [
+        {
+          "label": "EXTRUDE depth=2mm gap=0",
+          "outcome": "rejected_or_failed",
+          "error": "ValueError: N\u00e3o foi poss\u00edvel fechar o contorno do loop (restaram 10 arestas abertas). O contorno possui desvio n\u00e3o-planar de 0.00 mm e n\u00e3o \u00e9 compat\u00edvel com fechamento direto. Selecione um contorno planar ou na liga\u00e7\u00e3o da base."
+        },
+        {
+          "label": "EXTRUDE depth=2mm gap=0.1mm",
+          "outcome": "rejected_or_failed",
+          "error": "ValueError: N\u00e3o foi poss\u00edvel fechar o contorno do loop (restaram 10 arestas abertas). O contorno possui desvio n\u00e3o-planar de 0.00 mm e n\u00e3o \u00e9 compat\u00edvel com fechamento direto. Selecione um contorno planar ou na liga\u00e7\u00e3o da base."
+        },
+        {
+          "label": "BASE gap=0",
+          "outcome": "rejected_or_failed",
+          "error": "RuntimeError: O destaque por material gerou pe\u00e7a com volume nulo ou desprez\u00edvel."
+        }
+      ]
+    }
+  ],
+  "loop_cases": [
+    {
+      "material": 0,
+      "region": 0,
+      "face_count": 92,
+      "capture_result": [
+        "FINISHED"
+      ],
+      "captured_faces": 0,
+      "expected_faces": 92,
+      "captured_matches_region": null,
+      "loops": 1,
+      "outcome": "pass"
+    },
+    {
+      "material": 1,
+      "region": 0,
+      "face_count": 120,
+      "capture_result": [
+        "FINISHED"
+      ],
+      "captured_faces": 0,
+      "expected_faces": 120,
+      "captured_matches_region": null,
+      "loops": 1,
+      "outcome": "pass"
+    }
+  ],
+  "operator_cases": [
+    {
+      "mode": "MATERIAL_after_LOOP_capture",
+      "material": 0,
+      "region": 0,
+      "depth_mm": 2.0,
+      "profile": "FDM",
+      "connectors_requested": true,
+      "captured_loop_retained": true,
+      "preview_result": [
+        "FINISHED"
+      ],
+      "status": "Preview generated successfully (+AUTO_SHAPE connectors)! Part A: 3,961 mm\u00b3 | Part B: 167,797 mm\u00b3",
+      "preview_current": true,
+      "manifold": [
+        true,
+        true
+      ],
+      "preview_volumes_mm3": [
+        3960.9733378140036,
+        167797.00329206183
+      ],
+      "commit_result": [
+        "FINISHED"
+      ],
+      "commit_volumes_mm3": [
+        3960.9733378140036,
+        167797.00329206183
+      ],
+      "preview_commit_equal": true,
+      "revert_result": [
+        "FINISHED"
+      ]
+    },
+    {
+      "mode": "LOOP",
+      "material": 0,
+      "region": 0,
+      "depth_mm": 2.0,
+      "profile": "FDM",
+      "connectors_requested": true,
+      "preview_result": [
+        "FINISHED"
+      ],
+      "status": "Preview generated successfully (+AUTO_SHAPE connectors)! Part A: 3,961 mm\u00b3 | Part B: 167,797 mm\u00b3",
+      "preview_current": true,
+      "manifold": [
+        true,
+        true
+      ],
+      "preview_volumes_mm3": [
+        3960.974224896592,
+        167797.003265691
+      ],
+      "commit_result": [
+        "FINISHED"
+      ],
+      "commit_volumes_mm3": [
+        3960.974224896592,
+        167797.003265691
+      ],
+      "preview_commit_equal": true,
+      "revert_result": [
+        "FINISHED"
+      ]
+    }
+  ],
+  "source_diagnostics": {
+    "is_valid": true,
+    "is_manifold": true,
+    "non_manifold_edges": [],
+    "degenerate_faces": [],
+    "zero_area_faces": null,
+    "volume_mm3": 172012.8347575939,
+    "errors": null
+  },
+  "scale_to_mm": 1000.0,
+  "repair": {
+    "status": "not_needed",
+    "usable_copy": false
+  },
+  "source_unchanged": true
+}

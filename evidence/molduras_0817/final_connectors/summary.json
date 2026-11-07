@@ -1,0 +1,67 @@
+[
+  {
+    "suite": "test_frame_regions.py",
+    "exit_code": 0,
+    "seconds": 15.8
+  },
+  {
+    "suite": "test_safe_mesh_repair.py",
+    "exit_code": 0,
+    "seconds": 4.16
+  },
+  {
+    "suite": "test_connector_clearance_slivers.py",
+    "exit_code": 0,
+    "seconds": 5.66
+  },
+  {
+    "suite": "test_capsule_lateral_size.py",
+    "exit_code": 0,
+    "seconds": 3.33
+  },
+  {
+    "suite": "test_grid_positioning_points.py",
+    "exit_code": 0,
+    "seconds": 3.49
+  },
+  {
+    "suite": "test_material_manual_connectors_bugfix.py",
+    "exit_code": 0,
+    "seconds": 3.22
+  },
+  {
+    "suite": "test_manual_connectors_workflow.py",
+    "exit_code": 0,
+    "seconds": 4.49
+  },
+  {
+    "suite": "test_release_connector_frames.py",
+    "exit_code": 0,
+    "seconds": 3.83
+  },
+  {
+    "suite": "test_release_package.py",
+    "exit_code": 0,
+    "seconds": 4.09
+  },
+  {
+    "suite": "test_release_state.py",
+    "exit_code": 0,
+    "seconds": 4.5
+  },
+  {
+    "suite": "test_release_workflows.py",
+    "exit_code": 0,
+    "seconds": 18.2
+  },
+  {
+    "suite": "test_plan_086_commercial.py",
+    "exit_code": 0,
+    "seconds": 3.62
+  },
+  {
+    "suite": "test_commercial_audit.py",
+    "exit_code": 0,
+    "seconds": 4.81
+  }
+]

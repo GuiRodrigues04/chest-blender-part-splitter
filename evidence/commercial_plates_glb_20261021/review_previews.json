@@ -1,0 +1,138 @@
+[
+  {
+    "file": "Placa_Arco_Chest_Inteira.glb",
+    "mode": "MATERIAL",
+    "raw_nonmanifold_edges": 3236,
+    "repair_operator": "{'FINISHED'}",
+    "repaired_nonmanifold_edges": 0,
+    "preview_operator": "{'FINISHED'}",
+    "message": "Preview generated successfully! Part A: 8,514 mm³ | Part B: 233,691 mm³",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "faces": 1074,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 8513.915749914886
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "faces": 1842,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 233690.96604223517
+      }
+    ],
+    "review_blend": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_glb_20261021\\Placa_Arco_Chest_Inteira_MATERIAL_preview.blend"
+  },
+  {
+    "file": "Placa_Arco_Chest_Inteira.glb",
+    "mode": "LOOP",
+    "raw_nonmanifold_edges": 3236,
+    "repair_operator": "{'FINISHED'}",
+    "repaired_nonmanifold_edges": 0,
+    "capture_operator": "{'FINISHED'}",
+    "capture_loops": 2,
+    "capture_vertices": 262,
+    "preview_operator": "{'FINISHED'}",
+    "message": "Preview generated successfully! Part A: 5,676 mm³ | Part B: 236,529 mm³",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "faces": 1062,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 5675.943475909982
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "faces": 1711,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 236528.96437395955
+      }
+    ],
+    "review_blend": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_glb_20261021\\Placa_Arco_Chest_Inteira_LOOP_preview.blend"
+  },
+  {
+    "file": "Placa_Mesa_Chest_Inteira.glb",
+    "mode": "MATERIAL",
+    "raw_nonmanifold_edges": 400,
+    "repair_operator": "{'FINISHED'}",
+    "repaired_nonmanifold_edges": 0,
+    "preview_operator": "{'FINISHED'}",
+    "message": "Preview generated successfully! Part A: 11,286 mm³ | Part B: 348,714 mm³",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "faces": 340,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 11286.057460522039
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "faces": 356,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 348713.95416221366
+      }
+    ],
+    "review_blend": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_glb_20261021\\Placa_Mesa_Chest_Inteira_MATERIAL_preview.blend"
+  },
+  {
+    "file": "Placa_Mesa_Chest_Inteira.glb",
+    "mode": "LOOP",
+    "raw_nonmanifold_edges": 400,
+    "repair_operator": "{'FINISHED'}",
+    "repaired_nonmanifold_edges": 0,
+    "capture_operator": "{'FINISHED'}",
+    "error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\tests\\save_plate_glb_review_previews_20261021.py\", line 53, in <module>\n    rec['capture_loops']=len(json.loads(s.loop_boundary_loops))\n                             ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Program Files\\Blender Foundation\\Blender 5.2\\5.2\\python\\Lib\\json\\__init__.py\", line 352, in loads\n    return _default_decoder.decode(s)\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^\n  File \"C:\\Program Files\\Blender Foundation\\Blender 5.2\\5.2\\python\\Lib\\json\\decoder.py\", line 345, in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Program Files\\Blender Foundation\\Blender 5.2\\5.2\\python\\Lib\\json\\decoder.py\", line 363, in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\njson.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n"
+  },
+  {
+    "file": "Placa_Osso_Chest_V2_Inteira.glb",
+    "mode": "MATERIAL",
+    "raw_nonmanifold_edges": 13598,
+    "repair_operator": "{'FINISHED'}",
+    "repaired_nonmanifold_edges": 0,
+    "preview_operator": "{'FINISHED'}",
+    "message": "Preview generated successfully! Part A: 5,192 mm³ | Part B: 74,357 mm³",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "faces": 4214,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 5191.656344381584
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "faces": 7476,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 74356.73172424256
+      }
+    ],
+    "review_blend": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_glb_20261021\\Placa_Osso_Chest_V2_Inteira_MATERIAL_preview.blend"
+  },
+  {
+    "file": "Placa_Osso_Chest_V2_Inteira.glb",
+    "mode": "LOOP",
+    "raw_nonmanifold_edges": 13598,
+    "repair_operator": "{'FINISHED'}",
+    "repaired_nonmanifold_edges": 0,
+    "capture_operator": "{'FINISHED'}",
+    "capture_loops": 2,
+    "capture_vertices": 984,
+    "preview_operator": "{'FINISHED'}",
+    "message": "Preview generated successfully! Part A: 3,461 mm³ | Part B: 76,087 mm³",
+    "parts": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "faces": 4055,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 3461.104009844788
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "faces": 6984,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 76087.3041910494
+      }
+    ],
+    "review_blend": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\commercial_plates_glb_20261021\\Placa_Osso_Chest_V2_Inteira_LOOP_preview.blend"
+  }
+]

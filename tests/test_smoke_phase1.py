@@ -332,6 +332,7 @@ def run_tests():
     settings = bpy.context.scene.chest_splitter
     assert_test(settings.session_status == 'PREVIEW_VALID', "Status está PREVIEW_VALID antes do commit")
 
+    bpy.context.scene.chest_splitter.commit_next_target = 'NONE'  # Test completed operation, without continuation.
     bpy.ops.chest.splitter_commit_parts()
     assert_test(settings.session_status == 'COMMITTED', "Status avançou para COMMITTED após commit")
 

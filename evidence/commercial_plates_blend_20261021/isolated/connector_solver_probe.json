@@ -1,0 +1,47 @@
+{
+  "target": "Placa_Chest_Inteira",
+  "capture": "{'FINISHED'}",
+  "captured": true,
+  "profile": "FDM",
+  "part_clearance_mm": 0.10000000149011612,
+  "bottom_clearance_mm": 0.10000000149011612,
+  "connector_diameter_mm": 1.2000000476837158,
+  "connector_length_mm": 2.0,
+  "connector_chamfer_mm": 0.10000000149011612,
+  "connector_distribution": "AUTO_SHAPE",
+  "exact": {
+    "label": "existing exact",
+    "result": "{'FINISHED'}",
+    "status": "PREVIEW_VALID",
+    "message": "Preview generated successfully (+AUTO_SHAPE connectors)! Part A: 5,870 mm³ | Part B: 212,094 mm³",
+    "selected_connector_solvers": [
+      "MANIFOLD"
+    ],
+    "preview_current": true,
+    "parts": [
+      {
+        "object": "SPLITTER_PREVIEW_A",
+        "verts": 971,
+        "faces": 801,
+        "volume_mm3": 5870.466765672838,
+        "valid": true,
+        "manifold": true,
+        "degenerate_faces": [],
+        "nonmanifold_edges": []
+      },
+      {
+        "object": "SPLITTER_PREVIEW_B",
+        "verts": 1226,
+        "faces": 1881,
+        "volume_mm3": 212094.1528017419,
+        "valid": true,
+        "manifold": true,
+        "degenerate_faces": [],
+        "nonmanifold_edges": []
+      }
+    ],
+    "commit": "{'FINISHED'}",
+    "revert": "{'FINISHED'}",
+    "source_unchanged": true
+  }
+}

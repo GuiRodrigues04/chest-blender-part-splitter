@@ -1,3 +1,12 @@
+# 0.9.5 — tampas editáveis por loop — 2026-11-07
+
+- Fechamento direto por loop tenta uma grade de quadriláteros, mantendo o contorno e verificando fechamento, interseções e coincidência das superfícies. Quando a grade não é válida, tenta o fechamento anterior e informa a triangulação em PT/EN sem sinalizar erro vermelho.
+- Interfaces e posicionamento de encaixes passam a usar a tesselação da superfície realmente gerada; marcas temporárias da grade não são arquivadas como contatos de cortes anteriores.
+- Grades com folga igual nos dois eixos recebem uma verificação amostrada bidirecional de distância, com tolerância de 0,003 mm. Uma grade que falha nessa verificação não é publicada.
+- Falhas de compatibilidade entre os planos do contorno informam que não foi possível construir folga uniforme, sem atribuir automaticamente o problema ao tamanho escolhido.
+- Spot: o anel central testado fecha com 16 quads por tampa e aceita 0,1 mm. Outros anéis curvos continuam podendo ser recusados; esta versão não garante solução para todos os contornos nem valida montagem física.
+- Os demais métodos mantêm seus algoritmos de fechamento. Contornos ímpares, grades muito densas ou geometrias sem grade válida continuam usando a alternativa anterior.
+
 # 0.9.4 — revisão complementar dos avisos — 2026-11-02
 
 - Erros do editor manual de pinos, alinhamento do cortador e exportação passam pela tradução na apresentação, inclusive causas inseridas em avisos bilíngues.

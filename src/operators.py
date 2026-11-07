@@ -3013,6 +3013,10 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 f"Part A: {settings.part_a_volume_mm3:,.0f} mm³ | "
                 f"Part B: {settings.part_b_volume_mm3:,.0f} mm³"
             )
+            if getattr(report.get('interface'), 'topology_fallback', False):
+                msg += report_msg(
+                    " Não foi possível criar toda a superfície em quadriláteros; usamos a triangulação de segurança.",
+                    " A complete quad surface could not be created; the safe triangulation was used.")
             settings.last_status = msg
             settings.last_status_level = 'SUCCESS'
             self.report({'INFO'}, msg)

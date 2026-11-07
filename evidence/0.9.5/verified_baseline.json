@@ -1,0 +1,168 @@
+[
+  {
+    "case": "region_green",
+    "mode": "WHOLE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "contacts": 2,
+    "parts": [
+      {
+        "vertices": 268,
+        "faces": 488,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 400.0000011175858
+      },
+      {
+        "vertices": 7544,
+        "faces": 15040,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 8592.00031998029
+      }
+    ],
+    "status": "OK",
+    "seconds": 1.709
+  },
+  {
+    "case": "region_blue",
+    "mode": "WHOLE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "contacts": 1,
+    "parts": [
+      {
+        "vertices": 255,
+        "faces": 454,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 399.9999266117785
+      },
+      {
+        "vertices": 7567,
+        "faces": 15078,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 8592.000528596665
+      }
+    ],
+    "status": "OK",
+    "seconds": 1.408
+  },
+  {
+    "case": "plate_plane",
+    "mode": "PLANE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "parts": [
+      {
+        "vertices": 6688,
+        "faces": 6564,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 7142.00064259018
+      },
+      {
+        "vertices": 1514,
+        "faces": 1404,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 1849.9998573213945
+      }
+    ],
+    "status": "OK",
+    "seconds": 0.388
+  },
+  {
+    "case": "plate_material_depth",
+    "mode": "EXTRUDE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "parts": [
+      {
+        "vertices": 345,
+        "faces": 585,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 597.3173860936113
+      },
+      {
+        "vertices": 7550,
+        "faces": 14992,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 8394.68172526119
+      }
+    ],
+    "status": "OK",
+    "seconds": 0.816
+  },
+  {
+    "case": "plate_material_base",
+    "mode": "BASE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "status": "ERROR",
+    "error": "The protrusion base is non-planar (deviation: 1.60 mm > 0.25 mm). Use Depth extraction and set the desired depth.",
+    "seconds": 0.041
+  },
+  {
+    "case": "cat_material",
+    "mode": "EXTRUDE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\Gato_Cinza\\Teste Gato.blend",
+    "parts": [
+      {
+        "vertices": 118,
+        "faces": 214,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 41585.552223099745
+      },
+      {
+        "vertices": 6749,
+        "faces": 13303,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 211401780.88914678
+      }
+    ],
+    "status": "OK",
+    "seconds": 0.34
+  },
+  {
+    "case": "cat_plane",
+    "mode": "PLANE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\Gato_Cinza\\Teste Gato.blend",
+    "parts": [
+      {
+        "vertices": 4430,
+        "faces": 8325,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 108980416.72983643
+      },
+      {
+        "vertices": 2915,
+        "faces": 5392,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 102462949.68564789
+      }
+    ],
+    "status": "OK",
+    "seconds": 0.61
+  },
+  {
+    "case": "spot_loop_zero",
+    "mode": "LOOP",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Vaquinha.blend",
+    "cap_quads": 0,
+    "parts": [
+      {
+        "vertices": 57,
+        "faces": 62,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 10149.821568359432
+      },
+      {
+        "vertices": 2889,
+        "faces": 2894,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 16529943.423153473
+      }
+    ],
+    "status": "OK",
+    "seconds": 0.096
+  },
+  {
+    "case": "spot_loop_gap",
+    "mode": "LOOP",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Vaquinha.blend",
+    "status": "ERROR",
+    "error": "The configured clearance is too large for the selected boundary details. Reduce the clearance.",
+    "seconds": 0.056
+  }
+]

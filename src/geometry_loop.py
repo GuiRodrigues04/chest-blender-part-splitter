@@ -587,7 +587,15 @@ def captured_region_faces(obj, indices, seed, scene):
     return faces
 
 
-def slice_mesh_by_loop(
+def slice_mesh_by_loop(*args, **kwargs):
+    """Try the editable grid first; retry the established closure on failure."""
+    try:
+        return _slice_mesh_by_loop_impl(*args, **kwargs, _prefer_quads=True)
+    except (ValueError, RuntimeError):
+        return _slice_mesh_by_loop_impl(*args, **kwargs, _prefer_quads=False)
+
+
+def _slice_mesh_by_loop_impl(
     obj: bpy.types.Object,
     target_name: str,
     indices: List[int],
@@ -600,6 +608,7 @@ def slice_mesh_by_loop(
     part_clearance_apply_to: str = 'PART',
     part_clearance_bottom_mm: Optional[float] = None,
     _override_step_depth_mm: Optional[float] = None,
+    _prefer_quads: bool = True,
 ) -> LoopSliceResult:
     """Realiza a separação da malha usando o contorno (loop) capturado.
     
@@ -737,6 +746,7 @@ def slice_mesh_by_loop(
     created_faces_b = []
 
     stepped_res = None
+    quad_pair = None
     # A stepped closure chooses a lateral step from the contour's span; it does
     # not add the requested base depth. Keep it for direct detachment only.
     if max_dev_mm > 0.5 and not detach_add_base:
@@ -884,7 +894,13 @@ def slice_mesh_by_loop(
             if dp_tris:
                 tri_indices = dp_tris
 
-        if tri_indices:
+        from .geometry_quad_cap import try_quad_pair
+        quad_pair = try_quad_pair(bm_a, bm_b, loop_verts_a, loop_verts_b,
+                                  loop_coords_world, n, scale_to_mm) if _prefer_quads else None
+        if quad_pair is not None:
+            bm_a.free(); bm_b.free()
+            bm_a, bm_b, created_faces_a, created_faces_b = quad_pair
+        elif tri_indices:
             for i, j, k in tri_indices:
                 va = (loop_verts_a[i], loop_verts_a[j], loop_verts_a[k])
                 try:
@@ -1111,6 +1127,14 @@ def slice_mesh_by_loop(
             if part_clearance_apply_to in ('CAVITY', 'BOTH'):
                 _apply_cap_shift(bm_b, cap_verts_b, n_ab, shift_b_bu, False)
 
+    if quad_pair is not None and part_clearance_mm > 0 and (part_clearance_bottom_mm is None or abs(part_clearance_bottom_mm-part_clearance_mm)<1e-8):
+        from .geometry_quad_cap import validate_grid_gap
+        try:
+            validate_grid_gap(bm_a, bm_b, part_clearance_mm, scale_to_mm)
+        except ValueError:
+            bm_a.free(); bm_b.free()
+            raise
+
     # Constrói CutInterface formal em World Space
     # A03: com base adicional, a interface efetiva de contato é o fundo da base
     # (deslocado por inward_dir * profundidade), não o contorno original no topo.
@@ -1131,6 +1155,9 @@ def slice_mesh_by_loop(
         ] if tri_indices else None
 
     reference_origin_world = Vector(iface_origin).copy()
+    if quad_pair is not None:
+        from .geometry_quad_cap import contact_triangles
+        iface_tris = contact_triangles(bm_a)
     reference_frame = build_cut_interface(
         origin_world=reference_origin_world,
         normal_a_to_b=normal_a_to_b,
@@ -1164,6 +1191,11 @@ def slice_mesh_by_loop(
     )
 
     cut_interface.clearance_applied = clearance_applied
+    cap_layer_a = bm_a.faces.layers.int.get('splitter_contact_surface')
+    cap_layer_b = bm_b.faces.layers.int.get('splitter_contact_surface')
+    cut_interface.topology_fallback = any(
+        len(f.verts) != 4 for mesh, layer in ((bm_a, cap_layer_a), (bm_b, cap_layer_b))
+        for f in mesh.faces if layer and f[layer])
     cut_interface.final_contact_a = final_a
     cut_interface.final_contact_b = final_b
     cut_interface.reference_origin_world = reference_origin_world

@@ -56,9 +56,9 @@ def _constrained_delta(constraints, tolerance):
             delta += q * (error / normal.dot(q))
             basis.append(q)
         elif abs(error) > tolerance:
-            raise LocalizedGeometryError('geometry.clearance_excessive')
+            raise LocalizedGeometryError('geometry.clearance_unresolved')
     if any(abs(n.dot(delta) - d) > tolerance for n, d in constraints):
-        raise LocalizedGeometryError('geometry.clearance_excessive')
+        raise LocalizedGeometryError('geometry.clearance_unresolved')
     return delta
 
 

@@ -1,8 +1,8 @@
 """Constantes e definições padrão para o Splitter."""
 
 # Identificação e versão do Addon
-ADDON_VERSION = (0, 9, 6)
-ADDON_VERSION_STR = "0.9.4"
+ADDON_VERSION = (0, 9, 7)
+ADDON_VERSION_STR = ".".join(map(str, ADDON_VERSION))
 PANEL_TITLE = f"Splitter {ADDON_VERSION_STR}"
 
 # Coleções de organização no Blender

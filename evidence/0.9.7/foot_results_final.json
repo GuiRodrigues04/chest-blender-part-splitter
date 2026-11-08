@@ -1,0 +1,242 @@
+[
+  {
+    "gap": 0.0,
+    "side": "PART",
+    "status": "OK",
+    "closure": "NATURAL",
+    "strategy": "OFFSET",
+    "measurements": null,
+    "patches": [
+      true,
+      true
+    ],
+    "bad": [
+      0,
+      0
+    ]
+  },
+  {
+    "gap": 0.1,
+    "side": "PART",
+    "status": "OK",
+    "closure": "NATURAL",
+    "strategy": "BLADE",
+    "measurements": {
+      "requested_mm": 0.1,
+      "minimum_mm": 0.09847705223364756,
+      "maximum_mm": 0.10555112385191023,
+      "normal_minimum_mm": 0.09996466048767824,
+      "normal_maximum_mm": 0.10001507144841734,
+      "interior_minimum_mm": 0.09847705223364756,
+      "interior_maximum_mm": 0.10363214096287265,
+      "tolerance_mm": 0.005000000000000001,
+      "samples": 1472,
+      "interior_samples": 1217,
+      "normal_samples": 56
+    },
+    "patches": [
+      true,
+      true
+    ],
+    "bad": [
+      0,
+      0
+    ]
+  },
+  {
+    "gap": 0.2,
+    "side": "PART",
+    "status": "OK",
+    "closure": "NATURAL",
+    "strategy": "BLADE",
+    "measurements": {
+      "requested_mm": 0.2,
+      "minimum_mm": 0.1969541044672951,
+      "maximum_mm": 0.21110208763275295,
+      "normal_minimum_mm": 0.19996623912511022,
+      "normal_maximum_mm": 0.20001534729863787,
+      "interior_minimum_mm": 0.1969541044672951,
+      "interior_maximum_mm": 0.20715779101010412,
+      "tolerance_mm": 0.010000000000000002,
+      "samples": 1472,
+      "interior_samples": 1225,
+      "normal_samples": 56
+    },
+    "patches": [
+      true,
+      true
+    ],
+    "bad": [
+      0,
+      0
+    ]
+  },
+  {
+    "gap": 0.5,
+    "side": "PART",
+    "status": "OK",
+    "closure": "NATURAL",
+    "strategy": "BLADE",
+    "measurements": {
+      "requested_mm": 0.5,
+      "minimum_mm": 0.4923293017782271,
+      "maximum_mm": 0.5277851014398038,
+      "normal_minimum_mm": 0.49996035029187835,
+      "normal_maximum_mm": 0.5000204673800748,
+      "interior_minimum_mm": 0.4923293017782271,
+      "interior_maximum_mm": 0.5176849663257599,
+      "tolerance_mm": 0.025,
+      "samples": 1472,
+      "interior_samples": 1228,
+      "normal_samples": 56
+    },
+    "patches": [
+      true,
+      true
+    ],
+    "bad": [
+      0,
+      0
+    ]
+  },
+  {
+    "gap": 1.0,
+    "side": "PART",
+    "status": "OK",
+    "closure": "NATURAL",
+    "strategy": "BLADE",
+    "measurements": {
+      "requested_mm": 1.0,
+      "minimum_mm": 0.984752899967134,
+      "maximum_mm": 1.055600238032639,
+      "normal_minimum_mm": 0.9999683932827633,
+      "normal_maximum_mm": 1.0000163748268345,
+      "interior_minimum_mm": 0.984752899967134,
+      "interior_maximum_mm": 1.0346543276682496,
+      "tolerance_mm": 0.05,
+      "samples": 1472,
+      "interior_samples": 1228,
+      "normal_samples": 56
+    },
+    "patches": [
+      true,
+      true
+    ],
+    "bad": [
+      0,
+      0
+    ]
+  },
+  {
+    "gap": 0.1,
+    "side": "CAVITY",
+    "status": "OK",
+    "closure": "NATURAL",
+    "strategy": "BLADE",
+    "measurements": {
+      "requested_mm": 0.1,
+      "minimum_mm": 0.0913348194444552,
+      "maximum_mm": 0.1600883260834962,
+      "normal_minimum_mm": 0.09994524394108548,
+      "normal_maximum_mm": 0.1000180835882882,
+      "interior_minimum_mm": 0.09574466093908995,
+      "interior_maximum_mm": 0.10265903256367892,
+      "tolerance_mm": 0.005000000000000001,
+      "samples": 1888,
+      "interior_samples": 1040,
+      "normal_samples": 56
+    },
+    "patches": [
+      true,
+      true
+    ],
+    "bad": [
+      0,
+      0
+    ]
+  },
+  {
+    "gap": 0.1,
+    "side": "BOTH",
+    "status": "OK",
+    "closure": "NATURAL",
+    "strategy": "BLADE",
+    "measurements": {
+      "requested_mm": 0.1,
+      "minimum_mm": 0.09757808584254235,
+      "maximum_mm": 0.14000933151692152,
+      "normal_minimum_mm": 0.09995613588620908,
+      "normal_maximum_mm": 0.10002156493505462,
+      "interior_minimum_mm": 0.09757808584254235,
+      "interior_maximum_mm": 0.10363569163018838,
+      "tolerance_mm": 0.005000000000000001,
+      "samples": 3240,
+      "interior_samples": 2129,
+      "normal_samples": 56
+    },
+    "patches": [
+      true,
+      true
+    ],
+    "bad": [
+      0,
+      0
+    ]
+  },
+  {
+    "gap": 1.0,
+    "side": "CAVITY",
+    "status": "OK",
+    "closure": "NATURAL",
+    "strategy": "BLADE",
+    "measurements": {
+      "requested_mm": 1.0,
+      "minimum_mm": 0.9218052146025002,
+      "maximum_mm": 1.599787501618266,
+      "normal_minimum_mm": 0.9999509588946079,
+      "normal_maximum_mm": 1.0000264063757593,
+      "interior_minimum_mm": 0.9603408398106694,
+      "interior_maximum_mm": 1.0270479833707213,
+      "tolerance_mm": 0.05,
+      "samples": 1888,
+      "interior_samples": 1052,
+      "normal_samples": 56
+    },
+    "patches": [
+      true,
+      true
+    ],
+    "bad": [
+      0,
+      0
+    ]
+  },
+  {
+    "gap": 1.0,
+    "side": "BOTH",
+    "status": "OK",
+    "closure": "NATURAL",
+    "strategy": "BLADE",
+    "measurements": {
+      "requested_mm": 1.0,
+      "minimum_mm": 0.9763784473761916,
+      "maximum_mm": 1.400661189109087,
+      "normal_minimum_mm": 0.9999420741900803,
+      "normal_maximum_mm": 1.0000250783145428,
+      "interior_minimum_mm": 0.9763784473761916,
+      "interior_maximum_mm": 1.0354697005823255,
+      "tolerance_mm": 0.05,
+      "samples": 3248,
+      "interior_samples": 2168,
+      "normal_samples": 56
+    },
+    "patches": [
+      true,
+      true
+    ],
+    "bad": [
+      0,
+      0
+    ]
+  }
+]

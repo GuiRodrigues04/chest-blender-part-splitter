@@ -3024,6 +3024,13 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                 msg += report_msg(
                     " Não foi possível criar toda a superfície em quadriláteros; usamos a triangulação de segurança.",
                     " A complete quad surface could not be created; the safe triangulation was used.")
+            measured = getattr(report.get('interface'), 'clearance_measurements', None)
+            if measured:
+                low, high = measured['interior_minimum_mm'], measured['interior_maximum_mm']
+                rim_low, rim_high = measured['minimum_mm'], measured['maximum_mm']
+                msg += report_msg(
+                    f" Folga amostrada no contato: {low:.3f}–{high:.3f} mm; incluindo bordas: {rim_low:.3f}–{rim_high:.3f} mm.",
+                    f" Sampled contact clearance: {low:.3f}–{high:.3f} mm; including rims: {rim_low:.3f}–{rim_high:.3f} mm.")
             settings.last_status = msg
             settings.last_status_level = 'SUCCESS'
             self.report({'INFO'}, msg)

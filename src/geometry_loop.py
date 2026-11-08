@@ -587,12 +587,104 @@ def captured_region_faces(obj, indices, seed, scene):
     return faces
 
 
+def _orthogonal_stepped_boundary(obj, indices):
+    """Keep the proven stepped solver for rectilinear three-axis contours."""
+    directions = []
+    points = [obj.matrix_world @ obj.data.vertices[i].co for i in indices]
+    for start, end in zip(points, points[1:] + points[:1]):
+        direction = end - start
+        if direction.length < 1e-10:
+            continue
+        direction.normalize()
+        if any(abs(direction.dot(other)) > 1 - 1e-5 for other in directions):
+            continue
+        if any(abs(direction.dot(other)) > 1e-5 for other in directions):
+            return False
+        directions.append(direction)
+        if len(directions) > 3:
+            return False
+    return len(directions) == 3
+
+
 def slice_mesh_by_loop(*args, **kwargs):
-    """Try the editable grid first; retry the established closure on failure."""
-    try:
-        return _slice_mesh_by_loop_impl(*args, **kwargs, _prefer_quads=True)
-    except (ValueError, RuntimeError):
-        return _slice_mesh_by_loop_impl(*args, **kwargs, _prefer_quads=False)
+    """Natural closure first, measured blade on clearance failure, legacy last."""
+    import inspect
+    from .geometry_clearance_blade import (validate_natural_surface,apply_blade_pair,measure_gap,
+                                          paired_contact_patches)
+    bound=inspect.signature(_slice_mesh_by_loop_impl).bind(*args,**kwargs)
+    bound.apply_defaults();parameters=dict(bound.arguments)
+    obj=parameters['obj'];scene=parameters['scene'] or bpy.context.scene
+    scale=get_scene_scale_to_mm(scene)
+    gap=max(0.,parameters['part_clearance_mm'])
+    bottom=parameters['part_clearance_bottom_mm']
+    direct=not parameters['detach_add_base']
+    scalar_gap=bottom is None or abs(bottom-gap)<1e-8
+    prefer_steps = direct and _orthogonal_stepped_boundary(obj, parameters['indices'])
+    natural_available=False;last_error=None
+
+    def complete(result,measurements=None):
+        iface=result.interface
+        if getattr(iface,'closure_strategy',None)=='NATURAL':
+            if measurements is None:validate_natural_surface(result,obj,scale)
+            if getattr(iface,'nominal_deviation_mm',0.)>.15:
+                a,b=paired_contact_patches(*result,iface.normal_a_to_b_world,scale)
+                iface.final_contact_a=a;iface.final_contact_b=b
+                iface.local_contact_frame=True
+        if measurements is not None:
+            iface.clearance_applied=True;iface.clearance_strategy='BLADE'
+            iface.clearance_measurements=measurements
+            result.split_result.part_a_metrics=evaluate_bmesh_metrics(result[0],unit_scale=scale)
+            result.split_result.part_b_metrics=evaluate_bmesh_metrics(result[1],unit_scale=scale)
+            result.split_result.diagnostics_before_connectors['sum_volume_mm3']=sum(
+                m['volume_mm3'] for m in (result.split_result.part_a_metrics,result.split_result.part_b_metrics))
+        return result
+
+    for prefer_quads in (True,False):
+        trial=dict(parameters,_prefer_quads=prefer_quads,_legacy_stepped=prefer_steps)
+        result=None
+        try:
+            result=_slice_mesh_by_loop_impl(**trial)
+            if (direct and scalar_gap and gap>0
+                    and getattr(result.interface,'closure_strategy',None)=='NATURAL'
+                    and getattr(result.interface,'clearance_strategy',None)!='CONVEX_PLANES'):
+                reference=None
+                try:
+                    reference=_slice_mesh_by_loop_impl(**dict(trial,part_clearance_mm=0.,part_clearance_bottom_mm=None))
+                    validate_natural_surface(reference,obj,scale)
+                    result.interface.clearance_measurements=measure_gap(*result,reference[0],gap,scale)
+                finally:
+                    if reference is not None:
+                        for part in reference:part.free()
+            return complete(result)
+        except (ValueError,RuntimeError) as error:
+            last_error=error
+            if result is not None:
+                for part in result:part.free()
+        if direct and scalar_gap and gap>0:
+            base=None;parts=None
+            try:
+                base=_slice_mesh_by_loop_impl(**dict(trial,part_clearance_mm=0.,part_clearance_bottom_mm=None))
+                if getattr(base.interface,'closure_strategy',None)!='NATURAL':continue
+                validate_natural_surface(base,obj,scale);natural_available=True
+                a,b,measured=apply_blade_pair(*base,obj,gap,parameters['part_clearance_apply_to'],scale)
+                import copy
+                interface=copy.copy(base.interface)
+                split=SplitResult(interface=interface,diagnostics_before_connectors=dict(base.split_result.diagnostics_before_connectors))
+                parts=LoopSliceResult(a,b,split)
+                return complete(parts,measured)
+            except (ValueError,RuntimeError) as error:
+                last_error=error
+                if parts is not None:
+                    for part in parts:part.free()
+            finally:
+                if base is not None:
+                    for part in base:part.free()
+    if natural_available:
+        raise last_error
+    for prefer_quads in (True,False):
+        try:return _slice_mesh_by_loop_impl(**dict(parameters,_prefer_quads=prefer_quads,_legacy_stepped=True))
+        except (ValueError,RuntimeError) as error:last_error=error
+    raise last_error
 
 
 def _slice_mesh_by_loop_impl(
@@ -609,6 +701,7 @@ def _slice_mesh_by_loop_impl(
     part_clearance_bottom_mm: Optional[float] = None,
     _override_step_depth_mm: Optional[float] = None,
     _prefer_quads: bool = True,
+    _legacy_stepped: bool = False,
 ) -> LoopSliceResult:
     """Realiza a separação da malha usando o contorno (loop) capturado.
     
@@ -749,7 +842,7 @@ def _slice_mesh_by_loop_impl(
     quad_pair = None
     # A stepped closure chooses a lateral step from the contour's span; it does
     # not add the requested base depth. Keep it for direct detachment only.
-    if max_dev_mm > 0.5 and not detach_add_base:
+    if _legacy_stepped and max_dev_mm > 0.5 and not detach_add_base:
         if _override_step_depth_mm is not None and _override_step_depth_mm > 0.0:
             req_step_bu = _override_step_depth_mm / scale_to_mm
         elif detach_add_base and detach_base_depth_mm > 0.0:
@@ -1050,6 +1143,7 @@ def _slice_mesh_by_loop_impl(
             bm_a.free(); bm_b.free()
             raise
 
+    clearance_strategy = 'OFFSET'
     # Aplica folga física de interface (part_clearance_mm) nos modos de fechamento direto e degrau 3D
     if max(part_clearance_mm, part_clearance_bottom_mm or 0.0) > 0.0 and (stepped_res is not None or not (detach_add_base and detach_base_depth_mm > 0.0)):
         n_ab = normal_a_to_b.normalized()
@@ -1095,6 +1189,7 @@ def _slice_mesh_by_loop_impl(
         from .geometry_clearance import convex_contact_planes, convex_offset_from_planes, subtract_closed_region
         convex_planes = convex_contact_planes(bm_a, scale_to_mm) if stepped_res is None and max_dev_mm > 0.15 else None
         if convex_planes:
+            clearance_strategy = 'CONVEX_PLANES'
             bottom = (part_clearance_mm if part_clearance_bottom_mm is None else max(0.0,part_clearance_bottom_mm))/scale_to_mm
             factor_a = 1.0 if part_clearance_apply_to == 'PART' else (0.5 if part_clearance_apply_to == 'BOTH' else 0.0)
             factor_b = 1.0 if part_clearance_apply_to == 'CAVITY' else (0.5 if part_clearance_apply_to == 'BOTH' else 0.0)
@@ -1191,6 +1286,9 @@ def _slice_mesh_by_loop_impl(
     )
 
     cut_interface.clearance_applied = clearance_applied
+    cut_interface.clearance_strategy = clearance_strategy
+    cut_interface.closure_strategy='STEPPED' if stepped_res is not None else ('BASE_DEPTH' if detach_add_base and detach_base_depth_mm>0 else 'NATURAL')
+    cut_interface.nominal_deviation_mm=max_dev_mm
     cap_layer_a = bm_a.faces.layers.int.get('splitter_contact_surface')
     cap_layer_b = bm_b.faces.layers.int.get('splitter_contact_surface')
     cut_interface.topology_fallback = any(
@@ -1406,7 +1504,7 @@ def analyze_loop_region(
             )
         except LocalizedGeometryError as error:
             from .localized_errors import MESSAGE_MARKER
-            if error.payload.get(MESSAGE_MARKER) != 'geometry.closing_intersection':
+            if error.payload.get(MESSAGE_MARKER) not in ('geometry.closing_intersection','geometry.closing_outside'):
                 raise
             closure_crosses_source = True
             detected_mode = 'EXTRUDE'

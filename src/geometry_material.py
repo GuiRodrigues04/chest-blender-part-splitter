@@ -888,12 +888,36 @@ def _slice_mesh_by_material(
         return result
 
     elif extraction_mode == 'BASE':
-        # C01 / C02 / C03: Destacar saliência pela base com fechamento planar e conservação volumétrica
         if not analysis.get("is_planar_base", True):
-            # A nonplanar painted patch does not identify a unique physical base.
-            # Depth extraction uses the explicit depth chosen by the user.
-            raise LocalizedGeometryError(
-                'geometry.non_planar', deviation=analysis.get('base_deviation_mm', 0.0), limit=0.25)
+            # One closed painted boundary defines the same topological cut as
+            # a captured loop. Share its containment and measured-gap checks.
+            # Regions with holes were dispatched above to the depth engine.
+            from .geometry_loop import slice_mesh_by_loop
+            try:
+                result = slice_mesh_by_loop(
+                    obj, obj.name, analysis['boundary_vertex_indices'],
+                    analysis['region_face_indices'][0], actual_scene,
+                    part_clearance_mm=part_clearance_mm,
+                    part_clearance_apply_to=part_clearance_apply_to,
+                    part_clearance_bottom_mm=part_clearance_bottom_mm,
+                )
+            except (ValueError, RuntimeError) as error:
+                if isinstance(error, LocalizedGeometryError) and error.payload['__splitter_message__'] in (
+                        'geometry.closing_intersection', 'geometry.closing_outside'):
+                    raise LocalizedGeometryError(
+                        'geometry.non_planar', deviation=analysis.get('base_deviation_mm', 0.0), limit=0.25) from error
+                raise
+            result.interface.source_mode = 'MATERIAL'
+            for side, bm_part in enumerate(result):
+                layer = bm_part.faces.layers.int.get('splitter_contact_surface')
+                if layer:
+                    interface_material = material_index if side == 0 and interface_mat_mode == 'EXTRACTED' else analysis['body_mat_index']
+                    for face in bm_part.faces:
+                        if face[layer]:
+                            face.material_index = interface_material
+            return result
+
+        # Planar painted bases retain their established extraction engine.
 
         protrusion_indices = analysis.get("protrusion_face_indices")
         coplanar_indices = analysis.get("coplanar_base_face_indices", [])

@@ -1,0 +1,143 @@
+[
+  {
+    "gap_mm": 0.1,
+    "clearance_apply_to": "PART",
+    "male_part": "A",
+    "model": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha pos cortes.blend",
+    "split_mode": "LOOP",
+    "loop_behavior": "AUTO",
+    "connector_enabled": true,
+    "connector_type": "CYLINDER",
+    "connector_distribution": "CENTER",
+    "diameter_mm": 6.0,
+    "length_mm": 8.0,
+    "chamfer_mm": 0.8,
+    "clearance_per_side_mm": 0.15,
+    "end_clearance_mm": 0.2,
+    "edge_margin_mm": 0.4,
+    "loop_indices": "0,764,197,771,11,1182,306,1188,9,743,190,748,15,821,213,812",
+    "seed_face": 552,
+    "operator_result": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "localized_status": "Preview generated successfully (+CENTER connectors)! Part A: 20,216,310 mm³ | Part B: 697,693,376 mm³ A complete quad surface could not be created; the safe triangulation was used. Sampled contact clearance: 0.098–0.104 mm; including rims: 0.098–0.106 mm.",
+    "preview_object_count": 2,
+    "part_metrics": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "verts": 427,
+        "faces": 423,
+        "volume_mm3": 20216309.699822072,
+        "nonmanifold_edges": 0,
+        "is_valid": true,
+        "reported_non_manifold_edges": []
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "verts": 2921,
+        "faces": 2896,
+        "volume_mm3": 697693370.720846,
+        "nonmanifold_edges": 0,
+        "is_valid": true,
+        "reported_non_manifold_edges": []
+      }
+    ],
+    "elapsed_seconds": 2.359,
+    "status": "OK"
+  },
+  {
+    "gap_mm": 0.1,
+    "clearance_apply_to": "PART",
+    "male_part": "B",
+    "model": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha pos cortes.blend",
+    "split_mode": "LOOP",
+    "loop_behavior": "AUTO",
+    "connector_enabled": true,
+    "connector_type": "CYLINDER",
+    "connector_distribution": "CENTER",
+    "diameter_mm": 6.0,
+    "length_mm": 8.0,
+    "chamfer_mm": 0.8,
+    "clearance_per_side_mm": 0.15,
+    "end_clearance_mm": 0.2,
+    "edge_margin_mm": 0.4,
+    "loop_indices": "0,764,197,771,11,1182,306,1188,9,743,190,748,15,821,213,812",
+    "seed_face": 552,
+    "operator_result": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "localized_status": "Preview generated successfully (+CENTER connectors)! Part A: 20,215,840 mm³ | Part B: 697,693,824 mm³ A complete quad surface could not be created; the safe triangulation was used. Sampled contact clearance: 0.098–0.104 mm; including rims: 0.098–0.106 mm.",
+    "preview_object_count": 2,
+    "part_metrics": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "verts": 395,
+        "faces": 391,
+        "volume_mm3": 20215839.54452221,
+        "nonmanifold_edges": 0,
+        "is_valid": true,
+        "reported_non_manifold_edges": []
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "verts": 2953,
+        "faces": 2928,
+        "volume_mm3": 697693840.850791,
+        "nonmanifold_edges": 0,
+        "is_valid": true,
+        "reported_non_manifold_edges": []
+      }
+    ],
+    "elapsed_seconds": 2.404,
+    "status": "OK"
+  },
+  {
+    "gap_mm": 1.0,
+    "clearance_apply_to": "PART",
+    "male_part": "A",
+    "model": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha pos cortes.blend",
+    "split_mode": "LOOP",
+    "loop_behavior": "AUTO",
+    "connector_enabled": true,
+    "connector_type": "CYLINDER",
+    "connector_distribution": "CENTER",
+    "diameter_mm": 6.0,
+    "length_mm": 8.0,
+    "chamfer_mm": 0.8,
+    "clearance_per_side_mm": 0.15,
+    "end_clearance_mm": 0.2,
+    "edge_margin_mm": 0.4,
+    "loop_indices": "0,764,197,771,11,1182,306,1188,9,743,190,748,15,821,213,812",
+    "seed_face": 552,
+    "operator_result": [
+      "FINISHED"
+    ],
+    "session_status": "PREVIEW_VALID",
+    "localized_status": "Preview generated successfully (+CENTER connectors)! Part A: 20,138,984 mm³ | Part B: 697,693,376 mm³ A complete quad surface could not be created; the safe triangulation was used. Sampled contact clearance: 0.985–1.035 mm; including rims: 0.985–1.056 mm.",
+    "preview_object_count": 2,
+    "part_metrics": [
+      {
+        "name": "SPLITTER_PREVIEW_A",
+        "verts": 425,
+        "faces": 424,
+        "volume_mm3": 20138984.259472515,
+        "nonmanifold_edges": 0,
+        "is_valid": true,
+        "reported_non_manifold_edges": []
+      },
+      {
+        "name": "SPLITTER_PREVIEW_B",
+        "verts": 2921,
+        "faces": 2896,
+        "volume_mm3": 697693398.5156479,
+        "nonmanifold_edges": 0,
+        "is_valid": true,
+        "reported_non_manifold_edges": []
+      }
+    ],
+    "elapsed_seconds": 2.36,
+    "status": "OK"
+  }
+]

@@ -320,7 +320,7 @@ def cache_prepared_interface(context, cut_iface, sig=None):
     if not cut_iface.outer_contours_uv:
         raise RuntimeError("Este corte não possui uma superfície comum para posicionar os pinos.")
 
-    if getattr(cut_iface, 'clearance_applied', False):
+    if getattr(cut_iface, 'clearance_applied', False) or getattr(cut_iface,'local_contact_frame',False):
         # Spatial clearance can split topology. Use the actual retained patch
         # on the selected pin side rather than shifting the nominal interface.
         # Keep the nominal UV frame: the patch origin is a mesh-derived anchor
@@ -350,7 +350,7 @@ def cache_prepared_interface(context, cut_iface, sig=None):
             (patch['origin'] - reference_origin).dot(patch_normal)
         )
         cut_iface = build_cut_interface(
-            origin, normal, patch['boundary'],
+            origin, patch_normal if getattr(previous,'local_contact_frame',False) else normal, patch['boundary'],
             interface_triangles=patch['triangles'],
             boundary_loops_world=patch.get('loops'),
             unit_scale=unit_scale, source_mode=previous.source_mode)
@@ -364,7 +364,8 @@ def cache_prepared_interface(context, cut_iface, sig=None):
             cut_iface.reference_origin_world = reference_origin.copy()
         if hasattr(previous, 'reference_axis_u_world'):
             cut_iface.reference_axis_u_world = reference_axis_u.copy()
-        cut_iface.clearance_applied = True
+        cut_iface.clearance_applied = getattr(previous,'clearance_applied',False)
+        cut_iface.local_contact_frame = getattr(previous,'local_contact_frame',False)
         cut_iface.final_contact_a = previous.final_contact_a
         cut_iface.final_contact_b = previous.final_contact_b
         contact_tris = list(cut_iface.interface_triangles_world)

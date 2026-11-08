@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-11-07T22:14:57-0300",
+  "blender": "C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe",
+  "fixtures": {
+    "test_whole_region_material.py": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\Gato_Cinza\\Teste Gato.blend",
+    "test_region_release.py": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\Gato_Cinza\\Teste Gato.blend",
+    "test_plane_contact_contours.py": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\01_Placas_Chest\\Placas_Versao_1_Inteiras\\Blender\\Placa_Chest\\Placa Chest.blend",
+    "test_material_region_connectivity.py": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\01_Placas_Chest\\Placas_Versao_1_Inteiras\\Blender\\Placa_QR_Inclinada\\Placa_QR_Inclinada_Chest_V2_Inteira.blend"
+  },
+  "suite_runs": 8,
+  "passed": 4,
+  "failed": 4,
+  "skipped": 2,
+  "test_methods": 92,
+  "errors": 2,
+  "failures": 50,
+  "results": [
+    {
+      "phase": "baseline",
+      "suite": "test_whole_region_material.py",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 19.4,
+      "tests_run": 5,
+      "skips": 0,
+      "errors": 0,
+      "failures": 0,
+      "detail": ""
+    },
+    {
+      "phase": "baseline",
+      "suite": "test_region_release.py",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 28.73,
+      "tests_run": 28,
+      "skips": 1,
+      "errors": 0,
+      "failures": 0,
+      "detail": ""
+    },
+    {
+      "phase": "baseline",
+      "suite": "test_plane_contact_contours.py",
+      "status": "failed",
+      "exit_code": 1,
+      "seconds": 9.12,
+      "tests_run": 11,
+      "skips": 0,
+      "errors": 1,
+      "failures": 24,
+      "detail": ""
+    },
+    {
+      "phase": "baseline",
+      "suite": "test_material_region_connectivity.py",
+      "status": "failed",
+      "exit_code": 1,
+      "seconds": 4.16,
+      "tests_run": 2,
+      "skips": 0,
+      "errors": 0,
+      "failures": 1,
+      "detail": ""
+    },
+    {
+      "phase": "final",
+      "suite": "test_whole_region_material.py",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 19.45,
+      "tests_run": 5,
+      "skips": 0,
+      "errors": 0,
+      "failures": 0,
+      "detail": ""
+    },
+    {
+      "phase": "final",
+      "suite": "test_region_release.py",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 31.17,
+      "tests_run": 28,
+      "skips": 1,
+      "errors": 0,
+      "failures": 0,
+      "detail": ""
+    },
+    {
+      "phase": "final",
+      "suite": "test_plane_contact_contours.py",
+      "status": "failed",
+      "exit_code": 1,
+      "seconds": 11.71,
+      "tests_run": 11,
+      "skips": 0,
+      "errors": 1,
+      "failures": 24,
+      "detail": ""
+    },
+    {
+      "phase": "final",
+      "suite": "test_material_region_connectivity.py",
+      "status": "failed",
+      "exit_code": 1,
+      "seconds": 4.31,
+      "tests_run": 2,
+      "skips": 0,
+      "errors": 0,
+      "failures": 1,
+      "detail": ""
+    }
+  ]
+}

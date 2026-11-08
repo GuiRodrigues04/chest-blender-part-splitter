@@ -1,0 +1,339 @@
+[
+  {
+    "case": "region_green",
+    "mode": "WHOLE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "contacts": 2,
+    "topology": {
+      "quads_created": 0,
+      "fallback": true,
+      "parts": [
+        {
+          "quads_created": 0,
+          "fallback": true,
+          "patches": 2
+        },
+        {
+          "quads_created": 0,
+          "fallback": true,
+          "patches": 2
+        }
+      ]
+    },
+    "parts": [
+      {
+        "vertices": 268,
+        "faces": 530,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 400.00000111758584
+      },
+      {
+        "vertices": 7544,
+        "faces": 15082,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 8592.000319980285
+      }
+    ],
+    "status": "OK",
+    "seconds": 1.854
+  },
+  {
+    "case": "region_blue",
+    "mode": "WHOLE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "contacts": 1,
+    "topology": {
+      "quads_created": 112,
+      "fallback": true,
+      "parts": [
+        {
+          "quads_created": 56,
+          "fallback": true,
+          "patches": 3
+        },
+        {
+          "quads_created": 56,
+          "fallback": true,
+          "patches": 3
+        }
+      ]
+    },
+    "parts": [
+      {
+        "vertices": 297,
+        "faces": 530,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 399.9999211682346
+      },
+      {
+        "vertices": 7609,
+        "faces": 15154,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 8592.000534040197
+      }
+    ],
+    "status": "OK",
+    "seconds": 1.544
+  },
+  {
+    "case": "plate_plane",
+    "mode": "PLANE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "topology": {
+      "quads_created": 169,
+      "fallback": true,
+      "parts": [
+        {
+          "quads_created": 169,
+          "fallback": true,
+          "patches": 4
+        },
+        {
+          "quads_created": 0,
+          "fallback": true,
+          "patches": 4
+        }
+      ]
+    },
+    "parts": [
+      {
+        "vertices": 6832,
+        "faces": 6891,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 7142.000650774955
+      },
+      {
+        "vertices": 1514,
+        "faces": 1404,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 1849.9998573213945
+      }
+    ],
+    "status": "OK",
+    "seconds": 0.857
+  },
+  {
+    "case": "plate_material_depth",
+    "mode": "EXTRUDE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "topology": {
+      "quads_created": 0,
+      "fallback": true,
+      "parts": [
+        {
+          "quads_created": 0,
+          "fallback": true,
+          "patches": 1
+        },
+        {
+          "quads_created": 0,
+          "fallback": true,
+          "patches": 1
+        }
+      ]
+    },
+    "parts": [
+      {
+        "vertices": 345,
+        "faces": 585,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 597.3173860936113
+      },
+      {
+        "vertices": 7550,
+        "faces": 14992,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 8394.68172526119
+      }
+    ],
+    "status": "OK",
+    "seconds": 1.171
+  },
+  {
+    "case": "plate_material_base",
+    "mode": "BASE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "topology": {
+      "quads_created": 0,
+      "fallback": true,
+      "parts": [
+        {
+          "quads_created": 0,
+          "fallback": true,
+          "patches": 5
+        },
+        {
+          "quads_created": 0,
+          "fallback": true,
+          "patches": 5
+        }
+      ]
+    },
+    "parts": [
+      {
+        "vertices": 280,
+        "faces": 314,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 373.00001263711323
+      },
+      {
+        "vertices": 7556,
+        "faces": 7570,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 8619.000487274427
+      }
+    ],
+    "status": "OK",
+    "seconds": 0.234
+  },
+  {
+    "case": "cat_material",
+    "mode": "EXTRUDE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\Gato_Cinza\\Teste Gato.blend",
+    "topology": {
+      "quads_created": 40,
+      "fallback": false,
+      "parts": [
+        {
+          "quads_created": 20,
+          "fallback": false,
+          "patches": 19
+        },
+        {
+          "quads_created": 20,
+          "fallback": false,
+          "patches": 19
+        }
+      ]
+    },
+    "parts": [
+      {
+        "vertices": 130,
+        "faces": 218,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 41585.53224353113
+      },
+      {
+        "vertices": 6761,
+        "faces": 13307,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 211401780.89836702
+      }
+    ],
+    "status": "OK",
+    "seconds": 0.454
+  },
+  {
+    "case": "cat_plane",
+    "mode": "PLANE",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\Gato_Cinza\\Teste Gato.blend",
+    "topology": {
+      "quads_created": 0,
+      "fallback": true,
+      "parts": [
+        {
+          "quads_created": 0,
+          "fallback": true,
+          "patches": 8
+        },
+        {
+          "quads_created": 0,
+          "fallback": true,
+          "patches": 9
+        }
+      ]
+    },
+    "parts": [
+      {
+        "vertices": 4430,
+        "faces": 8325,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 108980416.72983643
+      },
+      {
+        "vertices": 2915,
+        "faces": 5392,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 102462949.68564789
+      }
+    ],
+    "status": "OK",
+    "seconds": 0.859
+  },
+  {
+    "case": "spot_loop_zero",
+    "mode": "LOOP",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha.blend",
+    "cap_quads": 16,
+    "topology": {
+      "quads_created": 0,
+      "fallback": false,
+      "parts": [
+        {
+          "quads_created": 0,
+          "fallback": false,
+          "patches": 16
+        },
+        {
+          "quads_created": 0,
+          "fallback": false,
+          "patches": 16
+        }
+      ]
+    },
+    "parts": [
+      {
+        "vertices": 66,
+        "faces": 64,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 10118.277035391928
+      },
+      {
+        "vertices": 2898,
+        "faces": 2896,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 16529974.96768643
+      }
+    ],
+    "status": "OK",
+    "seconds": 1.076
+  },
+  {
+    "case": "spot_loop_gap",
+    "mode": "LOOP",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha.blend",
+    "cap_quads": 16,
+    "topology": {
+      "quads_created": 0,
+      "fallback": false,
+      "parts": [
+        {
+          "quads_created": 0,
+          "fallback": false,
+          "patches": 16
+        },
+        {
+          "quads_created": 0,
+          "fallback": false,
+          "patches": 16
+        }
+      ]
+    },
+    "parts": [
+      {
+        "vertices": 66,
+        "faces": 64,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 10044.016643117444
+      },
+      {
+        "vertices": 2898,
+        "faces": 2896,
+        "nonmanifold_edges": 0,
+        "volume_mm3": 16529974.96768643
+      }
+    ],
+    "status": "OK",
+    "seconds": 1.271
+  }
+]

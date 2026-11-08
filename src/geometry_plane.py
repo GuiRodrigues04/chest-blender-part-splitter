@@ -329,7 +329,7 @@ def final_planar_contact_loops(bm, plane_origin, plane_normal, unit_scale):
     return loops
 
 
-def common_planar_interface(loops_a, loops_b, origin, normal, unit_scale):
+def common_planar_interface(loops_a, loops_b, origin, normal, unit_scale, include_triangles=False):
     """Intersect both retained cap footprints, including islands and holes.
 
     CDT constrains every boundary; triangle interiors determine membership.
@@ -391,8 +391,10 @@ def common_planar_interface(loops_a, loops_b, origin, normal, unit_scale):
         loops = reconstruct_boundary_loops(boundary)
         world_loops = [[frame.uv_to_world(p.x/unit_scale, p.y/unit_scale)
                         for p in loop] for loop in loops]
+        physical_triangles=[tuple(frame.uv_to_world(v.co.x/unit_scale,v.co.y/unit_scale)
+                                  for v in face.verts) for face in bm.faces] if include_triangles else None
         return build_cut_interface(origin, normal, [], unit_scale=unit_scale,
-            source_mode='PLANE', boundary_loops_world=world_loops)
+            source_mode='PLANE', boundary_loops_world=world_loops,interface_triangles=physical_triangles)
     finally:
         bm.free()
 

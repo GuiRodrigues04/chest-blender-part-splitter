@@ -1,3 +1,12 @@
+# 0.9.7 — fechamento natural e folga em contornos curvos — 2026-11-07
+
+- Contornos orgânicos por loop tentam fechar diretamente sobre o contorno, com grade quando válida, antes de recorrer ao fechamento antigo com degraus. Contornos ortogonais em três direções preservam o solver de degraus, incluindo folgas e transformações que já funcionavam.
+- O fechamento natural verifica contenção e coincidência das tesselações visíveis das duas peças; grades incompatíveis são repetidas com triangulação. Bases não planas com um contorno de material compartilham esse caminho, mantendo a orientação para usar profundidade quando o fechamento não cabe no sólido.
+- Quando a folga escalar não pode ser construída por deslocamento da superfície natural, tenta uma lâmina local fechada, Solidify Complex e Boolean Exact, preservando o exterior fora da faixa cortada. A lâmina é validada por distâncias bidirecionais no contato comum e raios normais. Contornos não suportados continuam sendo recusados com a prévia anterior preservada.
+- A prévia informa a faixa amostrada de folga no contato e a faixa incluindo bordas. A tolerância da nova lâmina é o maior entre 0,005 mm e 5% do valor solicitado; as bordas além da área de contato têm medição separada e não representam uma promessa de distância uniforme em toda a borda curva. A tolerância anterior de grades permanece inalterada.
+- Encaixes em cortes curvos usam uma área plana comum da superfície efetivamente gerada, sem achatar o fechamento inteiro. A tentativa conservadora de grade após a folga continua compartilhada por Loop, Plano, Região inteira, Sólido e Material.
+- Corrigida a versão mostrada no painel para acompanhar a versão do pacote.
+
 # 0.9.6 — tentativa de grade em todos os métodos — 2026-11-07
 
 - Prévia de Loop, Plano, Região inteira, Sólido e Material compartilha uma etapa de organização das superfícies criadas, após a folga e antes dos encaixes. Regiões planas compatíveis recebem quads; contornos ímpares, furos e grades incompatíveis preservam a alternativa segura com aviso informativo.

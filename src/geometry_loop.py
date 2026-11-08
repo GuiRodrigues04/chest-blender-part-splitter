@@ -626,7 +626,15 @@ def slice_mesh_by_loop(*args, **kwargs):
         iface=result.interface
         if getattr(iface,'closure_strategy',None)=='NATURAL':
             if measurements is None:validate_natural_surface(result,obj,scale)
-            if getattr(iface,'nominal_deviation_mm',0.)>.15:
+            from .connector_domain import complete_contact_pair
+            full = (complete_contact_pair(*result, iface.normal_a_to_b_world, scale,
+                                         iface.reference_origin_world if iface.reference_origin_world is not None else iface.origin_world)
+                    if getattr(iface,'clearance_strategy',None) != 'CONVEX_PLANES' else None)
+            if full:
+                iface.final_contact_a, iface.final_contact_b = full
+                iface.complete_contact_domain = True
+                iface.local_contact_frame = False
+            elif getattr(iface,'nominal_deviation_mm',0.)>.15:
                 a,b=paired_contact_patches(*result,iface.normal_a_to_b_world,scale)
                 iface.final_contact_a=a;iface.final_contact_b=b
                 iface.local_contact_frame=True
@@ -2537,6 +2545,16 @@ def _restore_retained_source_faces(bm, source_obj):
     def key(points):
         return frozenset(tuple(round(float(c), 7) for c in p) for p in points)
     source = source_obj.data
+    # Snapshot UV values before BMesh layer access/topology changes. The legacy
+    # MeshUVLoopLayer.data collection can be invalidated by attribute creation
+    # in recent Blender releases; modern corner attributes avoid stale handles.
+    source_uv = []
+    for uv_layer in source.uv_layers:
+        name = uv_layer.name
+        attribute = source.attributes.get(name)
+        if attribute is not None and len(attribute.data) == len(source.loops):
+            values = [tuple(value.vector) for value in attribute.data]
+            source_uv.append((name, values))
     by_key = {key(v.co for v in f.verts): f for f in bm.faces}
     by_vertex = {}
     for points, face in by_key.items():
@@ -2571,10 +2589,10 @@ def _restore_retained_source_faces(bm, source_obj):
             restored.normal_update()
             if restored.normal.dot(normal) < 0:
                 restored.normal_flip()
-            for uv in source.uv_layers:
-                layer = bm.loops.layers.uv.get(uv.name)
+            for uv_name, uv_values in source_uv:
+                layer = bm.loops.layers.uv.get(uv_name)
                 if layer is not None:
-                    values = {key([source_obj.matrix_world @ source.vertices[source.loops[i].vertex_index].co]): uv.data[i].uv.copy()
+                    values = {key([source_obj.matrix_world @ source.vertices[source.loops[i].vertex_index].co]): uv_values[i]
                               for i in polygon.loop_indices}
                     for loop in restored.loops:
                         loop[layer].uv = values[key([loop.vert.co])]

@@ -41,6 +41,7 @@ class PreparedSplit:
     is_planar: bool = True
     contact_triangles_world: List[Tuple[Vector, Vector, Vector]] = field(default_factory=list)
     bvh_tree: Optional[BVHTree] = None
+    sizing_trees: Optional[Tuple[BVHTree, BVHTree]] = None
 
     def world_to_uv_mm(self, point_assembled_world: Vector) -> Tuple[float, float]:
         """Converte ponto montado 3D para UV da interface em milímetros."""
@@ -88,7 +89,8 @@ def clear_prepared_split_cache():
         pass
 
 
-def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool = False) -> PreparedSplit:
+def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool = False,
+                             include_solids: bool = False) -> PreparedSplit:
     """Prepara o corte sem encaixes, garantindo uma única CutInterface e superfície útil de contato.
     
     Compatível com PLANE, LOOP, MATERIAL e SOLID.
@@ -121,7 +123,8 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
     sig += ':' + settings.connector_male_part
     if not force_recompute and _CACHED_PREPARED_SPLIT is not None:
         if _CACHED_PREPARED_SPLIT.cut_signature == sig and _CACHED_PREPARED_SPLIT.target_name == target.name:
-            return _CACHED_PREPARED_SPLIT
+            if not include_solids or _CACHED_PREPARED_SPLIT.sizing_trees is not None:
+                return _CACHED_PREPARED_SPLIT
 
     unit_scale = get_scene_scale_to_mm(context.scene)
     if unit_scale <= 0.0:
@@ -135,12 +138,15 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
     male_side = getattr(settings, "connector_male_part", "A")
 
     cut_iface: Optional[CutInterface] = None
+    from .connector_sizing import attach_sizing_solids
     if uses_surface_region(settings):
         from .geometry_region import slice_region
         mesh_a = bpy.data.meshes.new('_region_interface_a')
         mesh_b = bpy.data.meshes.new('_region_interface_b')
         try:
             cut_iface = slice_region(target, settings, context.scene, mesh_a, mesh_b)['interface']
+            if include_solids:
+                attach_sizing_solids(cut_iface, mesh_a, mesh_b)
         finally:
             bpy.data.meshes.remove(mesh_a)
             bpy.data.meshes.remove(mesh_b)
@@ -166,6 +172,8 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
                 plane_region=resolve_plane_region(context.scene, settings),
             )
             cut_iface = report['interface']
+            if include_solids:
+                attach_sizing_solids(cut_iface, mesh_a, mesh_b)
         finally:
             if evaluated is not None:
                 evaluated.to_mesh_clear()
@@ -196,6 +204,8 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
                 attach_contacts(report, mesh_a, mesh_b, unit_scale, settings.contact_patch_index,
                                 mesh_tree(source, target.matrix_world))
             cut_iface = report['interfaces'].get(male_side)
+            if include_solids:
+                attach_sizing_solids(cut_iface, mesh_a, mesh_b)
             if cut_iface is not None and settings.solid_interface_face_index < 0:
                 settings.solid_interface_face_index = report['interface_face_index']
                 from .input_state import cut_signature, contact_signature
@@ -260,6 +270,8 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             )
 
         bm_a, bm_b = loop_res[0], loop_res[1]
+        if include_solids:
+            attach_sizing_solids(loop_res.interface, bm_a, bm_b)
         bm_a.free()
         bm_b.free()
 
@@ -291,6 +303,8 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             ),
         )
         bm_a, bm_b = mat_res[0], mat_res[1]
+        if include_solids:
+            attach_sizing_solids(mat_res.interface, bm_a, bm_b)
         bm_a.free()
         bm_b.free()
 
@@ -314,13 +328,16 @@ def cache_prepared_interface(context, cut_iface, sig=None):
     unit_scale = get_scene_scale_to_mm(context.scene)
     sig = sig or compute_cut_signature(settings, target, context.scene) + ':' + male_side
     contact_tris = list(cut_iface.interface_triangles_world) if cut_iface else []
+    sizing_trees = getattr(cut_iface, 'sizing_trees', None)
     bvh_tree = None
     if cut_iface is None:
         raise RuntimeError("Não foi possível preparar a interface de corte para o modelo.")
     if not cut_iface.outer_contours_uv:
         raise RuntimeError("Este corte não possui uma superfície comum para posicionar os pinos.")
 
-    if getattr(cut_iface, 'clearance_applied', False) or getattr(cut_iface,'local_contact_frame',False):
+    if (getattr(cut_iface, 'clearance_applied', False)
+            or getattr(cut_iface,'local_contact_frame',False)
+            or getattr(cut_iface,'complete_contact_domain',False)):
         # Spatial clearance can split topology. Use the actual retained patch
         # on the selected pin side rather than shifting the nominal interface.
         # Keep the nominal UV frame: the patch origin is a mesh-derived anchor
@@ -358,6 +375,9 @@ def cache_prepared_interface(context, cut_iface, sig=None):
         # A retained patch can itself be locally planar while belonging to a
         # nonplanar nominal interface. Keep the source surface classification.
         cut_iface.is_planar = previous.is_planar
+        if getattr(previous, 'complete_contact_domain', False):
+            # Even slight cap curvature must be anchored to actual triangles.
+            cut_iface.is_planar = False
         cut_iface.deviation_mm = previous.deviation_mm
         # Keep the reference when this prepared interface is cached/reused.
         if hasattr(previous, 'reference_origin_world'):
@@ -366,6 +386,7 @@ def cache_prepared_interface(context, cut_iface, sig=None):
             cut_iface.reference_axis_u_world = reference_axis_u.copy()
         cut_iface.clearance_applied = getattr(previous,'clearance_applied',False)
         cut_iface.local_contact_frame = getattr(previous,'local_contact_frame',False)
+        cut_iface.complete_contact_domain = getattr(previous,'complete_contact_domain',False)
         cut_iface.final_contact_a = previous.final_contact_a
         cut_iface.final_contact_b = previous.final_contact_b
         contact_tris = list(cut_iface.interface_triangles_world)
@@ -464,6 +485,7 @@ def cache_prepared_interface(context, cut_iface, sig=None):
         is_planar=cut_iface.is_planar,
         contact_triangles_world=contact_tris,
         bvh_tree=bvh_tree,
+        sizing_trees=sizing_trees,
     )
     _CACHED_PREPARED_SPLIT = prepared
     return prepared

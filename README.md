@@ -1,4 +1,4 @@
-# Splitter 0.8.34
+# Splitter 0.9.8
 
 **Candidata para validação.** Consulte o [guia rápido PT/EN](docs/GUIA_RAPIDO_PT_EN.md) e o relatório de validação desta versão antes do lançamento comercial.
 
@@ -9,7 +9,7 @@ Extensão para Blender para dividir modelos 3D em peças para impressão (FDM/SL
 No Blender:
 1. Acesse **Edit > Preferences > Get Extensions** (ou **Add-ons**).
 2. Clique no menu superior direito (ícone de engrenagem ou seta) e selecione **Install from Disk...**
-3. Escolha o arquivo instalável `chest_part_splitter-0.8.34.zip`.
+3. Escolha o arquivo instalável `chest_part_splitter-0.9.8.zip`.
 4. O painel estará disponível na Sidebar da Viewport 3D (pressione tecla `N` > aba **Splitter**).
 
 ## Modos de Corte
@@ -26,6 +26,8 @@ No Modelo Alvo, use **Mostrar faces** para selecionar somente as faces considera
 O reparo da malha não torna qualquer folga possível: microaberturas podem colapsar com uma folga maior que seus detalhes. Nesse caso, o corte continua bloqueado com indicação do parâmetro; a extensão não altera medidas nem apaga detalhes para forçar a operação.
 
 ## Encaixes e Tolerâncias
+
+**Centro e dimensões dos pinos (0.9.8):** cortes curvos compatíveis usam a área de contato completa entre as duas peças; as arestas internas da grade não são bordas do encaixe. **Sugerir dimensões** calcula valores iniciais pelo contorno e pela profundidade disponível na peça receptora. Ao ativar os pinos pela interface, a sugestão é aplicada a valores iniciais ainda não personalizados. Parâmetros salvos e ajustes manuais são preservados; use o botão para solicitar uma nova sugestão. Atualize a prévia após instalar a versão nova.
 
 **Padrão de Folgas:** Impressão FDM aplica 0,10 mm entre peças (lateral e fundo), 0,15 mm radial nos pinos e 0,20 mm no fundo dos furos. Sem folgas zera esses valores. Personalizado preserva os valores e permite ajustá-los; editar uma folga ativa esse modo automaticamente. Os perfis não alteram diâmetro, comprimento, quantidade ou posição dos pinos, nem o lado de aplicação da folga. São valores iniciais que precisam de calibração na impressora. Arquivos existentes preservam suas medidas.
 

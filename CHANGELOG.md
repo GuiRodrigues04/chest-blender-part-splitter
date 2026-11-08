@@ -1,3 +1,11 @@
+# 0.9.8 — centro dos pinos e sugestão de dimensões — 2026-11-08
+
+- Fechamentos naturais compatíveis usam a projeção do contato completo comum às duas peças para posicionar pinos, preservando os triângulos físicos para apoio e edição. Arestas internas da grade deixam de ser interpretadas como bordas externas. Superfícies dobradas ou verticais preservam o caminho local anterior.
+- O pino central nesse domínio usa o centroide de área, compartilhado com a validação manual. Furos, margens, folgas e a verificação de parede receptora continuam ativos.
+- Nova ação **Sugerir dimensões** calcula diâmetro e profundidade a partir da seção e de amostras dos dois sólidos cortados. A ativação interativa pode sugerir valores iniciais ainda não personalizados; parâmetros salvos, scripts e ajustes manuais são preservados.
+- Restauro de UV captura os atributos de canto antes de alterar a topologia, evitando acessar uma coleção antiga invalidada no Blender 5.2 durante cortes com folga e escala reduzida.
+- Versão do pacote, painel e instruções de instalação atualizada para 0.9.8. A tentativa conservadora de grade e a alternativa triangulada permanecem compartilhadas pelos modos de corte.
+
 # 0.9.7 — fechamento natural e folga em contornos curvos — 2026-11-07
 
 - Contornos orgânicos por loop tentam fechar diretamente sobre o contorno, com grade quando válida, antes de recorrer ao fechamento antigo com degraus. Contornos ortogonais em três direções preservam o solver de degraus, incluindo folgas e transformações que já funcionavam.

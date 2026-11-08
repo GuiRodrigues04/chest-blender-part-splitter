@@ -544,6 +544,11 @@ def compute_connector_layout(
 
     elif distribution == 'CENTER':
         cand_u, cand_v = center_u, center_v
+        if interface is not None and getattr(interface, 'complete_contact_domain', False):
+            from .connector_domain import domain_centroid
+            center = domain_centroid(outer_polys, hole_polys)
+            if center is not None:
+                cand_u, cand_v = center
         is_center_valid = False
         if outer_polys:
             in_outer = any(point_in_polygon_2d(cand_u, cand_v, poly) for poly in outer_polys)

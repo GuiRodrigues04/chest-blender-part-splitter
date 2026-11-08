@@ -1,0 +1,26 @@
+[
+  {
+    "phase": "baseline",
+    "case": {
+      "case": "plate_loop_region_blue_extrude",
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+      "status": "ERROR",
+      "error_type": "RuntimeError",
+      "error": "Error: Preview generation error: Cut geometry validation failed: Part A: has 16 edge(s) with zero length (degenerate geometry).\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\0.9.8\\manual_real_models_098.py\", line 54, in run_case\n    row.update(fn())\n               ~~^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\0.9.8\\manual_real_models_098.py\", line 248, in <lambda>\n    run_case('plate_loop_region_blue_extrude',plate,lambda:region_loop_case(2,'EXTRUDE'))\n                                                           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\0.9.8\\manual_real_models_098.py\", line 91, in region_loop_case\n    if sorted(bpy.ops.chest.splitter_generate_preview())!=['FINISHED']:\n              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\nRuntimeError: Error: Preview generation error: Cut geometry validation failed: Part A: has 16 edge(s) with zero length (degenerate geometry).\n\n",
+      "seconds": 1.435
+    }
+  },
+  {
+    "phase": "current",
+    "case": {
+      "case": "plate_loop_region_blue_extrude",
+      "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+      "status": "ERROR",
+      "error_type": "RuntimeError",
+      "error": "Error: Preview generation error: Cut geometry validation failed: Part A: has 16 edge(s) with zero length (degenerate geometry).\n",
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\0.9.8\\manual_real_models_098.py\", line 54, in run_case\n    row.update(fn())\n               ~~^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\0.9.8\\manual_real_models_098.py\", line 248, in <lambda>\n    run_case('plate_loop_region_blue_extrude',plate,lambda:region_loop_case(2,'EXTRUDE'))\n                                                           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\0.9.8\\manual_real_models_098.py\", line 91, in region_loop_case\n    if sorted(bpy.ops.chest.splitter_generate_preview())!=['FINISHED']:\n              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\nRuntimeError: Error: Preview generation error: Cut geometry validation failed: Part A: has 16 edge(s) with zero length (degenerate geometry).\n\n",
+      "seconds": 1.435
+    }
+  }
+]

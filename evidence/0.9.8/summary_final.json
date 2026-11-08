@@ -1,0 +1,87 @@
+{
+  "baseline_snapshot": "scratch/baseline098",
+  "baseline_commit": "dc4977031c0679714a2217314a169795e5c7e7a9",
+  "case_count": 11,
+  "baseline_ok": 8,
+  "baseline_not_available": 2,
+  "current_ok": 11,
+  "cases": [
+    {
+      "case": "plate_region_green",
+      "baseline": "OK",
+      "current": "OK",
+      "baseline_error": null,
+      "current_error": null
+    },
+    {
+      "case": "plate_region_blue",
+      "baseline": "OK",
+      "current": "OK",
+      "baseline_error": null,
+      "current_error": null
+    },
+    {
+      "case": "plate_loop_region_green_detach",
+      "baseline": "OK",
+      "current": "OK",
+      "baseline_error": null,
+      "current_error": null
+    },
+    {
+      "case": "plate_loop_region_blue_whole",
+      "baseline": "OK",
+      "current": "OK",
+      "baseline_error": null,
+      "current_error": null
+    },
+    {
+      "case": "cat_material_slot4_paw",
+      "baseline": "OK",
+      "current": "OK",
+      "baseline_error": null,
+      "current_error": null
+    },
+    {
+      "case": "spot_horn_center_1x8_gap01",
+      "baseline": "ERROR",
+      "current": "OK",
+      "baseline_error": "CENTER displaced 1.356 mm from full-loop area centroid",
+      "current_error": null
+    },
+    {
+      "case": "spot_horn_suggested_maleA",
+      "baseline": "NOT_AVAILABLE",
+      "current": "OK",
+      "baseline_error": null,
+      "current_error": null
+    },
+    {
+      "case": "spot_horn_suggested_maleB",
+      "baseline": "NOT_AVAILABLE",
+      "current": "OK",
+      "baseline_error": null,
+      "current_error": null
+    },
+    {
+      "case": "spot_foot_6x8_gap01_maleA",
+      "baseline": "OK",
+      "current": "OK",
+      "baseline_error": null,
+      "current_error": null
+    },
+    {
+      "case": "spot_foot_6x8_gap01_maleB",
+      "baseline": "OK",
+      "current": "OK",
+      "baseline_error": null,
+      "current_error": null
+    },
+    {
+      "case": "spot_foot_6x8_gap1_maleA",
+      "baseline": "OK",
+      "current": "OK",
+      "baseline_error": null,
+      "current_error": null
+    }
+  ]
+}

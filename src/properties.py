@@ -43,6 +43,9 @@ def _on_param_change_mark_stale(self, context):
         settings = bpy.context.scene.chest_splitter
 
     if settings and context and context.scene:
+        from .connector_sizing import _applying
+        if settings.as_pointer() not in _applying:
+            settings.connector_sizing_status = ''
         from .connector_surface import get_cached_prepared_split, clear_prepared_split_cache
         from .input_state import editor_configuration
         prep = get_cached_prepared_split()
@@ -52,6 +55,51 @@ def _on_param_change_mark_stale(self, context):
         settings.session_status = 'PREVIEW_STALE'
         settings.last_status = "Os ajustes mudaram. Atualize a prévia antes de criar as peças."
         settings.last_status_level = 'WARNING'
+
+
+def _on_connector_dimension_edit(self, context):
+    from .connector_sizing import _applying
+    if self.as_pointer() not in _applying:
+        self.connector_dimensions_customized = True
+        self.connector_sizing_status = ''
+    _on_param_change_mark_stale(self, context)
+
+
+def _on_connector_enabled(self, context):
+    _on_param_change_mark_stale(self, context)
+    # Only the interactive toggle proposes defaults automatically. Existing
+    # saved parameters and scripts keep their exact dimensions.
+    if (not self.connector_enabled or not context or bpy.app.background
+            or not context.area or context.area.type != 'VIEW_3D'
+            or getattr(getattr(context, 'region', None), 'type', None) != 'UI'):
+        return
+    from .connector_sizing import defaults_untouched
+    if not defaults_untouched(self) or not self.target_object:
+        return
+    scene = context.scene
+    scene_id, target_id = scene.as_pointer(), self.target_object.as_pointer()
+    def suggest():
+        try:
+            current = bpy.context.scene
+            if current.as_pointer() != scene_id:
+                return None
+            settings = current.chest_splitter
+            if (not settings.connector_enabled or not settings.target_object
+                    or settings.target_object.as_pointer() != target_id):
+                return None
+            from .connector_sizing import apply_suggestion
+            from .geometry_connectors import ConnectorValidationError
+            from .translations import report_msg
+            try:
+                apply_suggestion(bpy.context, only_defaults=True)
+            except (ValueError, RuntimeError, ConnectorValidationError):
+                settings.connector_sizing_status = report_msg(
+                    'Escolha um contato válido ou use Sugerir dimensões após preparar o corte.',
+                    'Choose a valid contact or use Suggest dimensions after preparing the cut.')
+        except (ReferenceError, AttributeError):
+            pass
+        return None
+    bpy.app.timers.register(suggest, first_interval=.05)
 
 
 # These profiles only change clearances, never connector dimensions or placement.
@@ -929,8 +977,11 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         name="Ativar Encaixes",
         default=False,
         description="Gera pinos macho e cavidades fêmea na interface do corte",
-        update=_on_param_change_mark_stale,
+        update=_on_connector_enabled,
     )
+
+    connector_dimensions_customized: BoolProperty(default=False, options={'HIDDEN'})
+    connector_sizing_status: StringProperty(default='', options={'SKIP_SAVE'})
 
     connector_type: EnumProperty(
         name="Tipo de Encaixe",
@@ -967,7 +1018,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=40.0,
         precision=2,
         description="Diâmetro ou largura nominal do pino",
-        update=_on_param_change_mark_stale,
+        update=_on_connector_dimension_edit,
     )
 
     connector_capsule_length_mm: FloatProperty(
@@ -977,7 +1028,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=150.0,
         precision=1,
         description="Comprimento/largura lateral total do encaixe cápsula no plano de corte (mínimo = diâmetro)",
-        update=_on_param_change_mark_stale,
+        update=_on_connector_dimension_edit,
     )
 
     adjust_to_valid_area: BoolProperty(
@@ -1001,7 +1052,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=50.0,
         precision=2,
         description="Profundidade útil nominal do encaixe",
-        update=_on_param_change_mark_stale,
+        update=_on_connector_dimension_edit,
     )
 
     connector_chamfer_mm: FloatProperty(
@@ -1011,7 +1062,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
         max=5.0,
         precision=2,
         description="Chanfro na ponta do pino para facilitar a inserção",
-        update=_on_param_change_mark_stale,
+        update=_on_connector_dimension_edit,
     )
 
     assembly_clearance_preset: EnumProperty(

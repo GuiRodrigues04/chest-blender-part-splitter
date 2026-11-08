@@ -1,3 +1,11 @@
+## Novidade 0.9.8: pinos centralizados e dimensões sugeridas
+
+Reabra o Blender e gere novamente a prévia. Nos cortes curvos compatíveis, **1 Pino (Centro)** considera o contato completo; o editor manual usa a mesma área. Bordas internas da grade não limitam o pino. Margens externas, furos e paredes finas continuam sendo verificados.
+
+**Sugerir dimensões** escolhe diâmetro e profundidade iniciais pela área e pelo material disponível nas duas peças. A ativação interativa dos pinos aplica a sugestão somente a parâmetros iniciais ainda não personalizados. Arquivos existentes, scripts e ajustes manuais conservam seus valores. O botão solicita uma nova sugestão explicitamente, inclusive depois de mudar o lado macho. Se faltar espaço ou profundidade para o mínimo, a extensão informa isso sem substituir seus valores. Confira a nova prévia antes de confirmar as peças.
+
+English: Reopen Blender and regenerate the preview. Compatible curved cuts use the complete shared contact footprint for Center and Manual placement. Internal grid edges are not pin boundaries. Suggest dimensions calculates initial diameter and insertion depth from the actual cut solids. The interactive enable toggle only proposes untouched defaults; saved values, scripts and manual adjustments are preserved. Use the button to request a new suggestion after changing the cut or male side. External margins, holes and actual thin walls remain checked.
+
 ## Correção 0.8.32: cortes sucessivos e espessura do bigode
 
 As informações de interfaces anteriores passam a acompanhar as faces durante os próximos cortes. Ao **Gerar / Atualizar prévia**, a extensão também tenta recuperar marcações já perdidas usando o histórico de operações e os backups desse próprio modelo. A recuperação altera somente atributos internos da malha, preservando geometria, materiais e seleção. Se o histórico necessário foi apagado, ela não inventa uma interface nem ignora a parede fina.

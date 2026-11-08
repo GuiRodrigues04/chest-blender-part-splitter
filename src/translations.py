@@ -3619,3 +3619,6 @@ for _topic in HELP_TOPICS.values():
                                  if isinstance(_value, list) else _portuguese_terms(_value))
 TRANSLATIONS_DICT['pt_BR'][('*', 'Interface and messages in English')] = 'Interface e mensagens em inglês'
 TRANSLATIONS_DICT['pt_BR'][('*', 'English (US)')] = 'Inglês (EUA)'
+TRANSLATIONS_DICT['en_US'][('*', 'Sugerir dimensões')] = 'Suggest dimensions'
+TRANSLATIONS_DICT['en_US'][('*', 'Sugere dimensões de encaixe pelo contato e pela profundidade disponível')] = 'Suggest connector dimensions from contact area and available depth'
+TRANSLATIONS_DICT['pt_BR'][('*', 'Suggest dimensions')] = 'Sugerir dimensões'

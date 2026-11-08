@@ -1,0 +1,250 @@
+[
+  {
+    "case": "plate_region_green",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "mode": "WHOLE",
+    "material_slot": 1,
+    "contacts": 2,
+    "parts": [
+      {
+        "vertices": 268,
+        "faces": 488,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 400.0000011175858
+      },
+      {
+        "vertices": 7544,
+        "faces": 15040,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 8592.00031998029
+      }
+    ],
+    "source_signature_unchanged": true,
+    "status": "OK",
+    "seconds": 2.548
+  },
+  {
+    "case": "plate_region_blue",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "mode": "WHOLE",
+    "material_slot": 2,
+    "contacts": 1,
+    "parts": [
+      {
+        "vertices": 255,
+        "faces": 454,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 399.9999266117785
+      },
+      {
+        "vertices": 7567,
+        "faces": 15078,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 8592.000528596665
+      }
+    ],
+    "source_signature_unchanged": true,
+    "status": "OK",
+    "seconds": 1.988
+  },
+  {
+    "case": "plate_loop_region_green_detach",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "mode": "LOOP_FACE_BOUNDARY_OPERATOR",
+    "behavior": "DETACH",
+    "depth_mm": 0.0,
+    "material_slot_boundary": 1,
+    "selected_faces": 242,
+    "parts": [
+      {
+        "vertices": 280,
+        "faces": 314,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 373.00001263711323
+      },
+      {
+        "vertices": 7556,
+        "faces": 7570,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 8619.000487274427
+      }
+    ],
+    "source_signature_unchanged": true,
+    "status": "OK",
+    "seconds": 0.758
+  },
+  {
+    "case": "plate_loop_region_blue_whole",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\03_Testes_Extensao_e_Templates\\01_Regiao_Inteira\\01_Simples\\Placa_4_Testes_Multicontatos.blend",
+    "mode": "LOOP_REGION_OPERATOR",
+    "behavior": "WHOLE",
+    "material_slot_boundary": 2,
+    "selected_faces": 224,
+    "parts": [
+      {
+        "vertices": 297,
+        "faces": 530,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 399.9999211682346
+      },
+      {
+        "vertices": 7609,
+        "faces": 15154,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 8592.000534040197
+      }
+    ],
+    "source_signature_unchanged": true,
+    "status": "OK",
+    "seconds": 2.685
+  },
+  {
+    "case": "cat_material_slot4_paw",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\Gato_Cinza\\Teste Gato.blend",
+    "mode": "WHOLE_OPERATOR_WITH_PINS",
+    "material_slot": 4,
+    "contact_index": 0,
+    "distribution": "LINEAR_2",
+    "diameter_mm": 8,
+    "length_mm": 12,
+    "gap_mm": 0.1,
+    "preview_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "vertices": 476,
+        "faces": 686,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 3117100.053784683
+      },
+      {
+        "vertices": 6748,
+        "faces": 13294,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 208322281.7726412
+      }
+    ],
+    "source_signature_unchanged": true,
+    "status": "OK",
+    "seconds": 8.721
+  },
+  {
+    "case": "spot_horn_center_1x8_gap01",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha.blend",
+    "status": "ERROR",
+    "error_type": "AssertionError",
+    "error": "CENTER displaced 1.356 mm from full-loop area centroid",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\0.9.8\\manual_real_models_098.py\", line 54, in run_case\n    row.update(fn())\n               ~~^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\0.9.8\\manual_real_models_098.py\", line 251, in <lambda>\n    run_case('spot_horn_center_1x8_gap01',spot_original,lambda:horn_center())\n                                                               ~~~~~~~~~~~^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\evidence\\0.9.8\\manual_real_models_098.py\", line 243, in horn_center\n    if not suggest: assert area_offset_uv_mm <= .05, f'CENTER displaced {area_offset_uv_mm:.3f} mm from full-loop area centroid'\n                           ^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: CENTER displaced 1.356 mm from full-loop area centroid\n",
+    "seconds": 6.862
+  },
+  {
+    "case": "spot_horn_suggested_maleA",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha.blend",
+    "status": "NOT_AVAILABLE",
+    "reason": "Dimension suggestion is new in 0.9.8",
+    "seconds": 0.039
+  },
+  {
+    "case": "spot_horn_suggested_maleB",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha.blend",
+    "status": "NOT_AVAILABLE",
+    "reason": "Dimension suggestion is new in 0.9.8",
+    "seconds": 0.054
+  },
+  {
+    "case": "spot_foot_6x8_gap01_maleA",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha pos cortes.blend",
+    "mode": "LOOP_OPERATOR",
+    "loop_indices": "0,764,197,771,11,1182,306,1188,9,743,190,748,15,821,213,812",
+    "seed_face": 552,
+    "gap_mm": 0.1,
+    "male_part": "A",
+    "preview_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "vertices": 427,
+        "faces": 423,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 20216310.18834054
+      },
+      {
+        "vertices": 2921,
+        "faces": 2896,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 697693370.8216163
+      }
+    ],
+    "source_signature_unchanged": true,
+    "status": "OK",
+    "seconds": 4.287
+  },
+  {
+    "case": "spot_foot_6x8_gap01_maleB",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha pos cortes.blend",
+    "mode": "LOOP_OPERATOR",
+    "loop_indices": "0,764,197,771,11,1182,306,1188,9,743,190,748,15,821,213,812",
+    "seed_face": 552,
+    "gap_mm": 0.1,
+    "male_part": "B",
+    "preview_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "vertices": 395,
+        "faces": 391,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 20215840.03133858
+      },
+      {
+        "vertices": 2953,
+        "faces": 2928,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 697693840.9515715
+      }
+    ],
+    "source_signature_unchanged": true,
+    "status": "OK",
+    "seconds": 4.196
+  },
+  {
+    "case": "spot_foot_6x8_gap1_maleA",
+    "file": "C:\\Users\\guiro\\OneDrive\\Desktop\\Modelos 3D e testes extensao\\02_Personagens_e_Criaturas\\spot\\spot\\Vaquinha pos cortes.blend",
+    "mode": "LOOP_OPERATOR",
+    "loop_indices": "0,764,197,771,11,1182,306,1188,9,743,190,748,15,821,213,812",
+    "seed_face": 552,
+    "gap_mm": 1.0,
+    "male_part": "A",
+    "preview_status": "PREVIEW_VALID",
+    "parts": [
+      {
+        "vertices": 425,
+        "faces": 424,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 20138984.473410565
+      },
+      {
+        "vertices": 2921,
+        "faces": 2896,
+        "nonmanifold_edges": 0,
+        "components": 1,
+        "volume_mm3": 697693398.6135396
+      }
+    ],
+    "source_signature_unchanged": true,
+    "status": "OK",
+    "seconds": 4.469
+  }
+]

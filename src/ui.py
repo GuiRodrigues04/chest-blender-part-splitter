@@ -643,6 +643,13 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             # Dimensões Nominais do Macho
             box_dims = box_conn.box()
             box_dims.label(text=localize_text("Dimensões Nominais:"), icon='CON_SIZELIMIT')
+            box_dims.operator('chest.splitter_suggest_connector_dimensions',
+                              text=('Suggest dimensions' if loc == 'en_US' else 'Sugerir dimensões'),
+                              icon='LIGHT')
+            if settings.connector_sizing_status:
+                import textwrap
+                for index, line in enumerate(textwrap.wrap(settings.connector_sizing_status, width=42)):
+                    box_dims.label(text=line, icon='INFO' if index == 0 else 'NONE')
             if settings.connector_type == 'CAPSULE':
                 box_dims.prop(settings, "connector_diameter_mm", text=localize_text("Espessura / Diâmetro (mm)"), slider=True)
                 box_dims.prop(settings, "connector_capsule_length_mm", text=localize_text("Comprimento Lateral (mm)"), slider=True)

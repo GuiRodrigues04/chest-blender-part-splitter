@@ -4710,8 +4710,10 @@ from .solid_tools import (CHEST_OT_splitter_align_solid_vertices, CHEST_OT_split
                           CHEST_OT_splitter_auto_solid_face, CHEST_OT_splitter_edit_solid_cutter)
 from .problem_selection import CHEST_OT_splitter_locate_problems
 from .region_tools import CHEST_OT_splitter_capture_region, CHEST_OT_splitter_choose_contact
+from .connector_sizing import CHEST_OT_splitter_suggest_connector_dimensions
 
 classes = (
+    CHEST_OT_splitter_suggest_connector_dimensions,
     CHEST_OT_splitter_capture_region, CHEST_OT_splitter_choose_contact,
     CHEST_OT_splitter_locate_problems,
     CHEST_OT_splitter_edit_solid_cutter,

@@ -1,0 +1,537 @@
+[
+  {
+    "scale_factor": 1.0,
+    "gap_mm": 0.0,
+    "closure": "NATURAL",
+    "deviation_mm": 0.45744175440631807,
+    "local_frame": true,
+    "full_area_mm2": 742.8073110155731,
+    "full_size_mm": [
+      34.66248046606779,
+      27.93539094273001
+    ],
+    "full_center": [
+      0.193282350897789,
+      0.1494935154914856,
+      0.4437692165374756
+    ],
+    "cap_triangles": 32,
+    "part_sizes_mm": [
+      [
+        30.46417236328125,
+        31.113803386688232,
+        27.597039937973022
+      ],
+      [
+        268.36006343364716,
+        488.8306260108948,
+        481.01143538951874
+      ]
+    ],
+    "selected_area_mm2": 35.07348108169665,
+    "selected_size_mm": [
+      12.143211890840888,
+      5.857204087078571
+    ],
+    "selected_contours_mm": [
+      [
+        [
+          12.12245540227741,
+          -0.7311775116249919
+        ],
+        [
+          6.594380538444966,
+          5.388804333051667
+        ],
+        [
+          0.00010933613925345753,
+          -3.9313848176902866e-05
+        ]
+      ]
+    ],
+    "nominal_center_uv_mm": [
+      -9.287109747901923e-06,
+      1.2604584043174327e-07
+    ],
+    "nominal_center_selected_valid": false,
+    "nominal_center_full_valid": true,
+    "layouts": {
+      "currentFalse": {
+        "major_axis": "<Vector (0.6869, 0.6823, -0.2502)>",
+        "minor_axis": "<Vector (0.6075, -0.7280, -0.3177)>",
+        "span_major_mm": 12.122346066138157,
+        "span_minor_mm": 6.1199818446766585,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 11.122346066138157,
+        "max_safe_lateral_mm": 11.1,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.7294442653656006, -0.06077943369746208, 1.5442469120025635), 'XYZ')]",
+        "positions": [
+          [
+            0.19886040687561035,
+            0.1519339233636856,
+            0.4415126144886017
+          ]
+        ],
+        "offset_from_center_mm": [
+          6.493261399772496
+        ]
+      },
+      "currentTrue": {
+        "major_axis": "<Vector (0.6869, 0.6823, -0.2502)>",
+        "minor_axis": "<Vector (0.6075, -0.7280, -0.3177)>",
+        "span_major_mm": 12.122346066138157,
+        "span_minor_mm": 6.1199818446766585,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 11.122346066138157,
+        "max_safe_lateral_mm": 11.1,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.7294442653656006, -0.06077943369746208, 1.5442469120025635), 'XYZ')]",
+        "positions": [
+          [
+            0.19886040687561035,
+            0.1519339233636856,
+            0.4415126144886017
+          ]
+        ],
+        "offset_from_center_mm": [
+          6.493261399772496
+        ]
+      },
+      "fullFalse": {
+        "major_axis": "<Vector (0.6836, 0.6829, -0.2576)>",
+        "minor_axis": "<Vector (0.6141, -0.7289, -0.3026)>",
+        "span_major_mm": 34.66248046606779,
+        "span_minor_mm": 27.93539094273001,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 33.66248046606779,
+        "max_safe_lateral_mm": 33.7,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.735241174697876, -0.044752512127161026, 1.5515481233596802), 'XYZ')]",
+        "positions": [
+          [
+            0.1939222365617752,
+            0.14880767464637756,
+            0.4434565603733063
+          ]
+        ],
+        "offset_from_center_mm": [
+          0.9887284195460545
+        ]
+      },
+      "fullTrue": {
+        "major_axis": "<Vector (0.6836, 0.6829, -0.2576)>",
+        "minor_axis": "<Vector (0.6141, -0.7289, -0.3026)>",
+        "span_major_mm": 34.66248046606779,
+        "span_minor_mm": 27.93539094273001,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 33.66248046606779,
+        "max_safe_lateral_mm": 33.7,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.735241174697876, -0.044752512127161026, 1.5515481233596802), 'XYZ')]",
+        "positions": [
+          [
+            0.1939222365617752,
+            0.14880767464637756,
+            0.4434565603733063
+          ]
+        ],
+        "offset_from_center_mm": [
+          0.9887284195460545
+        ]
+      }
+    },
+    "status": "OK"
+  },
+  {
+    "scale_factor": 1.0,
+    "gap_mm": 0.1,
+    "closure": "NATURAL",
+    "deviation_mm": 0.45744175440631807,
+    "local_frame": true,
+    "full_area_mm2": 742.8073110155731,
+    "full_size_mm": [
+      34.66248046606779,
+      27.93539094273001
+    ],
+    "full_center": [
+      0.193282350897789,
+      0.1494935154914856,
+      0.4437692165374756
+    ],
+    "cap_triangles": 32,
+    "part_sizes_mm": [
+      [
+        30.410170555114746,
+        31.07433021068573,
+        27.49502658843994
+      ],
+      [
+        268.36006343364716,
+        488.8306260108948,
+        481.01143538951874
+      ]
+    ],
+    "selected_area_mm2": 35.06199442938182,
+    "selected_size_mm": [
+      12.137195012655866,
+      5.871525761904195
+    ],
+    "selected_contours_mm": [
+      [
+        [
+          4.80705889640376,
+          3.928199614165351
+        ],
+        [
+          0.0024874152728671106,
+          -0.0002057822285905786
+        ],
+        [
+          12.119288265239447,
+          -0.7309906650334597
+        ],
+        [
+          8.255783934146166,
+          3.5494855837896466
+        ],
+        [
+          6.594390521058813,
+          5.388813588069752
+        ]
+      ]
+    ],
+    "nominal_center_uv_mm": [
+      -1.0672920325305313e-06,
+      2.2910171537660062e-06
+    ],
+    "nominal_center_selected_valid": false,
+    "nominal_center_full_valid": true,
+    "layouts": {
+      "currentFalse": {
+        "major_axis": "<Vector (0.6869, 0.6823, -0.2502)>",
+        "minor_axis": "<Vector (0.6075, -0.7280, -0.3177)>",
+        "span_major_mm": 12.11680084996658,
+        "span_minor_mm": 6.1198042531032115,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 11.11680084996658,
+        "max_safe_lateral_mm": 11.1,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.7294459342956543, -0.060777127742767334, 1.5442479848861694), 'XYZ')]",
+        "positions": [
+          [
+            0.19890010356903076,
+            0.1519269496202469,
+            0.4416041374206543
+          ]
+        ],
+        "offset_from_center_mm": [
+          6.49277618792467
+        ]
+      },
+      "currentTrue": {
+        "major_axis": "<Vector (0.6869, 0.6823, -0.2502)>",
+        "minor_axis": "<Vector (0.6075, -0.7280, -0.3177)>",
+        "span_major_mm": 12.11680084996658,
+        "span_minor_mm": 6.1198042531032115,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 11.11680084996658,
+        "max_safe_lateral_mm": 11.1,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.7294459342956543, -0.060777127742767334, 1.5442479848861694), 'XYZ')]",
+        "positions": [
+          [
+            0.19890010356903076,
+            0.1519269496202469,
+            0.4416041374206543
+          ]
+        ],
+        "offset_from_center_mm": [
+          6.49277618792467
+        ]
+      },
+      "fullFalse": {
+        "major_axis": "<Vector (0.6836, 0.6829, -0.2576)>",
+        "minor_axis": "<Vector (0.6141, -0.7289, -0.3026)>",
+        "span_major_mm": 34.66248046606779,
+        "span_minor_mm": 27.93539094273001,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 33.66248046606779,
+        "max_safe_lateral_mm": 33.7,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.735241174697876, -0.044752512127161026, 1.5515481233596802), 'XYZ')]",
+        "positions": [
+          [
+            0.19396167993545532,
+            0.14880280196666718,
+            0.443548321723938
+          ]
+        ],
+        "offset_from_center_mm": [
+          0.9887342153846839
+        ]
+      },
+      "fullTrue": {
+        "major_axis": "<Vector (0.6836, 0.6829, -0.2576)>",
+        "minor_axis": "<Vector (0.6141, -0.7289, -0.3026)>",
+        "span_major_mm": 34.66248046606779,
+        "span_minor_mm": 27.93539094273001,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 33.66248046606779,
+        "max_safe_lateral_mm": 33.7,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.735241174697876, -0.044752512127161026, 1.5515481233596802), 'XYZ')]",
+        "positions": [
+          [
+            0.19396167993545532,
+            0.14880280196666718,
+            0.443548321723938
+          ]
+        ],
+        "offset_from_center_mm": [
+          0.9887342153846839
+        ]
+      }
+    },
+    "status": "OK"
+  },
+  {
+    "scale_factor": 0.25,
+    "gap_mm": 0.0,
+    "closure": "NATURAL",
+    "deviation_mm": 0.11436043860157952,
+    "local_frame": false,
+    "full_area_mm2": 46.42545693847332,
+    "full_size_mm": [
+      8.665620116516948,
+      6.983847735682502
+    ],
+    "full_center": [
+      0.04832058772444725,
+      0.0373733788728714,
+      0.1109423041343689
+    ],
+    "cap_triangles": 32,
+    "part_sizes_mm": [
+      [
+        7.6160430908203125,
+        7.778450846672058,
+        6.899259984493256
+      ],
+      [
+        67.09001585841179,
+        122.2076565027237,
+        120.25285884737968
+      ]
+    ],
+    "selected_area_mm2": 46.42545693847332,
+    "selected_size_mm": [
+      8.665620116516948,
+      6.983847735682502
+    ],
+    "selected_contours_mm": [
+      [
+        [
+          1.7001333180814981,
+          3.669276076834649
+        ],
+        [
+          3.036909351067152,
+          2.730782638536766
+        ],
+        [
+          3.955137828597799,
+          1.2848855403717607
+        ],
+        [
+          4.345224617281929,
+          -0.3067574289161712
+        ],
+        [
+          4.096502234460786,
+          -1.7319089529337361
+        ],
+        [
+          3.0983042752268375,
+          -2.678423368706717
+        ],
+        [
+          1.6174206539290026,
+          -3.173597506247461
+        ],
+        [
+          -0.07920750067569315,
+          -3.2450511935167015
+        ],
+        [
+          -1.7234633851330727,
+          -2.9257334244903177
+        ],
+        [
+          -3.0472429061774164,
+          -2.2489738475997
+        ],
+        [
+          -3.9473440847359598,
+          -1.3056622119620442
+        ],
+        [
+          -4.320395499235019,
+          -0.18699461361393332
+        ],
+        [
+          -4.067076835781336,
+          1.012083317618817
+        ],
+        [
+          -3.0879150071996264,
+          2.1965790110698435
+        ],
+        [
+          -1.631360690225847,
+          3.1707085872767493
+        ],
+        [
+          0.05437174695543945,
+          3.738796542165801
+        ]
+      ]
+    ],
+    "nominal_center_uv_mm": [
+      0.0,
+      0.0
+    ],
+    "nominal_center_selected_valid": true,
+    "nominal_center_full_valid": true,
+    "layouts": {
+      "currentFalse": {
+        "major_axis": "<Vector (0.6836, 0.6829, -0.2576)>",
+        "minor_axis": "<Vector (0.6141, -0.7289, -0.3026)>",
+        "span_major_mm": 8.665620116516948,
+        "span_minor_mm": 6.983847735682502,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 7.665620116516948,
+        "max_safe_lateral_mm": 7.7,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.735241174697876, -0.044752512127161026, 1.5515481233596802), 'XYZ')]",
+        "positions": [
+          [
+            0.04847975820302963,
+            0.03720201551914215,
+            0.11086227744817734
+          ]
+        ],
+        "offset_from_center_mm": [
+          0.24718322776361612
+        ]
+      },
+      "currentTrue": {
+        "major_axis": "<Vector (0.6836, 0.6829, -0.2576)>",
+        "minor_axis": "<Vector (0.6141, -0.7289, -0.3026)>",
+        "span_major_mm": 8.665620116516948,
+        "span_minor_mm": 6.983847735682502,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 7.665620116516948,
+        "max_safe_lateral_mm": 7.7,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.735241174697876, -0.044752512127161026, 1.5515481233596802), 'XYZ')]",
+        "positions": [
+          [
+            0.04847975820302963,
+            0.03720201551914215,
+            0.11086227744817734
+          ]
+        ],
+        "offset_from_center_mm": [
+          0.24718322776361612
+        ]
+      },
+      "fullFalse": {
+        "major_axis": "<Vector (0.6836, 0.6829, -0.2576)>",
+        "minor_axis": "<Vector (0.6141, -0.7289, -0.3026)>",
+        "span_major_mm": 8.665620116516948,
+        "span_minor_mm": 6.983847735682502,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 7.665620116516948,
+        "max_safe_lateral_mm": 7.7,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.735241174697876, -0.044752512127161026, 1.5515481233596802), 'XYZ')]",
+        "positions": [
+          [
+            0.0484805591404438,
+            0.03720191866159439,
+            0.11086414009332657
+          ]
+        ],
+        "offset_from_center_mm": [
+          0.24718210488651363
+        ]
+      },
+      "fullTrue": {
+        "major_axis": "<Vector (0.6836, 0.6829, -0.2576)>",
+        "minor_axis": "<Vector (0.6141, -0.7289, -0.3026)>",
+        "span_major_mm": 8.665620116516948,
+        "span_minor_mm": 6.983847735682502,
+        "min_pitch_mm": 1000000000.0,
+        "pitch_limit_mm": 1000000000.0,
+        "edge_limit_mm": 7.665620116516948,
+        "max_safe_lateral_mm": 7.7,
+        "adjusted_capsule_length_mm": 0.0,
+        "capsule_was_adjusted": false,
+        "manual_eval_results": "[]",
+        "pin_rotations": "[Euler((-2.735241174697876, -0.044752512127161026, 1.5515481233596802), 'XYZ')]",
+        "positions": [
+          [
+            0.0484805591404438,
+            0.03720191866159439,
+            0.11086414009332657
+          ]
+        ],
+        "offset_from_center_mm": [
+          0.24718210488651363
+        ]
+      }
+    },
+    "status": "OK"
+  },
+  {
+    "scale_factor": 0.25,
+    "gap_mm": 0.1,
+    "status": "ERROR",
+    "error": "bpy_prop_collection[index]: index 3792 out of range, size 0",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\scratch\\horn_pin_study\\probe.py\", line 22, in <module>\n    parts=slice_mesh_by_loop(obj,obj.name,ids,958,scene,part_clearance_mm=gap)\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_loop.py\", line 669, in slice_mesh_by_loop\n    a,b,measured=apply_blade_pair(*base,obj,gap,parameters['part_clearance_apply_to'],scale)\n                 ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_clearance_blade.py\", line 199, in apply_blade_pair\n    results.append(trim_contact_blade(source,obj,gap*fraction,scale,\n                   ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        reference=a if side else None,outward=bool(side)) if fraction else source.copy())\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_clearance_blade.py\", line 130, in trim_contact_blade\n    _restore_retained_source_faces(result,source_object)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_loop.py\", line 2577, in _restore_retained_source_faces\n    values = {key([source_obj.matrix_world @ source.vertices[source.loops[i].vertex_index].co]): uv.data[i].uv.copy()\n                                                                                                 ~~~~~~~^^^\nIndexError: bpy_prop_collection[index]: index 3792 out of range, size 0\n"
+  }
+]

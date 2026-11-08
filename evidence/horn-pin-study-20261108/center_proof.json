@@ -1,0 +1,443 @@
+[
+  {
+    "factor": 1.0,
+    "gap_mm": 0.1,
+    "full_size_mm": [
+      34.66248046606779,
+      27.93539094273001
+    ],
+    "full_area_mm2": 742.8073110155731,
+    "selected_area_mm2": 35.06199442938182,
+    "deviation_mm": 0.45744175440631807,
+    "local_frame": true,
+    "center_border_distance_mm": 12.802547816349774,
+    "proposed_diameter_mm": 5.5,
+    "cases": [
+      {
+        "male": "A",
+        "diameter_mm": 1.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 229.21545843281635,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 10048.385148212768
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 16529967.860582747
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "A",
+        "diameter_mm": 5.5,
+        "length_mm": 8.25,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 228.47130085896256,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 10236.786953655386
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 16529767.794915006
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "A",
+        "diameter_mm": 6.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 228.3995592588517,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 10266.772140136098
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 16529736.99787097
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "B",
+        "diameter_mm": 1.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 21.486984137550802,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 10033.149049029042
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 16529983.088980932
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "B",
+        "diameter_mm": 5.5,
+        "length_mm": 8.25,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 20.797955501014773,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 9832.865359070212
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 16530171.709099872
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "B",
+        "diameter_mm": 6.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 20.72140741515339,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 9801.993813627112
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 16530201.714706354
+          }
+        ],
+        "status": "OK"
+      }
+    ],
+    "status": "OK"
+  },
+  {
+    "factor": 0.4,
+    "gap_mm": 0.0,
+    "full_size_mm": [
+      13.864990236470476,
+      11.174160754308105
+    ],
+    "full_area_mm2": 118.84917827094064,
+    "selected_area_mm2": 10.484927389629533,
+    "deviation_mm": 0.18297845963388681,
+    "local_frame": true,
+    "center_border_distance_mm": 5.121027604634135,
+    "proposed_diameter_mm": 2.0,
+    "cases": [
+      {
+        "male": "A",
+        "diameter_mm": 1.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 91.51421520424606,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 653.6906285158891
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 1057909.505251842
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "A",
+        "diameter_mm": 2.0,
+        "length_mm": 3.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 91.3600310390305,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 656.8081365811296
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 1057906.903014568
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "A",
+        "diameter_mm": 6.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 90.78605021038825,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 872.1265514429058
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 1057675.6974310316
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "B",
+        "diameter_mm": 1.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 8.484515324799538,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 638.344846868872
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 1057924.8493662633
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "B",
+        "diameter_mm": 2.0,
+        "length_mm": 3.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 8.331406382395231,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 635.7345085092372
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 1057927.9751724582
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "B",
+        "diameter_mm": 6.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": false,
+        "available_receiver_mm": 7.574841831648775,
+        "status": "ERROR",
+        "error": "Thin wall: a 8.1 mm cavity would pass through the receiving part (available thickness: 7.6 mm). Reduce insertion length.",
+        "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\scratch\\horn_pin_study\\center_proof.py\", line 54, in <module>\n    apply_connectors_boolean(temporary[side],temporary[1-side],normal,[position],'CYLINDER',diam,length,0.,.1,.1,1000,\n    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n      pin_rotations=layout['pin_rotations'])\n      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_connectors.py\", line 1033, in apply_connectors_boolean\n    validate_connectors(\n    ~~~~~~~~~~~~~~~~~~~^\n        positions=positions,\n        ^^^^^^^^^^^^^^^^^^^^\n    ...<9 lines>...\n        pin_rotations=pin_rotations,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_connectors.py\", line 936, in validate_connectors\n    raise ConnectorValidationError(\n        localized_format('audit.dynamic.4', v0=tot_depth_mm, v1=avail_mm)\n    )\nsrc.geometry_connectors.ConnectorValidationError: Thin wall: a 8.1 mm cavity would pass through the receiving part (available thickness: 7.6 mm). Reduce insertion length.\n"
+      }
+    ],
+    "status": "OK"
+  },
+  {
+    "factor": 0.4,
+    "gap_mm": 0.1,
+    "full_size_mm": [
+      13.864990236470476,
+      11.174160754308105
+    ],
+    "full_area_mm2": 118.84917827094064,
+    "selected_area_mm2": 10.164453462637459,
+    "deviation_mm": 0.18297845963388681,
+    "local_frame": true,
+    "center_border_distance_mm": 5.121027604634135,
+    "proposed_diameter_mm": 2.0,
+    "cases": [
+      {
+        "male": "A",
+        "diameter_mm": 1.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 91.61420284527108,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 641.2079914301205
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 1057909.617561602
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "A",
+        "diameter_mm": 2.0,
+        "length_mm": 3.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 91.46001219280241,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 644.3322862971346
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 1057907.280652425
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "A",
+        "diameter_mm": 6.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 90.88603026304902,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 859.7607316788425
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 1057678.6966093124
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "B",
+        "diameter_mm": 1.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 8.484515324799538,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 625.975639574008
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 1057924.8493662633
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "B",
+        "diameter_mm": 2.0,
+        "length_mm": 3.0,
+        "footprint_valid": true,
+        "wall_valid": true,
+        "available_receiver_mm": 8.331406382395231,
+        "parts": [
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 623.6380767012246
+          },
+          {
+            "valid": true,
+            "bad_edges": 0,
+            "components": 1,
+            "volume_mm3": 1057927.9751724582
+          }
+        ],
+        "status": "OK"
+      },
+      {
+        "male": "B",
+        "diameter_mm": 6.0,
+        "length_mm": 8.0,
+        "footprint_valid": true,
+        "wall_valid": false,
+        "available_receiver_mm": 7.574838768042833,
+        "status": "ERROR",
+        "error": "Thin wall: a 8.1 mm cavity would pass through the receiving part (available thickness: 7.6 mm). Reduce insertion length.",
+        "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\scratch\\horn_pin_study\\center_proof.py\", line 54, in <module>\n    apply_connectors_boolean(temporary[side],temporary[1-side],normal,[position],'CYLINDER',diam,length,0.,.1,.1,1000,\n    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n      pin_rotations=layout['pin_rotations'])\n      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_connectors.py\", line 1033, in apply_connectors_boolean\n    validate_connectors(\n    ~~~~~~~~~~~~~~~~~~~^\n        positions=positions,\n        ^^^^^^^^^^^^^^^^^^^^\n    ...<9 lines>...\n        pin_rotations=pin_rotations,\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter\\src\\geometry_connectors.py\", line 936, in validate_connectors\n    raise ConnectorValidationError(\n        localized_format('audit.dynamic.4', v0=tot_depth_mm, v1=avail_mm)\n    )\nsrc.geometry_connectors.ConnectorValidationError: Thin wall: a 8.1 mm cavity would pass through the receiving part (available thickness: 7.6 mm). Reduce insertion length.\n"
+      }
+    ],
+    "status": "OK"
+  }
+]

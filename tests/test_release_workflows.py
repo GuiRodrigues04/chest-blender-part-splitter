@@ -54,7 +54,283 @@ def binary_stl_bounds(path):
     return tuple(max(v[axis] for v in coordinates) - min(v[axis] for v in coordinates) for axis in range(3))
 
 
+def _cyclic_min(sequence):
+    sequence = tuple(sequence)
+    if not sequence:
+        return ()
+    return min(sequence[index:] + sequence[:index] for index in range(len(sequence)))
+
+
+def _point_triangle_distance_mm(point, a, b, c):
+    """Double precision closest distance for a 3D point to a triangle."""
+    sub = lambda x, y: tuple(x[i] - y[i] for i in range(3))
+    add = lambda x, y: tuple(x[i] + y[i] for i in range(3))
+    scale = lambda x, factor: tuple(x[i] * factor for i in range(3))
+    dot = lambda x, y: sum(x[i] * y[i] for i in range(3))
+    def segment_distance(p, x, y):
+        edge = sub(y, x)
+        denom = dot(edge, edge)
+        t = max(0.0, min(1.0, dot(sub(p, x), edge) / denom)) if denom else 0.0
+        return sum((p[i] - (x[i] + t * edge[i])) ** 2 for i in range(3))
+    ab, ac, ap = sub(b, a), sub(c, a), sub(point, a)
+    d1, d2 = dot(ab, ap), dot(ac, ap)
+    if d1 <= 0.0 and d2 <= 0.0:
+        return (sum(value * value for value in ap)) ** .5
+    bp = sub(point, b)
+    d3, d4 = dot(ab, bp), dot(ac, bp)
+    if d3 >= 0.0 and d4 <= d3:
+        return (sum(value * value for value in bp)) ** .5
+    vc = d1 * d4 - d3 * d2
+    if vc <= 0.0 and d1 >= 0.0 and d3 <= 0.0:
+        v = d1 / (d1 - d3)
+        delta = sub(point, add(a, scale(ab, v)))
+        return (dot(delta, delta)) ** .5
+    cp = sub(point, c)
+    d5, d6 = dot(ab, cp), dot(ac, cp)
+    if d6 >= 0.0 and d5 <= d6:
+        return (dot(cp, cp)) ** .5
+    vb = d5 * d2 - d1 * d6
+    if vb <= 0.0 and d2 >= 0.0 and d6 <= 0.0:
+        w = d2 / (d2 - d6)
+        delta = sub(point, add(a, scale(ac, w)))
+        return (dot(delta, delta)) ** .5
+    va = d3 * d6 - d5 * d4
+    if va <= 0.0 and d4 - d3 >= 0.0 and d5 - d6 >= 0.0:
+        edge = sub(c, b)
+        w = (d4 - d3) / ((d4 - d3) + (d5 - d6))
+        delta = sub(point, add(b, scale(edge, w)))
+        return (dot(delta, delta)) ** .5
+    denom = va + vb + vc
+    if denom == 0.0:
+        return min(segment_distance(point, a, b), segment_distance(point, b, c),
+                   segment_distance(point, c, a)) ** .5
+    inv = 1.0 / denom
+    v, w = vb * inv, vc * inv
+    q = add(a, add(scale(ab, v), scale(ac, w)))
+    delta = sub(point, q)
+    return (dot(delta, delta)) ** .5
+
+
+def _match_vertices_within_tolerance(first, repeated, tolerance_mm):
+    """Return a bijection from first vertex indices to repeat indices, or None."""
+    if len(first) != len(repeated):
+        return None
+    candidates = []
+    for point in first:
+        options = []
+        for index, other in enumerate(repeated):
+            distance = sum((float(point[axis]) - float(other[axis])) ** 2 for axis in range(3)) ** .5
+            if distance <= tolerance_mm:
+                options.append((distance, index))
+        candidates.append(sorted(options))
+    if any(not options for options in candidates):
+        return None
+    order = sorted(range(len(first)), key=lambda index: len(candidates[index]))
+    matched_source = [-1] * len(repeated)
+    def assign(source_index, seen):
+        for _, repeat_index in candidates[source_index]:
+            if repeat_index in seen:
+                continue
+            seen.add(repeat_index)
+            if matched_source[repeat_index] < 0 or assign(matched_source[repeat_index], seen):
+                matched_source[repeat_index] = source_index
+                return True
+        return False
+    for source_index in order:
+        if not assign(source_index, set()):
+            return None
+    mapping = [None] * len(first)
+    for repeat_index, source_index in enumerate(matched_source):
+        mapping[source_index] = repeat_index
+    return mapping
+
+
+def _mapped_face_records_equal(first_faces, repeated_faces, vertex_mapping):
+    """Compare cyclic, winding-preserving faces after vertex reindexing."""
+    mapped = sorted((material, _cyclic_min(tuple((vertex_mapping[index], uv)
+                                                for index, uv in corners)))
+                    for material, corners in first_faces)
+    normalized_repeat = sorted((material, _cyclic_min(corners)) for material, corners in repeated_faces)
+    return mapped == normalized_repeat
+
+
+def capture_preview_geometry(obj):
+    """Capture immutable mesh data and a BVH before a preview regeneration."""
+    mesh = obj.data
+    mesh.calc_loop_triangles()
+    world = [obj.matrix_world @ vertex.co for vertex in mesh.vertices]
+    world_mm = [tuple(float(component) * 1000.0 for component in point) for point in world]
+    face_records = []
+    indexed_face_records = []
+    for polygon in mesh.polygons:
+        coords = [tuple(round(value, 6) for value in world_mm[index]) for index in polygon.vertices]
+        uv_layers = tuple(mesh.uv_layers)
+        uvs = ([tuple(tuple(round(float(c), 7) for c in layer.data[loop_index].uv)
+                      for layer in uv_layers) for loop_index in polygon.loop_indices]
+               if uv_layers else [])
+        paired = list(zip(coords, uvs)) if uvs else [(coord, ()) for coord in coords]
+        face_records.append((polygon.material_index, _cyclic_min(paired)))
+        indexed_uvs = uvs if uvs else [()] * len(polygon.vertices)
+        indexed_face_records.append((polygon.material_index,
+                                     _cyclic_min(tuple((int(vertex_index), uv)
+                                                       for vertex_index, uv in zip(polygon.vertices, indexed_uvs)))))
+    triangles = [tuple(int(index) for index in tri.vertices) for tri in mesh.loop_triangles]
+    triangle_records = sorted((mesh.polygons[tri.polygon_index].material_index,
+                               _cyclic_min(tuple(tuple(round(value, 6) for value in world_mm[index])
+                                                 for index in tri.vertices)))
+                              for tri in mesh.loop_triangles)
+    bbox = [[min(point[axis] for point in world_mm) for axis in range(3)],
+            [max(point[axis] for point in world_mm) for axis in range(3)]]
+    center = tuple((bbox[0][axis] + bbox[1][axis]) * .5 for axis in range(3))
+    centered_vertices = [tuple(point[axis] - center[axis] for axis in range(3)) for point in world_mm]
+    bvh = BVHTree.FromPolygons(centered_vertices, triangles, all_triangles=True) if triangles else None
+    samples = [('vertex', point, None) for point in world_mm]
+    for tri_index, tri in enumerate(triangles):
+        samples.append(('triangle_centroid', tuple(sum(world_mm[index][axis] for index in tri) / 3.0
+                                                    for axis in range(3)), tri_index))
+        for offset, index in enumerate(tri):
+            other = tri[(offset + 1) % 3]
+            samples.append(('triangle_edge_midpoint', tuple((world_mm[index][axis] + world_mm[other][axis]) * .5
+                                                             for axis in range(3)), tri_index))
+    bm = mesh_bmesh(obj)
+    try:
+        volume_mm3 = abs(bm.calc_volume()) * 1e9
+    finally:
+        bm.free()
+    return {'world_mm': world_mm, 'vertices': sorted(tuple(round(v, 6) for v in p) for p in world_mm),
+            'faces': sorted(face_records), 'indexed_faces': indexed_face_records,
+            'triangles': triangles, 'triangle_records': triangle_records,
+            'bvh': bvh, 'samples': samples, 'center_mm': center,
+            'centered_vertices': centered_vertices,
+            'volume_mm3': volume_mm3, 'bbox_mm': bbox,
+            'material_slots': tuple((m.name, tuple(m.diffuse_color)) if m else None for m in mesh.materials),
+            'uv_layers': tuple(layer.name for layer in mesh.uv_layers)}
+
+
+def repeated_preview_metrics(a, b):
+    """Compare captured previews, independent of mesh indexing and lifecycle."""
+    distances = []
+    self_distances = []
+    distance_by_type = {}
+    self_distance_by_type = {}
+    cross_worst = (0.0, None)
+    self_worst = (0.0, None)
+    raw_bvh_distances = []
+    self_raw_bvh_distances = []
+    brute_force_count = 0
+    def bidirectional_vertex_delta():
+        maxima = []
+        for source, target in ((a, b), (b, a)):
+            maxima.extend(min((sum((point[i]-other[i])**2 for i in range(3)) ** .5
+                               for other in target['world_mm']), default=float('inf'))
+                          for point in source['world_mm'])
+        return max(maxima, default=0.0)
+    def nearest_surface(point, target, raw_store):
+        nonlocal brute_force_count
+        local_point = tuple(float(point[i] - target['center_mm'][i]) for i in range(3))
+        hit = target['bvh'].find_nearest(local_point) if target['bvh'] else None
+        raw_distance = (sum((float(hit[0][i]) - local_point[i]) ** 2 for i in range(3)) ** .5
+                        if hit and hit[0] else float('inf'))
+        raw_store.append(raw_distance)
+        candidate = [int(hit[2])] if hit and hit[2] is not None else []
+        def exact_distance(indices):
+            return min((_point_triangle_distance_mm(
+                local_point, target['centered_vertices'][target['triangles'][index][0]],
+                target['centered_vertices'][target['triangles'][index][1]],
+                target['centered_vertices'][target['triangles'][index][2]])
+                for index in indices), default=float('inf'))
+        distance = exact_distance(candidate)
+        if distance > .001:
+            brute_force_count += 1
+            distance = exact_distance(range(len(target['triangles'])))
+        return distance
+    for source, target in ((a, b), (b, a)):
+        if target['bvh'] is None and source['samples']:
+            distances.append(float('inf'))
+            continue
+        for sample_type, point, tri_index in source['samples']:
+            distance = nearest_surface(point, target, raw_bvh_distances)
+            distances.append(distance)
+            distance_by_type[sample_type] = max(distance_by_type.get(sample_type, 0.0), distance)
+            if distance > cross_worst[0]:
+                cross_worst = (distance, (sample_type, tri_index, point))
+    for source in (a, b):
+        for sample_type, point, tri_index in source['samples']:
+            distance = nearest_surface(point, source, self_raw_bvh_distances)
+            self_distances.append(distance)
+            self_distance_by_type[sample_type] = max(self_distance_by_type.get(sample_type, 0.0), distance)
+            if distance > self_worst[0]:
+                self_worst = (distance, (sample_type, tri_index, point))
+    def triangle_shape(snapshot, sample):
+        if sample is None or sample[1] is None:
+            return None
+        tri = snapshot['triangles'][sample[1]]
+        points = [Vector(snapshot['world_mm'][index]) for index in tri]
+        lengths = [(points[(index+1) % 3] - points[index]).length for index in range(3)]
+        area = .5 * (points[1]-points[0]).cross(points[2]-points[0]).length
+        return {'triangle_index': sample[1], 'side_lengths_mm': lengths, 'area_mm2': area,
+                'max_side_min_altitude_ratio': (max(lengths) ** 2 / (2 * area)) if area else float('inf')}
+    vertex_mapping = _match_vertices_within_tolerance(a['world_mm'], b['world_mm'], .001)
+    semantic_faces_equal = (vertex_mapping is not None and len(a['faces']) == len(b['faces'])
+                            and _mapped_face_records_equal(a['indexed_faces'], b['indexed_faces'],
+                                                           vertex_mapping))
+    return {
+        'first_vertex_count': len(a['world_mm']), 'repeat_vertex_count': len(b['world_mm']),
+        'vertices_canonical_equal': a['vertices'] == b['vertices'],
+        'vertex_bijection_within_0_001mm': vertex_mapping is not None,
+        'bidirectional_nearest_vertex_max_mm': bidirectional_vertex_delta(),
+        'face_count_first': len(a['faces']), 'face_count_repeat': len(b['faces']),
+        'faces_canonical_equal': a['faces'] == b['faces'],
+        'faces_semantic_equal_after_reindex': semantic_faces_equal,
+        'triangles_canonical_equal': a['triangle_records'] == b['triangle_records'],
+        'material_face_counts_first': {str(key): value for key, value in
+                                       sorted(__import__('collections').Counter(
+                                           material for material, _ in a['faces']).items())},
+        'material_face_counts_repeat': {str(key): value for key, value in
+                                        sorted(__import__('collections').Counter(
+                                            material for material, _ in b['faces']).items())},
+        'material_slots_equal': a['material_slots'] == b['material_slots'],
+        'uv_layers_equal': a['uv_layers'] == b['uv_layers'],
+        'uv_data_present': bool(a['uv_layers'] or b['uv_layers']),
+        'volume_first_mm3': a['volume_mm3'], 'volume_repeat_mm3': b['volume_mm3'],
+        'volume_delta_mm3': abs(a['volume_mm3'] - b['volume_mm3']),
+        'bbox_delta_mm': max(abs(a['bbox_mm'][side][axis] - b['bbox_mm'][side][axis])
+                             for side in (0, 1) for axis in range(3)),
+        'bidirectional_sample_to_surface_max_mm': max(distances, default=0.0),
+        'raw_bvh_bidirectional_max_mm': max(raw_bvh_distances, default=0.0),
+        'self_sample_to_surface_max_mm': max(self_distances, default=0.0),
+        'raw_bvh_self_max_mm': max(self_raw_bvh_distances, default=0.0),
+        'pure_python_bruteforce_refinements': brute_force_count,
+        'bidirectional_distance_by_sample_type_mm': distance_by_type,
+        'self_distance_by_sample_type_mm': self_distance_by_type,
+        'cross_worst_sample': {'distance_mm': cross_worst[0], 'type': cross_worst[1][0] if cross_worst[1] else None,
+                               'triangle': triangle_shape(a, cross_worst[1])},
+        'self_worst_sample': {'distance_mm': self_worst[0], 'type': self_worst[1][0] if self_worst[1] else None,
+                              'triangle': triangle_shape(a, self_worst[1])},
+        'sample_count_each_direction': len(a['samples']),
+    }
+
+
 class ReleaseWorkflows(unittest.TestCase):
+    def test_point_triangle_distance_helper(self):
+        self.assertAlmostEqual(_point_triangle_distance_mm((.25, .25, 1), (0, 0, 0), (1, 0, 0), (0, 1, 0)), 1.0)
+        self.assertAlmostEqual(_point_triangle_distance_mm((.25, .25, 0), (0, 0, 0), (1, 0, 0), (0, 1, 0)), 0.0)
+        self.assertAlmostEqual(_point_triangle_distance_mm((1, 1, 0), (0, 0, 0), (2, 0, 0), (1, 0, 0)), 1.0)
+
+    def test_tolerant_reindex_helpers_reject_physical_winding_and_material_changes(self):
+        first = [(0., 0., 0.), (1., 0., 0.), (0., 1., 0.)]
+        repeated = [(0., 1., 0.), (.0002, 0., 0.), (1., 0., 0.)]
+        mapping = _match_vertices_within_tolerance(first, repeated, .001)
+        self.assertEqual(mapping, [1, 2, 0])
+        uv = ((.0, .0),)
+        first_faces = [(3, ((0, uv), (1, uv), (2, uv)))]
+        repeat_faces = [(3, ((2, uv), (0, uv), (1, uv)))]
+        self.assertTrue(_mapped_face_records_equal(first_faces, repeat_faces, mapping))
+        self.assertFalse(_mapped_face_records_equal(first_faces, [(3, ((2, uv), (1, uv), (0, uv)))], mapping))
+        self.assertFalse(_mapped_face_records_equal(first_faces, [(4, ((2, uv), (0, uv), (1, uv)))], mapping))
+        self.assertFalse(_mapped_face_records_equal(first_faces, [(3, ((2, ((.1, .0),)), (0, uv), (1, uv)))], mapping))
+        self.assertIsNone(_match_vertices_within_tolerance(first, [(0., 1., 0.), (.002, 0., 0.), (1., 0., 0.)], .001))
+
     @classmethod
     def setUpClass(cls):
         if not FIXTURE.is_file():
@@ -253,12 +529,9 @@ class ReleaseWorkflows(unittest.TestCase):
                         self.assert_preserved_materials(parts)
                         source_before = self.original
                         first_volume = self.s.part_sum_volume_mm3
-                        signature = [
-                            (tuple(tuple(v.co) for v in part.data.vertices),
-                             tuple(tuple(p.vertices) for p in part.data.polygons),
-                             tuple(p.material_index for p in part.data.polygons))
-                            for part in parts
-                        ]
+                        self.assertEqual(len(parts), 2)
+                        signature = {part.get('chest_role'): capture_preview_geometry(part) for part in parts}
+                        self.assertEqual(len(signature), 2)
                         bm = mesh_bmesh(self.target)
                         try:
                             source_volume = abs(bm.calc_volume()) * 1000**3
@@ -280,13 +553,22 @@ class ReleaseWorkflows(unittest.TestCase):
                         self.assertAlmostEqual(measured_depth, depth, delta=.02)
 
                         repeated = self.generate()
-                        repeated_signature = [
-                            (tuple(tuple(v.co) for v in part.data.vertices),
-                             tuple(tuple(p.vertices) for p in part.data.polygons),
-                             tuple(p.material_index for p in part.data.polygons))
-                            for part in repeated
-                        ]
-                        self.assertEqual(repeated_signature, signature)
+                        self.assertEqual(len(repeated), 2)
+                        repeated_by_role = {part.get('chest_role'): part for part in repeated}
+                        self.assertEqual(len(repeated_by_role), 2)
+                        self.assertEqual(set(repeated_by_role), set(signature))
+                        for role, first_part in signature.items():
+                            metrics = repeated_preview_metrics(first_part, capture_preview_geometry(repeated_by_role[role]))
+                            self.assertEqual(metrics['face_count_first'], metrics['face_count_repeat'], str(metrics))
+                            self.assertTrue(metrics['vertex_bijection_within_0_001mm'], str(metrics))
+                            self.assertTrue(metrics['faces_semantic_equal_after_reindex'], str(metrics))
+                            self.assertEqual(metrics['material_slots_equal'], True, str(metrics))
+                            self.assertEqual(metrics['uv_layers_equal'], True, str(metrics))
+                            self.assertLessEqual(metrics['volume_delta_mm3'],
+                                                 max(.001, abs(metrics['volume_first_mm3']) * 1e-6), str(metrics))
+                            self.assertLessEqual(metrics['bbox_delta_mm'], .001, str(metrics))
+                            self.assertLessEqual(metrics['bidirectional_sample_to_surface_max_mm'], .001,
+                                                 str(metrics))
                         self.assertAlmostEqual(self.s.part_sum_volume_mm3, first_volume,
                                                delta=max(1e-3, abs(first_volume) * 1e-6))
                         self.assertEqual(self.original, source_before)

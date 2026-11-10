@@ -12,6 +12,14 @@ A assertion compara listas cruas de coordenadas/índices de vértices e faces em
 
 Na comparação isolada com `scratch/baseline099` (manifesto 0.9.8), o mesmo método falhou em dez subcasos com `geometry.clearance_excessive` no mesmo fixture/folga, em vez da assertion de lista observada no código atual. A condição de folga problemática é anterior, mas os mecanismos de falha não são idênticos; não se conclui que todas as dez diferenças atuais foram provadas apenas reordenação.
 
+### Atualização da etapa 1 — comparação física dos dez subcasos
+
+A etapa 1 substituiu a igualdade de assinatura crua de malha por correspondência bijetiva de vértices e comparação de faces por ciclos orientados, `material_index` e UVs após reindexação, mantendo limites físicos de 0,001 mm. Em Blender 5.2.0 LTS, os dez subcasos passaram: distância bidirecional máxima de superfície 0,0005192 mm, diferença máxima de volume por peça 0,0002968 mm³, caixas delimitadoras idênticas, profundidade medida dentro de 0,0000086 mm, materiais e fonte preservados. A soma dos volumes repetidos foi idêntica.
+
+Assinaturas exatas ainda diferiram em 6/20 comparações de vértices/faces e 7/20 de triangulações visíveis, mas todas passaram a bijeção semântica e as tolerâncias físicas. O fixture não possui UVs de origem; a preservação de UV não foi exercitada. Portanto, as dez falhas brutas de assinatura descritas acima ficam supersedidas para o workflow atual; o método revisado passou na suíte completa `test_release_workflows.py` (11 testes incluindo dois helpers). A condição de folga e a comparação separada com o baseline 0.9.8 permanecem conforme o histórico desta auditoria.
+
+Relatório e dados por caso: [resumo da etapa 1](replay_validation/stage1_summary.md) e [JSON de validação](replay_validation/replay_validation_099.json).
+
 ## Matriz de pinos
 
 Foram avaliados **20 cenários**: cinco rotas (`LOOP`, `WHOLE`, `SOLID`, `MATERIAL`, `PLANE`) x macho A/B x folga 0/0,2 mm. Os vinte previews de geometria passaram: duas peças, manifoldas, volume positivo e fonte imutável.

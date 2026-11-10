@@ -1,0 +1,1672 @@
+{
+  "phase": "repeat_preview_validation",
+  "blender_version": "5.2.0 LTS",
+  "precision": {
+    "face_coordinate_rounding_mm": 1e-06,
+    "triangle_coordinate_rounding_mm": 1e-06,
+    "face_uv_rounding": 1e-07,
+    "vertex_bijection_tolerance_mm": 0.001,
+    "face_semantics": "oriented cyclic vertex indices after bijection, material index, all UV layers",
+    "surface_tolerance_mm": 0.001,
+    "bbox_tolerance_mm": 0.001,
+    "volume_tolerance_mm3": "max(0.001, abs(per-part volume) * 1e-6); total volume uses same relative tolerance"
+  },
+  "cases": [
+    {
+      "body": "Cube.001__B__B__B",
+      "route": "LOOP",
+      "behavior": "AUTO",
+      "gap_mm": 0.15,
+      "depth_mm": 1,
+      "configured_gap_mm": 0.15000000596046448,
+      "gap_applies_to": "PART",
+      "max_avail_depth_mm": 133.320269561771,
+      "detected_mode": "EXTRUDE",
+      "selected_depth_mm": 1.0,
+      "measured_reference_depth_mm": 1.0000085949286586,
+      "first_total_volume_mm3": 4225786.0,
+      "material_preservation_pass": true,
+      "part_count_first": 2,
+      "part_count_repeat": 2,
+      "parts": [
+        {
+          "first_vertex_count": 113,
+          "repeat_vertex_count": 113,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 122,
+          "face_count_repeat": 122,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": false,
+          "material_face_counts_first": {
+            "3": 122
+          },
+          "material_face_counts_repeat": {
+            "3": 122
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 65541.59876557329,
+          "volume_repeat_mm3": 65541.59876669783,
+          "volume_delta_mm3": 1.1245429050177336e-06,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0005191912218027676,
+          "raw_bvh_bidirectional_max_mm": 0.020090016868888356,
+          "self_sample_to_surface_max_mm": 0.0005191912218027676,
+          "raw_bvh_self_max_mm": 0.020090016868888356,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0005191912218027676,
+            "triangle_edge_midpoint": 2.3442082052116167e-06
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0005191912218027676,
+            "triangle_edge_midpoint": 2.3442082052116167e-06
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0005191912218027676,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 59,
+              "side_lengths_mm": [
+                20.347741499041355,
+                0.13551353424342064,
+                20.48325448527807
+              ],
+              "area_mm2": 2.3244970868880207e-05,
+              "max_side_min_altitude_ratio": 9024827.707363699
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0005191912218027676,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 59,
+              "side_lengths_mm": [
+                20.347741499041355,
+                0.13551353424342064,
+                20.48325448527807
+              ],
+              "area_mm2": 2.3244970868880207e-05,
+              "max_side_min_altitude_ratio": 9024827.707363699
+            }
+          },
+          "sample_count_each_direction": 1001,
+          "role": "PREVIEW_A"
+        },
+        {
+          "first_vertex_count": 585,
+          "repeat_vertex_count": 585,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 509,
+          "face_count_repeat": 509,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "0": 509
+          },
+          "material_face_counts_repeat": {
+            "0": 509
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 4160244.32043186,
+          "volume_repeat_mm3": 4160244.32043186,
+          "volume_delta_mm3": 0.0,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0002158503270288132,
+          "raw_bvh_bidirectional_max_mm": 0.014904197346524392,
+          "self_sample_to_surface_max_mm": 0.0002158503270288132,
+          "raw_bvh_self_max_mm": 0.014904197346524392,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0002158503270288132,
+            "triangle_edge_midpoint": 4.940373801571743e-06
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0002158503270288132,
+            "triangle_edge_midpoint": 4.940373801571743e-06
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0002158503270288132,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 797,
+              "side_lengths_mm": [
+                1.2426579622141525,
+                20.564571790717835,
+                21.807229205327285
+              ],
+              "area_mm2": 9.667128324508667e-06,
+              "max_side_min_altitude_ratio": 24596510.444990367
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0002158503270288132,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 797,
+              "side_lengths_mm": [
+                1.2426579622141525,
+                20.564571790717835,
+                21.807229205327285
+              ],
+              "area_mm2": 9.667128324508667e-06,
+              "max_side_min_altitude_ratio": 24596510.444990367
+            }
+          },
+          "sample_count_each_direction": 5249,
+          "role": "PREVIEW_B"
+        }
+      ],
+      "repeat_total_volume_mm3": 4225786.0,
+      "source_unchanged": true,
+      "source_uv_present": false,
+      "source_uv_layer_names": [],
+      "passed": true,
+      "result": "passed"
+    },
+    {
+      "body": "Cube.001__B__B__B",
+      "route": "LOOP",
+      "behavior": "AUTO",
+      "gap_mm": 0.15,
+      "depth_mm": 2,
+      "configured_gap_mm": 0.15000000596046448,
+      "gap_applies_to": "PART",
+      "max_avail_depth_mm": 133.320269561771,
+      "detected_mode": "EXTRUDE",
+      "selected_depth_mm": 2.0,
+      "measured_reference_depth_mm": 2.000005315494491,
+      "first_total_volume_mm3": 4225717.0,
+      "material_preservation_pass": true,
+      "part_count_first": 2,
+      "part_count_repeat": 2,
+      "parts": [
+        {
+          "first_vertex_count": 113,
+          "repeat_vertex_count": 113,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 122,
+          "face_count_repeat": 122,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "3": 122
+          },
+          "material_face_counts_repeat": {
+            "3": 122
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 71678.12653123046,
+          "volume_repeat_mm3": 71678.12653123045,
+          "volume_delta_mm3": 1.4551915228366852e-11,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.00034582322965141695,
+          "raw_bvh_bidirectional_max_mm": 0.02643362812257174,
+          "self_sample_to_surface_max_mm": 0.00034582322965141695,
+          "raw_bvh_self_max_mm": 0.02643362812257174,
+          "pure_python_bruteforce_refinements": 8,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.00034582322965141695,
+            "triangle_edge_midpoint": 0.0
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.00034582322965141695,
+            "triangle_edge_midpoint": 0.0
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.00034582322965141695,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 178,
+              "side_lengths_mm": [
+                20.33179942428536,
+                20.193813301531492,
+                0.13798867841124832
+              ],
+              "area_mm2": 0.010211757412096706,
+              "max_side_min_altitude_ratio": 20240.49588857663
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.00034582322965141695,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 178,
+              "side_lengths_mm": [
+                20.33179942428536,
+                20.193813301531492,
+                0.13798867841124832
+              ],
+              "area_mm2": 0.010211757412096706,
+              "max_side_min_altitude_ratio": 20240.49588857663
+            }
+          },
+          "sample_count_each_direction": 1001,
+          "role": "PREVIEW_A"
+        },
+        {
+          "first_vertex_count": 585,
+          "repeat_vertex_count": 585,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 509,
+          "face_count_repeat": 509,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "0": 509
+          },
+          "material_face_counts_repeat": {
+            "0": 509
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 4154038.8284864076,
+          "volume_repeat_mm3": 4154038.8284864076,
+          "volume_delta_mm3": 0.0,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0002158503270288132,
+          "raw_bvh_bidirectional_max_mm": 0.014904197346524392,
+          "self_sample_to_surface_max_mm": 0.0002158503270288132,
+          "raw_bvh_self_max_mm": 0.014904197346524392,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0002158503270288132,
+            "triangle_edge_midpoint": 4.940373801571743e-06
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0002158503270288132,
+            "triangle_edge_midpoint": 4.940373801571743e-06
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0002158503270288132,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 797,
+              "side_lengths_mm": [
+                1.2426579622141525,
+                20.564571790717835,
+                21.807229205327285
+              ],
+              "area_mm2": 9.667128324508667e-06,
+              "max_side_min_altitude_ratio": 24596510.444990367
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0002158503270288132,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 797,
+              "side_lengths_mm": [
+                1.2426579622141525,
+                20.564571790717835,
+                21.807229205327285
+              ],
+              "area_mm2": 9.667128324508667e-06,
+              "max_side_min_altitude_ratio": 24596510.444990367
+            }
+          },
+          "sample_count_each_direction": 5249,
+          "role": "PREVIEW_B"
+        }
+      ],
+      "repeat_total_volume_mm3": 4225717.0,
+      "source_unchanged": true,
+      "source_uv_present": false,
+      "source_uv_layer_names": [],
+      "passed": true,
+      "result": "passed"
+    },
+    {
+      "body": "Cube.001__B__B__B",
+      "route": "LOOP",
+      "behavior": "AUTO",
+      "gap_mm": 0.15,
+      "depth_mm": 5,
+      "configured_gap_mm": 0.15000000596046448,
+      "gap_applies_to": "PART",
+      "max_avail_depth_mm": 133.320269561771,
+      "detected_mode": "EXTRUDE",
+      "selected_depth_mm": 5.0,
+      "measured_reference_depth_mm": 4.99999641397153,
+      "first_total_volume_mm3": 4225510.0,
+      "material_preservation_pass": true,
+      "part_count_first": 2,
+      "part_count_repeat": 2,
+      "parts": [
+        {
+          "first_vertex_count": 113,
+          "repeat_vertex_count": 113,
+          "vertices_canonical_equal": false,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 1.2223608791828156e-06,
+          "face_count_first": 122,
+          "face_count_repeat": 122,
+          "faces_canonical_equal": false,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": false,
+          "material_face_counts_first": {
+            "3": 122
+          },
+          "material_face_counts_repeat": {
+            "3": 122
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 90087.7634286731,
+          "volume_repeat_mm3": 90087.76343903864,
+          "volume_delta_mm3": 1.0365532943978906e-05,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.00033762892210757994,
+          "raw_bvh_bidirectional_max_mm": 0.0196112600484142,
+          "self_sample_to_surface_max_mm": 0.00033762892210757994,
+          "raw_bvh_self_max_mm": 0.0196112600484142,
+          "pure_python_bruteforce_refinements": 0,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 2.3184696876763275e-07,
+            "triangle_centroid": 0.00033762892210757994,
+            "triangle_edge_midpoint": 7.7250759032147e-07
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.00033762892210757994,
+            "triangle_edge_midpoint": 7.7250759032147e-07
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.00033762892210757994,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 187,
+              "side_lengths_mm": [
+                20.430248134644742,
+                20.295209468316003,
+                0.13504185648718278
+              ],
+              "area_mm2": 0.010266400565217415,
+              "max_side_min_altitude_ratio": 20328.207349384465
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.00033762892210757994,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 187,
+              "side_lengths_mm": [
+                20.430248134644742,
+                20.295209468316003,
+                0.13504185648718278
+              ],
+              "area_mm2": 0.010266400565217415,
+              "max_side_min_altitude_ratio": 20328.207349384465
+            }
+          },
+          "sample_count_each_direction": 1001,
+          "role": "PREVIEW_A"
+        },
+        {
+          "first_vertex_count": 585,
+          "repeat_vertex_count": 585,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 509,
+          "face_count_repeat": 509,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "0": 509
+          },
+          "material_face_counts_repeat": {
+            "0": 509
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 4135422.3119915286,
+          "volume_repeat_mm3": 4135422.3119915286,
+          "volume_delta_mm3": 0.0,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0002158503270288132,
+          "raw_bvh_bidirectional_max_mm": 0.014904197346524392,
+          "self_sample_to_surface_max_mm": 0.0002158503270288132,
+          "raw_bvh_self_max_mm": 0.014904197346524392,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0002158503270288132,
+            "triangle_edge_midpoint": 4.940373801571743e-06
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0002158503270288132,
+            "triangle_edge_midpoint": 4.940373801571743e-06
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0002158503270288132,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 797,
+              "side_lengths_mm": [
+                1.2426579622141525,
+                20.564571790717835,
+                21.807229205327285
+              ],
+              "area_mm2": 9.667128324508667e-06,
+              "max_side_min_altitude_ratio": 24596510.444990367
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0002158503270288132,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 797,
+              "side_lengths_mm": [
+                1.2426579622141525,
+                20.564571790717835,
+                21.807229205327285
+              ],
+              "area_mm2": 9.667128324508667e-06,
+              "max_side_min_altitude_ratio": 24596510.444990367
+            }
+          },
+          "sample_count_each_direction": 5249,
+          "role": "PREVIEW_B"
+        }
+      ],
+      "repeat_total_volume_mm3": 4225510.0,
+      "source_unchanged": true,
+      "source_uv_present": false,
+      "source_uv_layer_names": [],
+      "passed": true,
+      "result": "passed"
+    },
+    {
+      "body": "Cube.001__B__B__B",
+      "route": "LOOP",
+      "behavior": "AUTO",
+      "gap_mm": 0.15,
+      "depth_mm": 10,
+      "configured_gap_mm": 0.15000000596046448,
+      "gap_applies_to": "PART",
+      "max_avail_depth_mm": 133.320269561771,
+      "detected_mode": "EXTRUDE",
+      "selected_depth_mm": 10.0,
+      "measured_reference_depth_mm": 10.000001013395377,
+      "first_total_volume_mm3": 4225165.5,
+      "material_preservation_pass": true,
+      "part_count_first": 2,
+      "part_count_repeat": 2,
+      "parts": [
+        {
+          "first_vertex_count": 113,
+          "repeat_vertex_count": 113,
+          "vertices_canonical_equal": false,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 8.69677776838001e-05,
+          "face_count_first": 122,
+          "face_count_repeat": 122,
+          "faces_canonical_equal": false,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": false,
+          "material_face_counts_first": {
+            "3": 122
+          },
+          "material_face_counts_repeat": {
+            "3": 122
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 120770.45496776342,
+          "volume_repeat_mm3": 120770.4550558671,
+          "volume_delta_mm3": 8.810368308331817e-05,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.00033587541632095234,
+          "raw_bvh_bidirectional_max_mm": 0.02114350873332127,
+          "self_sample_to_surface_max_mm": 0.00033587541632095234,
+          "raw_bvh_self_max_mm": 0.02114350873332127,
+          "pure_python_bruteforce_refinements": 8,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 7.391980670364121e-06,
+            "triangle_centroid": 0.00033587541632095234,
+            "triangle_edge_midpoint": 7.304446476007794e-06
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.00033587541632095234,
+            "triangle_edge_midpoint": 2.329018733512891e-06
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.00033587541632095234,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 219,
+              "side_lengths_mm": [
+                20.333326791315383,
+                0.13371654358466759,
+                20.19961365334213
+              ],
+              "area_mm2": 0.009886220516454682,
+              "max_side_min_altitude_ratio": 20910.12322223063
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.00033587541632095234,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 221,
+              "side_lengths_mm": [
+                25.37696472293363,
+                25.52913897651345,
+                0.21399019842816977
+              ],
+              "area_mm2": 1.914676546355292,
+              "max_side_min_altitude_ratio": 170.1950489033672
+            }
+          },
+          "sample_count_each_direction": 1001,
+          "role": "PREVIEW_A"
+        },
+        {
+          "first_vertex_count": 585,
+          "repeat_vertex_count": 585,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 509,
+          "face_count_repeat": 509,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "0": 509
+          },
+          "material_face_counts_repeat": {
+            "0": 509
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 4104394.806065035,
+          "volume_repeat_mm3": 4104394.806065035,
+          "volume_delta_mm3": 0.0,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0002158503270288132,
+          "raw_bvh_bidirectional_max_mm": 0.014904197346524392,
+          "self_sample_to_surface_max_mm": 0.0002158503270288132,
+          "raw_bvh_self_max_mm": 0.014904197346524392,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0002158503270288132,
+            "triangle_edge_midpoint": 4.940373801571743e-06
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0002158503270288132,
+            "triangle_edge_midpoint": 4.940373801571743e-06
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0002158503270288132,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 797,
+              "side_lengths_mm": [
+                1.2426579622141525,
+                20.564571790717835,
+                21.807229205327285
+              ],
+              "area_mm2": 9.667128324508667e-06,
+              "max_side_min_altitude_ratio": 24596510.444990367
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0002158503270288132,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 797,
+              "side_lengths_mm": [
+                1.2426579622141525,
+                20.564571790717835,
+                21.807229205327285
+              ],
+              "area_mm2": 9.667128324508667e-06,
+              "max_side_min_altitude_ratio": 24596510.444990367
+            }
+          },
+          "sample_count_each_direction": 5249,
+          "role": "PREVIEW_B"
+        }
+      ],
+      "repeat_total_volume_mm3": 4225165.5,
+      "source_unchanged": true,
+      "source_uv_present": false,
+      "source_uv_layer_names": [],
+      "passed": true,
+      "result": "passed"
+    },
+    {
+      "body": "Cube.001__B__B__B",
+      "route": "LOOP",
+      "behavior": "AUTO",
+      "gap_mm": 0.15,
+      "depth_mm": 15,
+      "configured_gap_mm": 0.15000000596046448,
+      "gap_applies_to": "PART",
+      "max_avail_depth_mm": 133.320269561771,
+      "detected_mode": "EXTRUDE",
+      "selected_depth_mm": 15.0,
+      "measured_reference_depth_mm": 15.000006220361684,
+      "first_total_volume_mm3": 4224820.5,
+      "material_preservation_pass": true,
+      "part_count_first": 2,
+      "part_count_repeat": 2,
+      "parts": [
+        {
+          "first_vertex_count": 113,
+          "repeat_vertex_count": 113,
+          "vertices_canonical_equal": false,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.00041963704494879576,
+          "face_count_first": 122,
+          "face_count_repeat": 122,
+          "faces_canonical_equal": false,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": false,
+          "material_face_counts_first": {
+            "3": 122
+          },
+          "material_face_counts_repeat": {
+            "3": 122
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 151453.16423621183,
+          "volume_repeat_mm3": 151453.16453297198,
+          "volume_delta_mm3": 0.00029676014673896134,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0003427114574791172,
+          "raw_bvh_bidirectional_max_mm": 0.019526032558622158,
+          "self_sample_to_surface_max_mm": 0.0003427114574791172,
+          "raw_bvh_self_max_mm": 0.019526032558622158,
+          "pure_python_bruteforce_refinements": 8,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 7.678466516922874e-06,
+            "triangle_centroid": 0.0003427114574791172,
+            "triangle_edge_midpoint": 7.547026037610925e-06
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0003427114574791172,
+            "triangle_edge_midpoint": 0.0
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0003427114574791172,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 195,
+              "side_lengths_mm": [
+                20.331799164106112,
+                20.194383738206756,
+                0.13741996641281273
+              ],
+              "area_mm2": 0.010123177864225395,
+              "max_side_min_altitude_ratio": 20417.60318715773
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0003427114574791172,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 195,
+              "side_lengths_mm": [
+                20.331799164106112,
+                20.194383738206756,
+                0.13741996641281273
+              ],
+              "area_mm2": 0.010123177864225395,
+              "max_side_min_altitude_ratio": 20417.60318715773
+            }
+          },
+          "sample_count_each_direction": 1001,
+          "role": "PREVIEW_A"
+        },
+        {
+          "first_vertex_count": 585,
+          "repeat_vertex_count": 585,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 509,
+          "face_count_repeat": 509,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "0": 509
+          },
+          "material_face_counts_repeat": {
+            "0": 509
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 4073367.294014323,
+          "volume_repeat_mm3": 4073367.294014323,
+          "volume_delta_mm3": 0.0,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0002158503270288132,
+          "raw_bvh_bidirectional_max_mm": 0.014904197346524392,
+          "self_sample_to_surface_max_mm": 0.0002158503270288132,
+          "raw_bvh_self_max_mm": 0.014904197346524392,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0002158503270288132,
+            "triangle_edge_midpoint": 4.940373801571743e-06
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0002158503270288132,
+            "triangle_edge_midpoint": 4.940373801571743e-06
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0002158503270288132,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 797,
+              "side_lengths_mm": [
+                1.2426579622141525,
+                20.564571790717835,
+                21.807229205327285
+              ],
+              "area_mm2": 9.667128324508667e-06,
+              "max_side_min_altitude_ratio": 24596510.444990367
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0002158503270288132,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 797,
+              "side_lengths_mm": [
+                1.2426579622141525,
+                20.564571790717835,
+                21.807229205327285
+              ],
+              "area_mm2": 9.667128324508667e-06,
+              "max_side_min_altitude_ratio": 24596510.444990367
+            }
+          },
+          "sample_count_each_direction": 5249,
+          "role": "PREVIEW_B"
+        }
+      ],
+      "repeat_total_volume_mm3": 4224820.5,
+      "source_unchanged": true,
+      "source_uv_present": false,
+      "source_uv_layer_names": [],
+      "passed": true,
+      "result": "passed"
+    },
+    {
+      "body": "Cube.001__B__B__B__B",
+      "route": "LOOP",
+      "behavior": "AUTO",
+      "gap_mm": 0.15,
+      "depth_mm": 1,
+      "configured_gap_mm": 0.15000000596046448,
+      "gap_applies_to": "PART",
+      "max_avail_depth_mm": 133.320269561771,
+      "detected_mode": "EXTRUDE",
+      "selected_depth_mm": 1.0,
+      "measured_reference_depth_mm": 1.0000085949286586,
+      "first_total_volume_mm3": 3971247.75,
+      "material_preservation_pass": true,
+      "part_count_first": 2,
+      "part_count_repeat": 2,
+      "parts": [
+        {
+          "first_vertex_count": 113,
+          "repeat_vertex_count": 113,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 122,
+          "face_count_repeat": 122,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "3": 122
+          },
+          "material_face_counts_repeat": {
+            "3": 122
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 65541.5987667593,
+          "volume_repeat_mm3": 65541.59876675929,
+          "volume_delta_mm3": 1.4551915228366852e-11,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0005191912218027676,
+          "raw_bvh_bidirectional_max_mm": 0.020090016868888356,
+          "self_sample_to_surface_max_mm": 0.0005191912218027676,
+          "raw_bvh_self_max_mm": 0.020090016868888356,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0005191912218027676,
+            "triangle_edge_midpoint": 2.3442082052116167e-06
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0005191912218027676,
+            "triangle_edge_midpoint": 2.3442082052116167e-06
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0005191912218027676,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 59,
+              "side_lengths_mm": [
+                20.347741499041355,
+                0.13551353424342064,
+                20.48325448527807
+              ],
+              "area_mm2": 2.3244970868880207e-05,
+              "max_side_min_altitude_ratio": 9024827.707363699
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0005191912218027676,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 59,
+              "side_lengths_mm": [
+                20.347741499041355,
+                0.13551353424342064,
+                20.48325448527807
+              ],
+              "area_mm2": 2.3244970868880207e-05,
+              "max_side_min_altitude_ratio": 9024827.707363699
+            }
+          },
+          "sample_count_each_direction": 1001,
+          "role": "PREVIEW_A"
+        },
+        {
+          "first_vertex_count": 818,
+          "repeat_vertex_count": 818,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 722,
+          "face_count_repeat": 722,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "0": 722
+          },
+          "material_face_counts_repeat": {
+            "0": 722
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 3905706.2582784095,
+          "volume_repeat_mm3": 3905706.2582784095,
+          "volume_delta_mm3": 0.0,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.00023865305146377518,
+          "raw_bvh_bidirectional_max_mm": 0.014904197346524392,
+          "self_sample_to_surface_max_mm": 0.00023865305146377518,
+          "raw_bvh_self_max_mm": 0.014904197346524392,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 4.0544676548113355e-07,
+            "triangle_centroid": 0.00023865305146377518,
+            "triangle_edge_midpoint": 2.2084374739751947e-07
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 4.0544676548113355e-07,
+            "triangle_centroid": 0.00023865305146377518,
+            "triangle_edge_midpoint": 2.2084374739751947e-07
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.00023865305146377518,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 1225,
+              "side_lengths_mm": [
+                5.591575199787111,
+                4.029250957839435,
+                9.620826212562468
+              ],
+              "area_mm2": 4.76837158203125e-06,
+              "max_side_min_altitude_ratio": 9705650.599999998
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.00023865305146377518,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 1225,
+              "side_lengths_mm": [
+                5.591575199787111,
+                4.029250957839435,
+                9.620826212562468
+              ],
+              "area_mm2": 4.76837158203125e-06,
+              "max_side_min_altitude_ratio": 9705650.599999998
+            }
+          },
+          "sample_count_each_direction": 7346,
+          "role": "PREVIEW_B"
+        }
+      ],
+      "repeat_total_volume_mm3": 3971247.75,
+      "source_unchanged": true,
+      "source_uv_present": false,
+      "source_uv_layer_names": [],
+      "passed": true,
+      "result": "passed"
+    },
+    {
+      "body": "Cube.001__B__B__B__B",
+      "route": "LOOP",
+      "behavior": "AUTO",
+      "gap_mm": 0.15,
+      "depth_mm": 2,
+      "configured_gap_mm": 0.15000000596046448,
+      "gap_applies_to": "PART",
+      "max_avail_depth_mm": 133.320269561771,
+      "detected_mode": "EXTRUDE",
+      "selected_depth_mm": 2.0,
+      "measured_reference_depth_mm": 2.000005315494491,
+      "first_total_volume_mm3": 3971179.0,
+      "material_preservation_pass": true,
+      "part_count_first": 2,
+      "part_count_repeat": 2,
+      "parts": [
+        {
+          "first_vertex_count": 113,
+          "repeat_vertex_count": 113,
+          "vertices_canonical_equal": false,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 9.064022496787041e-05,
+          "face_count_first": 122,
+          "face_count_repeat": 122,
+          "faces_canonical_equal": false,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": false,
+          "material_face_counts_first": {
+            "3": 122
+          },
+          "material_face_counts_repeat": {
+            "3": 122
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 71678.1266520413,
+          "volume_repeat_mm3": 71678.12653342308,
+          "volume_delta_mm3": 0.00011861821985803545,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0003465555567436936,
+          "raw_bvh_bidirectional_max_mm": 0.02643362812257174,
+          "self_sample_to_surface_max_mm": 0.0003465555567436936,
+          "raw_bvh_self_max_mm": 0.02643362812257174,
+          "pure_python_bruteforce_refinements": 8,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 7.570341451643396e-06,
+            "triangle_centroid": 0.0003465555567436936,
+            "triangle_edge_midpoint": 2.5384434573189255e-05
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0003465555567436936,
+            "triangle_edge_midpoint": 0.0
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0003465555567436936,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 217,
+              "side_lengths_mm": [
+                20.269477989728156,
+                0.13755889168691754,
+                20.131922502722496
+              ],
+              "area_mm2": 0.010241005581284731,
+              "max_side_min_altitude_ratio": 20059.15018379147
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0003465555567436936,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 217,
+              "side_lengths_mm": [
+                20.269477989728156,
+                0.13755889168691754,
+                20.131922502722496
+              ],
+              "area_mm2": 0.010241005581284731,
+              "max_side_min_altitude_ratio": 20059.15018379147
+            }
+          },
+          "sample_count_each_direction": 1001,
+          "role": "PREVIEW_A"
+        },
+        {
+          "first_vertex_count": 818,
+          "repeat_vertex_count": 818,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 722,
+          "face_count_repeat": 722,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "0": 722
+          },
+          "material_face_counts_repeat": {
+            "0": 722
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 3899500.766332951,
+          "volume_repeat_mm3": 3899500.766332951,
+          "volume_delta_mm3": 0.0,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.00023865305146377518,
+          "raw_bvh_bidirectional_max_mm": 0.014904197346524392,
+          "self_sample_to_surface_max_mm": 0.00023865305146377518,
+          "raw_bvh_self_max_mm": 0.014904197346524392,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 4.0544676548113355e-07,
+            "triangle_centroid": 0.00023865305146377518,
+            "triangle_edge_midpoint": 2.2084374739751947e-07
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 4.0544676548113355e-07,
+            "triangle_centroid": 0.00023865305146377518,
+            "triangle_edge_midpoint": 2.2084374739751947e-07
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.00023865305146377518,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 1225,
+              "side_lengths_mm": [
+                5.591575199787111,
+                4.029250957839435,
+                9.620826212562468
+              ],
+              "area_mm2": 4.76837158203125e-06,
+              "max_side_min_altitude_ratio": 9705650.599999998
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.00023865305146377518,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 1225,
+              "side_lengths_mm": [
+                5.591575199787111,
+                4.029250957839435,
+                9.620826212562468
+              ],
+              "area_mm2": 4.76837158203125e-06,
+              "max_side_min_altitude_ratio": 9705650.599999998
+            }
+          },
+          "sample_count_each_direction": 7346,
+          "role": "PREVIEW_B"
+        }
+      ],
+      "repeat_total_volume_mm3": 3971179.0,
+      "source_unchanged": true,
+      "source_uv_present": false,
+      "source_uv_layer_names": [],
+      "passed": true,
+      "result": "passed"
+    },
+    {
+      "body": "Cube.001__B__B__B__B",
+      "route": "LOOP",
+      "behavior": "AUTO",
+      "gap_mm": 0.15,
+      "depth_mm": 5,
+      "configured_gap_mm": 0.15000000596046448,
+      "gap_applies_to": "PART",
+      "max_avail_depth_mm": 133.320269561771,
+      "detected_mode": "EXTRUDE",
+      "selected_depth_mm": 5.0,
+      "measured_reference_depth_mm": 4.99999641397153,
+      "first_total_volume_mm3": 3970972.0,
+      "material_preservation_pass": true,
+      "part_count_first": 2,
+      "part_count_repeat": 2,
+      "parts": [
+        {
+          "first_vertex_count": 113,
+          "repeat_vertex_count": 113,
+          "vertices_canonical_equal": false,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 1.2223608791828156e-06,
+          "face_count_first": 122,
+          "face_count_repeat": 122,
+          "faces_canonical_equal": false,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": false,
+          "material_face_counts_first": {
+            "3": 122
+          },
+          "material_face_counts_repeat": {
+            "3": 122
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 90087.76342867308,
+          "volume_repeat_mm3": 90087.76343903865,
+          "volume_delta_mm3": 1.036557659972459e-05,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.00033762892210757994,
+          "raw_bvh_bidirectional_max_mm": 0.0196112600484142,
+          "self_sample_to_surface_max_mm": 0.00033762892210757994,
+          "raw_bvh_self_max_mm": 0.0196112600484142,
+          "pure_python_bruteforce_refinements": 0,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 2.3184696876763275e-07,
+            "triangle_centroid": 0.00033762892210757994,
+            "triangle_edge_midpoint": 7.7250759032147e-07
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.00033762892210757994,
+            "triangle_edge_midpoint": 7.7250759032147e-07
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.00033762892210757994,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 220,
+              "side_lengths_mm": [
+                20.430248134644742,
+                20.295209468316003,
+                0.13504185648718278
+              ],
+              "area_mm2": 0.010266400565217415,
+              "max_side_min_altitude_ratio": 20328.207349384465
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.00033762892210757994,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 220,
+              "side_lengths_mm": [
+                20.430248134644742,
+                20.295209468316003,
+                0.13504185648718278
+              ],
+              "area_mm2": 0.010266400565217415,
+              "max_side_min_altitude_ratio": 20328.207349384465
+            }
+          },
+          "sample_count_each_direction": 1001,
+          "role": "PREVIEW_A"
+        },
+        {
+          "first_vertex_count": 818,
+          "repeat_vertex_count": 818,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 722,
+          "face_count_repeat": 722,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "0": 722
+          },
+          "material_face_counts_repeat": {
+            "0": 722
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 3880884.249838076,
+          "volume_repeat_mm3": 3880884.249838076,
+          "volume_delta_mm3": 0.0,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.00023865305146377518,
+          "raw_bvh_bidirectional_max_mm": 0.014904197346524392,
+          "self_sample_to_surface_max_mm": 0.00023865305146377518,
+          "raw_bvh_self_max_mm": 0.014904197346524392,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 4.0544676548113355e-07,
+            "triangle_centroid": 0.00023865305146377518,
+            "triangle_edge_midpoint": 2.2084374739751947e-07
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 4.0544676548113355e-07,
+            "triangle_centroid": 0.00023865305146377518,
+            "triangle_edge_midpoint": 2.2084374739751947e-07
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.00023865305146377518,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 1225,
+              "side_lengths_mm": [
+                5.591575199787111,
+                4.029250957839435,
+                9.620826212562468
+              ],
+              "area_mm2": 4.76837158203125e-06,
+              "max_side_min_altitude_ratio": 9705650.599999998
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.00023865305146377518,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 1225,
+              "side_lengths_mm": [
+                5.591575199787111,
+                4.029250957839435,
+                9.620826212562468
+              ],
+              "area_mm2": 4.76837158203125e-06,
+              "max_side_min_altitude_ratio": 9705650.599999998
+            }
+          },
+          "sample_count_each_direction": 7346,
+          "role": "PREVIEW_B"
+        }
+      ],
+      "repeat_total_volume_mm3": 3970972.0,
+      "source_unchanged": true,
+      "source_uv_present": false,
+      "source_uv_layer_names": [],
+      "passed": true,
+      "result": "passed"
+    },
+    {
+      "body": "Cube.001__B__B__B__B",
+      "route": "LOOP",
+      "behavior": "AUTO",
+      "gap_mm": 0.15,
+      "depth_mm": 10,
+      "configured_gap_mm": 0.15000000596046448,
+      "gap_applies_to": "PART",
+      "max_avail_depth_mm": 133.320269561771,
+      "detected_mode": "EXTRUDE",
+      "selected_depth_mm": 10.0,
+      "measured_reference_depth_mm": 10.000001013395377,
+      "first_total_volume_mm3": 3970627.25,
+      "material_preservation_pass": true,
+      "part_count_first": 2,
+      "part_count_repeat": 2,
+      "parts": [
+        {
+          "first_vertex_count": 113,
+          "repeat_vertex_count": 113,
+          "vertices_canonical_equal": false,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 2.444721758365631e-06,
+          "face_count_first": 122,
+          "face_count_repeat": 122,
+          "faces_canonical_equal": false,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": false,
+          "material_face_counts_first": {
+            "3": 122
+          },
+          "material_face_counts_repeat": {
+            "3": 122
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 120770.45500682961,
+          "volume_repeat_mm3": 120770.45496776325,
+          "volume_delta_mm3": 3.906636266037822e-05,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0003398943115732598,
+          "raw_bvh_bidirectional_max_mm": 0.02114350873332127,
+          "self_sample_to_surface_max_mm": 0.0003400192528565444,
+          "raw_bvh_self_max_mm": 0.02114350873332127,
+          "pure_python_bruteforce_refinements": 8,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 4.642891378507481e-07,
+            "triangle_centroid": 0.0003398943115732598,
+            "triangle_edge_midpoint": 2.329018733512891e-06
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0003400192528565444,
+            "triangle_edge_midpoint": 2.329018733512891e-06
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0003398943115732598,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 192,
+              "side_lengths_mm": [
+                20.162845789172593,
+                20.347680083239098,
+                0.23847456251902255
+              ],
+              "area_mm2": 1.5260726415096653,
+              "max_side_min_altitude_ratio": 135.65149964298828
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0003400192528565444,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 220,
+              "side_lengths_mm": [
+                20.269478542562968,
+                0.13590411349666678,
+                20.133578924261172
+              ],
+              "area_mm2": 0.009969074584442293,
+              "max_side_min_altitude_ratio": 20606.313901422436
+            }
+          },
+          "sample_count_each_direction": 1001,
+          "role": "PREVIEW_A"
+        },
+        {
+          "first_vertex_count": 818,
+          "repeat_vertex_count": 818,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 722,
+          "face_count_repeat": 722,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "0": 722
+          },
+          "material_face_counts_repeat": {
+            "0": 722
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 3849856.7439115797,
+          "volume_repeat_mm3": 3849856.7439115797,
+          "volume_delta_mm3": 0.0,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.00023865305146377518,
+          "raw_bvh_bidirectional_max_mm": 0.014904197346524392,
+          "self_sample_to_surface_max_mm": 0.00023865305146377518,
+          "raw_bvh_self_max_mm": 0.014904197346524392,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 4.0544676548113355e-07,
+            "triangle_centroid": 0.00023865305146377518,
+            "triangle_edge_midpoint": 2.2084374739751947e-07
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 4.0544676548113355e-07,
+            "triangle_centroid": 0.00023865305146377518,
+            "triangle_edge_midpoint": 2.2084374739751947e-07
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.00023865305146377518,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 1225,
+              "side_lengths_mm": [
+                5.591575199787111,
+                4.029250957839435,
+                9.620826212562468
+              ],
+              "area_mm2": 4.76837158203125e-06,
+              "max_side_min_altitude_ratio": 9705650.599999998
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.00023865305146377518,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 1225,
+              "side_lengths_mm": [
+                5.591575199787111,
+                4.029250957839435,
+                9.620826212562468
+              ],
+              "area_mm2": 4.76837158203125e-06,
+              "max_side_min_altitude_ratio": 9705650.599999998
+            }
+          },
+          "sample_count_each_direction": 7346,
+          "role": "PREVIEW_B"
+        }
+      ],
+      "repeat_total_volume_mm3": 3970627.25,
+      "source_unchanged": true,
+      "source_uv_present": false,
+      "source_uv_layer_names": [],
+      "passed": true,
+      "result": "passed"
+    },
+    {
+      "body": "Cube.001__B__B__B__B",
+      "route": "LOOP",
+      "behavior": "AUTO",
+      "gap_mm": 0.15,
+      "depth_mm": 15,
+      "configured_gap_mm": 0.15000000596046448,
+      "gap_applies_to": "PART",
+      "max_avail_depth_mm": 133.320269561771,
+      "detected_mode": "EXTRUDE",
+      "selected_depth_mm": 15.0,
+      "measured_reference_depth_mm": 15.000006220361684,
+      "first_total_volume_mm3": 3970282.5,
+      "material_preservation_pass": true,
+      "part_count_first": 2,
+      "part_count_repeat": 2,
+      "parts": [
+        {
+          "first_vertex_count": 113,
+          "repeat_vertex_count": 113,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 122,
+          "face_count_repeat": 122,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "3": 122
+          },
+          "material_face_counts_repeat": {
+            "3": 122
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 151453.16420687802,
+          "volume_repeat_mm3": 151453.1642068781,
+          "volume_delta_mm3": 8.731149137020111e-11,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.0003427114574791172,
+          "raw_bvh_bidirectional_max_mm": 0.019526032558622158,
+          "self_sample_to_surface_max_mm": 0.0003427114574791172,
+          "raw_bvh_self_max_mm": 0.019526032558622158,
+          "pure_python_bruteforce_refinements": 8,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0003427114574791172,
+            "triangle_edge_midpoint": 0.0
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 0.0,
+            "triangle_centroid": 0.0003427114574791172,
+            "triangle_edge_midpoint": 0.0
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.0003427114574791172,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 202,
+              "side_lengths_mm": [
+                20.331799164106112,
+                20.194383738206756,
+                0.13741996641281273
+              ],
+              "area_mm2": 0.010123177864225395,
+              "max_side_min_altitude_ratio": 20417.60318715773
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.0003427114574791172,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 202,
+              "side_lengths_mm": [
+                20.331799164106112,
+                20.194383738206756,
+                0.13741996641281273
+              ],
+              "area_mm2": 0.010123177864225395,
+              "max_side_min_altitude_ratio": 20417.60318715773
+            }
+          },
+          "sample_count_each_direction": 1001,
+          "role": "PREVIEW_A"
+        },
+        {
+          "first_vertex_count": 818,
+          "repeat_vertex_count": 818,
+          "vertices_canonical_equal": true,
+          "vertex_bijection_within_0_001mm": true,
+          "bidirectional_nearest_vertex_max_mm": 0.0,
+          "face_count_first": 722,
+          "face_count_repeat": 722,
+          "faces_canonical_equal": true,
+          "faces_semantic_equal_after_reindex": true,
+          "triangles_canonical_equal": true,
+          "material_face_counts_first": {
+            "0": 722
+          },
+          "material_face_counts_repeat": {
+            "0": 722
+          },
+          "material_slots_equal": true,
+          "uv_layers_equal": true,
+          "uv_data_present": false,
+          "volume_first_mm3": 3818829.2318608705,
+          "volume_repeat_mm3": 3818829.2318608705,
+          "volume_delta_mm3": 0.0,
+          "bbox_delta_mm": 0.0,
+          "bidirectional_sample_to_surface_max_mm": 0.00023865305146377518,
+          "raw_bvh_bidirectional_max_mm": 0.014904197346524392,
+          "self_sample_to_surface_max_mm": 0.00023865305146377518,
+          "raw_bvh_self_max_mm": 0.014904197346524392,
+          "pure_python_bruteforce_refinements": 4,
+          "bidirectional_distance_by_sample_type_mm": {
+            "vertex": 4.0544676548113355e-07,
+            "triangle_centroid": 0.00023865305146377518,
+            "triangle_edge_midpoint": 2.2084374739751947e-07
+          },
+          "self_distance_by_sample_type_mm": {
+            "vertex": 4.0544676548113355e-07,
+            "triangle_centroid": 0.00023865305146377518,
+            "triangle_edge_midpoint": 2.2084374739751947e-07
+          },
+          "cross_worst_sample": {
+            "distance_mm": 0.00023865305146377518,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 1225,
+              "side_lengths_mm": [
+                5.591575199787111,
+                4.029250957839435,
+                9.620826212562468
+              ],
+              "area_mm2": 4.76837158203125e-06,
+              "max_side_min_altitude_ratio": 9705650.599999998
+            }
+          },
+          "self_worst_sample": {
+            "distance_mm": 0.00023865305146377518,
+            "type": "triangle_centroid",
+            "triangle": {
+              "triangle_index": 1225,
+              "side_lengths_mm": [
+                5.591575199787111,
+                4.029250957839435,
+                9.620826212562468
+              ],
+              "area_mm2": 4.76837158203125e-06,
+              "max_side_min_altitude_ratio": 9705650.599999998
+            }
+          },
+          "sample_count_each_direction": 7346,
+          "role": "PREVIEW_B"
+        }
+      ],
+      "repeat_total_volume_mm3": 3970282.5,
+      "source_unchanged": true,
+      "source_uv_present": false,
+      "source_uv_layer_names": [],
+      "passed": true,
+      "result": "passed"
+    }
+  ],
+  "totals": {
+    "cases": 10,
+    "passed": 10,
+    "failed": 0,
+    "uv_source_cases": 0
+  }
+}

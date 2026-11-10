@@ -83,7 +83,7 @@ def cap_open_cut_boundaries(
     # closes a real hole with overlapping disks even when all edges are manifold.
     from .geometry_material import _order_boundary_loops, _get_orthonormal_basis
     try:
-        loops = _order_boundary_loops(target_edges)
+        loops = _order_boundary_loops(target_edges) or []
     except ValueError:
         loops = []  # Preserve the established fill for non-simple edge nets.
     created_all = []

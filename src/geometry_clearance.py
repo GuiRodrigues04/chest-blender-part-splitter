@@ -178,6 +178,16 @@ def trim_depth_contact(bm, contacts, axis, lateral, bottom, unit_scale, support)
     contacts = set(contacts)
     axis = axis.normalized()
     tolerance = 0.00001 / unit_scale
+    active_contacts = set()
+    for face in contacts:
+        axial = abs(face.normal.dot(axis))
+        distance = math.sqrt((bottom * axial)**2 + lateral*lateral * max(0., 1.-axial*axial))
+        if distance > tolerance:
+            active_contacts.add(face)
+    if not active_contacts:
+        if lateral <= tolerance and bottom <= tolerance:
+            return bm.copy()
+        raise LocalizedGeometryError('geometry.clearance_unresolved')
     shifts = {}
     for vertex in {v for f in contacts for v in f.verts}:
         constraints = []
@@ -188,6 +198,12 @@ def trim_depth_contact(bm, contacts, axis, lateral, bottom, unit_scale, support)
                 constraints.append((face.normal.copy(), -distance))
         shifts[vertex] = _constrained_delta(constraints, tolerance)
     for edge in bm.edges:
+        # Only edges on the contact surface are represented in the offset
+        # cutter band. A retained exterior edge can connect a shifted contact
+        # vertex to an unshifted relief vertex without producing an inverted
+        # edge in the band, so exclude it from this virtual-offset guard.
+        if not any(face in contacts for face in edge.link_faces):
+            continue
         a, b = edge.verts
         old = b.co - a.co
         new = old + shifts.get(b, Vector()) - shifts.get(a, Vector())
@@ -196,9 +212,20 @@ def trim_depth_contact(bm, contacts, axis, lateral, bottom, unit_scale, support)
     band = bmesh.new()
     try:
         marker = band.faces.layers.int.new('splitter_contact_surface')
-        outer = {v: band.verts.new(v.co) for v in shifts}
-        inner = {v: band.verts.new(v.co + delta) if delta.length > tolerance else outer[v]
-                 for v, delta in shifts.items()}
+        active_vertices = {v for face in active_contacts for v in face.verts}
+        # Avoid a coplanar Boolean between the band shell and the captured
+        # source interface. Move only the cutter's outer shell a tiny amount
+        # outward, satisfying every incident contact plane independently.
+        # The inner shell remains the exact requested clearance surface.
+        outer_epsilon = max(0.001 / unit_scale, 100.0 * tolerance)
+        outer_shifts = {}
+        for vertex in active_vertices:
+            constraints = [(face.normal.copy(), outer_epsilon)
+                           for face in vertex.link_faces if face in contacts]
+            outer_shifts[vertex] = _constrained_delta(constraints, tolerance)
+        outer = {v: band.verts.new(v.co + outer_shifts[v]) for v in active_vertices}
+        inner = {v: band.verts.new(v.co + shifts[v]) if shifts[v].length > tolerance else outer[v]
+                 for v in active_vertices}
 
         def face(vertices, material):
             corners = []
@@ -213,11 +240,11 @@ def trim_depth_contact(bm, contacts, axis, lateral, bottom, unit_scale, support)
                 created.material_index = material
                 created[marker] = 1
 
-        for source in contacts:
+        for source in active_contacts:
             face([outer[v] for v in source.verts], source.material_index)
             face([inner[v] for v in reversed(list(source.verts))], source.material_index)
             for loop in source.loops:
-                if sum(f in contacts for f in loop.edge.link_faces) == 1:
+                if sum(f in active_contacts for f in loop.edge.link_faces) == 1:
                     a, b = loop.vert, loop.link_loop_next.vert
                     face([outer[b], outer[a], inner[a], inner[b]], source.material_index)
         # A nonplanar capture can climb far up the selected relief. Clearance
@@ -227,19 +254,26 @@ def trim_depth_contact(bm, contacts, axis, lateral, bottom, unit_scale, support)
                                clear_outer=True, clear_inner=False)
         boundary = [e for e in band.edges if e.is_boundary]
         if boundary:
-            filled = bmesh.ops.holes_fill(band, edges=boundary, sides=0)
-            for cap in filled.get('faces', []):
+            # A clipped band can expose nested outer/inner contours. Filling
+            # each contour separately creates overlapping disks that close a
+            # real annular hole; the planar helper preserves the nested parity.
+            from .geometry_plane import cap_open_cut_boundaries
+            previous_faces = set(band.faces)
+            cap_open_cut_boundaries(band, cut_edges=boundary, plane_origin=support,
+                                    plane_normal=-axis, coplanar_tol_bu=tolerance)
+            for cap in set(band.faces) - previous_faces:
                 cap[marker] = 1
                 cap.material_index = next(iter(contacts)).material_index
         bmesh.ops.dissolve_degenerate(band, edges=band.edges[:], dist=tolerance)
+        remove_boolean_wires(band)
         from .geometry_solid import ensure_solid_outward_normals
         ensure_solid_outward_normals(band)
         if not band.faces or any(not e.is_manifold for e in band.edges):
-            raise LocalizedGeometryError('geometry.clearance_excessive')
+            raise LocalizedGeometryError('geometry.clearance_unresolved')
         result = subtract_closed_region(bm, band, unit_scale)
         if abs(result.calc_volume()) >= abs(bm.calc_volume()):
             result.free()
-            raise LocalizedGeometryError('geometry.clearance_excessive')
+            raise LocalizedGeometryError('geometry.clearance_unresolved')
         return result
     finally:
         band.free()

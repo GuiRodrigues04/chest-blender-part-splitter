@@ -1,0 +1,36 @@
+{
+  "fixture": "closed 20mm-diameter cylinder; LOOP; 2mm pin; 3mm length; 0.1mm radial clearance; 0.2mm end clearance",
+  "center_world": [
+    1.1567685698210539e-10,
+    -1.4410180973141316e-20,
+    0.0
+  ],
+  "axis_world": [
+    -8.742277657347586e-08,
+    -3.821371353845884e-15,
+    -1.0
+  ],
+  "measurements": [
+    {
+      "role": "A",
+      "radial_samples": 24,
+      "radius_min_mm": 0.9999999134724894,
+      "radius_max_mm": 1.0000001692678715,
+      "axial_floor_mm": 3.000000026077055
+    },
+    {
+      "role": "B",
+      "radial_samples": 24,
+      "radius_min_mm": 1.0999997645198252,
+      "radius_max_mm": 1.1000001262506969,
+      "axial_floor_mm": 3.199999919161225
+    }
+  ],
+  "measured_radius_delta_range_mm": [
+    0.09999959525195368,
+    0.10000021277820748
+  ],
+  "measured_end_clearance_mm": 0.19999989308416977,
+  "radial_pass": true,
+  "end_pass": true
+}

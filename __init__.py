@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Splitter",
     "author": "Splitter Team",
-    "version": (0, 9, 8),
+    "version": (0, 9, 9),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar (N) > Splitter",
     "description": "Splits models into parts for 3D printing",

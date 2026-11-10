@@ -1,0 +1,499 @@
+{
+  "blend": "C:\\Users\\guiro\\OneDrive\\Desktop\\Spot corte bugado.blend",
+  "sha256_before": "66f7213e14b5867b7f7bb453ee3d88b1fe7af6d43b6de99f6dda12c061d847de",
+  "sha256_after": "66f7213e14b5867b7f7bb453ee3d88b1fe7af6d43b6de99f6dda12c061d847de",
+  "cases": [
+    {
+      "gap_mm": 0.1,
+      "operator": "{'FINISHED'}",
+      "last_status": "Preview generated successfully! Part A: 695 mm³ | Part B: 716,013 mm³ A complete quad surface could not be created; the safe triangulation was used.",
+      "capture_valid": true,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "vertices": 133,
+          "faces": 138,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "volume_mm3": 695.3434287580317,
+          "valid_report": {
+            "is_valid": true,
+            "null_edges": [],
+            "degenerate_faces": [],
+            "non_manifold_edges": [],
+            "is_manifold": true,
+            "volume_mm3": 695.3434287580317
+          },
+          "uv_layers": 1,
+          "marked_contact_faces": 128,
+          "attributes": [
+            "splitter_contact_surface",
+            "splitter_previous_interface",
+            "UVMap",
+            "sharp_face",
+            ".uv_select_vert",
+            ".uv_select_edge",
+            ".uv_select_face",
+            "position",
+            ".edge_verts",
+            ".corner_vert",
+            ".corner_edge"
+          ]
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "vertices": 3165,
+          "faces": 3082,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "volume_mm3": 716013.1633713712,
+          "valid_report": {
+            "is_valid": true,
+            "null_edges": [],
+            "degenerate_faces": [],
+            "non_manifold_edges": [],
+            "is_manifold": true,
+            "volume_mm3": 716013.1633713712
+          },
+          "uv_layers": 1,
+          "marked_contact_faces": 68,
+          "attributes": [
+            "splitter_contact_surface",
+            "splitter_previous_interface",
+            "UVMap",
+            ".select_vert",
+            ".select_edge",
+            ".select_poly",
+            "sharp_face",
+            ".uv_select_vert",
+            ".uv_select_edge",
+            ".uv_select_face",
+            "position",
+            ".edge_verts",
+            ".corner_vert",
+            ".corner_edge"
+          ]
+        }
+      ],
+      "marked_surface_spacing": {
+        "A_to_B_below_shoulder": {
+          "samples": 129,
+          "min_mm": 0.0,
+          "p50_mm": 7.450580707946131e-07,
+          "p90_mm": 0.0999996919184877,
+          "max_mm": 0.10000228798020314
+        }
+      },
+      "source_signature_unchanged": true,
+      "source_data_pointer_unchanged": true,
+      "source_deltas": {},
+      "source_uv_first_differences": [],
+      "source_buffer_sizes": {
+        "before": {
+          "loops": 12270,
+          "uv": [
+            12270
+          ]
+        },
+        "after": {
+          "loops": 12270,
+          "uv": [
+            12270
+          ]
+        },
+        "mode": "OBJECT"
+      },
+      "marked_face_signed_distance_bu": [
+        {
+          "min": -0.09561358229257166,
+          "p50": -0.0948219383135438,
+          "max": -0.045821917010471225
+        },
+        {
+          "min": 0.018832543632015586,
+          "p50": 0.0448220155085437,
+          "max": 0.044822087744250894
+        }
+      ],
+      "interface_origin": [
+        -0.08447723835706711,
+        0.4638793170452118,
+        0.600488543510437
+      ],
+      "interface_normal": [
+        0.08920185267925262,
+        -0.9174132943153381,
+        -0.3878090977668762
+      ]
+    },
+    {
+      "gap_mm": 0.0,
+      "operator": "{'FINISHED'}",
+      "last_status": "Preview generated successfully! Part A: 733 mm³ | Part B: 716,013 mm³",
+      "capture_valid": true,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "vertices": 86,
+          "faces": 78,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "volume_mm3": 732.6507862660677,
+          "valid_report": {
+            "is_valid": true,
+            "null_edges": [],
+            "degenerate_faces": [],
+            "non_manifold_edges": [],
+            "is_manifold": true,
+            "volume_mm3": 732.6507862660677
+          },
+          "uv_layers": 1,
+          "marked_contact_faces": 68,
+          "attributes": [
+            "splitter_contact_surface",
+            "splitter_previous_interface",
+            "UVMap",
+            "sharp_face",
+            ".uv_select_vert",
+            ".uv_select_edge",
+            ".uv_select_face",
+            "position",
+            ".edge_verts",
+            ".corner_vert",
+            ".corner_edge"
+          ]
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "vertices": 3165,
+          "faces": 3082,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "volume_mm3": 716013.1633713712,
+          "valid_report": {
+            "is_valid": true,
+            "null_edges": [],
+            "degenerate_faces": [],
+            "non_manifold_edges": [],
+            "is_manifold": true,
+            "volume_mm3": 716013.1633713712
+          },
+          "uv_layers": 1,
+          "marked_contact_faces": 68,
+          "attributes": [
+            "splitter_contact_surface",
+            "splitter_previous_interface",
+            "UVMap",
+            ".select_vert",
+            ".select_edge",
+            ".select_poly",
+            "sharp_face",
+            ".uv_select_vert",
+            ".uv_select_edge",
+            ".uv_select_face",
+            "position",
+            ".edge_verts",
+            ".corner_vert",
+            ".corner_edge"
+          ]
+        }
+      ],
+      "marked_surface_spacing": {
+        "A_to_B_below_shoulder": {
+          "samples": 82,
+          "min_mm": 0.0,
+          "p50_mm": 0.0,
+          "p90_mm": 2.9802322831784522e-06,
+          "max_mm": 3.3320010358843355e-06
+        }
+      },
+      "source_signature_unchanged": true,
+      "source_data_pointer_unchanged": true,
+      "source_deltas": {},
+      "source_uv_first_differences": [],
+      "source_buffer_sizes": {
+        "before": {
+          "loops": 12270,
+          "uv": [
+            12270
+          ]
+        },
+        "after": {
+          "loops": 12270,
+          "uv": [
+            12270
+          ]
+        },
+        "mode": "OBJECT"
+      },
+      "marked_face_signed_distance_bu": [
+        {
+          "min": -0.07081150135491043,
+          "p50": -0.04482197412289679,
+          "max": -0.044821859162766486
+        },
+        {
+          "min": 0.018832543632015586,
+          "p50": 0.0448220155085437,
+          "max": 0.044822087744250894
+        }
+      ],
+      "interface_origin": [
+        -0.08447723835706711,
+        0.4638793170452118,
+        0.600488543510437
+      ],
+      "interface_normal": [
+        0.08920185267925262,
+        -0.9174132943153381,
+        -0.3878090977668762
+      ]
+    },
+    {
+      "gap_mm": 0.2,
+      "operator": "{'FINISHED'}",
+      "last_status": "Preview generated successfully! Part A: 659 mm³ | Part B: 716,013 mm³ A complete quad surface could not be created; the safe triangulation was used.",
+      "capture_valid": true,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "vertices": 133,
+          "faces": 138,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "volume_mm3": 659.2888942217037,
+          "valid_report": {
+            "is_valid": true,
+            "null_edges": [],
+            "degenerate_faces": [],
+            "non_manifold_edges": [],
+            "is_manifold": true,
+            "volume_mm3": 659.2888942217037
+          },
+          "uv_layers": 1,
+          "marked_contact_faces": 128,
+          "attributes": [
+            "splitter_contact_surface",
+            "splitter_previous_interface",
+            "UVMap",
+            "sharp_face",
+            ".uv_select_vert",
+            ".uv_select_edge",
+            ".uv_select_face",
+            "position",
+            ".edge_verts",
+            ".corner_vert",
+            ".corner_edge"
+          ]
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "vertices": 3165,
+          "faces": 3082,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "volume_mm3": 716013.1633713712,
+          "valid_report": {
+            "is_valid": true,
+            "null_edges": [],
+            "degenerate_faces": [],
+            "non_manifold_edges": [],
+            "is_manifold": true,
+            "volume_mm3": 716013.1633713712
+          },
+          "uv_layers": 1,
+          "marked_contact_faces": 68,
+          "attributes": [
+            "splitter_contact_surface",
+            "splitter_previous_interface",
+            "UVMap",
+            ".select_vert",
+            ".select_edge",
+            ".select_poly",
+            "sharp_face",
+            ".uv_select_vert",
+            ".uv_select_edge",
+            ".uv_select_face",
+            "position",
+            ".edge_verts",
+            ".corner_vert",
+            ".corner_edge"
+          ]
+        }
+      ],
+      "marked_surface_spacing": {
+        "A_to_B_below_shoulder": {
+          "samples": 129,
+          "min_mm": 0.0,
+          "p50_mm": 7.450580707946131e-07,
+          "p90_mm": 0.20000019874424035,
+          "max_mm": 0.20000243391845274
+        }
+      },
+      "source_signature_unchanged": true,
+      "source_data_pointer_unchanged": true,
+      "source_deltas": {},
+      "source_uv_first_differences": [],
+      "source_buffer_sizes": {
+        "before": {
+          "loops": 12270,
+          "uv": [
+            12270
+          ]
+        },
+        "after": {
+          "loops": 12270,
+          "uv": [
+            12270
+          ]
+        },
+        "mode": "OBJECT"
+      },
+      "marked_face_signed_distance_bu": [
+        {
+          "min": -0.09561361698433757,
+          "p50": -0.09482194425072521,
+          "max": -0.046821896568872035
+        },
+        {
+          "min": 0.018832543632015586,
+          "p50": 0.0448220155085437,
+          "max": 0.044822087744250894
+        }
+      ],
+      "interface_origin": [
+        -0.08447723835706711,
+        0.4638793170452118,
+        0.600488543510437
+      ],
+      "interface_normal": [
+        0.08920185267925262,
+        -0.9174132943153381,
+        -0.3878090977668762
+      ]
+    },
+    {
+      "gap_mm": 1.0,
+      "operator": "{'FINISHED'}",
+      "last_status": "Preview generated successfully! Part A: 414 mm³ | Part B: 716,013 mm³ A complete quad surface could not be created; the safe triangulation was used.",
+      "capture_valid": true,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "vertices": 133,
+          "faces": 138,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "volume_mm3": 413.63106668915606,
+          "valid_report": {
+            "is_valid": true,
+            "null_edges": [],
+            "degenerate_faces": [],
+            "non_manifold_edges": [],
+            "is_manifold": true,
+            "volume_mm3": 413.63106668915606
+          },
+          "uv_layers": 1,
+          "marked_contact_faces": 128,
+          "attributes": [
+            "splitter_contact_surface",
+            "splitter_previous_interface",
+            "UVMap",
+            "sharp_face",
+            ".uv_select_vert",
+            ".uv_select_edge",
+            ".uv_select_face",
+            "position",
+            ".edge_verts",
+            ".corner_vert",
+            ".corner_edge"
+          ]
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "vertices": 3165,
+          "faces": 3082,
+          "nonmanifold_edges": 0,
+          "components": 1,
+          "volume_mm3": 716013.1633713712,
+          "valid_report": {
+            "is_valid": true,
+            "null_edges": [],
+            "degenerate_faces": [],
+            "non_manifold_edges": [],
+            "is_manifold": true,
+            "volume_mm3": 716013.1633713712
+          },
+          "uv_layers": 1,
+          "marked_contact_faces": 68,
+          "attributes": [
+            "splitter_contact_surface",
+            "splitter_previous_interface",
+            "UVMap",
+            ".select_vert",
+            ".select_edge",
+            ".select_poly",
+            "sharp_face",
+            ".uv_select_vert",
+            ".uv_select_edge",
+            ".uv_select_face",
+            "position",
+            ".edge_verts",
+            ".corner_vert",
+            ".corner_edge"
+          ]
+        }
+      ],
+      "marked_surface_spacing": {
+        "A_to_B_below_shoulder": {
+          "samples": 129,
+          "min_mm": 0.0,
+          "p50_mm": 7.450580707946131e-07,
+          "p90_mm": 1.000000085681678,
+          "max_mm": 1.0000059530139853
+        }
+      },
+      "source_signature_unchanged": true,
+      "source_data_pointer_unchanged": true,
+      "source_deltas": {},
+      "source_uv_first_differences": [],
+      "source_buffer_sizes": {
+        "before": {
+          "loops": 12270,
+          "uv": [
+            12270
+          ]
+        },
+        "after": {
+          "loops": 12270,
+          "uv": [
+            12270
+          ]
+        },
+        "mode": "OBJECT"
+      },
+      "marked_face_signed_distance_bu": [
+        {
+          "min": -0.09561360208317637,
+          "p50": -0.09482194285374135,
+          "max": -0.05482191275223158
+        },
+        {
+          "min": 0.018832543632015586,
+          "p50": 0.0448220155085437,
+          "max": 0.044822087744250894
+        }
+      ],
+      "interface_origin": [
+        -0.08447723835706711,
+        0.4638793170452118,
+        0.600488543510437
+      ],
+      "interface_normal": [
+        0.08920185267925262,
+        -0.9174132943153381,
+        -0.3878090977668762
+      ]
+    }
+  ]
+}

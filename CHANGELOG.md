@@ -1,3 +1,12 @@
+# 0.9.9 — folga na extração com profundidade — 2026-11-10
+
+- Corrigido o fechamento da ferramenta de folga quando o corte de suporte forma um anel: contornos externos e internos são tampados em conjunto, preservando a região vazia em vez de formar discos sobrepostos.
+- Resíduos sem faces deixados pelo corte da ferramenta são removidos antes da validação. A verificação de inversão considera somente arestas da superfície de contato que realmente compõem a faixa de folga; o relevo externo retido permanece fixo.
+- Faces com deslocamento normal nulo continuam participando das restrições de apoio, mas não geram superfícies coincidentes na ferramenta. A folga lateral e a de fundo permanecem independentes.
+- A casca externa temporária da faixa de corte avança 0,001 mm pelas normais de contato para evitar uma face coplanar entre ferramenta e origem no Boolean. A superfície interna mantém exatamente o deslocamento de folga solicitado.
+- Falhas técnicas no fechamento da faixa ou na remoção de volume informam impossibilidade de construir a folga, sem afirmar que a dimensão é excessiva. Colapsos reais e profundidade insuficiente continuam sendo recusados.
+- Mantidos os valores de folga, os controles lateral/fundo, o apoio dos pinos e a tentativa conservadora de quadricular as faces criadas.
+
 # 0.9.8 — centro dos pinos e sugestão de dimensões — 2026-11-08
 
 - Fechamentos naturais compatíveis usam a projeção do contato completo comum às duas peças para posicionar pinos, preservando os triângulos físicos para apoio e edição. Arestas internas da grade deixam de ser interpretadas como bordas externas. Superfícies dobradas ou verticais preservam o caminho local anterior.

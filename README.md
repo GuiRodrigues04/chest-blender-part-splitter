@@ -1,4 +1,4 @@
-# Splitter 0.9.8
+# Splitter 0.9.9
 
 **Candidata para validação.** Consulte o [guia rápido PT/EN](docs/GUIA_RAPIDO_PT_EN.md) e o relatório de validação desta versão antes do lançamento comercial.
 
@@ -9,7 +9,7 @@ Extensão para Blender para dividir modelos 3D em peças para impressão (FDM/SL
 No Blender:
 1. Acesse **Edit > Preferences > Get Extensions** (ou **Add-ons**).
 2. Clique no menu superior direito (ícone de engrenagem ou seta) e selecione **Install from Disk...**
-3. Escolha o arquivo instalável `chest_part_splitter-0.9.8.zip`.
+3. Escolha o arquivo instalável `chest_part_splitter-0.9.9.zip`.
 4. O painel estará disponível na Sidebar da Viewport 3D (pressione tecla `N` > aba **Splitter**).
 
 ## Modos de Corte

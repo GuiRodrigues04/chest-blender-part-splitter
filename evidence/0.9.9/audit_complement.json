@@ -1,0 +1,175 @@
+{
+  "phase": "complement",
+  "source": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter",
+  "source_sha256": "c9275a32af710d58bcc6e7981262aeb969af1282f57ac1813d2fc36b7a25efb5",
+  "blender": "C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe",
+  "max_parallel_blender_processes": 1,
+  "suites": [
+    {
+      "suite": "test_release_workflows.py",
+      "exit_code": 1,
+      "passed": false,
+      "tests": 9,
+      "unittest_seconds": 30.508,
+      "failures": 10,
+      "errors": 0,
+      "skipped": 0,
+      "wall_seconds": 33.82,
+      "fail_lines": [
+        "FAIL: test_loop_auto_uses_selected_depth (__main__.ReleaseWorkflows.test_loop_auto_uses_selected_depth) (body='Cube.001__B__B__B', gap=0.15, depth_mm=1)\r",
+        "FAIL: test_loop_auto_uses_selected_depth (__main__.ReleaseWorkflows.test_loop_auto_uses_selected_depth) (body='Cube.001__B__B__B', gap=0.15, depth_mm=2)\r",
+        "FAIL: test_loop_auto_uses_selected_depth (__main__.ReleaseWorkflows.test_loop_auto_uses_selected_depth) (body='Cube.001__B__B__B', gap=0.15, depth_mm=5)\r",
+        "FAIL: test_loop_auto_uses_selected_depth (__main__.ReleaseWorkflows.test_loop_auto_uses_selected_depth) (body='Cube.001__B__B__B', gap=0.15, depth_mm=10)\r",
+        "FAIL: test_loop_auto_uses_selected_depth (__main__.ReleaseWorkflows.test_loop_auto_uses_selected_depth) (body='Cube.001__B__B__B', gap=0.15, depth_mm=15)\r",
+        "FAIL: test_loop_auto_uses_selected_depth (__main__.ReleaseWorkflows.test_loop_auto_uses_selected_depth) (body='Cube.001__B__B__B__B', gap=0.15, depth_mm=1)\r",
+        "FAIL: test_loop_auto_uses_selected_depth (__main__.ReleaseWorkflows.test_loop_auto_uses_selected_depth) (body='Cube.001__B__B__B__B', gap=0.15, depth_mm=2)\r",
+        "FAIL: test_loop_auto_uses_selected_depth (__main__.ReleaseWorkflows.test_loop_auto_uses_selected_depth) (body='Cube.001__B__B__B__B', gap=0.15, depth_mm=5)\r",
+        "FAIL: test_loop_auto_uses_selected_depth (__main__.ReleaseWorkflows.test_loop_auto_uses_selected_depth) (body='Cube.001__B__B__B__B', gap=0.15, depth_mm=10)\r",
+        "FAIL: test_loop_auto_uses_selected_depth (__main__.ReleaseWorkflows.test_loop_auto_uses_selected_depth) (body='Cube.001__B__B__B__B', gap=0.15, depth_mm=15)\r"
+      ]
+    },
+    {
+      "suite": "test_release_state.py",
+      "exit_code": 0,
+      "passed": true,
+      "tests": 10,
+      "unittest_seconds": 0.678,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "wall_seconds": 3.98,
+      "fail_lines": []
+    },
+    {
+      "suite": "test_clearance_profiles.py",
+      "exit_code": 0,
+      "passed": true,
+      "tests": 6,
+      "unittest_seconds": 0.727,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "wall_seconds": 3.73,
+      "fail_lines": []
+    },
+    {
+      "suite": "test_connector_clearance_slivers.py",
+      "exit_code": 0,
+      "passed": true,
+      "tests": 4,
+      "unittest_seconds": 3.702,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "wall_seconds": 6.63,
+      "fail_lines": []
+    },
+    {
+      "suite": "test_material_manual_connectors_bugfix.py",
+      "exit_code": 0,
+      "passed": true,
+      "tests": 4,
+      "unittest_seconds": 0.115,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "wall_seconds": 3.16,
+      "fail_lines": []
+    },
+    {
+      "suite": "test_plane_limited.py",
+      "exit_code": 0,
+      "passed": true,
+      "tests": 9,
+      "unittest_seconds": 0.564,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "wall_seconds": 3.57,
+      "fail_lines": []
+    },
+    {
+      "suite": "test_plane_contact_contours.py",
+      "exit_code": 0,
+      "passed": true,
+      "tests": 11,
+      "unittest_seconds": 0.499,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 3,
+      "wall_seconds": 3.64,
+      "fail_lines": []
+    }
+  ],
+  "totals": {
+    "suites": 7,
+    "passed": 6,
+    "failed": 1,
+    "tests": 53,
+    "failures": 10,
+    "errors": 0,
+    "skipped": 3
+  },
+  "final_validation": {
+    "current": {
+      "suites": 13,
+      "passed": 13,
+      "failed": 0,
+      "tests": 99,
+      "skipped": 1
+    },
+    "complement": {
+      "suites": 7,
+      "passed": 6,
+      "failed": 1,
+      "tests": 53,
+      "failures": 10,
+      "skipped": 3
+    },
+    "package": {
+      "tests": 2,
+      "passed": 2
+    },
+    "installed": {
+      "tests": 7,
+      "passed": 7
+    },
+    "zip_sha256": "EDA12F104A8B575A4FBA073DB5287F3C0EE8F72FA0BF6D59357D922D1FD0032B",
+    "validated_at": "2026-11-10T11:16:25.9101956-03:00"
+  },
+  "workflow_failure_diagnosis": {
+    "current_failures": 10,
+    "suite": "test_release_workflows.py::test_loop_auto_uses_selected_depth",
+    "condition": "gap_mm=0.15 across two fixture bodies and depths 1,2,5,10,15",
+    "asserted_equal": "raw vertex order, face index tuples, and material index lists across repeated previews",
+    "current_physical_repro": "Final-source replay: unordered rounded vertices equal per part (113 and 585), volume deltas 0.0000150133 and 0 mm3; bbox deltas 0; bidirectional vertex-to-surface maxima 0.0000074506 and 0 mm.",
+    "interpretation": "Raw signature assertion is ordering-sensitive; the sampled geometry is physically indistinguishable within the recorded mesh/BVH measures."
+  },
+  "baseline_0_9_8_comparison": {
+    "file": "baseline099_workflow_repro.log",
+    "outcome": "10 errors in the same selected method under baseline 0.9.8",
+    "error": "geometry.clearance_excessive",
+    "interpretation": "Same private fixture/gap condition has a pre-existing clearance limitation, but failure mechanism differs from current branch; do not claim identical issue."
+  },
+  "pin_matrix": {
+    "file": "current_replay_and_pin_matrix.json",
+    "cases": 20,
+    "enabled_connector_preview_passes": 16,
+    "solid_connector_unsupported_cases": 4,
+    "total_geometry_cases_passed": 20,
+    "physical_measurement_file": "pin_socket_physical_measurement.json",
+    "physical_measurement": {
+      "radial_clearance_mm": [
+        0.09999959525195368,
+        0.10000021277820748
+      ],
+      "expected_radial_clearance_mm": 0.1,
+      "measured_end_clearance_mm": 0.19999989308416977,
+      "expected_end_clearance_mm": 0.2,
+      "passed": true,
+      "fixture_route": "LOOP, male A, zero part gap"
+    }
+  },
+  "validated_at": "2026-11-10T11:16:25.9101956-03:00",
+  "zip_sha256": "EDA12F104A8B575A4FBA073DB5287F3C0EE8F72FA0BF6D59357D922D1FD0032B"
+}

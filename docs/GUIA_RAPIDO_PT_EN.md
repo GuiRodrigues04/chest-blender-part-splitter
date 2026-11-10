@@ -1,3 +1,11 @@
+## Correção 0.9.9: folga na extração com profundidade
+
+A construção da faixa de folga agora fecha contornos internos e externos como um anel e remove resíduos sem faces gerados pelo corte da própria ferramenta. A validação não trata uma aresta externa que permanece fixa como se ela fosse deslocada com a faixa de folga. As medidas solicitadas não são reduzidas para forçar o sucesso; os controles lateral/fundo continuam independentes e limites reais de espessura e colapso permanecem ativos.
+
+Reabra o Blender e use **Gerar / Atualizar prévia** no corte. A correção não refaz automaticamente peças já confirmadas nem salva sobre o arquivo original. Confira a região extraída e a folga antes de confirmar as peças.
+
+English: Depth-extraction clearance bands now close nested boundaries together as an annulus and remove face-less clipping residues before validation. Fixed exterior edges are excluded from the virtual offset check. Requested clearances are preserved; actual thickness and collapse limits remain active. Reopen Blender and regenerate the preview. Existing committed parts and the source file are not automatically rewritten.
+
 ## Novidade 0.9.8: pinos centralizados e dimensões sugeridas
 
 Reabra o Blender e gere novamente a prévia. Nos cortes curvos compatíveis, **1 Pino (Centro)** considera o contato completo; o editor manual usa a mesma área. Bordas internas da grade não limitam o pino. Margens externas, furos e paredes finas continuam sendo verificados.

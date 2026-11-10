@@ -1,0 +1,491 @@
+{
+  "phase": "diagnostics",
+  "source": "C:\\Users\\guiro\\.gemini\\antigravity\\scratch\\chest-blender-part-splitter",
+  "current_replay": [
+    {
+      "part": 0,
+      "same_unordered_rounded_vertices": true,
+      "vertex_count_first": 113,
+      "vertex_count_repeat": 113,
+      "volume_delta_mm3": 1.5013283700682223e-05,
+      "bbox_delta_mm": 0.0,
+      "bidirectional_vertex_to_surface_max_mm": 7.450580596923828e-06
+    },
+    {
+      "part": 1,
+      "same_unordered_rounded_vertices": true,
+      "vertex_count_first": 585,
+      "vertex_count_repeat": 585,
+      "volume_delta_mm3": 0.0,
+      "bbox_delta_mm": 0.0,
+      "bidirectional_vertex_to_surface_max_mm": 0.0
+    }
+  ],
+  "matrix": [
+    {
+      "route": "LOOP",
+      "male_part": "A",
+      "gap_mm": 0.0,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6132.298962269406
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6110.848391385873
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "LOOP",
+      "male_part": "A",
+      "gap_mm": 0.2,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6071.069611362427
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6111.603780711038
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "LOOP",
+      "male_part": "B",
+      "gap_mm": 0.0,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6110.848391387226
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6132.298962269614
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "LOOP",
+      "male_part": "B",
+      "gap_mm": 0.2,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6050.37443060619
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6132.298962269825
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "WHOLE",
+      "male_part": "A",
+      "gap_mm": 0.0,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6132.298962269611
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6110.848391387505
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "WHOLE",
+      "male_part": "A",
+      "gap_mm": 0.2,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6071.0696113622125
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6111.603780710785
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "WHOLE",
+      "male_part": "B",
+      "gap_mm": 0.0,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6110.84839138723
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6132.298962269827
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "WHOLE",
+      "male_part": "B",
+      "gap_mm": 0.2,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6050.374430606442
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6132.298962269827
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "SOLID",
+      "male_part": "A",
+      "gap_mm": 0.0,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6122.934626719813
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6122.934626719816
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "unsupported_by_design",
+      "passed": true
+    },
+    {
+      "route": "SOLID",
+      "male_part": "A",
+      "gap_mm": 0.2,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6061.705287210914
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6122.934626719816
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "unsupported_by_design",
+      "passed": true
+    },
+    {
+      "route": "SOLID",
+      "male_part": "B",
+      "gap_mm": 0.0,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6122.934626719813
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6122.934626719816
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "unsupported_by_design",
+      "passed": true
+    },
+    {
+      "route": "SOLID",
+      "male_part": "B",
+      "gap_mm": 0.2,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6061.705287210914
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6122.934626719816
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "unsupported_by_design",
+      "passed": true
+    },
+    {
+      "route": "MATERIAL",
+      "male_part": "A",
+      "gap_mm": 0.0,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6132.298962269613
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6110.848391386959
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "MATERIAL",
+      "male_part": "A",
+      "gap_mm": 0.2,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6071.381756233325
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6110.848391386959
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "MATERIAL",
+      "male_part": "B",
+      "gap_mm": 0.0,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6110.848391387226
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6132.298962269614
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "MATERIAL",
+      "male_part": "B",
+      "gap_mm": 0.2,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6050.374430606445
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6132.298962269825
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "PLANE",
+      "male_part": "A",
+      "gap_mm": 0.0,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6132.298962269825
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6110.848391386959
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "PLANE",
+      "male_part": "A",
+      "gap_mm": 0.2,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6071.069717192574
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6111.603780710778
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "PLANE",
+      "male_part": "B",
+      "gap_mm": 0.0,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6110.848391387504
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6132.298962269403
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    },
+    {
+      "route": "PLANE",
+      "male_part": "B",
+      "gap_mm": 0.2,
+      "operator_result": "{'FINISHED'}",
+      "status": "PREVIEW_VALID",
+      "part_count": 2,
+      "parts": [
+        {
+          "name": "SPLITTER_PREVIEW_A",
+          "manifold": true,
+          "volume_mm3": 6050.374536208147
+        },
+        {
+          "name": "SPLITTER_PREVIEW_B",
+          "manifold": true,
+          "volume_mm3": 6132.298962269825
+        }
+      ],
+      "source_unchanged": true,
+      "connector_capability": "enabled",
+      "passed": true
+    }
+  ],
+  "matrix_totals": {
+    "cases": 20,
+    "passed": 20,
+    "failed": 0
+  }
+}

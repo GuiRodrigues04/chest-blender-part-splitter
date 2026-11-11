@@ -1,0 +1,22 @@
+test_cut_export_dimensions_commit_revert (__main__.ReleasePackage.test_cut_export_dimensions_commit_revert) ... ok
+test_identity_and_locales (__main__.ReleasePackage.test_identity_and_locales) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 1.177s
+
+OK
+Blender 5.2.0 LTS (hash fbe6228777e7 built 2026-07-14 01:35:40)
+Timer 'STL Export' took 2.17 ms
+Timer 'STL Export' took 2.33 ms
+Writing to C:\Users\guiro\AppData\Local\Temp\splitter_exports_o0qhnqsf\Cube__parts.obj
+OBJ export of 'Cube__parts.obj' took 20.79 ms
+Info: Target: 'Cube' (40.0 x 40.0 x 40.0 mm, 12 tris)
+Info: Preview generated successfully! Part A: 31,840 mm³ | Part B: 32,000 mm³
+Info: File exported successfully
+Info: File exported successfully
+Info: 2 STL parts exported to 'C:\Users\guiro\AppData\Local\Temp\splitter_exports_o0qhnqsf'
+Info: 3MF Multimaterial file exported: 'C:\Users\guiro\AppData\Local\Temp\splitter_exports_o0qhnqsf\Cube__parts.3mf'
+Info: File exported successfully
+Info: OBJ file with materials exported (mm scale): 'C:\Users\guiro\AppData\Local\Temp\splitter_exports_o0qhnqsf\Cube__parts.obj'
+Info: Cut confirmed! New target updated to 'Cube — Restante 001' (40.0 x 40.0 x 20.0 mm). Ready for next cut.
+Info: Cut successfully reverted. Model 'Cube' was restored.

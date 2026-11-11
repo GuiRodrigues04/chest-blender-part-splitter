@@ -1,4 +1,4 @@
-# Splitter 0.9.9
+# Splitter 0.9.10
 
 **Candidata para validação.** Consulte o [guia rápido PT/EN](docs/GUIA_RAPIDO_PT_EN.md) e o relatório de validação desta versão antes do lançamento comercial.
 
@@ -9,7 +9,7 @@ Extensão para Blender para dividir modelos 3D em peças para impressão (FDM/SL
 No Blender:
 1. Acesse **Edit > Preferences > Get Extensions** (ou **Add-ons**).
 2. Clique no menu superior direito (ícone de engrenagem ou seta) e selecione **Install from Disk...**
-3. Escolha o arquivo instalável `chest_part_splitter-0.9.9.zip`.
+3. Escolha o arquivo instalável `chest_part_splitter-0.9.10.zip`.
 4. O painel estará disponível na Sidebar da Viewport 3D (pressione tecla `N` > aba **Splitter**).
 
 ## Modos de Corte
@@ -26,6 +26,8 @@ No Modelo Alvo, use **Mostrar faces** para selecionar somente as faces considera
 O reparo da malha não torna qualquer folga possível: microaberturas podem colapsar com uma folga maior que seus detalhes. Nesse caso, o corte continua bloqueado com indicação do parâmetro; a extensão não altera medidas nem apaga detalhes para forçar a operação.
 
 ## Encaixes e Tolerâncias
+
+**Sugestão segura de pinos (0.9.10):** **Sugerir dimensões** pode preparar um contato plano capturado antes da prévia quando há apenas uma opção; se houver vários contatos, escolha um na lista. A sugestão limita o diâmetro pelo contorno, folga e margem, e confere profundidade nos dois lados do corte. Em distribuição manual vazia, usa o centro apenas como referência, sem criar ou mover pinos. Valores personalizados permanecem intactos; dimensões iniciais antigas Ø6 × 8 mm podem ser substituídas automaticamente apenas enquanto não houver registro de edição. Atualize a prévia e confira as posições antes de confirmar.
 
 **Centro e dimensões dos pinos (0.9.8):** cortes curvos compatíveis usam a área de contato completa entre as duas peças; as arestas internas da grade não são bordas do encaixe. **Sugerir dimensões** calcula valores iniciais pelo contorno e pela profundidade disponível na peça receptora. Ao ativar os pinos pela interface, a sugestão é aplicada a valores iniciais ainda não personalizados. Parâmetros salvos e ajustes manuais são preservados; use o botão para solicitar uma nova sugestão. Atualize a prévia após instalar a versão nova.
 

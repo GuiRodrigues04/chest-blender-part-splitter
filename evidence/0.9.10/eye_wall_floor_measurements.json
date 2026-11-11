@@ -1,0 +1,5378 @@
+{
+  "blend": "C:\\Users\\guiro\\OneDrive\\Desktop\\Spot corte bugado.blend",
+  "source_sha256_before": "66f7213e14b5867b7f7bb453ee3d88b1fe7af6d43b6de99f6dda12c061d847de",
+  "source_sha256_after": "66f7213e14b5867b7f7bb453ee3d88b1fe7af6d43b6de99f6dda12c061d847de",
+  "source_signature_unchanged": true,
+  "seed_face": 2239,
+  "loop_vertices": 26,
+  "depth_mm": 5.0,
+  "measurements": [
+    {
+      "gap_mm": 0.0,
+      "axis_world": [
+        0.08920185267925262,
+        -0.9174132943153381,
+        -0.3878090977668762
+      ],
+      "trim_support_world": [
+        -0.08893731236457825,
+        0.5097499489784241,
+        0.6198789477348328
+      ],
+      "parts": [
+        {
+          "valid": true,
+          "manifold": true,
+          "components": null,
+          "volume_mm3": 732.650886252497
+        },
+        {
+          "valid": true,
+          "manifold": true,
+          "components": null,
+          "volume_mm3": 716013.1632466353
+        }
+      ],
+      "reference_triangles": 76,
+      "excluded_shoulder_samples": 0,
+      "excluded_rim_samples": 0,
+      "ray_misses": 0,
+      "explosion_transforms_applied": false,
+      "sample_method": "visible triangle centroids + three interior barycentric points",
+      "zero_lateral_ray_samples": [
+        {
+          "point_world": [
+            -0.11706803739070892,
+            0.44545358419418335,
+            0.6805309057235718
+          ],
+          "depth_below_support_mm": 3.295564700596998,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999850988388
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999850988388
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          }
+        },
+        {
+          "point_world": [
+            -0.1196737140417099,
+            0.45848774909973145,
+            0.6842578649520874
+          ],
+          "depth_below_support_mm": 1.9320149961041655,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999850988388
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999850988388
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          }
+        },
+        {
+          "point_world": [
+            -0.11784925311803818,
+            0.4397236704826355,
+            0.6763259172439575
+          ],
+          "depth_below_support_mm": 3.977339517918817,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999850988388
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999850988388
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          }
+        },
+        {
+          "point_world": [
+            -0.1136811226606369,
+            0.4381493330001831,
+            0.68100905418396
+          ],
+          "depth_below_support_mm": 3.977335466665557,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999850988388
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999850988388
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          }
+        },
+        {
+          "point_world": [
+            -0.11512800306081772,
+            0.45991235971450806,
+            0.6911001205444336
+          ],
+          "depth_below_support_mm": 1.5765192222076534,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          }
+        },
+        {
+          "point_world": [
+            -0.1185096949338913,
+            0.46716299653053284,
+            0.6905994415283203
+          ],
+          "depth_below_support_mm": 0.900587289975394,
+          "nearest_sum_mm": 5.9604645663569045e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          }
+        },
+        {
+          "point_world": [
+            -0.1125171035528183,
+            0.4468245804309845,
+            0.6873505711555481
+          ],
+          "depth_below_support_mm": 2.945909995710998,
+          "nearest_sum_mm": 1.2287812195448635e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          }
+        },
+        {
+          "point_world": [
+            -0.11435720324516296,
+            0.46574944257736206,
+            0.6953504681587219
+          ],
+          "depth_below_support_mm": 0.8830606137672157,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          }
+        },
+        {
+          "point_world": [
+            -0.12588486075401306,
+            0.4541199207305908,
+            0.6580749750137329
+          ],
+          "depth_below_support_mm": 3.2927172516318737,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000100582838
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000100582838
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000100582838
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000100582838
+          }
+        },
+        {
+          "point_world": [
+            -0.1281713843345642,
+            0.468115895986557,
+            0.6596588492393494
+          ],
+          "depth_below_support_mm": 1.926887343479504,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000100582838
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000100582838
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000100582838
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000100582838
+          }
+        },
+        {
+          "point_world": [
+            -0.12634386122226715,
+            0.4493204951286316,
+            0.6517136693000793
+          ],
+          "depth_below_support_mm": 3.9756255583930833,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000100582838
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000100582838
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000100582838
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000100582838
+          }
+        },
+        {
+          "point_world": [
+            -0.12313935160636902,
+            0.4449234902858734,
+            0.6628522872924805
+          ],
+          "depth_below_support_mm": 3.9756318215374913,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000100582838
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000100582838
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000100582838
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000100582838
+          }
+        },
+        {
+          "point_world": [
+            -0.12473482638597488,
+            0.4660925269126892,
+            0.6739671230316162
+          ],
+          "depth_below_support_mm": 1.5882809650269292,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001639127731
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001601874828
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001639127731
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001601874828
+          }
+        },
+        {
+          "point_world": [
+            -0.1274813562631607,
+            0.4752994179725647,
+            0.6691941618919373
+          ],
+          "depth_below_support_mm": 0.9042286215980143,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001639127731
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001601874828
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001639127731
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001601874828
+          }
+        },
+        {
+          "point_world": [
+            -0.12244933098554611,
+            0.4521070420742035,
+            0.6723876595497131
+          ],
+          "depth_below_support_mm": 2.9529679075325705,
+          "nearest_sum_mm": 2.235174212383839e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001639127731
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001601874828
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001639127731
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001601874828
+          }
+        },
+        {
+          "point_world": [
+            -0.12427379190921783,
+            0.47087109088897705,
+            0.6803195476531982
+          ],
+          "depth_below_support_mm": 0.9076487873889323,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001639127731
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001601874828
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001639127731
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001601874828
+          }
+        },
+        {
+          "point_world": [
+            -0.13335585594177246,
+            0.46488863229751587,
+            0.6310111284255981
+          ],
+          "depth_below_support_mm": 3.2876989362791016,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000162050128
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000162050128
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000162050128
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000162050128
+          }
+        },
+        {
+          "point_world": [
+            -0.13553699851036072,
+            0.47886741161346436,
+            0.6327633261680603
+          ],
+          "depth_below_support_mm": 1.9178593351372972,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000162050128
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000162050128
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000162050128
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000162050128
+          }
+        },
+        {
+          "point_world": [
+            -0.13370411098003387,
+            0.46001678705215454,
+            0.6247947216033936
+          ],
+          "depth_below_support_mm": 3.9726203084568716,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000162050128
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000162050128
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000162050128
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000162050128
+          }
+        },
+        {
+          "point_world": [
+            -0.1308264583349228,
+            0.4557816982269287,
+            0.6354753375053406
+          ],
+          "depth_below_support_mm": 3.9726179917919326,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000162050128
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000162050128
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000162050128
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000162050128
+          }
+        },
+        {
+          "point_world": [
+            -0.13248074054718018,
+            0.4770221710205078,
+            0.6465326547622681
+          ],
+          "depth_below_support_mm": 1.5804195080760044,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000063329935
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000063329935
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          }
+        },
+        {
+          "point_world": [
+            -0.1350119262933731,
+            0.48614752292633057,
+            0.6420761942863464
+          ],
+          "depth_below_support_mm": 0.8934944535567528,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000063329935
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000063329935
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          }
+        },
+        {
+          "point_world": [
+            -0.13030138611793518,
+            0.4630618393421173,
+            0.6447882652282715
+          ],
+          "depth_below_support_mm": 2.9482481509186047,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000063329935
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000063329935
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          }
+        },
+        {
+          "point_world": [
+            -0.13212889432907104,
+            0.48185721039772034,
+            0.6527334451675415
+          ],
+          "depth_below_support_mm": 0.8995127765389198,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000063329935
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000063329935
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          }
+        },
+        {
+          "point_world": [
+            -0.13745316863059998,
+            0.4735158085823059,
+            0.6089036464691162
+          ],
+          "depth_below_support_mm": 3.317029963314979,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999953433871
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999953433871
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999953433871
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999953433871
+          }
+        },
+        {
+          "point_world": [
+            -0.13899923861026764,
+            0.48694103956222534,
+            0.6115064024925232
+          ],
+          "depth_below_support_mm": 1.9706528694652443,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999953433871
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999953433871
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999953433871
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999953433871
+          }
+        },
+        {
+          "point_world": [
+            -0.13719774782657623,
+            0.4684133231639862,
+            0.6036743521690369
+          ],
+          "depth_below_support_mm": 3.990213958400695,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999953433871
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999953433871
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999953433871
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999953433871
+          }
+        },
+        {
+          "point_world": [
+            -0.13616250455379486,
+            0.46519309282302856,
+            0.6115302443504333
+          ],
+          "depth_below_support_mm": 3.990218079503149,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999953433871
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999953433871
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999953433871
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999953433871
+          }
+        },
+        {
+          "point_world": [
+            -0.13811784982681274,
+            0.48654115200042725,
+            0.6220906972885132
+          ],
+          "depth_below_support_mm": 1.6047327378072993,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000270083547
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000246800482
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000270083547
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000246800482
+          }
+        },
+        {
+          "point_world": [
+            -0.13939805328845978,
+            0.4947562515735626,
+            0.6194186210632324
+          ],
+          "depth_below_support_mm": 0.9432745001091545,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000270083547
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000246800482
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000270083547
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000246800482
+          }
+        },
+        {
+          "point_world": [
+            -0.136561319231987,
+            0.47300833463668823,
+            0.6194424629211426
+          ],
+          "depth_below_support_mm": 2.9628369714765723,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000270083547
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000246800482
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000270083547
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000246800482
+          }
+        },
+        {
+          "point_world": [
+            -0.13839420676231384,
+            0.49185889959335327,
+            0.6274110078811646
+          ],
+          "depth_below_support_mm": 0.9080837616038882,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000270083547
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000246800482
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000270083547
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000246800482
+          }
+        },
+        {
+          "point_world": [
+            -0.13630923628807068,
+            0.484444797039032,
+            0.5832905769348145
+          ],
+          "depth_below_support_mm": 3.317892274899665,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000507570803
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000519212335
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000507570803
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000519212335
+          }
+        },
+        {
+          "point_world": [
+            -0.1371084302663803,
+            0.4984409511089325,
+            0.5846965909004211
+          ],
+          "depth_below_support_mm": 1.9722109954388585,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000507570803
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000519212335
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000507570803
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000519212335
+          }
+        },
+        {
+          "point_world": [
+            -0.13530787825584412,
+            0.47992274165153503,
+            0.5768685340881348
+          ],
+          "depth_below_support_mm": 3.9907365235050984,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000507570803
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000519212335
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000507570803
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000519212335
+          }
+        },
+        {
+          "point_world": [
+            -0.13651138544082642,
+            0.4749706983566284,
+            0.5883064866065979
+          ],
+          "depth_below_support_mm": 3.9907340089341097,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000507570803
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000519212335
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000507570803
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000519212335
+          }
+        },
+        {
+          "point_world": [
+            -0.13881340622901917,
+            0.4957578480243683,
+            0.5993488430976868
+          ],
+          "depth_below_support_mm": 1.634926047324032,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000230502337
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000022817403
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000230502337
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000022817403
+          }
+        },
+        {
+          "point_world": [
+            -0.13861094415187836,
+            0.5052288174629211,
+            0.5943315625190735
+          ],
+          "depth_below_support_mm": 0.9624274590973175,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000230502337
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000022817403
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000230502337
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000022817403
+          }
+        },
+        {
+          "point_world": [
+            -0.13801389932632446,
+            0.4817585349082947,
+            0.5979414582252502
+          ],
+          "depth_below_support_mm": 2.9809530802958166,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000230502337
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000022817403
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000230502337
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000022817403
+          }
+        },
+        {
+          "point_world": [
+            -0.13981539011001587,
+            0.5002862215042114,
+            0.6057735085487366
+          ],
+          "depth_below_support_mm": 0.9613948551773256,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000230502337
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000022817403
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000230502337
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000022817403
+          }
+        },
+        {
+          "point_world": [
+            -0.13176387548446655,
+            0.49438589811325073,
+            0.5610586404800415
+          ],
+          "depth_below_support_mm": 3.3086025649100916,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001289590728
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000054424163
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001289590728
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000054424163
+          }
+        },
+        {
+          "point_world": [
+            -0.13226072490215302,
+            0.5079454183578491,
+            0.5637588500976562
+          ],
+          "depth_below_support_mm": 1.9554855593366254,
+          "nearest_sum_mm": 5.9604645663569045e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001289590728
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000054424163
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001289590728
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000054424163
+          }
+        },
+        {
+          "point_world": [
+            -0.13045021891593933,
+            0.4893248677253723,
+            0.5558875799179077
+          ],
+          "depth_below_support_mm": 3.9851649094025023,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001289590728
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000054424163
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001289590728
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000054424163
+          }
+        },
+        {
+          "point_world": [
+            -0.13258065283298492,
+            0.48588740825653076,
+            0.5635294318199158
+          ],
+          "depth_below_support_mm": 3.985160019958913,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001289590728
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000054424163
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001289590728
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000054424163
+          }
+        },
+        {
+          "point_world": [
+            -0.13503968715667725,
+            0.5069531798362732,
+            0.5739501714706421
+          ],
+          "depth_below_support_mm": 1.6264972519352618,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999351857696
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999947904143
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999351857696
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999947904143
+          }
+        },
+        {
+          "point_world": [
+            -0.1342262327671051,
+            0.5154857635498047,
+            0.5714938044548035
+          ],
+          "depth_below_support_mm": 0.9462231445494761,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999351857696
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999947904143
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999351857696
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999947904143
+          }
+        },
+        {
+          "point_world": [
+            -0.13454614579677582,
+            0.49342775344848633,
+            0.5712643265724182
+          ],
+          "depth_below_support_mm": 2.975900049893558,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999351857696
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999947904143
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999351857696
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999947904143
+          }
+        },
+        {
+          "point_world": [
+            -0.1363467127084732,
+            0.5119459629058838,
+            0.5790923833847046
+          ],
+          "depth_below_support_mm": 0.9573741492982825,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999351857696
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999947904143
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999351857696
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999947904143
+          }
+        },
+        {
+          "point_world": [
+            -0.1285620629787445,
+            0.4996893107891083,
+            0.5496315956115723
+          ],
+          "depth_below_support_mm": 3.2937724634077012,
+          "nearest_sum_mm": 5.9604645663569045e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000231375452
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000230793376
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000231375452
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000230793376
+          }
+        },
+        {
+          "point_world": [
+            -0.12949171662330627,
+            0.5126723647117615,
+            0.5539018511772156
+          ],
+          "depth_below_support_mm": 1.9287926897971728,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000231375452
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000230793376
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000231375452
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000230793376
+          }
+        },
+        {
+          "point_world": [
+            -0.12766534090042114,
+            0.49388861656188965,
+            0.5459616184234619
+          ],
+          "depth_below_support_mm": 3.9762598822081063,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000231375452
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000230793376
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000231375452
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000230793376
+          }
+        },
+        {
+          "point_world": [
+            -0.1285291314125061,
+            0.4925069212913513,
+            0.5490313768386841
+          ],
+          "depth_below_support_mm": 3.9762653071621843,
+          "nearest_sum_mm": 6.664002071768671e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000231375452
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000230793376
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000231375452
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000230793376
+          }
+        },
+        {
+          "point_world": [
+            -0.13079065084457397,
+            0.5140550136566162,
+            0.5587491989135742
+          ],
+          "depth_below_support_mm": 1.6023754148166685,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000166328391
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001065491233
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000166328391
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001065491233
+          }
+        },
+        {
+          "point_world": [
+            -0.1308288723230362,
+            0.5212917923927307,
+            0.5593723654747009
+          ],
+          "depth_below_support_mm": 0.9139558902227264,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000166328391
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001065491233
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000166328391
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001065491233
+          }
+        },
+        {
+          "point_world": [
+            -0.12986630201339722,
+            0.5011263489723206,
+            0.5545019507408142
+          ],
+          "depth_below_support_mm": 2.9614259231675546,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000166328391
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001065491233
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000166328391
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001065491233
+          }
+        },
+        {
+          "point_world": [
+            -0.1316768079996109,
+            0.5197468996047974,
+            0.562373161315918
+          ],
+          "depth_below_support_mm": 0.9317490643896021,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000166328391
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001065491233
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000166328391
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001065491233
+          }
+        },
+        {
+          "point_world": [
+            -0.12025976181030273,
+            0.5069416761398315,
+            0.534696638584137
+          ],
+          "depth_below_support_mm": 3.2816800312203167,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999394640326
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999403953552
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999394640326
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999403953552
+          }
+        },
+        {
+          "point_world": [
+            -0.11996732652187347,
+            0.5207509994506836,
+            0.5375429391860962
+          ],
+          "depth_below_support_mm": 1.9070207192677362,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999394640326
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999403953552
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999394640326
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999403953552
+          }
+        },
+        {
+          "point_world": [
+            -0.11812799423933029,
+            0.5018340945243835,
+            0.5295463800430298
+          ],
+          "depth_below_support_mm": 3.96900397120422,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999394640326
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999403953552
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999394640326
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999403953552
+          }
+        },
+        {
+          "point_world": [
+            -0.12268395721912384,
+            0.49824005365371704,
+            0.5370005965232849
+          ],
+          "depth_below_support_mm": 3.9690045765639024,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999394640326
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999403953552
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999394640326
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999403953552
+          }
+        },
+        {
+          "point_world": [
+            -0.125578373670578,
+            0.5195997953414917,
+            0.5475254058837891
+          ],
+          "depth_below_support_mm": 1.5754531372406053,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          }
+        },
+        {
+          "point_world": [
+            -0.12315849959850311,
+            0.5283458828926086,
+            0.5452401638031006
+          ],
+          "depth_below_support_mm": 0.8832848762465249,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          }
+        },
+        {
+          "point_world": [
+            -0.12587513029575348,
+            0.5058349370956421,
+            0.5446978807449341
+          ],
+          "depth_below_support_mm": 2.9452665216515435,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          }
+        },
+        {
+          "point_world": [
+            -0.1277015060186386,
+            0.5246186256408691,
+            0.5526381134986877
+          ],
+          "depth_below_support_mm": 0.8978048240438821,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000651925802
+          }
+        },
+        {
+          "point_world": [
+            -0.10717741400003433,
+            0.5141738057136536,
+            0.5207481384277344
+          ],
+          "depth_below_support_mm": 3.2758274603758366,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999403953552
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999366700649
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999403953552
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999366700649
+          }
+        },
+        {
+          "point_world": [
+            -0.10654961317777634,
+            0.5276646614074707,
+            0.524545431137085
+          ],
+          "depth_below_support_mm": 1.8964959591104975,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999403953552
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999366700649
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999403953552
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999366700649
+          }
+        },
+        {
+          "point_world": [
+            -0.10470402240753174,
+            0.5086833238601685,
+            0.516521692276001
+          ],
+          "depth_below_support_mm": 3.96549999802187,
+          "nearest_sum_mm": 1.2731557509226908e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999403953552
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999366700649
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999403953552
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999366700649
+          }
+        },
+        {
+          "point_world": [
+            -0.11027858406305313,
+            0.5061733722686768,
+            0.5211772918701172
+          ],
+          "depth_below_support_mm": 3.965491732533897,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999403953552
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999366700649
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999403953552
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999366700649
+          }
+        },
+        {
+          "point_world": [
+            -0.11335565149784088,
+            0.5278462171554565,
+            0.5312916040420532
+          ],
+          "depth_below_support_mm": 1.5575060154498517,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999552965164
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999552965164
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          }
+        },
+        {
+          "point_world": [
+            -0.11025655269622803,
+            0.5358681082725525,
+            0.5308715105056763
+          ],
+          "depth_below_support_mm": 0.8655032504797464,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999552965164
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999552965164
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          }
+        },
+        {
+          "point_world": [
+            -0.11398552358150482,
+            0.5143767595291138,
+            0.5275033712387085
+          ],
+          "depth_below_support_mm": 2.934504646763274,
+          "nearest_sum_mm": 4.470348424767678e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999552965164
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999552965164
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          }
+        },
+        {
+          "point_world": [
+            -0.1158248633146286,
+            0.5332937240600586,
+            0.5354999303817749
+          ],
+          "depth_below_support_mm": 0.8725157836081947,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999552965164
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999552965164
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          }
+        },
+        {
+          "point_world": [
+            -0.09197457879781723,
+            0.5161569714546204,
+            0.5193631649017334
+          ],
+          "depth_below_support_mm": 3.2832118094958256,
+          "nearest_sum_mm": 1.201370043584799e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000856816769
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000856816769
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          }
+        },
+        {
+          "point_world": [
+            -0.09108955413103104,
+            0.5287488102912903,
+            0.5251941084861755
+          ],
+          "depth_below_support_mm": 1.9097850753404766,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000856816769
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000856816769
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          }
+        },
+        {
+          "point_world": [
+            -0.08925186097621918,
+            0.5098487734794617,
+            0.5172046422958374
+          ],
+          "depth_below_support_mm": 3.969930920942122,
+          "nearest_sum_mm": 1.1920929132713809e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000856816769
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000856816769
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          }
+        },
+        {
+          "point_world": [
+            -0.09558232873678207,
+            0.5098732709884644,
+            0.5156906843185425
+          ],
+          "depth_below_support_mm": 3.9699273535400503,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000856816769
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000856816769
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          }
+        },
+        {
+          "point_world": [
+            -0.09878796339035034,
+            0.5319951176643372,
+            0.524787962436676
+          ],
+          "depth_below_support_mm": 1.559043792024907,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000074505806
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000074505806
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0
+          }
+        },
+        {
+          "point_world": [
+            -0.09517757594585419,
+            0.5382517576217651,
+            0.5284489393234253
+          ],
+          "depth_below_support_mm": 0.8752807232127444,
+          "nearest_sum_mm": 1.201370043584799e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000074505806
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000074505806
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0
+          }
+        },
+        {
+          "point_world": [
+            -0.09967035800218582,
+            0.5193761587142944,
+            0.518945574760437
+          ],
+          "depth_below_support_mm": 2.935426021662369,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000074505806
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000074505806
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0
+          }
+        },
+        {
+          "point_world": [
+            -0.10151594132184982,
+            0.5383574962615967,
+            0.526969313621521
+          ],
+          "depth_below_support_mm": 0.8664220584209568,
+          "nearest_sum_mm": 1.201370043584799e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000074505806
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000074505806
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0
+          }
+        },
+        {
+          "point_world": [
+            -0.07711049169301987,
+            0.5140058994293213,
+            0.5275750160217285
+          ],
+          "depth_below_support_mm": 3.294681247989553,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000298023224
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000298023224
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          }
+        },
+        {
+          "point_world": [
+            -0.07641173899173737,
+            0.5261166095733643,
+            0.5342646241188049
+          ],
+          "depth_below_support_mm": 1.9304327372339771,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000298023224
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000298023224
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          }
+        },
+        {
+          "point_world": [
+            -0.07458633184432983,
+            0.5073428750038147,
+            0.5263286232948303
+          ],
+          "depth_below_support_mm": 3.9768083613635348,
+          "nearest_sum_mm": 1.201370043584799e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000298023224
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000298023224
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          }
+        },
+        {
+          "point_world": [
+            -0.080333411693573,
+            0.5085581541061401,
+            0.5221318006515503
+          ],
+          "depth_below_support_mm": 3.9768084603165597,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000298023224
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000298023224
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          }
+        },
+        {
+          "point_world": [
+            -0.08343112468719482,
+            0.530768632888794,
+            0.5307354927062988
+          ],
+          "depth_below_support_mm": 1.5778984469327841,
+          "nearest_sum_mm": 7.4969663595132215e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999850988388
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999850988388
+          }
+        },
+        {
+          "point_world": [
+            -0.08020411431789398,
+            0.5361742377281189,
+            0.536160945892334
+          ],
+          "depth_below_support_mm": 0.9003625967593876,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999850988388
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999850988388
+          }
+        },
+        {
+          "point_world": [
+            -0.08412578701972961,
+            0.5186157822608948,
+            0.5240280628204346
+          ],
+          "depth_below_support_mm": 2.9467408751583224,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999850988388
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999850988388
+          }
+        },
+        {
+          "point_world": [
+            -0.08596348017454147,
+            0.5375158190727234,
+            0.5320174694061279
+          ],
+          "depth_below_support_mm": 0.8865972123439938,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999850988388
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999850988388
+          }
+        },
+        {
+          "point_world": [
+            -0.06679466366767883,
+            0.5098923444747925,
+            0.5393950939178467
+          ],
+          "depth_below_support_mm": 3.305690102352333,
+          "nearest_sum_mm": 7.634022239313544e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000223517418
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000223517418
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          }
+        },
+        {
+          "point_world": [
+            -0.06690038740634918,
+            0.5217273831367493,
+            0.5463246703147888
+          ],
+          "depth_below_support_mm": 1.950249524045728,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000223517418
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000223517418
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          }
+        },
+        {
+          "point_world": [
+            -0.06508676707744598,
+            0.5030748844146729,
+            0.5384398102760315
+          ],
+          "depth_below_support_mm": 3.9834146050127526,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000223517418
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000223517418
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          }
+        },
+        {
+          "point_world": [
+            -0.06839683651924133,
+            0.5048747658729553,
+            0.5334206819534302
+          ],
+          "depth_below_support_mm": 3.983410728382478,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000223517418
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000223517418
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000298023224
+          }
+        },
+        {
+          "point_world": [
+            -0.0710742250084877,
+            0.5270370244979858,
+            0.5418257117271423
+          ],
+          "depth_below_support_mm": 1.600378240091774,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000670552254
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000521540642
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000670552254
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000521540642
+          }
+        },
+        {
+          "point_world": [
+            -0.06946812570095062,
+            0.5320141911506653,
+            0.5477830767631531
+          ],
+          "depth_below_support_mm": 0.9270610425928388,
+          "nearest_sum_mm": 1.201370043584799e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000670552254
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000521540642
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000670552254
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000521540642
+          }
+        },
+        {
+          "point_world": [
+            -0.07096457481384277,
+            0.5151615738868713,
+            0.5348790884017944
+          ],
+          "depth_below_support_mm": 2.960222444835639,
+          "nearest_sum_mm": 4.470348424767678e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000670552254
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000521540642
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000670552254
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000521540642
+          }
+        },
+        {
+          "point_world": [
+            -0.07278997451066971,
+            0.5339352488517761,
+            0.542815089225769
+          ],
+          "depth_below_support_mm": 0.9138521059617712,
+          "nearest_sum_mm": 1.201370043584799e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000670552254
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000521540642
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000670552254
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000521540642
+          }
+        },
+        {
+          "point_world": [
+            -0.060454875230789185,
+            0.5062813758850098,
+            0.5489246845245361
+          ],
+          "depth_below_support_mm": 3.3239511336974963,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          }
+        },
+        {
+          "point_world": [
+            -0.06093790754675865,
+            0.518193781375885,
+            0.5552082061767578
+          ],
+          "depth_below_support_mm": 1.9831017188072457,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          }
+        },
+        {
+          "point_world": [
+            -0.059143826365470886,
+            0.49974218010902405,
+            0.5474083423614502
+          ],
+          "depth_below_support_mm": 3.994365468537292,
+          "nearest_sum_mm": 1.2821397823532405e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          }
+        },
+        {
+          "point_world": [
+            -0.061282891780138016,
+            0.5009083151817322,
+            0.5441576242446899
+          ],
+          "depth_below_support_mm": 3.99436768042844,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000037252903
+          }
+        },
+        {
+          "point_world": [
+            -0.0637487843632698,
+            0.5227969884872437,
+            0.5527865290641785
+          ],
+          "depth_below_support_mm": 1.6296386263093143,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000521540642
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000894069672
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000521540642
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000894069672
+          }
+        },
+        {
+          "point_world": [
+            -0.06291425228118896,
+            0.5281030535697937,
+            0.5575252771377563
+          ],
+          "depth_below_support_mm": 0.9665243937302288,
+          "nearest_sum_mm": 1.2509684852337772e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000521540642
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000894069672
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000521540642
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000894069672
+          }
+        },
+        {
+          "point_world": [
+            -0.06325923651456833,
+            0.5108176469802856,
+            0.5464746952056885
+          ],
+          "depth_below_support_mm": 2.9777849536804095,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000521540642
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000894069672
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000521540642
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000894069672
+          }
+        },
+        {
+          "point_world": [
+            -0.06507285684347153,
+            0.5294702053070068,
+            0.5543595552444458
+          ],
+          "depth_below_support_mm": 0.9446145874576952,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000521540642
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000894069672
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000521540642
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000894069672
+          }
+        },
+        {
+          "point_world": [
+            -0.05672875791788101,
+            0.503790020942688,
+            0.555442750453949
+          ],
+          "depth_below_support_mm": 3.3329723899509363,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001564621925
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001639127731
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001564621925
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001639127731
+          }
+        },
+        {
+          "point_world": [
+            -0.057531267404556274,
+            0.5157374143600464,
+            0.5613834261894226
+          ],
+          "depth_below_support_mm": 1.9993593282902136,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001564621925
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001639127731
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001564621925
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001639127731
+          }
+        },
+        {
+          "point_world": [
+            -0.05574684962630272,
+            0.49738526344299316,
+            0.5536256432533264
+          ],
+          "depth_below_support_mm": 3.9997812490877687,
+          "nearest_sum_mm": 6.365778754613454e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001564621925
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001639127731
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001564621925
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001639127731
+          }
+        },
+        {
+          "point_world": [
+            -0.056908152997493744,
+            0.498247355222702,
+            0.5513191223144531
+          ],
+          "depth_below_support_mm": 3.9997816914659983,
+          "nearest_sum_mm": 3.3759541443593042e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001564621925
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001639127731
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001564621925
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001639127731
+          }
+        },
+        {
+          "point_world": [
+            -0.05919158086180687,
+            0.5198847055435181,
+            0.5600205659866333
+          ],
+          "depth_below_support_mm": 1.6569239334303723,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          }
+        },
+        {
+          "point_world": [
+            -0.05900895968079567,
+            0.5253942608833313,
+            0.5641301274299622
+          ],
+          "depth_below_support_mm": 0.9937264638949401,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          }
+        },
+        {
+          "point_world": [
+            -0.05838584899902344,
+            0.5079041719436646,
+            0.5540658235549927
+          ],
+          "depth_below_support_mm": 2.9941516559630874,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          }
+        },
+        {
+          "point_world": [
+            -0.0601799301803112,
+            0.5263557434082031,
+            0.5618656873703003
+          ],
+          "depth_below_support_mm": 0.9828905022947563,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000670552254
+          }
+        },
+        {
+          "point_world": [
+            -0.05425195395946503,
+            0.5019525289535522,
+            0.5603500604629517
+          ],
+          "depth_below_support_mm": 3.333329901409594,
+          "nearest_sum_mm": 1.1944189460058257e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          }
+        },
+        {
+          "point_world": [
+            -0.05513956397771835,
+            0.5139614939689636,
+            0.5661181807518005
+          ],
+          "depth_below_support_mm": 2.000000962987556,
+          "nearest_sum_mm": 2.235174212383839e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          }
+        },
+        {
+          "point_world": [
+            -0.05335552990436554,
+            0.4956132769584656,
+            0.5583619475364685
+          ],
+          "depth_below_support_mm": 3.999998433515405,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          }
+        },
+        {
+          "point_world": [
+            -0.05426076799631119,
+            0.49628275632858276,
+            0.5565700531005859
+          ],
+          "depth_below_support_mm": 3.999995965510546,
+          "nearest_sum_mm": 5.9604645663569045e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000968575478
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000968575478
+          }
+        },
+        {
+          "point_world": [
+            -0.05649333447217941,
+            0.5178039073944092,
+            0.5653215646743774
+          ],
+          "depth_below_support_mm": 1.6663104544030194,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999180436134
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999739229679
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999180436134
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999739229679
+          }
+        },
+        {
+          "point_world": [
+            -0.056484390050172806,
+            0.5234723687171936,
+            0.569101095199585
+          ],
+          "depth_below_support_mm": 0.9997843913701829,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999180436134
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999739229679
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999180436134
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999739229679
+          }
+        },
+        {
+          "point_world": [
+            -0.05560559779405594,
+            0.505793571472168,
+            0.5595529675483704
+          ],
+          "depth_below_support_mm": 2.999784888696445,
+          "nearest_sum_mm": 5.215406495562291e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999180436134
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999739229679
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999180436134
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999739229679
+          }
+        },
+        {
+          "point_world": [
+            -0.057390011847019196,
+            0.524145781993866,
+            0.5673107504844666
+          ],
+          "depth_below_support_mm": 0.9993574498125528,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999180436134
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999739229679
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999180436134
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999739229679
+          }
+        },
+        {
+          "point_world": [
+            -0.051109686493873596,
+            0.49786514043807983,
+            0.5708913803100586
+          ],
+          "depth_below_support_mm": 3.3275399852922547,
+          "nearest_sum_mm": 6.006850217923995e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999664723873
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999664723873
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999664723873
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999664723873
+          }
+        },
+        {
+          "point_world": [
+            -0.05182455852627754,
+            0.5094232559204102,
+            0.5778852105140686
+          ],
+          "depth_below_support_mm": 1.9895792915097141,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999664723873
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999664723873
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999664723873
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999664723873
+          }
+        },
+        {
+          "point_world": [
+            -0.05003432556986809,
+            0.49101126194000244,
+            0.5701020956039429
+          ],
+          "depth_below_support_mm": 3.9965256479982374,
+          "nearest_sum_mm": 3.3759541443593042e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999664723873
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999664723873
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999664723873
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999664723873
+          }
+        },
+        {
+          "point_world": [
+            -0.05147016793489456,
+            0.49316084384918213,
+            0.5646867752075195
+          ],
+          "depth_below_support_mm": 3.996523063578054,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999664723873
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999664723873
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999664723873
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999664723873
+          }
+        },
+        {
+          "point_world": [
+            -0.05379291623830795,
+            0.5149466395378113,
+            0.5728420615196228
+          ],
+          "depth_below_support_mm": 1.6608765363451319,
+          "nearest_sum_mm": 3.7252903539730653e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999962747097
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999906867743
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999962747097
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999906867743
+          }
+        },
+        {
+          "point_world": [
+            -0.053434498608112335,
+            0.519672155380249,
+            0.579055666923523
+          ],
+          "depth_below_support_mm": 0.9895793309745091,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999962747097
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999906867743
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999962747097
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999906867743
+          }
+        },
+        {
+          "point_world": [
+            -0.053080104291439056,
+            0.503409743309021,
+            0.5658571720123291
+          ],
+          "depth_below_support_mm": 2.9965255623165596,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999962747097
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999906867743
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999962747097
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999906867743
+          }
+        },
+        {
+          "point_world": [
+            -0.05486413836479187,
+            0.521757960319519,
+            0.5736134052276611
+          ],
+          "depth_below_support_mm": 0.9965278822411279,
+          "nearest_sum_mm": 2.235174212383839e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999962747097
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999906867743
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999962747097
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999906867743
+          }
+        },
+        {
+          "point_world": [
+            -0.047089435160160065,
+            0.48851698637008667,
+            0.5943427085876465
+          ],
+          "depth_below_support_mm": 3.311549618826055,
+          "nearest_sum_mm": 6.006850217923995e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000717118382
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001331791282
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000717118382
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001331791282
+          }
+        },
+        {
+          "point_world": [
+            -0.04772673919796944,
+            0.4993683397769928,
+            0.6033564209938049
+          ],
+          "depth_below_support_mm": 1.960787229586947,
+          "nearest_sum_mm": 3.3759541443593042e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000717118382
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001331791282
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000717118382
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001331791282
+          }
+        },
+        {
+          "point_world": [
+            -0.04591938480734825,
+            0.4807802736759186,
+            0.5954988598823547
+          ],
+          "depth_below_support_mm": 3.986926506078637,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000717118382
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001331791282
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000717118382
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001331791282
+          }
+        },
+        {
+          "point_world": [
+            -0.04762217774987221,
+            0.4854024052619934,
+            0.5841729044914246
+          ],
+          "depth_below_support_mm": 3.9869276236657436,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000717118382
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001331791282
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000717118382
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001331791282
+          }
+        },
+        {
+          "point_world": [
+            -0.05000028759241104,
+            0.5077121257781982,
+            0.5913903713226318
+          ],
+          "depth_below_support_mm": 1.6390910034305004,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001220032573
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001220032573
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001220032573
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001220032573
+          }
+        },
+        {
+          "point_world": [
+            -0.04947325214743614,
+            0.5108854174613953,
+            0.6015849709510803
+          ],
+          "depth_below_support_mm": 0.9573144049542306,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001220032573
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001220032573
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001220032573
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001220032573
+          }
+        },
+        {
+          "point_world": [
+            -0.04936869069933891,
+            0.4969194531440735,
+            0.5824015140533447
+          ],
+          "depth_below_support_mm": 2.983455218128192,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001220032573
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001220032573
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001220032573
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001220032573
+          }
+        },
+        {
+          "point_world": [
+            -0.05115892365574837,
+            0.5153314471244812,
+            0.5901846289634705
+          ],
+          "depth_below_support_mm": 0.9765089169369474,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001220032573
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001220032573
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001220032573
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001220032573
+          }
+        },
+        {
+          "point_world": [
+            -0.0456506572663784,
+            0.4782675504684448,
+            0.6194493174552917
+          ],
+          "depth_below_support_mm": 3.291023616766443,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001095468178
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001095468178
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001095468178
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001095468178
+          }
+        },
+        {
+          "point_world": [
+            -0.046862587332725525,
+            0.4894929826259613,
+            0.6278691291809082
+          ],
+          "depth_below_support_mm": 1.9238489733837387,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001095468178
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001095468178
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001095468178
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001095468178
+          }
+        },
+        {
+          "point_world": [
+            -0.04503326863050461,
+            0.47067898511886597,
+            0.6199160218238831
+          ],
+          "depth_below_support_mm": 3.9746166888290815,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001095468178
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001095468178
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001095468178
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001095468178
+          }
+        },
+        {
+          "point_world": [
+            -0.045056119561195374,
+            0.47463059425354004,
+            0.610562801361084
+          ],
+          "depth_below_support_mm": 3.9746133504377794,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001095468178
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001095468178
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001095468178
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001095468178
+          }
+        },
+        {
+          "point_world": [
+            -0.04717583209276199,
+            0.49705058336257935,
+            0.6182029247283936
+          ],
+          "depth_below_support_mm": 1.602574549048387,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000115018338
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001145526767
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000115018338
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001145526767
+          }
+        },
+        {
+          "point_world": [
+            -0.0477776899933815,
+            0.5007628202438354,
+            0.6271212697029114
+          ],
+          "depth_below_support_mm": 0.9107787530612758,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000115018338
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001145526767
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000115018338
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001145526767
+          }
+        },
+        {
+          "point_world": [
+            -0.04597122222185135,
+            0.4859004020690918,
+            0.6098149418830872
+          ],
+          "depth_below_support_mm": 2.961545924083082,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000115018338
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001145526767
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000115018338
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001145526767
+          }
+        },
+        {
+          "point_world": [
+            -0.047778576612472534,
+            0.504488468170166,
+            0.6176725625991821
+          ],
+          "depth_below_support_mm": 0.935404400775647,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000115018338
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001145526767
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000115018338
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001145526767
+          }
+        },
+        {
+          "point_world": [
+            -0.045932963490486145,
+            0.4724203646183014,
+            0.6332470178604126
+          ],
+          "depth_below_support_mm": 3.2898465894512317,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999711290002
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999706633389
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999711290002
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999706633389
+          }
+        },
+        {
+          "point_world": [
+            -0.047213416546583176,
+            0.48445868492126465,
+            0.6397525072097778
+          ],
+          "depth_below_support_mm": 1.9217243937287385,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999711290002
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999706633389
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999711290002
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999706633389
+          }
+        },
+        {
+          "point_world": [
+            -0.04538282752037048,
+            0.46563172340393066,
+            0.6317939758300781
+          ],
+          "depth_below_support_mm": 3.9739030539826006,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999711290002
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999706633389
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999711290002
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999706633389
+          }
+        },
+        {
+          "point_world": [
+            -0.045202650129795074,
+            0.46717071533203125,
+            0.6281946897506714
+          ],
+          "depth_below_support_mm": 3.973904637231001,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999711290002
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999706633389
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999711290002
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999706633389
+          }
+        },
+        {
+          "point_world": [
+            -0.04730725288391113,
+            0.48938122391700745,
+            0.6368752121925354
+          ],
+          "depth_below_support_mm": 1.5808711063991647,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999837018549
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999841675162
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999837018549
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999841675162
+          }
+        },
+        {
+          "point_world": [
+            -0.04803799092769623,
+            0.4946351945400238,
+            0.6419293880462646
+          ],
+          "depth_below_support_mm": 0.8963411108976767,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999837018549
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999841675162
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999837018549
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999841675162
+          }
+        },
+        {
+          "point_world": [
+            -0.04602722451090813,
+            0.477347195148468,
+            0.6303715705871582
+          ],
+          "depth_below_support_mm": 2.9485242880660927,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999837018549
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999841675162
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999837018549
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999841675162
+          }
+        },
+        {
+          "point_world": [
+            -0.04785654693841934,
+            0.49616122245788574,
+            0.6383246779441833
+          ],
+          "depth_below_support_mm": 0.8977536478676443,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999837018549
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999841675162
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999837018549
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999841675162
+          }
+        },
+        {
+          "point_world": [
+            -0.04920927435159683,
+            0.46315544843673706,
+            0.6546803712844849
+          ],
+          "depth_below_support_mm": 3.2793920044510356,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000118743628
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000100990292
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000118743628
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000100990292
+          }
+        },
+        {
+          "point_world": [
+            -0.05106049031019211,
+            0.4741678237915039,
+            0.6636971831321716
+          ],
+          "depth_below_support_mm": 1.9029087670580855,
+          "nearest_sum_mm": 5.9604645663569045e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000118743628
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000100990292
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000118743628
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000100990292
+          }
+        },
+        {
+          "point_world": [
+            -0.049218714237213135,
+            0.45522576570510864,
+            0.6556900143623352
+          ],
+          "depth_below_support_mm": 3.96763248227734,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000118743628
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000100990292
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000118743628
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000100990292
+          }
+        },
+        {
+          "point_world": [
+            -0.047348614782094955,
+            0.46007275581359863,
+            0.6446539163589478
+          ],
+          "depth_below_support_mm": 3.967634694168488,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000118743628
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000100990292
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000118743628
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000100990292
+          }
+        },
+        {
+          "point_world": [
+            -0.04917634278535843,
+            0.4828837811946869,
+            0.6521158218383789
+          ],
+          "depth_below_support_mm": 1.5692378628140367,
+          "nearest_sum_mm": 1.1175871061919196e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000113795977
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000114669092
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000113795977
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000114669092
+          }
+        },
+        {
+          "point_world": [
+            -0.051040731370449066,
+            0.48600485920906067,
+            0.6621584296226501
+          ],
+          "depth_below_support_mm": 0.8768139072032853,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000113795977
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000114669092
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000113795977
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000114669092
+          }
+        },
+        {
+          "point_world": [
+            -0.04732885956764221,
+            0.471909761428833,
+            0.643115222454071
+          ],
+          "depth_below_support_mm": 2.9415402534088524,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000113795977
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000114669092
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000113795977
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000114669092
+          }
+        },
+        {
+          "point_world": [
+            -0.049159444868564606,
+            0.4907367527484894,
+            0.6510737538337708
+          ],
+          "depth_below_support_mm": 0.8893588224702896,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000113795977
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000114669092
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000113795977
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000114669092
+          }
+        },
+        {
+          "point_world": [
+            -0.054552920162677765,
+            0.45601749420166016,
+            0.670647144317627
+          ],
+          "depth_below_support_mm": 3.2673650675246866,
+          "nearest_sum_mm": 4.470348424767678e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000030733645
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000030733645
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000030733645
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000030733645
+          }
+        },
+        {
+          "point_world": [
+            -0.05654425173997879,
+            0.4680919647216797,
+            0.6773672103881836
+          ],
+          "depth_below_support_mm": 1.8812639453450428,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000030733645
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000030733645
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000030733645
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000030733645
+          }
+        },
+        {
+          "point_world": [
+            -0.05468960851430893,
+            0.4490175247192383,
+            0.6693040728569031
+          ],
+          "depth_below_support_mm": 3.9604180849778357,
+          "nearest_sum_mm": 1.1175871061919196e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000030733645
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000030733645
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000030733645
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000030733645
+          }
+        },
+        {
+          "point_world": [
+            -0.05242490768432617,
+            0.4509429931640625,
+            0.6652700901031494
+          ],
+          "depth_below_support_mm": 3.9604160826342705,
+          "nearest_sum_mm": 1.2871718460828771e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000030733645
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000030733645
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000030733645
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.000000030733645
+          }
+        },
+        {
+          "point_world": [
+            -0.05420048534870148,
+            0.473407119512558,
+            0.6739580631256104
+          ],
+          "depth_below_support_mm": 1.5467613234633402,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001098960638
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001098960638
+          }
+        },
+        {
+          "point_world": [
+            -0.0563327893614769,
+            0.47852572798728943,
+            0.6793537735939026
+          ],
+          "depth_below_support_mm": 0.8489021692261421,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001098960638
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001098960638
+          }
+        },
+        {
+          "point_world": [
+            -0.05221344158053398,
+            0.46137678623199463,
+            0.6672565937042236
+          ],
+          "depth_below_support_mm": 2.928053957269399,
+          "nearest_sum_mm": 3.3759541443593042e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001098960638
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001098960638
+          }
+        },
+        {
+          "point_world": [
+            -0.054055217653512955,
+            0.4803188443183899,
+            0.6752638220787048
+          ],
+          "depth_below_support_mm": 0.8633277274791555,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001098960638
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000651925802
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001098960638
+          }
+        },
+        {
+          "point_world": [
+            -0.059450067579746246,
+            0.45181477069854736,
+            0.6794630289077759
+          ],
+          "depth_below_support_mm": 3.2673569184520375,
+          "nearest_sum_mm": 4.097819389370372e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999998351559043
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999998323619366
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999998351559043
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999998323619366
+          }
+        },
+        {
+          "point_world": [
+            -0.06128847971558571,
+            0.4640114903450012,
+            0.6859292984008789
+          ],
+          "depth_below_support_mm": 1.8812470884061911,
+          "nearest_sum_mm": 2.235174212383839e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999998351559043
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999998323619366
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999998351559043
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999998323619366
+          }
+        },
+        {
+          "point_world": [
+            -0.05943382903933525,
+            0.44493693113327026,
+            0.6778661012649536
+          ],
+          "depth_below_support_mm": 3.9604143364044173,
+          "nearest_sum_mm": 2.235174212383839e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999998351559043
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999998323619366
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999998351559043
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999998323619366
+          }
+        },
+        {
+          "point_world": [
+            -0.05762789398431778,
+            0.4464958906173706,
+            0.6745936274528503
+          ],
+          "depth_below_support_mm": 3.960412101230205,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999998351559043
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999998323619366
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999998351559043
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999998323619366
+          }
+        },
+        {
+          "point_world": [
+            -0.059490662068128586,
+            0.46900928020477295,
+            0.683455228805542
+          ],
+          "depth_below_support_mm": 1.5347267729748302,
+          "nearest_sum_mm": 6.514890413191063e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000150874257
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001480802894
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000150874257
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001480802894
+          }
+        },
+        {
+          "point_world": [
+            -0.06131283938884735,
+            0.4743282198905945,
+            0.6883246302604675
+          ],
+          "depth_below_support_mm": 0.8416663515071026,
+          "nearest_sum_mm": 1.1175871061919196e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000150874257
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001480802894
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000150874257
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001480802894
+          }
+        },
+        {
+          "point_world": [
+            -0.05765225365757942,
+            0.45681262016296387,
+            0.676988959312439
+          ],
+          "depth_below_support_mm": 2.920831364331116,
+          "nearest_sum_mm": 2.235174212383839e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000150874257
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001480802894
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000150874257
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001480802894
+          }
+        },
+        {
+          "point_world": [
+            -0.05950689688324928,
+            0.4758870303630829,
+            0.6850520968437195
+          ],
+          "depth_below_support_mm": 0.841679832401571,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000150874257
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001480802894
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000150874257
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001480802894
+          }
+        },
+        {
+          "point_world": [
+            -0.06523534655570984,
+            0.44715452194213867,
+            0.6890357136726379
+          ],
+          "depth_below_support_mm": 3.2720512732424023,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.999999949708581
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000977888703
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.999999949708581
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000977888703
+          }
+        },
+        {
+          "point_world": [
+            -0.06732533127069473,
+            0.4591728448867798,
+            0.6957694292068481
+          ],
+          "depth_below_support_mm": 1.8896917512035627,
+          "nearest_sum_mm": 6.664002071768671e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.999999949708581
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000977888703
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.999999949708581
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000977888703
+          }
+        },
+        {
+          "point_world": [
+            -0.0654757022857666,
+            0.4401499629020691,
+            0.6877280473709106
+          ],
+          "depth_below_support_mm": 3.963227396282961,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.999999949708581
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000977888703
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.999999949708581
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000977888703
+          }
+        },
+        {
+          "point_world": [
+            -0.06290499866008759,
+            0.4421407878398895,
+            0.6836097240447998
+          ],
+          "depth_below_support_mm": 3.9632299341370145,
+          "nearest_sum_mm": 6.1439060977243175e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.999999949708581
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000977888703
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.999999949708581
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000977888703
+          }
+        },
+        {
+          "point_world": [
+            -0.06463862955570221,
+            0.4647090435028076,
+            0.6923231482505798
+          ],
+          "depth_below_support_mm": 1.5394091835529977,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000105239451
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000596046448
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000105239451
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000596046448
+          }
+        },
+        {
+          "point_world": [
+            -0.06696730107069016,
+            0.4697055220603943,
+            0.6977418661117554
+          ],
+          "depth_below_support_mm": 0.8501107465492298,
+          "nearest_sum_mm": 7.634022239313544e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000105239451
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000596046448
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000105239451
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000596046448
+          }
+        },
+        {
+          "point_world": [
+            -0.06254696846008301,
+            0.4526734948158264,
+            0.6855822205543518
+          ],
+          "depth_below_support_mm": 2.9236440749636894,
+          "nearest_sum_mm": 4.470348424767678e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000105239451
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000596046448
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000105239451
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000596046448
+          }
+        },
+        {
+          "point_world": [
+            -0.06440161913633347,
+            0.4717480540275574,
+            0.6936453580856323
+          ],
+          "depth_below_support_mm": 0.8444786896106403,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000105239451
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000596046448
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000105239451
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000596046448
+          }
+        },
+        {
+          "point_world": [
+            -0.07667522132396698,
+            0.44136911630630493,
+            0.6987580060958862
+          ],
+          "depth_below_support_mm": 3.3237271622564957,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000894069672
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000223517418
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000894069672
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000223517418
+          }
+        },
+        {
+          "point_world": [
+            -0.07974018156528473,
+            0.45294132828712463,
+            0.7052567601203918
+          ],
+          "depth_below_support_mm": 1.9827093293176488,
+          "nearest_sum_mm": 1.2287812195448635e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000894069672
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000223517418
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000894069672
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000223517418
+          }
+        },
+        {
+          "point_world": [
+            -0.07794586569070816,
+            0.43448731303215027,
+            0.697455883026123
+          ],
+          "depth_below_support_mm": 3.9942360263390237,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000894069672
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000223517418
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000894069672
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000223517418
+          }
+        },
+        {
+          "point_world": [
+            -0.07233962416648865,
+            0.4366787075996399,
+            0.6935614347457886
+          ],
+          "depth_below_support_mm": 3.994233837730941,
+          "nearest_sum_mm": 2.9802322831784522e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000894069672
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000223517418
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000894069672
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000223517418
+          }
+        },
+        {
+          "point_world": [
+            -0.07354472577571869,
+            0.4590476453304291,
+            0.7022137641906738
+          ],
+          "depth_below_support_mm": 1.5957823493820775,
+          "nearest_sum_mm": 2.235174212383839e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000074505806
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000074505806
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          }
+        },
+        {
+          "point_world": [
+            -0.07786188274621964,
+            0.4635484516620636,
+            0.7073302268981934
+          ],
+          "depth_below_support_mm": 0.9459415591648451,
+          "nearest_sum_mm": 7.450580707946131e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000074505806
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000074505806
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          }
+        },
+        {
+          "point_world": [
+            -0.07046132534742355,
+            0.44728583097457886,
+            0.6956348419189453
+          ],
+          "depth_below_support_mm": 2.9574677439587966,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000074505806
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000074505806
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          }
+        },
+        {
+          "point_world": [
+            -0.07231096178293228,
+            0.46630871295928955,
+            0.7036762237548828
+          ],
+          "depth_below_support_mm": 0.8839324132007718,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000074505806
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.000000074505806
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          }
+        },
+        {
+          "point_world": [
+            -0.09060748666524887,
+            0.4386609196662903,
+            0.7017707824707031
+          ],
+          "depth_below_support_mm": 3.3310643995502307,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001049920684
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001049920684
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001049920684
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001049920684
+          }
+        },
+        {
+          "point_world": [
+            -0.09365186095237732,
+            0.4507468044757843,
+            0.7069078087806702
+          ],
+          "depth_below_support_mm": 1.9959138683598687,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001049920684
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001049920684
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001049920684
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001049920684
+          }
+        },
+        {
+          "point_world": [
+            -0.09186539053916931,
+            0.432373583316803,
+            0.6991410851478577
+          ],
+          "depth_below_support_mm": 3.9986340342817304,
+          "nearest_sum_mm": 1.3328004143537342e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001049920684
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001049920684
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001049920684
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001049920684
+          }
+        },
+        {
+          "point_world": [
+            -0.08630523085594177,
+            0.43286240100860596,
+            0.6992635130882263
+          ],
+          "depth_below_support_mm": 3.9986387621990582,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001049920684
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001049920684
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000001049920684
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000001049920684
+          }
+        },
+        {
+          "point_world": [
+            -0.08746927976608276,
+            0.45444661378860474,
+            0.7083736062049866
+          ],
+          "depth_below_support_mm": 1.6547933292823778,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999248684617
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999240390025
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999248684617
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999240390025
+          }
+        },
+        {
+          "point_world": [
+            -0.09176893532276154,
+            0.460218220949173,
+            0.7108694911003113
+          ],
+          "depth_below_support_mm": 0.9901519866822581,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999248684617
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999240390025
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999248684617
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999240390025
+          }
+        },
+        {
+          "point_world": [
+            -0.08442230522632599,
+            0.44233381748199463,
+            0.7032251954078674
+          ],
+          "depth_below_support_mm": 2.992876879066256,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999248684617
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999240390025
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999248684617
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999240390025
+          }
+        },
+        {
+          "point_world": [
+            -0.08621661365032196,
+            0.460787832736969,
+            0.7110260725021362
+          ],
+          "depth_below_support_mm": 0.981350246073309,
+          "nearest_sum_mm": 7.450580707946131e-07,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999248684617
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999240390025
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999248684617
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999240390025
+          }
+        },
+        {
+          "point_world": [
+            -0.1051846593618393,
+            0.44154685735702515,
+            0.6928828358650208
+          ],
+          "depth_below_support_mm": 3.2809558813416335,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999925494194
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999925494194
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          }
+        },
+        {
+          "point_world": [
+            -0.10839119553565979,
+            0.4547301232814789,
+            0.6964200735092163
+          ],
+          "depth_below_support_mm": 1.9057251564148832,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999925494194
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999925494194
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          }
+        },
+        {
+          "point_world": [
+            -0.10655109584331512,
+            0.4358052909374237,
+            0.6884201765060425
+          ],
+          "depth_below_support_mm": 3.9685717443909003,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999925494194
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999925494194
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          }
+        },
+        {
+          "point_world": [
+            -0.10061169415712357,
+            0.43410512804985046,
+            0.6938083171844482
+          ],
+          "depth_below_support_mm": 3.968570300840888,
+          "nearest_sum_mm": 4.470348424767678e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999925494194
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 0.9999999925494194
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -0.9999999925494194
+          }
+        },
+        {
+          "point_world": [
+            -0.10172387957572937,
+            0.45544108748435974,
+            0.703845202922821
+          ],
+          "depth_below_support_mm": 1.6120208318273843,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          }
+        },
+        {
+          "point_world": [
+            -0.10631473362445831,
+            0.4630666673183441,
+            0.7029975056648254
+          ],
+          "depth_below_support_mm": 0.9043632908443104,
+          "nearest_sum_mm": 1.4901161415892261e-06,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          }
+        },
+        {
+          "point_world": [
+            -0.09853522479534149,
+            0.4424416720867157,
+            0.7003856897354126
+          ],
+          "depth_below_support_mm": 2.9672109265582396,
+          "nearest_sum_mm": 0.0,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          }
+        },
+        {
+          "point_world": [
+            -0.1003216952085495,
+            0.460814893245697,
+            0.7081524729728699
+          ],
+          "depth_below_support_mm": 0.9644887088163002,
+          "nearest_sum_mm": 1.2731557509226908e-05,
+          "nearest_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "nearest_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          },
+          "ray_A": {
+            "marked": true,
+            "normal_dot_reference": 1.0000000447034836
+          },
+          "ray_B": {
+            "marked": true,
+            "normal_dot_reference": -1.0000000447034836
+          }
+        }
+      ],
+      "groups": {
+        "lateral": {
+          "samples": 208,
+          "min_mm": 0.0,
+          "p10_mm": 0.0,
+          "median_mm": 4.629529644994659e-09,
+          "p90_mm": 2.415881918915842e-06,
+          "max_mm": 3.983873545504811e-06
+        },
+        "floor": {
+          "samples": 96,
+          "min_mm": 3.4038887655417673e-06,
+          "p10_mm": 3.44073467019639e-06,
+          "median_mm": 3.4680990924437444e-06,
+          "p90_mm": 3.495781837841463e-06,
+          "max_mm": 3.5164955799830002e-06
+        },
+        "sloped": {
+          "samples": 0
+        }
+      },
+      "nearest_surface_gap_sum": {
+        "lateral": {
+          "samples": 208,
+          "min_mm": 0.0,
+          "p10_mm": 0.0,
+          "median_mm": 1.4901161415892261e-06,
+          "p90_mm": 6.664002071768671e-06,
+          "max_mm": 1.3328004143537342e-05
+        },
+        "floor": {
+          "samples": 96,
+          "min_mm": 0.0,
+          "p10_mm": 0.0,
+          "median_mm": 6.006850217923995e-06,
+          "p90_mm": 1.3328004143537342e-05,
+          "max_mm": 1.3411045274303035e-05
+        },
+        "sloped": {
+          "samples": 0
+        }
+      },
+      "zero_lateral_hit_summary": {
+        "nearest_A": {
+          "marked": 208
+        },
+        "nearest_B": {
+          "marked": 208
+        },
+        "ray_A": {
+          "marked": 208
+        },
+        "ray_B": {
+          "marked": 208
+        }
+      }
+    },
+    {
+      "gap_mm": 0.1,
+      "axis_world": [
+        0.08920185267925262,
+        -0.9174132943153381,
+        -0.3878090977668762
+      ],
+      "trim_support_world": [
+        -0.08893731236457825,
+        0.5097499489784241,
+        0.6198789477348328
+      ],
+      "parts": [
+        {
+          "valid": true,
+          "manifold": true,
+          "components": null,
+          "volume_mm3": 695.3434307304138
+        },
+        {
+          "valid": true,
+          "manifold": true,
+          "components": null,
+          "volume_mm3": 716013.1632466353
+        }
+      ],
+      "reference_triangles": 76,
+      "excluded_shoulder_samples": 0,
+      "excluded_rim_samples": 0,
+      "ray_misses": 0,
+      "explosion_transforms_applied": false,
+      "sample_method": "visible triangle centroids + three interior barycentric points",
+      "zero_lateral_ray_samples": [],
+      "groups": {
+        "lateral": {
+          "samples": 208,
+          "min_mm": 0.09999313887511485,
+          "p10_mm": 0.0999978478863216,
+          "median_mm": 0.09999986644163017,
+          "p90_mm": 0.10000258296592064,
+          "max_mm": 0.10000492593799415
+        },
+        "floor": {
+          "samples": 96,
+          "min_mm": 0.10000067783597176,
+          "p10_mm": 0.10000242396350703,
+          "median_mm": 0.10000326714468892,
+          "p90_mm": 0.10000409013508814,
+          "max_mm": 0.10000454952086885
+        },
+        "sloped": {
+          "samples": 0
+        }
+      },
+      "nearest_surface_gap_sum": {
+        "lateral": {
+          "samples": 208,
+          "min_mm": 0.09999605976039258,
+          "p10_mm": 0.09999872567130214,
+          "median_mm": 0.10000066980720562,
+          "p90_mm": 0.10000518924454184,
+          "max_mm": 0.1000138647089292
+        },
+        "floor": {
+          "samples": 96,
+          "min_mm": 0.09999283505592993,
+          "p10_mm": 0.09999837642533146,
+          "median_mm": 0.10000075129793212,
+          "p90_mm": 0.10000382325098098,
+          "max_mm": 0.10000741530000389
+        },
+        "sloped": {
+          "samples": 0
+        }
+      }
+    }
+  ]
+}

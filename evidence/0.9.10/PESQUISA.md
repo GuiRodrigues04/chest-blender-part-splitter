@@ -1,0 +1,8 @@
+# Referências e decisões
+
+- [Shapely: maximum inscribed circle](https://shapely.readthedocs.io/en/2.2.0/reference/shapely.maximum_inscribed_circle.html): distância à borda e maior círculo interior caracterizam o espaço útil, inclusive em polígonos com furos. Aplicação: dimensões limitadas pelo contorno real e validadas pelo perfil; área total não garante encaixe. Nenhuma dependência Shapely foi adicionada.
+- [CGAL: offsets de polígonos](https://doc.cgal.org/latest/Straight_skeleton_2/index.html): recuos podem alterar topologia e separar regiões; furos precisam continuar sendo tratados. Aplicação: preservar validações de bordas/furos e não escolher arbitrariamente entre contatos distintos. Nenhuma dependência CGAL foi adicionada.
+- [Blender: Image Texture](https://docs.blender.org/manual/en/4.2/render/shader_nodes/textures/image.html): uma entrada Vector desconectada utiliza a UV ativa. Aplicação: reconstruir a geometria sem copiar UVs pode apagar a pintura mesmo com o material preservado; a correção copia cada canto e mantém as camadas ativa/render.
+- [Prusa: modeling with 3D printing in mind](https://help.prusa3d.com/article/modeling-with-3d-printing-in-mind_164135): peças que encaixam precisam de tolerância. Aplicação: dimensionamento geométrico mantém as folgas configuradas pelo usuário e não promete calibração universal para qualquer impressora.
+
+O dimensionamento combina busca discreta de diâmetro, validação de perfil e amostras de profundidade nas duas peças. Não é uma garantia contínua sobre toda a malha nem substitui ensaio de impressão. A reprodução de UV usa textura embutida; o arquivo exato dos prints não estava disponível neste computador.

@@ -326,30 +326,74 @@ def final_contact_patch(bm, direction, unit_scale):
     return dict(origin=origin, normal=normal, boundary=[v.co.copy() for v in loop], loops=[[v.co.copy() for v in ring] for ring in loops], triangles=triangles)
 
 def triangulated_source_mesh(mesh):
-    """Use Blender's visible tessellation explicitly before Boolean intersections.
+    """Use visible tessellation explicitly, retaining per-corner UV data.
 
     Nonplanar n-gons otherwise acquire different diagonals independently in
     INTERSECT/DIFFERENCE, so their outputs need not conserve the same shell.
     """
+    import array
     import bpy
     mesh.calc_loop_triangles()
-    result = bpy.data.meshes.new(mesh.name + '_surface_triangles')
     triangles = list(mesh.loop_triangles)
-    result.from_pydata([v.co.copy() for v in mesh.vertices], [], [tuple(t.vertices) for t in triangles])
-    for mat in mesh.materials:
-        result.materials.append(mat)
-    for polygon, triangle in zip(result.polygons, triangles):
-        original = mesh.polygons[triangle.polygon_index]
-        polygon.material_index = original.material_index
-        polygon.use_smooth = original.use_smooth
-    # Face provenance must survive tessellation: future depth cuts use these
-    # markers to distinguish earlier cavities from the outside wall.
-    for attribute in mesh.attributes:
-        if attribute.domain == 'FACE' and attribute.data_type == 'INT' and attribute.name.startswith('splitter_'):
-            copied = result.attributes.new(attribute.name, 'INT', 'FACE')
-            copied.data.foreach_set('value', [attribute.data[t.polygon_index].value for t in triangles])
-    result.update()
-    return result
+    active_uv_name = mesh.uv_layers.active.name if mesh.uv_layers.active else None
+    active_render_uv_name = next((layer.name for layer in mesh.uv_layers
+                                  if layer.active_render), None)
+    uv_payloads = []
+    for source_layer in mesh.uv_layers:
+        source_attribute = mesh.attributes.get(source_layer.name)
+        if (source_attribute is not None
+                and source_attribute.domain == 'CORNER'
+                and source_attribute.data_type == 'FLOAT2'
+                and len(source_attribute.data) == len(mesh.loops)):
+            source_values = [tuple(value.vector) for value in source_attribute.data]
+        else:
+            source_values = [tuple(value.uv) for value in source_layer.data]
+        if len(source_values) != len(mesh.loops):
+            raise RuntimeError(f'UV layer {source_layer.name!r} has incomplete corner data.')
+        values = array.array('f', (component
+                                   for triangle in triangles
+                                   for loop_index in triangle.loops
+                                   for component in source_values[int(loop_index)]))
+        uv_payloads.append((source_layer.name, values))
+
+    # Validate all source UV data before allocating a mesh so incomplete legacy
+    # buffers cannot leave an unused temporary data block behind.
+    result = bpy.data.meshes.new(mesh.name + '_surface_triangles')
+    try:
+        result.from_pydata([v.co.copy() for v in mesh.vertices], [],
+                           [tuple(t.vertices) for t in triangles])
+        for mat in mesh.materials:
+            result.materials.append(mat)
+        for polygon, triangle in zip(result.polygons, triangles):
+            original = mesh.polygons[triangle.polygon_index]
+            polygon.material_index = original.material_index
+            polygon.use_smooth = original.use_smooth
+
+        # Triangle loop order corresponds to MeshLoopTriangle.loops exactly;
+        # copying corners preserves seams even at shared source vertices.
+        for name, values in uv_payloads:
+            layer = result.uv_layers.new(name=name)
+            layer.data.foreach_set('uv', values)
+        if active_uv_name is not None and active_uv_name in result.uv_layers:
+            result.uv_layers.active_index = next(i for i, layer in enumerate(result.uv_layers)
+                                                 if layer.name == active_uv_name)
+        if active_render_uv_name is not None and active_render_uv_name in result.uv_layers:
+            result.uv_layers.active_render_index = next(i for i, layer in enumerate(result.uv_layers)
+                                                        if layer.name == active_render_uv_name)
+
+        # Face provenance must survive tessellation: future depth cuts use these
+        # markers to distinguish earlier cavities from the outside wall.
+        for attribute in mesh.attributes:
+            if (attribute.domain == 'FACE' and attribute.data_type == 'INT'
+                    and attribute.name.startswith('splitter_')):
+                copied = result.attributes.new(attribute.name, 'INT', 'FACE')
+                copied.data.foreach_set('value', [attribute.data[t.polygon_index].value
+                                                   for t in triangles])
+        result.update()
+        return result
+    except Exception:
+        bpy.data.meshes.remove(result)
+        raise
 
 def convex_contact_planes(bm, unit_scale):
     """Return deduplicated supporting planes only for a genuinely convex shell."""

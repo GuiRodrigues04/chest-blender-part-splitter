@@ -12,6 +12,7 @@ from .scene_state import uses_surface_region
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Any, Optional
 import math
+import json
 
 import bpy
 import bmesh
@@ -90,7 +91,7 @@ def clear_prepared_split_cache():
 
 
 def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool = False,
-                             include_solids: bool = False) -> PreparedSplit:
+                             include_solids: bool = False, auto_contact: bool = False) -> PreparedSplit:
     """Prepara o corte sem encaixes, garantindo uma única CutInterface e superfície útil de contato.
     
     Compatível com PLANE, LOOP, MATERIAL e SOLID.
@@ -144,7 +145,28 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
         mesh_a = bpy.data.meshes.new('_region_interface_a')
         mesh_b = bpy.data.meshes.new('_region_interface_b')
         try:
-            cut_iface = slice_region(target, settings, context.scene, mesh_a, mesh_b)['interface']
+            report = slice_region(target, settings, context.scene, mesh_a, mesh_b)
+            cut_iface = report['interface']
+            choices = report.get('contact_choices', [])
+            if choices:
+                settings.contact_choices = json.dumps(choices, separators=(',', ':'))
+            if auto_contact and cut_iface is None and settings.contact_patch_index < 0:
+                # The first sizing request can expose contact choices before
+                # preview, but must not guess when the region has multiple seats.
+                from .input_state import contact_signature
+                settings.contact_input_signature = contact_signature(settings, target, context.scene)
+                if len(choices) != 1:
+                    if len(choices) > 1:
+                        raise ValueError('Há mais de um contato plano. Escolha um contato na lista antes de sugerir dimensões.')
+                    raise ValueError('Não há contato plano válido na região capturada para preparar os pinos.')
+                settings.contact_patch_index = int(choices[0]['index'])
+                report = slice_region(target, settings, context.scene, mesh_a, mesh_b)
+                cut_iface = report.get('interface')
+                if cut_iface is None:
+                    settings.contact_patch_index = -1
+                    raise ValueError('Não foi possível preparar o único contato plano encontrado.')
+                # Contact selection participates in the cut signature.
+                sig = compute_cut_signature(settings, target, context.scene) + ':' + male_side
             if include_solids:
                 attach_sizing_solids(cut_iface, mesh_a, mesh_b)
         finally:

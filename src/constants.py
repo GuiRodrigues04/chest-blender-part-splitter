@@ -1,7 +1,7 @@
 """Constantes e definições padrão para o Splitter."""
 
 # Identificação e versão do Addon
-ADDON_VERSION = (0, 9, 9)
+ADDON_VERSION = (0, 9, 10)
 ADDON_VERSION_STR = ".".join(map(str, ADDON_VERSION))
 PANEL_TITLE = f"Splitter {ADDON_VERSION_STR}"
 

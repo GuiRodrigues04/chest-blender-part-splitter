@@ -73,9 +73,20 @@ def _on_connector_enabled(self, context):
             or not context.area or context.area.type != 'VIEW_3D'
             or getattr(getattr(context, 'region', None), 'type', None) != 'UI'):
         return
-    from .connector_sizing import defaults_untouched
-    if not defaults_untouched(self) or not self.target_object:
+    from .connector_sizing import defaults_untouched, automatic_suggestion_current
+    if not self.target_object:
         return
+    if not defaults_untouched(self):
+        from .translations import report_msg
+        self.connector_sizing_status = report_msg(
+            'Dimensões salvas preservadas. Use Sugerir dimensões para calcular uma alternativa segura.',
+            'Saved dimensions preserved. Use Suggest dimensions to calculate a safe alternative.')
+        return
+    try:
+        if automatic_suggestion_current(context):
+            return
+    except Exception:
+        pass
     scene = context.scene
     scene_id, target_id = scene.as_pointer(), self.target_object.as_pointer()
     def suggest():
@@ -90,12 +101,21 @@ def _on_connector_enabled(self, context):
             from .connector_sizing import apply_suggestion
             from .geometry_connectors import ConnectorValidationError
             from .translations import report_msg
+            from .localized_errors import render_message
             try:
-                apply_suggestion(bpy.context, only_defaults=True)
-            except (ValueError, RuntimeError, ConnectorValidationError):
+                result = apply_suggestion(bpy.context, only_defaults=True)
+                if result is None:
+                    return None
+            except (ValueError, RuntimeError, ConnectorValidationError) as exc:
+                reason = render_message(exc)
                 settings.connector_sizing_status = report_msg(
-                    'Escolha um contato válido ou use Sugerir dimensões após preparar o corte.',
-                    'Choose a valid contact or use Suggest dimensions after preparing the cut.')
+                    f'Não há dimensões seguras para ativar os pinos: {reason}',
+                    f'No safe dimensions are available for these pins: {reason}')
+            except Exception as exc:
+                reason = render_message(exc)
+                settings.connector_sizing_status = report_msg(
+                    f'Não foi possível preparar um encaixe seguro: {reason}',
+                    f'Could not prepare a safe connector: {reason}')
         except (ReferenceError, AttributeError):
             pass
         return None

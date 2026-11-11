@@ -581,7 +581,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             contact_box = box_conn.box()
             contact_box.label(text=localize_text('Área plana para os pinos'))
             if not choices:
-                contact_box.label(text=localize_text('Gere a prévia para encontrar as áreas de montagem.'))
+                contact_box.label(text=localize_text('Ative os encaixes para preparar um contato, ou gere a prévia para ver as áreas.'))
             for choice in choices[:12]:
                 idx = choice['index']
                 op = contact_box.operator('chest.splitter_choose_contact',
@@ -591,7 +591,7 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             contact_box.operator('chest.splitter_choose_contact', text=localize_text('Usar área selecionada na prévia')).index = -1
             contact_box.operator('chest.splitter_choose_contact', text=localize_text('Escolher outra área')).index = -2
             if settings.contact_patch_index >= 0:
-                contact_box.label(text=localize_text('Contato {index} escolhido. Ative os encaixes.').format(index=settings.contact_patch_index+1))
+                contact_box.label(text=localize_text('Contato {index} preparado.').format(index=settings.contact_patch_index+1))
 
         # Folga Física entre Peças (E01)
         box_part_clearance = box_conn.box()
@@ -606,8 +606,10 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
         if settings.split_mode != 'SOLID':
             row_enable = box_conn.row(align=True)
-            row_enable.enabled = (settings.connector_enabled or not uses_surface_region(settings)
-                                  or settings.contact_patch_index >= 0)
+            # Region cuts can prepare and select a physical contact while the
+            # connector preview is still off; the enable toggle kicks off that
+            # safe sizing pass.
+            row_enable.enabled = True
             row_enable.prop(settings, "connector_enabled", text=localize_text("Ativar Encaixes"), toggle=True, icon='CHECKBOX_HLT' if settings.connector_enabled else 'CHECKBOX_DEHLT')
 
         if settings.split_mode != 'SOLID' and settings.connector_enabled:
@@ -646,6 +648,8 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             box_dims.operator('chest.splitter_suggest_connector_dimensions',
                               text=('Suggest dimensions' if loc == 'en_US' else 'Sugerir dimensões'),
                               icon='LIGHT')
+            if settings.connector_distribution == 'MANUAL' and not len(settings.manual_connectors):
+                box_dims.label(text=localize_text('Sem pinos manuais, a sugestão usa o centro como referência.'), icon='INFO')
             if settings.connector_sizing_status:
                 import textwrap
                 for index, line in enumerate(textwrap.wrap(settings.connector_sizing_status, width=42)):

@@ -1,5 +1,6 @@
 """Full curved contact, centered/manual pins and physical initial dimensions."""
 import sys
+import json
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -83,6 +84,140 @@ class ConnectorDomainSizing(unittest.TestCase):
         self.assertEqual((3.,5.), (self.s.connector_diameter_mm,self.s.connector_length_mm))
         self.assertEqual(bpy.ops.chest.splitter_suggest_connector_dimensions(), {'FINISHED'})
 
+    def test_manual_distribution_without_positions_uses_center_for_sizing_only(self):
+        prepared = prepare_split_candidates(bpy.context, include_solids=True)
+        self.s.connector_distribution = 'MANUAL'
+        self.s.manual_connectors.clear()
+        result = recommend_dimensions(prepared, self.s, self.obj)
+        self.assertTrue(result['manual_reference'])
+        self.assertEqual(self.s.connector_distribution, 'MANUAL')
+        self.assertEqual(len(self.s.manual_connectors), 0)
+        self.assertGreaterEqual(result['diameter_mm'], 1.)
+        self.assertGreaterEqual(result['length_mm'], 2.)
+
+    def test_manual_position_is_used_for_complex_contact_sizing(self):
+        prepared = prepare_split_candidates(bpy.context, include_solids=True)
+        from src.connector_domain import domain_centroid
+        u, v = domain_centroid(prepared.interface.outer_contours_uv,
+                               prepared.interface.hole_contours_uv)
+        self.s.connector_distribution = 'MANUAL'
+        item = self.s.manual_connectors.add()
+        item.u_mm = u*prepared.unit_scale; item.v_mm = v*prepared.unit_scale
+        before = (item.u_mm, item.v_mm, item.yaw_deg)
+        result = recommend_dimensions(prepared, self.s, self.obj)
+        self.assertFalse(result['manual_reference'])
+        self.assertEqual((item.u_mm, item.v_mm, item.yaw_deg), before)
+        self.assertEqual(self.s.connector_distribution, 'MANUAL')
+
+    def test_saved_historical_defaults_remain_eligible_but_custom_values_do_not(self):
+        self.s.connector_diameter_mm = 6.
+        self.s.connector_length_mm = 8.
+        self.s.connector_chamfer_mm = .8
+        self.s.connector_dimensions_customized = False
+        self.assertTrue(defaults_untouched(self.s))
+        self.s.connector_diameter_mm = 3.
+        self.s.connector_dimensions_customized = False
+        self.assertFalse(defaults_untouched(self.s))
+        self.s.connector_diameter_mm = 6.
+        self.s.connector_dimensions_customized = True
+        self.assertFalse(defaults_untouched(self.s))
+
+    def test_captured_region_prepares_its_only_contact_before_preview(self):
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=.05)
+        obj = bpy.context.object
+        region = [f.index for f in obj.data.polygons
+                  if sum(obj.data.vertices[i].co.z for i in f.vertices)/len(f.vertices) > .00001]
+        s = bpy.context.scene.chest_splitter
+        s.target_object = obj; s.split_mode = 'LOOP'; s.loop_behavior = 'WHOLE'
+        s.region_selection_enabled = True; s.region_target = obj
+        s.region_face_indices = ','.join(map(str, region))
+        from src.geometry_region import mesh_signature
+        s.region_mesh_signature = mesh_signature(obj.data)
+        s.part_clearance_mm = 0.; s.connector_enabled = True; s.contact_patch_index = -1
+        s.connector_diameter_mm = 6.; s.connector_length_mm = 8.
+        s.connector_dimensions_customized = False
+        clear_prepared_split_cache()
+        self.assertEqual(bpy.ops.chest.splitter_suggest_connector_dimensions(), {'FINISHED'})
+        self.assertEqual(s.contact_patch_index, 0)
+        self.assertEqual(len(json.loads(s.contact_choices)), 1)
+        prepared = prepare_split_candidates(bpy.context, include_solids=True)
+        self.assertTrue(prepared.sizing_trees)
+        self.assertTrue(s.connector_enabled)
+        self.assertTrue(s.connector_sizing_status)
+        self.assertNotIn('SPLITTER_PREVIEW_A', bpy.data.objects)
+        self.assertNotIn('SPLITTER_PREVIEW_B', bpy.data.objects)
+
+    def test_captured_region_with_multiple_contacts_does_not_guess(self):
+        from src.geometry_region import mesh_signature
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        bpy.ops.mesh.primitive_cube_add()
+        obj = bpy.context.object
+        s = bpy.context.scene.chest_splitter
+        s.target_object = obj; s.split_mode = 'LOOP'; s.loop_behavior = 'WHOLE'
+        s.region_selection_enabled = True; s.region_target = obj
+        s.region_face_indices = '0,1,2'; s.region_mesh_signature = mesh_signature(obj.data)
+        s.contact_patch_index = -1
+        choices = [{'index': 0, 'area_mm2': 10.}, {'index': 1, 'area_mm2': 8.}]
+        clear_prepared_split_cache()
+        with patch('src.geometry_region.slice_region', return_value={
+                'interface': None, 'contact_choices': choices}):
+            with self.assertRaisesRegex(ValueError, 'mais de um contato'):
+                prepare_split_candidates(bpy.context, include_solids=True, auto_contact=True)
+        self.assertEqual(s.contact_patch_index, -1)
+        self.assertEqual(len(json.loads(s.contact_choices)), 2)
+
+    def test_narrow_10_by_4_contact_suggests_before_preview_and_fits_either_side(self):
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, .0005))
+        obj = bpy.context.object; obj.dimensions = (.0101, .0042, .012)
+        bpy.context.view_layer.update()
+        s = bpy.context.scene.chest_splitter
+        s.target_object = obj; s.split_mode = 'PLANE'
+        s.plane_origin = (0, 0, 0); s.plane_normal = (0, 0, 1)
+        s.connector_distribution = 'CENTER'; s.connector_male_part = 'A'
+        s.connector_edge_margin_mm = .4; s.clearance_per_side_mm = .15
+        s.end_clearance_mm = .2; s.part_clearance_mm = 0.; s.connector_enabled = False
+        s.connector_diameter_mm = 6.; s.connector_length_mm = 8.
+        s.connector_chamfer_mm = .8; s.connector_dimensions_customized = False
+        clear_prepared_split_cache()
+        s.connector_enabled = True
+        with self.assertRaises(RuntimeError):
+            bpy.ops.chest.splitter_generate_preview()
+        self.assertEqual(s.session_status, 'PREVIEW_INVALID')
+        s.connector_enabled = False
+        result = bpy.ops.chest.splitter_suggest_connector_dimensions()
+        self.assertEqual(result, {'FINISHED'})
+        self.assertAlmostEqual(s.connector_diameter_mm, 3.)
+        self.assertAlmostEqual(s.connector_length_mm, 4.5)
+        self.assertLessEqual(s.connector_diameter_mm, 4.2 - 2*(.4+.15))
+        s.connector_enabled = True
+        for side in ('A', 'B'):
+            with self.subTest(male_side=side):
+                s.connector_male_part = side
+                self.assertEqual(bpy.ops.chest.splitter_generate_preview(), {'FINISHED'})
+                self.assertEqual(s.session_status, 'PREVIEW_VALID')
+                self.assertTrue(s.part_a_is_manifold and s.part_b_is_manifold)
+
+    def test_500mm_body_with_100mm2_contact_uses_scene_millimetres(self):
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        bpy.ops.mesh.primitive_cube_add(size=1)
+        obj = bpy.context.object; obj.dimensions = (.01, .01, .5)
+        bpy.context.view_layer.update()
+        s = bpy.context.scene.chest_splitter
+        s.target_object = obj; s.split_mode = 'PLANE'
+        s.plane_origin = (0, 0, 0); s.plane_normal = (0, 0, 1)
+        s.connector_distribution = 'CENTER'; s.connector_edge_margin_mm = .4
+        s.clearance_per_side_mm = .15; s.end_clearance_mm = .2
+        clear_prepared_split_cache()
+        prepared = prepare_split_candidates(bpy.context, include_solids=True)
+        result = recommend_dimensions(prepared, s, obj)
+        self.assertAlmostEqual(prepared.interface.area_mm2, 100., delta=.01)
+        self.assertAlmostEqual(max(prepared.interface.width_mm, prepared.interface.height_mm), 10., delta=.01)
+        self.assertLessEqual(result['diameter_mm'], 10.-2*(.4+.15))
+        self.assertGreater(result['receiver_depth_mm'], 249.)
+        self.assertLessEqual(result['length_mm'], 50.)
+
     def test_too_thin_contact_does_not_replace_dimensions(self):
         for vertex in self.obj.data.vertices:
             if vertex.co.z < -.01:vertex.co.z = -.001
@@ -109,13 +244,20 @@ class ConnectorDomainSizing(unittest.TestCase):
             properties._on_connector_enabled(self.s,view)
             self.assertEqual(len(callbacks),1)
             callbacks.pop()()
-        self.assertEqual((self.s.connector_diameter_mm,self.s.connector_length_mm),(4.,6.))
+        self.assertGreaterEqual(self.s.connector_diameter_mm, 1.)
+        self.assertGreaterEqual(self.s.connector_length_mm, 2.)
+        from src.connector_sizing import automatic_suggestion_current
+        self.assertTrue(automatic_suggestion_current(bpy.context))
+        self.s.connector_type = 'CAPSULE'
+        self.assertFalse(automatic_suggestion_current(bpy.context))
+        self.s.connector_type = 'CYLINDER'
+        self.assertTrue(automatic_suggestion_current(bpy.context))
         # A pending calculation cannot overwrite an edit made before it runs.
-        for name in ('connector_diameter_mm','connector_length_mm','connector_chamfer_mm'):
-            self.s.property_unset(name)
-        self.s.connector_dimensions_customized=False
+        self.s.connector_male_part = 'B'  # A new cut signature schedules a fresh calculation.
+        self.s.connector_dimensions_customized = False
         with patch.object(properties,'bpy',SimpleNamespace(app=app,context=bpy.context)):
             properties._on_connector_enabled(self.s,view)
+            self.assertEqual(len(callbacks),1)
             self.s.connector_diameter_mm=3.
             callbacks.pop()()
         self.assertEqual(self.s.connector_diameter_mm,3.)

@@ -4065,6 +4065,20 @@ class CHEST_OT_splitter_capture_loop(bpy.types.Operator):
             settings.last_status_level = 'SUCCESS'
             self.report({'INFO'}, msg)
 
+        # If the user enabled connectors before capturing the cut boundary,
+        # finish the pending safe sizing pass now that the contact exists.
+        if settings.connector_enabled:
+            from .connector_sizing import (apply_suggestion, defaults_untouched,
+                                           automatic_suggestion_current)
+            if defaults_untouched(settings) and not automatic_suggestion_current(context):
+                try:
+                    apply_suggestion(context, only_defaults=True)
+                except Exception as exc:
+                    from .localized_errors import render_message
+                    settings.connector_sizing_status = report_msg(
+                        f'Não foi possível sugerir dimensões após capturar o contorno: {render_message(exc)}',
+                        f'Could not suggest dimensions after capturing the boundary: {render_message(exc)}')
+
         for area in context.screen.areas if context.screen else []:
             area.tag_redraw()
 

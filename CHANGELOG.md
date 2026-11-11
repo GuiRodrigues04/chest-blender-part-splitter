@@ -1,3 +1,12 @@
+# 0.9.10 — dimensionamento seguro de pinos — 2026-11-11
+
+- A sugestão de pinos agora limita o diâmetro pela faixa útil do contorno, margem externa e folga radial; a verificação de profundidade inclui amostras no interior do perfil e nos dois lados possíveis do corte.
+- Um contato plano único em regiões capturadas pode ser preparado antes da prévia. Quando há múltiplos contatos, a extensão apresenta as opções e espera a escolha do usuário.
+- Em distribuição Manual sem posições, a sugestão usa o centro apenas como referência dimensional e mantém a distribuição e a lista vazia. Com posições, valida cada pino; regiões complexas que não comportam o centro pedem uma posição manual.
+- Dimensões editadas continuam protegidas. Valores históricos Ø6 × 8 mm sem marca de edição podem receber uma sugestão automática; valores não padrão e as folgas são preservados.
+- Verificação em Blender 5.2.0 LTS: 14/14 testes de dimensionamento aprovados. Contato sintético 10,1 × 4,2 mm, receptor 5,5 mm: Ø3 × 4,5 mm; prévias A e B válidas e manifold. A cena Spot local, com corte de profundidade 5 mm, sugeriu Ø7,75 × 4,25 mm e gerou prévias A e B válidas e manifold. A interface do arquivo local mede 19,90 × 9,10 mm, diferente dos 10,1 × 4,2 mm descritos no relato; os dois casos estão registrados em `evidence/0.9.10/`.
+- A checagem usa amostras geométricas determinísticas, não uma prova contínua nem validação de impressão física.
+
 # 0.9.9 — folga na extração com profundidade — 2026-11-10
 
 - Corrigido o fechamento da ferramenta de folga quando o corte de suporte forma um anel: contornos externos e internos são tampados em conjunto, preservando a região vazia em vez de formar discos sobrepostos.

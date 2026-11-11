@@ -131,15 +131,37 @@ class CHEST_OT_splitter_choose_contact(bpy.types.Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
         previous=s.contact_patch_index
         if previous!=index or s.session_status!='PREVIEW_VALID':
+            connectors_were_enabled = s.connector_enabled
             s.contact_patch_index = index
-            s.connector_enabled=False
+            s.connector_enabled = connectors_were_enabled
+            from .connector_sizing import (apply_suggestion, defaults_untouched,
+                                           automatic_suggestion_current)
+            from .geometry_connectors import ConnectorValidationError
+            from .localized_errors import render_message
+            from .translations import report_msg
+            if (connectors_were_enabled and defaults_untouched(s)
+                    and not automatic_suggestion_current(context)):
+                try:
+                    apply_suggestion(context, only_defaults=True)
+                except (ValueError, RuntimeError, ConnectorValidationError) as exc:
+                    reason = render_message(exc)
+                    s.connector_sizing_status = report_msg(
+                        f'Não foi possível sugerir dimensões para este contato: {reason}',
+                        f'Could not suggest dimensions for this contact: {reason}')
+                except Exception as exc:
+                    reason = render_message(exc)
+                    s.connector_sizing_status = report_msg(
+                        f'Não foi possível sugerir dimensões para este contato: {reason}',
+                        f'Could not suggest dimensions for this contact: {reason}')
             try:
                 result=bpy.ops.chest.splitter_generate_preview()
             except RuntimeError:
                 s.contact_patch_index=previous
+                s.connector_enabled=False
                 return {'CANCELLED'}
             if result!={'FINISHED'}:
                 s.contact_patch_index=previous
+                s.connector_enabled=False
                 return {'CANCELLED'}
             s.manual_connectors.clear()
         # Highlight the generated planar seat, not an individual source triangle.

@@ -1,3 +1,11 @@
+# Correção 0.9.10: dimensionar encaixes antes da prévia
+
+**Sugerir dimensões** considera a margem, a folga e o material receptor, inclusive para o outro lado macho. Uma região capturada com somente um contato plano pode ser preparada antes de gerar a prévia; com vários contatos, escolha um deles na lista. Sem pinos na distribuição Manual, a sugestão usa o centro como referência e não cria posições. Se a região for irregular, posicione um pino manual no contato e solicite a sugestão novamente. Valores personalizados são preservados; confira a prévia atualizada antes de confirmar.
+
+**Fix 0.9.10: size connectors before preview**
+
+**Suggest dimensions** checks the edge margin, radial clearance and receiver material on either possible male side. A captured region with one flat contact can be prepared before preview; when several contacts are available, select one from the list. If Manual distribution has no pins, the suggestion uses the center as a reference and adds no positions. For an irregular region, place a manual pin on the contact and request a suggestion again. Custom values are preserved; inspect the updated preview before confirming.
+
 ## Correção 0.9.9: folga na extração com profundidade
 
 A construção da faixa de folga agora fecha contornos internos e externos como um anel e remove resíduos sem faces gerados pelo corte da própria ferramenta. A validação não trata uma aresta externa que permanece fixa como se ela fosse deslocada com a faixa de folga. As medidas solicitadas não são reduzidas para forçar o sucesso; os controles lateral/fundo continuam independentes e limites reais de espessura e colapso permanecem ativos.

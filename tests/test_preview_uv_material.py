@@ -276,4 +276,3 @@ class PreviewUVMaterial(unittest.TestCase):
 if __name__ == '__main__':
     result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(PreviewUVMaterial))
     sys.exit(not result.wasSuccessful())
-

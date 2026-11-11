@@ -33,4 +33,3 @@ def main():
  report={'phase':a.phase,'sourcedir':str(source),'targetdir':str(target),'blender':BLENDER,'fixture':CAT,'max_parallel_blender_processes':1,'suites':results,'totals':totals}; path=out/f'{a.phase}.json';path.write_text(json.dumps(report,indent=2,ensure_ascii=False),encoding='utf-8');print(json.dumps(report,indent=2,ensure_ascii=False))
  if totals['failed']:raise SystemExit(1)
 if __name__=='__main__':main()
-

@@ -8,4 +8,3 @@
 ## Limite
 
 O `.blend` aponta para `//spot_texture.png`, que não está disponível nesta máquina. A pintura exata do arquivo do usuário não pôde ser amostrada; a verificação visual automatizada usou a imagem sintética empacotada.
-

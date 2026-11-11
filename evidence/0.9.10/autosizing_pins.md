@@ -29,4 +29,3 @@ Um bloco de 10,1 × 4,2 × 12 mm, cortado para deixar 5,5 mm de receptor, reprod
 `tests/test_connector_domain_sizing.py`: 14/14 aprovados no Blender 5.2.0 LTS. A suíte cobre contato 10,1 × 4,2 mm, os dois lados macho, preparo sem prévia, amostras de profundidade, contatos múltiplos, valor Manual vazio e preenchido, preservação de personalização, alteração atrasada durante o timer, escala de cena e corpo grande.
 
 A checagem de profundidade usa amostras geométricas determinísticas do interior do perfil e do receptor; não é uma prova contínua em todo ponto da malha. Não foi feito teste físico de impressão.
-

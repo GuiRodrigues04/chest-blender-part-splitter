@@ -50,4 +50,3 @@ result=unittest.TextTestRunner(verbosity=2).run(
     unittest.defaultTestLoader.loadTestsFromTestCase(checks.PreviewUVMaterial))
 assert result.wasSuccessful()
 print('INSTALLED_010_UV_OK: two UV layers, seam corners, active render map, synthetic four-color sampling, surface/pin/bare/restore',flush=True)
-

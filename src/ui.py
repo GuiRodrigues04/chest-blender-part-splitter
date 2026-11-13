@@ -12,6 +12,16 @@ def draw_help_button(layout, topic: str):
     row = layout.row(align=True)
     op = row.operator("chest.splitter_help", text=localize_text(""), icon='INFO', emboss=False)
     op.topic = topic
+
+
+def draw_disclosure(layout, settings, property_name, label):
+    """Draw a persistent, user-controlled disclosure and return its content column."""
+    expanded = bool(getattr(settings, property_name))
+    row = layout.row(align=True)
+    row.prop(settings, property_name, text=localize_text(label),
+             icon='DISCLOSURE_TRI_DOWN' if expanded else 'DISCLOSURE_TRI_RIGHT',
+             emboss=False)
+    return layout.column(align=True) if expanded else None
 _CACHED_UI_MAT_KEY = None
 _CACHED_UI_MAT_REGIONS = []
 _CACHED_UI_MAT_ANALYSIS = {}
@@ -108,42 +118,12 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             row_target_info.operator("chest.splitter_edit_target", text=localize_text("Editar Alvo"), icon='EDITMODE_HLT')
             row_target_info.operator("chest.splitter_clear_target", text=localize_text(""), icon='X')
 
-            # Métricas físicas e topológicas
-            col_metrics = box_target.column(align=True)
-            dims = settings.diag_dims_mm
-            lbl_dims = "Dimensions" if loc == 'en_US' else "Dimensões"
-            col_metrics.label(
-                text=f"{lbl_dims}: {dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm",
-                icon='CON_SIZELIMIT'
-            )
-            if loc == 'en_US':
-                lbl_mesh = f"Mesh: {settings.diag_triangles:,} triangles ({settings.diag_faces:,} faces)"
-            else:
-                lbl_mesh = f"Malha: {settings.diag_triangles:,} triângulos ({settings.diag_faces:,} faces)"
-            col_metrics.label(
-                text=lbl_mesh,
-                icon='MESH_DATA'
-            )
-            col_metrics.label(
-                text=f"Volume: {settings.diag_volume_mm3:,.1f} mm³",
-                icon='MOD_FLUIDSIM'
-            )
-
-            # Avisos preventivos
-            row_problems = box_target.row(align=True)
-            row_problems.operator('chest.splitter_locate_problems', text=localize_text('Localizar problemas'), icon='VIEWZOOM').mode = 'ALL'
-            row_problems.operator('chest.splitter_locate_problems', text=localize_text('Próximo problema'), icon='FRAME_NEXT').mode = 'NEXT'
-
+            # Compact, actionable errors stay visible; measurements and repair tools are optional.
             if settings.diag_has_unapplied_scale:
                 box_warn = box_target.box()
                 box_warn.alert = True
                 box_warn.label(text=localize_text("Aviso: Escala não aplicada!"), icon='ERROR')
                 box_warn.label(text=localize_text("Cortes e folgas podem ser distorcidos."))
-                box_warn.operator(
-                    "chest.splitter_create_work_copy",
-                    text=localize_text("Criar cópia com escala aplicada"),
-                    icon='DUPLICATE'
-                )
 
             if not settings.diag_is_manifold:
                 box_mani = box_target.box()
@@ -157,11 +137,6 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     text=lbl_mani,
                     icon='ERROR'
                 )
-                box_mani.operator(
-                    "chest.splitter_repair_target_mesh",
-                    text=localize_text("Tentar reparo seguro"),
-                    icon='AUTOMERGE_ON'
-                )
 
             if settings.diag_degenerate_faces > 0:
                 lbl_deg = (
@@ -173,9 +148,29 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     text=lbl_deg,
                     icon='INFO'
                 )
-                repair_row = box_target.row(align=True)
-                repair_row.operator("chest.splitter_repair_target_mesh", text=localize_text("Tentar reparo seguro"), icon='AUTOMERGE_ON')
-                repair_row.operator("chest.splitter_show_problem_faces", text=localize_text("Mostrar faces"), icon='FACESEL')
+            metrics = draw_disclosure(box_target, settings, "show_target_data", "Mostrar dados")
+            if metrics:
+                dims = settings.diag_dims_mm
+                lbl_dims = "Dimensions" if loc == 'en_US' else "Dimensões"
+                metrics.label(text=f"{lbl_dims}: {dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} mm", icon='CON_SIZELIMIT')
+                lbl_mesh = (f"Mesh: {settings.diag_triangles:,} triangles ({settings.diag_faces:,} faces)" if loc == 'en_US'
+                            else f"Malha: {settings.diag_triangles:,} triângulos ({settings.diag_faces:,} faces)")
+                metrics.label(text=lbl_mesh, icon='MESH_DATA')
+                metrics.label(text=f"Volume: {settings.diag_volume_mm3:,.1f} mm³", icon='MOD_FLUIDSIM')
+
+            diag = draw_disclosure(box_target, settings, "show_mesh_diagnostics", "Mais opções / Diagnóstico")
+            if diag:
+                row_problems = diag.row(align=True)
+                row_problems.operator('chest.splitter_locate_problems', text=localize_text('Localizar problemas'), icon='VIEWZOOM').mode = 'ALL'
+                row_problems.operator('chest.splitter_locate_problems', text=localize_text('Próximo problema'), icon='FRAME_NEXT').mode = 'NEXT'
+                if settings.diag_has_unapplied_scale:
+                    diag.operator("chest.splitter_create_work_copy", text=localize_text("Criar cópia com escala aplicada"), icon='DUPLICATE')
+                if not settings.diag_is_manifold:
+                    diag.operator("chest.splitter_repair_target_mesh", text=localize_text("Tentar reparo seguro"), icon='AUTOMERGE_ON')
+                if settings.diag_degenerate_faces > 0:
+                    repair_row = diag.row(align=True)
+                    repair_row.operator("chest.splitter_repair_target_mesh", text=localize_text("Tentar reparo seguro"), icon='AUTOMERGE_ON')
+                    repair_row.operator("chest.splitter_show_problem_faces", text=localize_text("Mostrar faces"), icon='FACESEL')
         else:
             box_target.label(text=localize_text("Nenhum alvo selecionado. Selecione um objeto malha."), icon='INFO')
 
@@ -856,9 +851,20 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
                 box_view.prop(settings, "preview_color_mode", text=localize_text(""))
 
-                # Diagnósticos de Partes A e B
+                # Keep part identity visible and put detailed metrics behind a disclosure.
                 box_diag_parts = box_preview.box()
                 box_diag_parts.label(text=localize_text("Resultados do Corte"), icon='CHECKMARK')
+                result_data = draw_disclosure(box_diag_parts, settings, "show_result_data", "Mostrar dados")
+
+                # Keep a compact volume balance warning visible when detailed
+                # result data is collapsed; the full balance remains below.
+                if settings.volume_diff_pct >= 0.5:
+                    volume_warning = (
+                        f"Warning: volume difference {settings.volume_diff_pct:.2f}%"
+                        if loc == 'en_US'
+                        else f"Aviso: diferença de volume {settings.volume_diff_pct:.2f}%"
+                    )
+                    box_diag_parts.label(text=volume_warning, icon='ERROR')
 
                 lbl_tag_a = (" (Upper)" if loc == 'en_US' else " (Superior)") if settings.part_a_is_superior else (" (Lower)" if loc == 'en_US' else " (Inferior)")
                 lbl_tag_b = (" (Lower)" if loc == 'en_US' else " (Inferior)") if settings.part_a_is_superior else (" (Upper)" if loc == 'en_US' else " (Superior)")
@@ -871,39 +877,42 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
 
                 col_a = box_diag_parts.box()
                 col_a.label(text=f"{part_word} A{lbl_tag_a}", icon='MESH_CUBE')
-                col_a.label(text=f"Volume: {settings.part_a_volume_mm3:,.1f} mm³")
-                dims_a = settings.part_a_dims_mm
-                col_a.label(text=f"{dim_word}: {dims_a[0]:.1f} x {dims_a[1]:.1f} x {dims_a[2]:.1f} mm")
-                col_a.label(text=f"Mesh: {settings.part_a_triangles:,} tris | {settings.part_a_components} {island_word}" if loc == 'en_US' else f"Malha: {settings.part_a_triangles:,} tris | {settings.part_a_components} {island_word}")
                 if not settings.part_a_is_manifold:
                     col_a.label(text=f"{warn_word}: {settings.part_a_non_manifold_edges} {open_edges_word}", icon='ERROR')
+                if result_data:
+                    col_a.label(text=f"Volume: {settings.part_a_volume_mm3:,.1f} mm³")
+                    dims_a = settings.part_a_dims_mm
+                    col_a.label(text=f"{dim_word}: {dims_a[0]:.1f} x {dims_a[1]:.1f} x {dims_a[2]:.1f} mm")
+                    col_a.label(text=f"Mesh: {settings.part_a_triangles:,} tris | {settings.part_a_components} {island_word}" if loc == 'en_US' else f"Malha: {settings.part_a_triangles:,} tris | {settings.part_a_components} {island_word}")
 
                 col_b = box_diag_parts.box()
                 col_b.label(text=f"{part_word} B{lbl_tag_b}", icon='MESH_CUBE')
-                col_b.label(text=f"Volume: {settings.part_b_volume_mm3:,.1f} mm³")
-                dims_b = settings.part_b_dims_mm
-                col_b.label(text=f"{dim_word}: {dims_b[0]:.1f} x {dims_b[1]:.1f} x {dims_b[2]:.1f} mm")
-                col_b.label(text=f"Mesh: {settings.part_b_triangles:,} tris | {settings.part_b_components} {island_word}" if loc == 'en_US' else f"Malha: {settings.part_b_triangles:,} tris | {settings.part_b_components} {island_word}")
                 if not settings.part_b_is_manifold:
                     col_b.label(text=f"{warn_word}: {settings.part_b_non_manifold_edges} {open_edges_word}", icon='ERROR')
+                if result_data:
+                    col_b.label(text=f"Volume: {settings.part_b_volume_mm3:,.1f} mm³")
+                    dims_b = settings.part_b_dims_mm
+                    col_b.label(text=f"{dim_word}: {dims_b[0]:.1f} x {dims_b[1]:.1f} x {dims_b[2]:.1f} mm")
+                    col_b.label(text=f"Mesh: {settings.part_b_triangles:,} tris | {settings.part_b_components} {island_word}" if loc == 'en_US' else f"Malha: {settings.part_b_triangles:,} tris | {settings.part_b_components} {island_word}")
 
                 # Balanço de Volume
-                box_vol = box_diag_parts.box()
-                vol_ok = settings.volume_diff_pct < 0.5
-                icon_vol = 'CHECKMARK' if vol_ok else 'ERROR'
-                lbl_sum_vol = (
-                    f"Total Volume: {settings.part_sum_volume_mm3:,.1f} mm³ (diff: {settings.volume_diff_pct:.2f}%)"
-                    if loc == 'en_US'
-                    else f"Soma Volumes: {settings.part_sum_volume_mm3:,.1f} mm³ (dif: {settings.volume_diff_pct:.2f}%)"
-                )
-                box_vol.label(
-                    text=lbl_sum_vol,
-                    icon=icon_vol
-                )
+                # Summary/actions are siblings after the Part A/B cards so the
+                # expanded reading order follows the visible result hierarchy.
+                box_vol = box_diag_parts.box() if result_data else None
+                if box_vol:
+                    vol_ok = settings.volume_diff_pct < 0.5
+                    icon_vol = 'CHECKMARK' if vol_ok else 'ERROR'
+                    lbl_sum_vol = (
+                        f"Total Volume: {settings.part_sum_volume_mm3:,.1f} mm³ (diff: {settings.volume_diff_pct:.2f}%)"
+                        if loc == 'en_US'
+                        else f"Soma Volumes: {settings.part_sum_volume_mm3:,.1f} mm³ (dif: {settings.volume_diff_pct:.2f}%)"
+                    )
+                    box_vol.label(text=lbl_sum_vol, icon=icon_vol)
 
                 # Ação rápida de separação por material/cor
-                row_sep = box_diag_parts.row()
-                row_sep.operator("chest.splitter_separate_by_material", text=localize_text("Separar por Cores / Materiais"), icon='COLOR')
+                row_sep = box_diag_parts.row() if result_data else None
+                if row_sep:
+                    row_sep.operator("chest.splitter_separate_by_material", text=localize_text("Separar por Cores / Materiais"), icon='COLOR')
 
             layout.separator()
 

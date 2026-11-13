@@ -3607,6 +3607,8 @@ def localized_format(key, **values):
 
 # Language settings must also be monolingual.
 for _source, _pt, _en in [
+ ('Mostrar dados', 'Mostrar dados', 'Show data'),
+ ('Mais opções / Diagnóstico', 'Mais opções / Diagnóstico', 'More options / Diagnostics'),
  ('Idioma / Language', 'Idioma', 'Language'),
  ('Automático / Auto', 'Automático', 'Automatic'),
  ('Detecta o idioma do Blender / Follows Blender language', 'Usa o idioma do Blender', 'Uses Blender language'),

@@ -496,6 +496,10 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     )
 
     # Diagnósticos em cache do alvo
+    show_target_data: BoolProperty(name="Mostrar dados", default=False)
+    show_mesh_diagnostics: BoolProperty(name="Mais opções / Diagnóstico", default=False)
+    show_result_data: BoolProperty(name="Mostrar dados", default=False)
+
     diag_dims_mm: FloatVectorProperty(
         name="Dimensões (mm)",
         size=3,

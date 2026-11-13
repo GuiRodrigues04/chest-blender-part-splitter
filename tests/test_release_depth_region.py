@@ -6,6 +6,7 @@ the material-region boundary extracted from the provided blend file.
 """
 import importlib
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -145,9 +146,10 @@ class HornDepthRegression(unittest.TestCase):
         mesh = self.target.data
         source_vertices = [self.target.matrix_world @ vertex.co for vertex in mesh.vertices]
         selected_face_keys = []
+        selected_vertex_indices = {index for face_index in self.region
+                                   for index in mesh.polygons[face_index].vertices}
         selected_vertex_keys = {self._point_key(source_vertices[index])
-                                for face_index in self.region
-                                for index in mesh.polygons[face_index].vertices}
+                                for index in selected_vertex_indices}
         for face_index in sorted(self.region):
             face = mesh.polygons[face_index]
             selected_face_keys.append(tuple(sorted(self._point_key(source_vertices[index])
@@ -168,7 +170,39 @@ class HornDepthRegression(unittest.TestCase):
         present_b = [index for index, key in zip(sorted(self.region), selected_face_keys) if key in output[1]]
         vertices_a = sum(key in output_vertices[0] for key in selected_vertex_keys)
         vertices_b = sum(key in output_vertices[1] for key in selected_vertex_keys)
-        return retained_a, retained_b, vertices_a, vertices_b, len(selected_vertex_keys), missing_a, present_b
+        missing_vertex_indices = sorted(index for index in selected_vertex_indices
+                                        if self._point_key(source_vertices[index]) not in output_vertices[0])
+        return (retained_a, retained_b, vertices_a, vertices_b, len(selected_vertex_keys),
+                missing_a, present_b, missing_vertex_indices)
+
+    def _clearance_band_face_allowance(self):
+        """Return selected faces on the loop boundary and its first edge ring."""
+        mesh = self.target.data
+        region = set(self.region)
+        loop_vertices = set(self.data.get('loop_vertex_indices', []))
+        edge_faces = {}
+        for polygon in mesh.polygons:
+            for edge_key in polygon.edge_keys:
+                key = tuple(sorted(edge_key))
+                edge_faces.setdefault(key, []).append(polygon.index)
+
+        boundary_faces = set()
+        loop_incident_faces = set()
+        for face_index in region:
+            polygon = mesh.polygons[face_index]
+            if any(vertex in loop_vertices for vertex in polygon.vertices):
+                loop_incident_faces.add(face_index)
+            if any(any(adjacent not in region for adjacent in edge_faces[tuple(sorted(edge_key))])
+                   for edge_key in polygon.edge_keys):
+                boundary_faces.add(face_index)
+
+        edge_neighbors = set()
+        for face_index in boundary_faces:
+            polygon = mesh.polygons[face_index]
+            for edge_key in polygon.edge_keys:
+                edge_neighbors.update(adjacent for adjacent in edge_faces[tuple(sorted(edge_key))]
+                                      if adjacent in region)
+        return boundary_faces | loop_incident_faces | edge_neighbors
 
     def _connected_component_count(self, bm):
         remaining = set(bm.verts)
@@ -193,7 +227,8 @@ class HornDepthRegression(unittest.TestCase):
         self._assert_source_unchanged()
         (part_a, part_b), trees, bmeshes = self._parts_and_trees()
         try:
-            face_a, face_b, vertices_a, vertices_b, total_vertices, missing_a, present_b = self._source_face_and_vertex_provenance((part_a, part_b))
+            (face_a, face_b, vertices_a, vertices_b, total_vertices, missing_a,
+             present_b, missing_vertices) = self._source_face_and_vertex_provenance((part_a, part_b))
             samples = self._selected_region_samples()
             on_a = [tree.find_nearest(point)[3] for point in samples for tree in trees[:1]]
             on_b = [tree.find_nearest(point)[3] for point in samples for tree in trees[1:]]
@@ -247,12 +282,33 @@ class HornDepthRegression(unittest.TestCase):
             self.assertEqual(self._connected_component_count(bmeshes[1]), 1,
                              'Complementary main body must remain one connected solid')
             if not overrun:
-                self.assertEqual(face_a, len(self.region),
-                                 'Every original selected horn face must be preserved exactly in Part A')
+                if gap <= 0.0:
+                    self.assertEqual(face_a, len(self.region),
+                                     'Zero clearance must preserve every original selected horn face in Part A')
+                else:
+                    allowed_missing_faces = self._clearance_band_face_allowance()
+                    unexpected_missing = set(missing_a) - allowed_missing_faces
+                    self.assertFalse(unexpected_missing,
+                                     f'Faces outside the clearance boundary and first edge ring must be preserved: {sorted(unexpected_missing)}')
+                    self.assertEqual(face_a, len(self.region) - len(missing_a),
+                                     'Only loop-boundary or first-ring face identities may change')
                 self.assertEqual(face_b, 0,
                                  'No original selected horn face may remain in Part B')
-            self.assertEqual(vertices_a, total_vertices,
-                             'Every original selected horn vertex must be preserved in Part A')
+            expected_missing_vertices = (
+                set(self.data.get('loop_vertex_indices', [])) if gap > 0.0 else set()
+            ) & {index for face_index in self.region
+                 for index in self.target.data.polygons[face_index].vertices}
+            self.assertEqual(set(missing_vertices), expected_missing_vertices,
+                             'Only the original loop-boundary vertices may move when clearance is active')
+            self.assertEqual(vertices_a, total_vertices - len(expected_missing_vertices),
+                             'Every selected source vertex away from the loop boundary must remain exact in Part A')
+            if gap > 0.0:
+                loop_vertices = set(self.data.get('loop_vertex_indices', []))
+                source_world = [self.target.matrix_world @ vertex.co for vertex in self.target.data.vertices]
+                loop_distances = [trees[0].find_nearest(source_world[index])[3] * 1000
+                                  for index in loop_vertices]
+                self.assertLessEqual(max(loop_distances), math.sqrt(2.0) * gap + .005,
+                                     'Loop-boundary clearance must stay within the diagonal corner allowance')
             analysis = loop_analysis
             inward = Vector(analysis['inward_dir_world']).normalized()
             outward = -inward

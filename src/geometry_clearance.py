@@ -168,12 +168,11 @@ def offset_contact_surface(bm, contact_faces, origin, axial_normal,
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
 
 def trim_depth_contact(bm, contacts, axis, lateral, bottom, unit_scale, support):
-    """Subtract the complete inward contact band, retaining the exterior relief.
+    """Subtract the full generated clearance band from the source contact.
 
-    Offset contact planes at both ends of each wall. A boundary shared with the
-    relief is closed with a rim, so the result has a shoulder rather than a ramp.
-    Lateral and bottom offsets remain independent, including zero on either axis.
-    """
+Apply the wall and bottom offsets across the complete generated interface,
+including contact walls above the former support plane. At a contact boundary,
+constrain both offset rings beyond the adjacent retained face to close the rim."""
     bm.normal_update()
     contacts = set(contacts)
     axis = axis.normalized()
@@ -223,8 +222,76 @@ def trim_depth_contact(bm, contacts, axis, lateral, bottom, unit_scale, support)
             constraints = [(face.normal.copy(), outer_epsilon)
                            for face in vertex.link_faces if face in contacts]
             outer_shifts[vertex] = _constrained_delta(constraints, tolerance)
+        rim_vertices = {v for edge in bm.edges
+                        if sum(face in active_contacts for face in edge.link_faces) == 1
+                        for v in edge.verts}
+        rim_directions = {vertex: [] for vertex in rim_vertices}
+        rim_retained_normals = {vertex: [] for vertex in rim_vertices}
+        for edge in bm.edges:
+            active_faces = [face for face in edge.link_faces if face in active_contacts]
+            if len(active_faces) != 1:
+                continue
+            active_face = active_faces[0]
+            edge_direction = (edge.verts[1].co-edge.verts[0].co).normalized()
+            midpoint = (edge.verts[0].co + edge.verts[1].co) * 0.5
+            direction = midpoint-active_face.calc_center_median()
+            direction -= edge_direction * direction.dot(edge_direction)
+            direction -= active_face.normal * direction.dot(active_face.normal)
+            if direction.length <= tolerance:
+                continue
+            direction.normalize()
+            neighboring_faces = [face for face in edge.link_faces if face is not active_face]
+            for vertex in edge.verts:
+                rim_directions[vertex].append(direction)
+                rim_retained_normals[vertex].extend(face.normal.copy() for face in neighboring_faces if face not in contacts)
+        inner_shifts = dict(shifts)
+        for vertex, directions in rim_directions.items():
+            if not directions:
+                continue
+            outward_direction = sum(directions, Vector())
+            direction = outward_direction.copy()
+            basis = []
+            for face in vertex.link_faces:
+                if face not in active_contacts:
+                    continue
+                residual = face.normal.copy()
+                for q in basis:
+                    residual -= q * residual.dot(q)
+                if residual.length > 1e-3:
+                    basis.append(residual.normalized())
+            for q in basis:
+                direction -= q * direction.dot(q)
+            if direction.dot(outward_direction) < 0.0:
+                direction.negate()
+            if direction.length <= tolerance:
+                continue
+            direction.normalize()
+            outer_extension = outer_epsilon
+            inner_extension = outer_epsilon
+            for normal in rim_retained_normals[vertex]:
+                residual = normal.copy()
+                for q in basis:
+                    residual -= q * residual.dot(q)
+                if residual.length <= 1e-4:
+                    continue
+                denominator = normal.dot(direction)
+                for base_delta, extension in ((outer_shifts[vertex], 'outer'),
+                                              (inner_shifts[vertex], 'inner')):
+                    if denominator > 1e-6:
+                        required = (outer_epsilon-normal.dot(base_delta))/denominator
+                        if extension == 'outer':
+                            outer_extension = max(outer_extension, required)
+                        else:
+                            inner_extension = max(inner_extension, required)
+                    elif normal.dot(base_delta) < outer_epsilon-tolerance:
+                        raise LocalizedGeometryError('geometry.clearance_unresolved')
+            max_extension = 32.0 * max(lateral, bottom, outer_epsilon)
+            if max(outer_extension, inner_extension) > max_extension:
+                raise LocalizedGeometryError('geometry.clearance_excessive')
+            outer_shifts[vertex] += direction * outer_extension
+            inner_shifts[vertex] += direction * inner_extension
         outer = {v: band.verts.new(v.co + outer_shifts[v]) for v in active_vertices}
-        inner = {v: band.verts.new(v.co + shifts[v]) if shifts[v].length > tolerance else outer[v]
+        inner = {v: band.verts.new(v.co + inner_shifts[v]) if inner_shifts[v].length > tolerance else outer[v]
                  for v in active_vertices}
 
         def face(vertices, material):
@@ -247,23 +314,7 @@ def trim_depth_contact(bm, contacts, axis, lateral, bottom, unit_scale, support)
                 if sum(f in active_contacts for f in loop.edge.link_faces) == 1:
                     a, b = loop.vert, loop.link_loop_next.vert
                     face([outer[b], outer[a], inner[a], inner[b]], source.material_index)
-        # A nonplanar capture can climb far up the selected relief. Clearance
-        # belongs only to the insertion below its supporting plane.
-        bmesh.ops.bisect_plane(band, geom=band.verts[:] + band.edges[:] + band.faces[:],
-                               dist=tolerance, plane_co=support, plane_no=-axis,
-                               clear_outer=True, clear_inner=False)
-        boundary = [e for e in band.edges if e.is_boundary]
-        if boundary:
-            # A clipped band can expose nested outer/inner contours. Filling
-            # each contour separately creates overlapping disks that close a
-            # real annular hole; the planar helper preserves the nested parity.
-            from .geometry_plane import cap_open_cut_boundaries
-            previous_faces = set(band.faces)
-            cap_open_cut_boundaries(band, cut_edges=boundary, plane_origin=support,
-                                    plane_normal=-axis, coplanar_tol_bu=tolerance)
-            for cap in set(band.faces) - previous_faces:
-                cap[marker] = 1
-                cap.material_index = next(iter(contacts)).material_index
+        # The full contact band is closed at its original mesh boundary.
         bmesh.ops.dissolve_degenerate(band, edges=band.edges[:], dist=tolerance)
         remove_boolean_wires(band)
         from .geometry_solid import ensure_solid_outward_normals

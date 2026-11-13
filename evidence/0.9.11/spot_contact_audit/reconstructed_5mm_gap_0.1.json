@@ -1,0 +1,231 @@
+{
+  "method": "Reconstructed from original Spot.blend source and saved output Spot unmarked faces. Boundary and 10-face region inferred from provenance; not the original saved operation/settings (which were absent). Direct base split at inferred 5.0mm, requested PART clearance 0.1mm. Exact double precision point-triangle distances at centroid + three strictly interior barycentric points; sustained contact requires all four <=0.005mm and opposed normals. Shell distances are restricted to generated marked contact interface. Pin sidewall distances use all triangles on the opposing part. Prior finite-contact probe coordinates from saved Eye.001 are retested against all regenerated receiver triangles after pin/cavity. Post-Boolean validity/manifold/volume use validate_bmesh_mesh_geometry; nonadjacent BVH face overlaps were also checked.",
+  "scene_scale_mm_per_BU": 100.00000149011612,
+  "inferred_depth_mm": 5.0,
+  "requested_gap_mm": 0.1,
+  "source_to_output_rotation_x_degrees": 90,
+  "selected_source_faces": 10,
+  "seed_face": 2236,
+  "boundary_vertices": 53,
+  "boundary_perimeter_mm": 47.33601340385929,
+  "pair_metrics": {
+    "A_volume_mm3": 684.161427091512,
+    "B_volume_mm3": 716780.0675893837,
+    "A_faces": 215,
+    "B_faces": 3168,
+    "quality": {
+      "A": {
+        "is_valid": true,
+        "is_manifold": true,
+        "non_manifold_edges": 0,
+        "degenerate_faces": 0,
+        "volume_mm3": 684.161427091512,
+        "nonadjacent_bvh_overlap_pairs": []
+      },
+      "B": {
+        "is_valid": true,
+        "is_manifold": true,
+        "non_manifold_edges": 0,
+        "degenerate_faces": 0,
+        "volume_mm3": 716780.0675893837,
+        "nonadjacent_bvh_overlap_pairs": []
+      }
+    }
+  },
+  "axis": [
+    0.08853166550397873,
+    -0.9171482920646667,
+    -0.38858887553215027
+  ],
+  "pairs": [
+    {
+      "source": "A_to_B",
+      "categories": [
+        {
+          "category": "all",
+          "triangles": 222,
+          "area_mm2": 368.0852473313175,
+          "distance_quantiles_mm": {
+            "0": 0.041783298186720844,
+            "0.1": 0.09999920651328609,
+            "0.5": 0.10000010235440566,
+            "0.9": 0.10000184425523798,
+            "0.95": 0.1002169820601601,
+            "0.99": 0.1007393945427952,
+            "1": 0.2287310797665536
+          },
+          "near_zero_interior_triangles": 0,
+          "sustained_opposed_zero_triangles": 0,
+          "sustained_area_mm2": 0,
+          "sustained_axis_range_mm": null
+        },
+        {
+          "category": "wall",
+          "triangles": 158,
+          "area_mm2": 233.89162937130453,
+          "distance_quantiles_mm": {
+            "0": 0.09999784597534087,
+            "0.1": 0.09999932429984827,
+            "0.5": 0.10000009686536486,
+            "0.9": 0.10000181023596916,
+            "0.95": 0.10018876083647706,
+            "0.99": 0.10046939516537008,
+            "1": 0.10238206258322435
+          },
+          "near_zero_interior_triangles": 0,
+          "sustained_opposed_zero_triangles": 0,
+          "sustained_area_mm2": 0,
+          "sustained_axis_range_mm": null
+        },
+        {
+          "category": "transition",
+          "triangles": 64,
+          "area_mm2": 134.19361796001292,
+          "distance_quantiles_mm": {
+            "0": 0.041783298186720844,
+            "0.1": 0.09999856194614418,
+            "0.5": 0.10000014104258025,
+            "0.9": 0.10000157369510734,
+            "0.95": 0.10023982030497453,
+            "0.99": 0.10074087273966223,
+            "1": 0.2287310797665536
+          },
+          "near_zero_interior_triangles": 0,
+          "sustained_opposed_zero_triangles": 0,
+          "sustained_area_mm2": 0,
+          "sustained_axis_range_mm": null
+        }
+      ]
+    },
+    {
+      "source": "B_to_A",
+      "categories": [
+        {
+          "category": "all",
+          "triangles": 197,
+          "area_mm2": 376.5419666605022,
+          "distance_quantiles_mm": {
+            "0": 0.09999757922511499,
+            "0.1": 0.09999911072989437,
+            "0.5": 0.10000000695047381,
+            "0.9": 0.10000101213871533,
+            "0.95": 0.10000143441963842,
+            "0.99": 0.10983896162029752,
+            "1": 0.12933934946395667
+          },
+          "near_zero_interior_triangles": 0,
+          "sustained_opposed_zero_triangles": 0,
+          "sustained_area_mm2": 0,
+          "sustained_axis_range_mm": null
+        },
+        {
+          "category": "wall",
+          "triangles": 106,
+          "area_mm2": 241.49820514416294,
+          "distance_quantiles_mm": {
+            "0": 0.09999757922511499,
+            "0.1": 0.09999934965045952,
+            "0.5": 0.10000003217997126,
+            "0.9": 0.10000090254195461,
+            "0.95": 0.10000114309745323,
+            "0.99": 0.10000195880289188,
+            "1": 0.10000225947351443
+          },
+          "near_zero_interior_triangles": 0,
+          "sustained_opposed_zero_triangles": 0,
+          "sustained_area_mm2": 0,
+          "sustained_axis_range_mm": null
+        },
+        {
+          "category": "transition",
+          "triangles": 91,
+          "area_mm2": 135.0437615163393,
+          "distance_quantiles_mm": {
+            "0": 0.09999803396114154,
+            "0.1": 0.09999898942943973,
+            "0.5": 0.09999996945466648,
+            "0.9": 0.10000116887423902,
+            "0.95": 0.10000163618758207,
+            "0.99": 0.11885214631496106,
+            "1": 0.12933934946395667
+          },
+          "near_zero_interior_triangles": 0,
+          "sustained_opposed_zero_triangles": 0,
+          "sustained_area_mm2": 0,
+          "sustained_axis_range_mm": null
+        }
+      ]
+    }
+  ],
+  "pin_clearance": {
+    "source": "new cylindrical pin on Part A",
+    "target": "all triangles on Part B including generated cavity",
+    "profile": "sidewall triangles with axial centers in [0.05mm, length-0.25mm], radial centers within \u00b15% of nominal radius, |normal\u00b7axis|<0.5",
+    "triangles": 64,
+    "area_mm2": 11.918878527389387,
+    "samples": 256,
+    "distance_quantiles_mm": {
+      "0": 0.09951418462295399,
+      "0.1": 0.09951684468710753,
+      "0.5": 0.09951838414146752,
+      "0.9": 0.09951996182729862,
+      "0.99": 0.09952090478583658,
+      "1": 0.0995212827482559
+    },
+    "opposed_zero_samples": 0
+  },
+  "old_outer_wall_after_pin": {
+    "source": "saved Eye.001 previous finite-contact wall coordinates, same four interior points",
+    "target": "both regenerated complete meshes after the new pin/cavity",
+    "source_triangles": 146,
+    "source_area_mm2": 4.921392815048801,
+    "samples": 584,
+    "distance_to_new_A_mm": {
+      "0": 0.03868715540937649,
+      "0.1": 0.09999889450792133,
+      "0.5": 0.10000005111389208,
+      "0.9": 0.10000221893114086,
+      "0.99": 0.10080237232523012,
+      "1": 0.10137468198307643
+    },
+    "distance_to_new_B_mm": {
+      "0": 5.76319840969872e-10,
+      "0.1": 3.0692104329283186e-08,
+      "0.5": 1.6231735863158941e-07,
+      "0.9": 5.872916981586088e-07,
+      "0.99": 1.3775390463665293e-06,
+      "1": 1.6992269187004899e-06
+    },
+    "sum_of_distances_mm": {
+      "0": 0.03868715598569633,
+      "0.1": 0.09999892520002567,
+      "0.5": 0.10000021343125072,
+      "0.9": 0.10000280622283902,
+      "0.99": 0.10080374986427648,
+      "1": 0.10137638120999513
+    },
+    "A_samples_near_0.1mm": 572,
+    "B_samples_near_zero": 584
+  },
+  "connector_test": {
+    "type": "CYLINDER",
+    "male_side": "A",
+    "diameter_mm": 2.0,
+    "length_mm": 2.0,
+    "chamfer_mm": 0.2,
+    "radial_clearance_mm": 0.1,
+    "end_clearance_mm": 0.1,
+    "positions_world": [
+      [
+        -0.0892772451043129,
+        0.46178388595581055,
+        0.6044593453407288
+      ]
+    ],
+    "settings_note": "Explicit small test dimensions because auto-suggest found no safe 1x2mm fit.",
+    "auto_sizing_result": {
+      "auto_sizing_rejected": "N\u00e3o h\u00e1 espa\u00e7o cont\u00ednuo no contorno e no receptor para sugerir um pino de pelo menos 1 mm \u00d7 2 mm.",
+      "test_override": "2mm cylinder x 2mm insertion, 0.1mm radial/end clearances"
+    }
+  }
+}

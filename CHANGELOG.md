@@ -1,3 +1,11 @@
+# 0.9.11 — folga na faixa de contato e diagnósticos compactos — 2026-11-12
+
+- A extração com profundidade aplica a folga na faixa completa do contato capturado; o recorte pelo plano de apoio foi removido. O anel se prolonga além das faces retidas para evitar uma faixa de contato coplanar.
+- Em uma reconstrução do caso Spot com base de 5 mm e folga lateral de 0,1 mm inferida, as paredes marcadas mediram 0,099997–0,101373 mm em ambas as direções amostradas, sem triângulos de contato zero sustentado. Como os parâmetros originais da operação não estavam disponíveis, esse resultado não demonstra uma reprodução exata da cena salva nem cobre faces não marcadas.
+- Aviso de diferença de volume a partir de 0,5% permanece visível com os detalhes recolhidos. Volumes, dimensões, estatísticas de malha e o balanço completo ficam em **Mostrar dados**.
+- Os testes de profundidade mantêm os vértices fora do contorno de folga e a superfície selecionada; somente os vértices da borda do loop podem ser deslocados quando a folga está ativa. As medições descrevem os casos registrados, sem garantir todas as geometrias ou impressão física.
+- Após instalar, reabra o Blender e gere uma prévia nova. Peças já confirmadas em arquivos salvos não são reescritas automaticamente.
+
 # 0.9.10 — dimensionamento seguro de pinos — 2026-11-11
 
 - A sugestão de pinos agora limita o diâmetro pela faixa útil do contorno, margem externa e folga radial; a verificação de profundidade inclui amostras no interior do perfil e nos dois lados possíveis do corte.

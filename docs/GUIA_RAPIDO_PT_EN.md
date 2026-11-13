@@ -1,3 +1,11 @@
+# Atualização 0.9.11: aviso de volume e folga na faixa de contato
+
+Quando a diferença de volume chega a 0,5%, o aviso continua visível mesmo com **Mostrar dados** recolhido. Expanda o controle para consultar volumes, dimensões e malha. Na extração por profundidade, gere uma prévia nova após atualizar. Em uma reconstrução inferida do caso Spot, com base de 5 mm e folga de 0,1 mm, as paredes marcadas mediram 0,099997–0,101373 mm, sem contato zero sustentado. Os parâmetros salvos da operação não estavam disponíveis; a medida não reproduz exatamente a cena nem cobre superfícies sem marcação. Pré-visualizações e peças já confirmadas precisam ser recriadas manualmente para usar o código novo.
+
+**0.9.11 update: volume warning and full contact-band clearance**
+
+When the volume difference reaches 0.5%, the warning stays visible while **Show data** is collapsed. Expand it to inspect volumes, dimensions and mesh statistics. For depth extraction, generate a fresh preview after updating. In an inferred reconstruction of the Spot case, using a 5 mm base and 0.1 mm clearance, marked walls measured 0.099997–0.101373 mm with no sustained zero-contact triangles. The original operation settings were unavailable, so this does not exactly reproduce the saved scene or cover unmarked surfaces. Recreate previews and committed parts manually to use the updated code.
+
 # Correção 0.9.10: dimensionar encaixes antes da prévia
 
 **Sugerir dimensões** considera a margem, a folga e o material receptor, inclusive para o outro lado macho. Uma região capturada com somente um contato plano pode ser preparada antes de gerar a prévia; com vários contatos, escolha um deles na lista. Sem pinos na distribuição Manual, a sugestão usa o centro como referência e não cria posições. Se a região for irregular, posicione um pino manual no contato e solicite a sugestão novamente. Valores personalizados são preservados; confira a prévia atualizada antes de confirmar.

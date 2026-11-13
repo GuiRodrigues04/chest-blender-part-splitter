@@ -1,4 +1,4 @@
-"""Clearance-band regression for nested annular clipping and independent axes."""
+"""Regression tests for depth-clearance bands along relieved contact walls."""
 from pathlib import Path
 import sys
 import unittest
@@ -30,8 +30,7 @@ def prism_with_contact_band():
     bm.faces.ensure_lookup_table()
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     bm.normal_update()
-    contacts = set(sides) | {bottom}
-    return bm, contacts
+    return bm, set(sides) | {bottom}
 
 
 def volume_and_manifold(bm):
@@ -48,8 +47,7 @@ class TrimDepthContactBand(unittest.TestCase):
         src.unregister()
 
     def run_band(self, lateral, bottom):
-        builder = prism_with_contact_band
-        source, contacts = builder()
+        source, contacts = prism_with_contact_band()
         source_volume = abs(source.calc_volume())
         try:
             result = trim_depth_contact(source, contacts, Vector((0, 0, -1)),
@@ -60,12 +58,14 @@ class TrimDepthContactBand(unittest.TestCase):
         finally:
             source.free()
 
-    def test_nested_clip_preserves_annular_contact_band(self):
+    def test_full_relief_contact_band_has_clearance(self):
         before, after, manifold = self.run_band(0.1, 0.1)
         self.assertTrue(manifold)
         self.assertGreater(after, 0)
-        # Retain 80 mm³ of relief plus the 19.8² × 0.3 mm lower core.
-        self.assertAlmostEqual(before-after, 42.388, delta=0.1)
+        # Lower core loss is 42.388 mm³. Above the support plane the inset
+        # removes 0.1 × 16 mm² of perimeter height, minus 0.008 mm³ of
+        # overlapping corner strips: 1.592 mm³ more.
+        self.assertAlmostEqual(before-after, 43.980, delta=0.02)
 
     def test_minimum_lateral_clearance_is_present_across_all_walls(self):
         source, contacts = prism_with_contact_band()
@@ -74,10 +74,12 @@ class TrimDepthContactBand(unittest.TestCase):
                                         0.1, 0.1, 1.0, Vector((0, 0, 0)))
             try:
                 tree = BVHTree.FromBMesh(result)
-                probes = ((10, 0, -0.15), (-10, 0, -0.15),
-                          (0, 10, -0.15), (0, -10, -0.15))
+                probes = ((10, 0, -0.05), (-10, 0, -0.05),
+                          (0, 10, -0.05), (0, -10, -0.05),
+                          (10, 0, 0.05), (-10, 0, 0.05),
+                          (0, 10, 0.05), (0, -10, 0.05))
                 distances = [tree.find_nearest(Vector(point))[3] for point in probes]
-                self.assertEqual(len(distances), 4)
+                self.assertEqual(len(distances), 8)
                 self.assertGreater(min(distances), 0.095)
                 self.assertLess(max(distances), 0.105)
             finally:
@@ -90,7 +92,7 @@ class TrimDepthContactBand(unittest.TestCase):
         _, sides_only, sides_manifold = self.run_band(0.1, 0.0)
         self.assertTrue(floor_manifold and sides_manifold)
         self.assertAlmostEqual(source-floor_only, 40.0, delta=0.1)
-        self.assertAlmostEqual(source-sides_only, 3.184, delta=0.02)
+        self.assertAlmostEqual(source-sides_only, 4.776, delta=0.02)
 
     def test_real_contact_collapse_remains_excessive(self):
         source, contacts = prism_with_contact_band()
@@ -100,18 +102,6 @@ class TrimDepthContactBand(unittest.TestCase):
                                    10.1, 0.1, 1.0, Vector((0, 0, 0)))
             self.assertEqual(caught.exception.payload['__splitter_message__'],
                              'geometry.clearance_excessive')
-        finally:
-            source.free()
-
-    def test_open_cutter_band_reports_unresolved(self):
-        source, contacts = prism_with_contact_band()
-        try:
-            with patch('src.geometry_plane.cap_open_cut_boundaries', return_value=0):
-                with self.assertRaises(LocalizedGeometryError) as caught:
-                    trim_depth_contact(source, contacts, Vector((0, 0, -1)),
-                                       0.1, 0.1, 1.0, Vector((0, 0, 0)))
-            self.assertEqual(caught.exception.payload['__splitter_message__'],
-                             'geometry.clearance_unresolved')
         finally:
             source.free()
 

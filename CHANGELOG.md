@@ -1,3 +1,7 @@
+# 0.9.13 — folga na borda de relevos com base — 2026-11-19
+
+- Na extração com base, o recorte da folga lateral da peça atravessa a superfície externa dos relevos voltados para a direção de extração. Isso evita lâminas finas na borda quando a superfície sobe além das faces vizinhas ao contorno original.
+
 # 0.9.12 — correção do Contorno Automático — 2026-11-19
 
 - Quando o fechamento pela base deixa uma peça sem volume útil, o modo Automático tenta a profundidade de extração configurada. A prévia e as ferramentas de pinos usam a mesma decisão.

@@ -1196,7 +1196,8 @@ def _slice_mesh_by_loop_impl(
             if max(lat_a_mm, bot_a_mm) > 0:
                 _triangulate_retained_source_faces(bm_a, obj, range(len(obj.data.polygons)))
                 trimmed = trim_depth_contact(bm_a, created_faces_a, inward_dir, lat_a_bu,
-                                             bot_a_mm / scale_to_mm, scale_to_mm, trim_support)
+                                             bot_a_mm / scale_to_mm, scale_to_mm, trim_support,
+                                             through_exterior=True)
                 bm_a.free(); bm_a = trimmed
                 _restore_retained_source_faces(bm_a, obj)
             if max(lat_b_mm, bot_b_mm) > 0:

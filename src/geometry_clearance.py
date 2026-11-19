@@ -167,12 +167,13 @@ def offset_contact_surface(bm, contact_faces, origin, axial_normal,
                 vertex.co += delta
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
 
-def trim_depth_contact(bm, contacts, axis, lateral, bottom, unit_scale, support):
+def trim_depth_contact(bm, contacts, axis, lateral, bottom, unit_scale, support,
+                       *, through_exterior=False):
     """Subtract the full generated clearance band from the source contact.
 
-Apply the wall and bottom offsets across the complete generated interface,
-including contact walls above the former support plane. At a contact boundary,
-constrain both offset rings beyond the adjacent retained face to close the rim."""
+    Apply the wall and bottom offsets across the complete generated interface.
+    Close each rim past the retained surface that borders it.
+    """
     bm.normal_update()
     contacts = set(contacts)
     axis = axis.normalized()
@@ -245,6 +246,27 @@ constrain both offset rings beyond the adjacent retained face to close the rim."
                 rim_directions[vertex].append(direction)
                 rim_retained_normals[vertex].extend(face.normal.copy() for face in neighboring_faces if face not in contacts)
         inner_shifts = dict(shifts)
+        max_extension = 32.0 * max(lateral, bottom, outer_epsilon)
+        exterior_axis = -axis
+        exterior_rim = {vertex for vertex, normals in rim_retained_normals.items() if normals}
+        exterior_top = None
+        if through_exterior and lateral > tolerance and exterior_rim:
+            retained = [face for face in bm.faces if face not in contacts]
+            # A forward-facing relief has no folded layers above the cut strip.
+            # An extrusion's vertical wall planes allow axial extension without
+            # changing their clearance. Both conditions must hold around the rim.
+            if all(face.normal.dot(exterior_axis) > 1e-5 for face in retained) and all(
+                rim_directions[vertex]
+                and sum(rim_directions[vertex], Vector()).dot(exterior_axis) > 0.0
+                and all(abs(face.normal.dot(exterior_axis)) <= 1e-5
+                        for face in vertex.link_faces if face in contacts)
+                for vertex in exterior_rim
+            ):
+                top = max(vertex.co.dot(exterior_axis) for face in retained for vertex in face.verts)
+                start = min((vertex.co + delta[vertex]).dot(exterior_axis)
+                            for vertex in exterior_rim for delta in (outer_shifts, shifts))
+                if top + outer_epsilon - start <= max_extension:
+                    exterior_top = top + outer_epsilon
         for vertex, directions in rim_directions.items():
             if not directions:
                 continue
@@ -266,6 +288,9 @@ constrain both offset rings beyond the adjacent retained face to close the rim."
             if direction.length <= tolerance:
                 continue
             direction.normalize()
+            extend_through_exterior = exterior_top is not None and vertex in exterior_rim
+            if extend_through_exterior:
+                direction = exterior_axis
             outer_extension = outer_epsilon
             inner_extension = outer_epsilon
             for normal in rim_retained_normals[vertex]:
@@ -285,7 +310,13 @@ constrain both offset rings beyond the adjacent retained face to close the rim."
                             inner_extension = max(inner_extension, required)
                     elif normal.dot(base_delta) < outer_epsilon-tolerance:
                         raise LocalizedGeometryError('geometry.clearance_unresolved')
-            max_extension = 32.0 * max(lateral, bottom, outer_epsilon)
+            if extend_through_exterior:
+                # The shifted ring can pass under a different exterior triangle
+                # than the one incident to the original boundary vertex.
+                outer_extension = max(outer_extension, exterior_top -
+                                      (vertex.co + outer_shifts[vertex]).dot(exterior_axis))
+                inner_extension = max(inner_extension, exterior_top -
+                                      (vertex.co + inner_shifts[vertex]).dot(exterior_axis))
             if max(outer_extension, inner_extension) > max_extension:
                 raise LocalizedGeometryError('geometry.clearance_excessive')
             outer_shifts[vertex] += direction * outer_extension

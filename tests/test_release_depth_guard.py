@@ -9,11 +9,13 @@ from unittest import mock
 import bpy
 import bmesh
 from mathutils import Matrix, Vector
+from mathutils.bvhtree import BVHTree
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from src import geometry_loop as gl
 from src import geometry_material as gm
+from src.geometry_clearance import trim_depth_contact
 from src.localized_errors import LocalizedGeometryError
 
 FIXTURE = Path(__file__).parent / "fixtures" / "horn_region_private.json"
@@ -58,6 +60,48 @@ class ReleaseDepthGuard(unittest.TestCase):
     def setUp(self):
         bpy.ops.wm.read_factory_settings(use_empty=True)
         bpy.context.scene.unit_settings.scale_length = 1.0
+
+    def test_depth_clearance_cuts_through_piecewise_exterior_relief(self):
+        bm = bmesh.new()
+        self.addCleanup(bm.free)
+
+        def square_ring(radius, height):
+            return [bm.verts.new((x * radius, y * radius, height))
+                    for x, y in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+
+        floor, rim, flat, slope, center = (
+            square_ring(radius, height) for radius, height in
+            ((4, -2), (4, 0), (3.9, 0), (3.7, .02), (2, .02))
+        )
+        contacts = [bm.faces.new(floor[::-1])]
+        for i in range(4):
+            j = (i + 1) % 4
+            contacts.append(bm.faces.new((floor[i], floor[j], rim[j], rim[i])))
+            for outside, inside in ((rim, flat), (flat, slope), (slope, center)):
+                bm.faces.new((outside[i], outside[j], inside[j], inside[i]))
+        bm.faces.new(center)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+        bmesh.ops.triangulate(bm, faces=[face for face in bm.faces if face not in contacts])
+
+        inward = Vector((0, 0, -1))
+        for lateral, bottom in ((.5, .5), (.5, 0), (0, .5)):
+            with self.subTest(lateral=lateral, bottom=bottom):
+                result = trim_depth_contact(
+                    bm, contacts, inward, lateral, bottom, 1., Vector(), through_exterior=True)
+                try:
+                    self.assertTrue(all(edge.is_manifold for edge in result.edges))
+                    tree = BVHTree.FromBMesh(result)
+                    strip = tree.ray_cast(Vector((3.8, 0, 1)), inward)[0]
+                    if lateral:
+                        self.assertIsNone(strip, 'The axial ray must miss the entire trimmed strip')
+                    else:
+                        self.assertAlmostEqual(strip.z, .01, places=5)
+                    top = tree.ray_cast(Vector((3.4, 0, 1)), inward)[0]
+                    base = tree.ray_cast(Vector((3.4, 0, -3)), -inward)[0]
+                    self.assertAlmostEqual(top.z, .02, places=5)
+                    self.assertAlmostEqual(base.z, -2 + bottom, places=5)
+                finally:
+                    result.free()
 
     def test_auto_retries_collapsed_base_at_configured_finite_depth(self):
         scene = bpy.context.scene

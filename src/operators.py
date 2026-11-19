@@ -28,6 +28,7 @@ from .constants import (
     COLOR_PART_A,
     COLOR_PART_B,
     VOLUME_REL_TOLERANCE,
+    MIN_PRINTABLE_VOLUME_MM3,
     CLEARANCE_PRESETS,
     SOLID_PRIMITIVE_TYPES,
     ROLE_WORK_COPY,
@@ -170,7 +171,7 @@ def validate_printable_mesh(
     part_name: str = "Peça",
     unit_scale: float = 1000.0,
     check_manifold: bool = True,
-    min_volume_mm3: float = 1e-3,
+    min_volume_mm3: float = MIN_PRINTABLE_VOLUME_MM3,
 ) -> Tuple[bool, str, Dict[str, Any]]:
     """Valida se uma malha atende aos critérios mínimos de solidez para impressão 3D."""
     bm.verts.ensure_lookup_table()
@@ -2571,10 +2572,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
             elif settings.split_mode == 'LOOP':
                 from .geometry_loop import (
-                    slice_mesh_by_loop,
-                    slice_mesh_by_loop_extrude,
-                    analyze_loop_region,
-                    get_topology_signature,
+                    slice_loop_from_settings,
                     validate_capture,
                 )
                 is_valid, reason = validate_capture(target, settings, context)
@@ -2587,47 +2585,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
 
                 indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i.strip()]
 
-                behavior = settings.loop_behavior
-                if behavior == 'AUTO':
-                    analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, context.scene)
-                    effective_mode = analysis["detected_mode"]
-                    settings.loop_detected_mode = effective_mode
-                    import json
-                    reason = analysis.get('reason_message', analysis['reason'])
-                    settings.loop_auto_reason = json.dumps(reason) if isinstance(reason, dict) else reason
-                else:
-                    effective_mode = behavior
-
-                loop_bottom_mm = (
-                    getattr(settings, "part_clearance_bottom_mm", 0.0)
-                    if getattr(settings, "part_clearance_bottom_enable", False) else None
-                )
-                if effective_mode == 'EXTRUDE':
-                    loop_res = slice_mesh_by_loop_extrude(
-                        target,
-                        target.name,
-                        indices,
-                        settings.loop_seed_face_index,
-                        depth_mm=settings.loop_extrude_depth_mm,
-                        through_cut=settings.loop_through_cut,
-                        scene=context.scene,
-                        part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
-                        part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
-                        part_clearance_bottom_mm=loop_bottom_mm,
-                    )
-                else:
-                    loop_res = slice_mesh_by_loop(
-                        target,
-                        target.name,
-                        indices,
-                        settings.loop_seed_face_index,
-                        context.scene,
-                        detach_add_base=settings.loop_detach_add_base,
-                        detach_base_depth_mm=settings.loop_detach_base_depth_mm,
-                        part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
-                        part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
-                        part_clearance_bottom_mm=loop_bottom_mm,
-                    )
+                loop_res = slice_loop_from_settings(target, indices, settings, context.scene)
 
                 bm_a, bm_b = loop_res[0], loop_res[1]
                 candidate_mesh_a.materials.clear()

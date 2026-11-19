@@ -3075,6 +3075,8 @@ MESSAGES = {
 
 MESSAGES['pt_BR'].update({
     'geometry.region_degenerate': 'A peça candidata contém {count} face(s) degeneradas e {edges} aresta(s) quase nulas. O reparo automático seguro não pôde preservar a geometria. O alvo original foi mantido; verifique a malha, não apenas a seleção.',
+    'diagnostic.loop_collapse_uses_depth': 'O fechamento pela base não gerou volume útil. Será usada a profundidade de extração configurada.',
+    'geometry.loop_closure_collapsed': 'O fechamento pela base deixou a Parte {part} sem volume. Ajuste o contorno ou a folga, adicione uma base ou escolha Profundidade.',
     'diagnostic.closure_uses_depth': 'O fechamento direto atravessa a superfície selecionada. Será usada a profundidade de extração configurada.',
     'geometry.closing_intersection': '{part}: a superfície de fechamento cruza a geometria existente ({count} interseção(ões)). Ajuste o contorno ou escolha uma profundidade de fechamento explícita.',
     'geometry.depth_region_overhang': 'Não foi possível separar a região inteira com esta profundidade. A projeção do contorno cortaria partes da estrutura selecionada. Ajuste o contorno ou a profundidade.',
@@ -3104,6 +3106,8 @@ MESSAGES['pt_BR'].update({
 })
 MESSAGES['en_US'].update({
     'geometry.region_degenerate': 'The candidate contains {count} degenerate face(s) and {edges} near-zero edge(s). Safe automatic repair could not preserve its geometry. The original target was kept; inspect the mesh, not only the selection.',
+    'diagnostic.loop_collapse_uses_depth': 'Closing at the base produced no usable volume. The configured extraction depth will be used.',
+    'geometry.loop_closure_collapsed': 'Closing at the base left Part {part} with no volume. Adjust the boundary or clearance, add a fitting base, or choose Depth.',
     'diagnostic.closure_uses_depth': 'Direct closing crosses the selected surface. The configured extraction depth will be used.',
     'geometry.closing_intersection': '{part}: the closing surface crosses existing geometry ({count} intersection(s)). Adjust the boundary or choose an explicit closing depth.',
     'geometry.depth_region_overhang': 'The complete region could not be separated at this depth. Projecting the boundary would cut parts of the selected structure. Adjust the boundary or depth.',

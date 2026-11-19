@@ -1,7 +1,7 @@
 """Constantes e definições padrão para o Splitter."""
 
 # Identificação e versão do Addon
-ADDON_VERSION = (0, 9, 11)
+ADDON_VERSION = (0, 9, 12)
 ADDON_VERSION_STR = ".".join(map(str, ADDON_VERSION))
 PANEL_TITLE = f"Splitter {ADDON_VERSION_STR}"
 
@@ -37,6 +37,7 @@ COLOR_PART_B = (0.95, 0.55, 0.15, 1.0) # Laranja âmbar
 
 # Tolerâncias geométricas
 MIN_FACE_AREA_BU = 1e-7
+MIN_PRINTABLE_VOLUME_MM3 = 1e-3
 SCALE_TOLERANCE = 1e-4
 VOLUME_REL_TOLERANCE = 0.005  # 0.5% de tolerância relativa de volume
 

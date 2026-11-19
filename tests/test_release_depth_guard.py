@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 import bpy
@@ -57,6 +58,51 @@ class ReleaseDepthGuard(unittest.TestCase):
     def setUp(self):
         bpy.ops.wm.read_factory_settings(use_empty=True)
         bpy.context.scene.unit_settings.scale_length = 1.0
+
+    def test_auto_retries_collapsed_base_at_configured_finite_depth(self):
+        scene = bpy.context.scene
+        target = SimpleNamespace(name='Thin relief')
+        indices = [0, 1, 2]
+        settings = SimpleNamespace(
+            loop_seed_face_index=3, loop_behavior='AUTO', loop_detach_add_base=False,
+            loop_detach_base_depth_mm=2.0, loop_extrude_depth_mm=5.0, loop_through_cut=True,
+            part_clearance_mm=0.1, part_clearance_apply_to='PART',
+            part_clearance_bottom_mm=0.15, part_clearance_bottom_enable=True,
+        )
+        collapsed = LocalizedGeometryError('geometry.loop_closure_collapsed', part='A')
+        analysis = {'detected_mode': 'DETACH', 'reason': 'protrusion'}
+        with mock.patch.object(gl, 'analyze_loop_region', return_value=analysis), \
+             mock.patch.object(gl, 'slice_mesh_by_loop', side_effect=collapsed), \
+             mock.patch.object(gl, 'slice_mesh_by_loop_extrude') as depth:
+            result = gl.slice_loop_from_settings(target, indices, settings, scene)
+            self.assertIs(result, depth.return_value)
+            depth.assert_called_once_with(
+                target, target.name, indices, settings.loop_seed_face_index, depth_mm=5.0,
+                through_cut=False, scene=scene, part_clearance_mm=0.1,
+                part_clearance_apply_to='PART', part_clearance_bottom_mm=0.15,
+            )
+            self.assertEqual(settings.loop_detected_mode, 'EXTRUDE')
+            self.assertTrue(gl.loop_prefers_finite_depth(settings.loop_auto_reason))
+
+            depth.reset_mock()
+            for behavior, add_base in (('DETACH', False), ('AUTO', True)):
+                with self.subTest(behavior=behavior, add_base=add_base):
+                    settings.loop_behavior = behavior
+                    settings.loop_detach_add_base = add_base
+                    with self.assertRaises(LocalizedGeometryError) as error:
+                        gl.slice_loop_from_settings(target, indices, settings, scene)
+                    self.assertIs(error.exception, collapsed)
+            depth.assert_not_called()
+
+            settings.loop_detach_add_base = False
+            settings.loop_detected_mode = 'DETACH'
+            settings.loop_auto_reason = 'previous result'
+            depth.side_effect = LocalizedGeometryError('geometry.wall_thickness', depth=5.0, available=3.0)
+            with self.assertRaises(LocalizedGeometryError) as error:
+                gl.slice_loop_from_settings(target, indices, settings, scene)
+            self.assertIs(error.exception, depth.side_effect)
+            self.assertEqual(settings.loop_detected_mode, 'DETACH')
+            self.assertEqual(settings.loop_auto_reason, 'previous result')
 
     def test_projected_edges_cannot_cross_a_narrow_concavity(self):
         mesh = bpy.data.meshes.new('AcrossNotch')

@@ -351,7 +351,9 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
                     row_depth_head = box_depth.row(align=True)
                     row_depth_head.label(text=localize_text("Parâmetros de Profundidade:"), icon='CON_SIZELIMIT')
                     box_depth.prop(settings, "loop_extrude_depth_mm", text=localize_text("Profundidade (mm)"))
-                    box_depth.prop(settings, "loop_through_cut", text=localize_text("Corte Passante"))
+                    from .geometry_loop import loop_prefers_finite_depth
+                    if settings.loop_behavior != 'AUTO' or not loop_prefers_finite_depth(settings.loop_auto_reason):
+                        box_depth.prop(settings, "loop_through_cut", text=localize_text("Corte Passante"))
 
                 show_detach_base = (settings.loop_behavior == 'DETACH') or (
                     settings.loop_behavior == 'AUTO' and settings.loop_detected_mode == 'DETACH'

@@ -1,3 +1,8 @@
+# 0.9.12 — correção do Contorno Automático — 2026-11-19
+
+- Quando o fechamento pela base deixa uma peça sem volume útil, o modo Automático tenta a profundidade de extração configurada. A prévia e as ferramentas de pinos usam a mesma decisão.
+- O corte explícito Pela Base informa quando o fechamento deixa uma peça sem volume e indica como ajustar o corte.
+
 # 0.9.11 — folga na faixa de contato e diagnósticos compactos — 2026-11-12
 
 - A extração com profundidade aplica a folga na faixa completa do contato capturado; o recorte pelo plano de apoio foi removido. O anel se prolonga além das faces retidas para evitar uma faixa de contato coplanar.

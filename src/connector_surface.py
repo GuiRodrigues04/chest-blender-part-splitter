@@ -238,58 +238,18 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             bpy.data.meshes.remove(mesh_a)
             bpy.data.meshes.remove(mesh_b)
     elif mode == 'LOOP':
-        from .geometry_loop import (
-            slice_mesh_by_loop,
-            slice_mesh_by_loop_extrude,
-        )
+        from .geometry_loop import slice_loop_from_settings, validate_capture
         if target.mode == 'EDIT':
             target.update_from_editmode()
 
         indices = [int(i) for i in settings.loop_vertex_indices.split(',') if i.strip()]
-        from .geometry_loop import validate_capture
         valid, reason = validate_capture(target, settings, context)
         if not valid:
             raise RuntimeError(reason)
         if settings.loop_seed_face_index < 0:
             raise RuntimeError("Defina a região a separar selecionando uma face semente no modo Loop.")
 
-        behavior = settings.loop_behavior
-        if behavior == 'AUTO':
-            # Mesma resolução usada em splitter_generate_preview, para que a interface do
-            # editor coincida com a interface real de contato (origem, normal e profundidade).
-            from .geometry_loop import analyze_loop_region
-            analysis = analyze_loop_region(target, indices, settings.loop_seed_face_index, context.scene)
-            behavior = analysis["detected_mode"]
-        loop_bottom_mm = (
-            getattr(settings, "part_clearance_bottom_mm", 0.0)
-            if getattr(settings, "part_clearance_bottom_enable", False) else None
-        )
-        if behavior == 'EXTRUDE':
-            loop_res = slice_mesh_by_loop_extrude(
-                target,
-                target.name,
-                indices,
-                settings.loop_seed_face_index,
-                depth_mm=settings.loop_extrude_depth_mm,
-                through_cut=settings.loop_through_cut,
-                scene=context.scene,
-                part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
-                part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
-                part_clearance_bottom_mm=loop_bottom_mm,
-            )
-        else:
-            loop_res = slice_mesh_by_loop(
-                target,
-                target.name,
-                indices,
-                settings.loop_seed_face_index,
-                context.scene,
-                detach_add_base=settings.loop_detach_add_base,
-                detach_base_depth_mm=settings.loop_detach_base_depth_mm,
-                part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
-                part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
-                part_clearance_bottom_mm=loop_bottom_mm,
-            )
+        loop_res = slice_loop_from_settings(target, indices, settings, context.scene)
 
         bm_a, bm_b = loop_res[0], loop_res[1]
         if include_solids:
@@ -430,10 +390,13 @@ def cache_prepared_interface(context, cut_iface, sig=None):
         contact_tris = cut_iface.interface_triangles_world
     elif mode == 'LOOP':
         from dataclasses import replace
+        from .geometry_loop import loop_prefers_finite_depth
         loop_beh = settings.loop_behavior
+        through_cut = settings.loop_through_cut
         if loop_beh == 'AUTO':
             loop_beh = getattr(settings, "loop_detected_mode", "DETACH") or "DETACH"
-        if loop_beh == 'EXTRUDE' and not settings.loop_through_cut:
+            through_cut = through_cut and not loop_prefers_finite_depth(settings.loop_auto_reason)
+        if loop_beh == 'EXTRUDE' and not through_cut:
             bottom = settings.part_clearance_bottom_mm if settings.part_clearance_bottom_enable else settings.part_clearance_mm
         elif loop_beh == 'DETACH' and settings.loop_detach_add_base:
             bottom = settings.part_clearance_bottom_mm if settings.part_clearance_bottom_enable else settings.part_clearance_mm

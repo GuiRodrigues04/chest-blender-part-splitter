@@ -14,7 +14,8 @@ import bpy
 import bmesh
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
-from .diagnostic import get_scene_scale_to_mm
+from .constants import MIN_PRINTABLE_VOLUME_MM3
+from .diagnostic import get_scene_scale_to_mm, stable_signed_volume_mm3
 from .geometry_contract import CutInterface, SplitResult, build_cut_interface
 from .localized_errors import LocalizedGeometryError
 from .geometry_plane import evaluate_bmesh_metrics
@@ -695,6 +696,63 @@ def slice_mesh_by_loop(*args, **kwargs):
     raise last_error
 
 
+def loop_prefers_finite_depth(reason):
+    """The automatic retry after a collapsed closure uses finite depth."""
+    from .localized_errors import MESSAGE_MARKER, decode_message
+
+    payload = decode_message(reason)
+    return isinstance(payload, dict) and payload.get(MESSAGE_MARKER) == 'diagnostic.loop_collapse_uses_depth'
+
+
+def slice_loop_from_settings(obj, indices, settings, scene):
+    """Resolve one Loop cut consistently for preview and connector preparation."""
+    import json
+    from .localized_errors import MESSAGE_MARKER, message_payload
+
+    seed = settings.loop_seed_face_index
+    mode = settings.loop_behavior
+    add_base = settings.loop_detach_add_base
+    reason = None
+    if mode == 'AUTO':
+        analysis = analyze_loop_region(obj, indices, seed, scene)
+        reason = analysis.get('reason_message', analysis['reason'])
+        if add_base and loop_prefers_finite_depth(reason):
+            # The zero-gap probe doesn't account for the fitting base.
+            analysis = analyze_loop_region(obj, indices, seed, scene, probe_direct_closure=False)
+            reason = analysis.get('reason_message', analysis['reason'])
+        mode = analysis['detected_mode']
+
+    clearance = dict(
+        part_clearance_mm=settings.part_clearance_mm,
+        part_clearance_apply_to=settings.part_clearance_apply_to,
+        part_clearance_bottom_mm=(settings.part_clearance_bottom_mm
+                                  if settings.part_clearance_bottom_enable else None),
+    )
+    if mode == 'DETACH':
+        try:
+            result = slice_mesh_by_loop(
+                obj, obj.name, indices, seed, scene=scene,
+                detach_add_base=add_base, detach_base_depth_mm=settings.loop_detach_base_depth_mm,
+                **clearance,
+            )
+        except LocalizedGeometryError as error:
+            if (settings.loop_behavior != 'AUTO' or add_base
+                    or error.payload[MESSAGE_MARKER] != 'geometry.loop_closure_collapsed'):
+                raise
+            mode = 'EXTRUDE'
+            reason = message_payload('diagnostic.loop_collapse_uses_depth')
+    if mode == 'EXTRUDE':
+        result = slice_mesh_by_loop_extrude(
+            obj, obj.name, indices, seed, depth_mm=settings.loop_extrude_depth_mm,
+            through_cut=settings.loop_through_cut and not loop_prefers_finite_depth(reason),
+            scene=scene, **clearance,
+        )
+    if reason is not None:
+        settings.loop_detected_mode = mode
+        settings.loop_auto_reason = json.dumps(reason) if isinstance(reason, dict) else reason
+    return result
+
+
 def _slice_mesh_by_loop_impl(
     obj: bpy.types.Object,
     target_name: str,
@@ -1238,6 +1296,13 @@ def _slice_mesh_by_loop_impl(
             bm_a.free(); bm_b.free()
             raise
 
+    if stepped_res is None and not (detach_add_base and detach_base_depth_mm > 0.0):
+        for label, part in (('A', bm_a), ('B', bm_b)):
+            if abs(stable_signed_volume_mm3(part, scale_to_mm)) < MIN_PRINTABLE_VOLUME_MM3:
+                bm_a.free()
+                bm_b.free()
+                raise LocalizedGeometryError('geometry.loop_closure_collapsed', part=label)
+
     # Constrói CutInterface formal em World Space
     # A03: com base adicional, a interface efetiva de contato é o fundo da base
     # (deslocado por inward_dir * profundidade), não o contorno original no topo.
@@ -1504,7 +1569,7 @@ def analyze_loop_region(
     # not to force an invalid DETACH closure or silently alter that depth.  The
     # nominal loop operation does not call this analysis function, so the probe
     # is bounded and cannot recurse.  Preserve all other errors as-is.
-    closure_crosses_source = False
+    closure_reason = None
     if detected_mode == 'DETACH' and probe_direct_closure:
         try:
             probe = slice_mesh_by_loop(
@@ -1512,21 +1577,21 @@ def analyze_loop_region(
             )
         except LocalizedGeometryError as error:
             from .localized_errors import MESSAGE_MARKER
-            if error.payload.get(MESSAGE_MARKER) not in ('geometry.closing_intersection','geometry.closing_outside'):
+            key = error.payload.get(MESSAGE_MARKER)
+            if key in ('geometry.closing_intersection', 'geometry.closing_outside'):
+                closure_reason = 'diagnostic.closure_uses_depth'
+            elif key == 'geometry.loop_closure_collapsed':
+                closure_reason = 'diagnostic.loop_collapse_uses_depth'
+            else:
                 raise
-            closure_crosses_source = True
             detected_mode = 'EXTRUDE'
-            reason = (
-                "O fechamento direto cruza a geometria existente; "
-                "AUTO usará a profundidade de extração configurada."
-            )
         else:
             for probe_part in probe:
                 probe_part.free()
 
     from .localized_errors import message_payload
-    if closure_crosses_source:
-        reason_message = message_payload('diagnostic.closure_uses_depth')
+    if closure_reason:
+        reason_message = message_payload(closure_reason)
         from .localized_errors import render_message
         reason = render_message(reason_message)
     elif is_planar_region:
@@ -1538,7 +1603,7 @@ def analyze_loop_region(
     return {
         "reason_message": reason_message,
         "detected_mode": detected_mode,
-        "closure_crosses_source": closure_crosses_source,
+        "closure_crosses_source": closure_reason == 'diagnostic.closure_uses_depth',
         "reason": reason,
         "protrusion_height_mm": max(0.0, max_h * scale_to_mm),
         "region_face_indices": region_face_indices,

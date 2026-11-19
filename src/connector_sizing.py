@@ -1,4 +1,5 @@
 """Conservative initial connector dimensions from the actual cut solids."""
+from .clearance import radial_clearance, end_clearance
 import math
 import json
 import bpy
@@ -55,7 +56,7 @@ def recommend_dimensions(prepared, settings, target):
     # validator to check its actual contour (including holes and concavities).
     # The nominal diameter must fit with both the printer clearance and the
     # requested edge margin on either side.
-    clearance = max(0., float(settings.clearance_per_side_mm))
+    clearance = max(0., float(radial_clearance(settings)))
     edge_margin = max(.4, float(settings.connector_edge_margin_mm))
     maximum = min(40., min(prepared.interface.width_mm, prepared.interface.height_mm)
                   - 2.*(edge_margin+clearance))
@@ -125,7 +126,7 @@ def recommend_dimensions(prepared, settings, target):
         if (not footprint_valid or not available
                 or min(embedded) < max(.2, diameter*.05)+.05):
             continue
-        maximum_length = min(50., min(available)-wall_mm-settings.end_clearance_mm)
+        maximum_length = min(50., min(available)-wall_mm-end_clearance(settings))
         desired = max(2., max(entrance)+1.5*diameter)
         length = math.floor(min(desired, maximum_length)*4)/4
         if length < max(2., max(entrance)+1.):
@@ -150,8 +151,8 @@ def _sizing_configuration(settings):
         'type': settings.connector_type,
         'distribution': settings.connector_distribution,
         'edge_margin': round(float(settings.connector_edge_margin_mm), 5),
-        'clearance': round(float(settings.clearance_per_side_mm), 5),
-        'end_clearance': round(float(settings.end_clearance_mm), 5),
+        'clearance': round(float(radial_clearance(settings)), 5),
+        'end_clearance': round(float(end_clearance(settings)), 5),
         'adjust': bool(settings.adjust_to_valid_area),
         'manual': manual,
     }, sort_keys=True, separators=(',', ':'))

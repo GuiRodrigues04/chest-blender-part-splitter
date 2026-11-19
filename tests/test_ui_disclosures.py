@@ -53,7 +53,7 @@ class RecordingLayout:
         self.node.children.append(Node("label", **kwargs))
 
     def operator(self, name, **kwargs):
-        self.node.children.append(Node("operator", name=name, **kwargs))
+        self.node.children.append(Node("operator", name=name, alert=self.alert, **kwargs))
         return SimpleNamespace()
 
     def separator(self, **kwargs):
@@ -94,6 +94,8 @@ class TestUIDisclosures(bpy.types.Operator):
 
         self.assert_collapsed_panel_warning(context)
         self.assert_expanded_panel_result_order(context)
+        self.assert_target_and_clearance(context)
+        self.assert_loop_guidance(context)
         print("UI disclosure, visible volume warning, and panel ordering checks passed")
         return {'FINISHED'}
 
@@ -133,6 +135,52 @@ class TestUIDisclosures(bpy.types.Operator):
                             for grandchild in child.children))
         assert len(part_card_indices) == 2
         assert max(part_card_indices) < sum_card
+
+    def assert_target_and_clearance(self, context):
+        settings = context.scene.chest_splitter
+        settings.split_mode = 'LOOP'
+        settings.loop_behavior = 'DETACH'
+        settings.connector_enabled = True
+        settings.show_mesh_diagnostics = False
+        settings.clearance_use_general = True
+        root = RecordingLayout()
+        VIEW3D_PT_chest_part_splitter.draw(SimpleNamespace(layout=root), context)
+        props = [n.kwargs.get('property_name') for n in walk(root.node) if n.kind == 'prop']
+        assert 'show_mesh_diagnostics' in props and 'show_target_data' not in props
+        assert 'part_clearance_mm' in props and 'clearance_use_general' in props
+        assert 'part_clearance_bottom_enable' not in props
+        assert 'clearance_per_side_mm' not in props and 'end_clearance_mm' not in props
+        settings.clearance_use_general = False
+        settings.show_mesh_diagnostics = True
+        root = RecordingLayout()
+        VIEW3D_PT_chest_part_splitter.draw(SimpleNamespace(layout=root), context)
+        props = [n.kwargs.get('property_name') for n in walk(root.node) if n.kind == 'prop']
+        assert 'part_clearance_bottom_enable' in props
+        assert 'clearance_per_side_mm' in props and 'end_clearance_mm' in props
+        assert any(n.kind == 'label' and n.kwargs.get('text', '').startswith(('Dimensões:', 'Dimensions:')) for n in walk(root.node))
+
+    def assert_loop_guidance(self, context):
+        settings = context.scene.chest_splitter
+        settings.split_mode = 'LOOP'
+        settings.loop_behavior = 'AUTO'
+        settings.loop_is_captured = False
+        root = RecordingLayout()
+        VIEW3D_PT_chest_part_splitter.draw(SimpleNamespace(layout=root), context)
+        assert not any(n.kind == 'operator' and n.kwargs.get('name') == 'chest.splitter_define_seed_face' for n in walk(root.node))
+        settings.loop_is_captured = True
+        settings.loop_seed_face_index = -1
+        settings.loop_auto_reason = ''
+        root = RecordingLayout()
+        VIEW3D_PT_chest_part_splitter.draw(SimpleNamespace(layout=root), context)
+        nodes = list(walk(root.node))
+        seed = next(n for n in nodes if n.kind == 'operator' and n.kwargs.get('name') == 'chest.splitter_define_seed_face')
+        assert seed.kwargs['alert']
+        assert not any(n.kind == 'label' and n.kwargs.get('text', '').startswith(('Auto Detectado:', 'Auto Detected:')) for n in nodes)
+        settings.loop_seed_face_index = 0
+        root = RecordingLayout()
+        VIEW3D_PT_chest_part_splitter.draw(SimpleNamespace(layout=root), context)
+        seed = next(n for n in walk(root.node) if n.kind == 'operator' and n.kwargs.get('name') == 'chest.splitter_define_seed_face')
+        assert not seed.kwargs['alert']
 
 
 bpy.utils.register_class(TestUIDisclosures)

@@ -1,4 +1,5 @@
 """Operadores do Blender para o Chest Part Splitter (Fase 1 - Corte por Plano)."""
+from .clearance import bottom_clearance, radial_clearance, end_clearance
 from .translations import localized_format
 from .scene_state import uses_surface_region
 
@@ -356,8 +357,9 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
 
     # 2. Modo e parâmetros de corte
     tokens.append(f"mode:{settings.split_mode}")
+    tokens.append(f"clearance_general:{getattr(settings, 'clearance_use_general', False)}")
     tokens.append(f"unit_scale:{get_scene_scale_to_mm(context.scene):.5f}")
-    tokens.append(f"clearance:{settings.clearance_per_side_mm:.4f}")
+    tokens.append(f"clearance:{radial_clearance(settings):.4f}")
 
     if settings.split_mode == 'PLANE':
         from .plane_state import resolve_plane_state
@@ -442,7 +444,7 @@ def compute_session_input_signature(context: bpy.types.Context) -> str:
         tokens.append(f"conn_len:{settings.connector_length_mm:.4f}")
         tokens.append(f"conn_cap_len:{settings.connector_capsule_length_mm:.4f}")
         tokens.append(f"conn_chamf:{getattr(settings, 'connector_chamfer_mm', 0.5):.4f}")
-        tokens.append(f"conn_end_clear:{getattr(settings, 'end_clearance_mm', 0.5):.4f}")
+        tokens.append(f"conn_end_clear:{end_clearance(settings):.4f}")
         tokens.append(f"conn_adj_valid:{getattr(settings, 'adjust_to_valid_area', False)}")
         tokens.append(f"conn_dist:{settings.connector_distribution}")
         if settings.connector_distribution == 'MANUAL':
@@ -2631,10 +2633,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     interface_mat_mode=getattr(settings, "material_interface_mat_mode", 'EXTRACTED'),
                     part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
                     part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
-                    part_clearance_bottom_mm=(
-                        getattr(settings, "part_clearance_bottom_mm", 0.0)
-                        if getattr(settings, "part_clearance_bottom_enable", False) else None
-                    ),
+                    part_clearance_bottom_mm=bottom_clearance(settings),
                 )
                 bm_a, bm_b = mat_res[0], mat_res[1]
                 candidate_mesh_a.materials.clear()
@@ -2768,7 +2767,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     edge_margin_mm=settings.connector_edge_margin_mm,
                     unit_scale=unit_scale,
                     diameter_mm=settings.connector_diameter_mm,
-                    clearance_per_side_mm=settings.clearance_per_side_mm,
+                    clearance_per_side_mm=radial_clearance(settings),
                     interface=layout_interface,
                     connector_type=settings.connector_type,
                     capsule_length_mm=settings.connector_capsule_length_mm,
@@ -2808,7 +2807,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                     validate_connectors(
                         positions=positions,
                         diameter_mm=settings.connector_diameter_mm,
-                        clearance_per_side_mm=settings.clearance_per_side_mm,
+                        clearance_per_side_mm=radial_clearance(settings),
                         unit_scale=unit_scale,
                         connector_type=settings.connector_type,
                         capsule_length_mm=cap_len,
@@ -2823,8 +2822,8 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
                         diameter_mm=settings.connector_diameter_mm,
                         length_mm=settings.connector_length_mm,
                         chamfer_mm=settings.connector_chamfer_mm,
-                        clearance_side_mm=settings.clearance_per_side_mm,
-                        end_clearance_mm=settings.end_clearance_mm,
+                        clearance_side_mm=radial_clearance(settings),
+                        end_clearance_mm=end_clearance(settings),
                         unit_scale=unit_scale,
                         capsule_length_mm=cap_len,
                         major_axis=major_axis,
@@ -2857,7 +2856,7 @@ class CHEST_OT_splitter_generate_preview(bpy.types.Operator):
             vol_diff = (abs(sum_vol - orig_vol) / orig_vol * 100.0) if orig_vol > 0 else 0.0
 
             if settings.connector_enabled:
-                min_explosion_needed = settings.connector_length_mm + settings.end_clearance_mm + 15.0
+                min_explosion_needed = settings.connector_length_mm + end_clearance(settings) + 15.0
                 if settings.explosion_distance_mm < min_explosion_needed:
                     settings.explosion_distance_mm = round(min_explosion_needed, 1)
 
@@ -3147,10 +3146,11 @@ class CHEST_OT_splitter_apply_connector_preset(bpy.types.Operator):
         settings = context.scene.chest_splitter
         had_preview = settings.session_status in ('PREVIEW_VALID', 'PREVIEW_STALE')
         settings.clearance_preset = self.preset
+        settings.clearance_use_general = False
         settings.clearance_per_side_mm = CLEARANCE_PRESETS[self.preset]
         msg = report_msg(
-            f"Preset '{self.preset}' aplicado (folga por lado: {settings.clearance_per_side_mm:.2f} mm).",
-            f"Preset '{self.preset}' applied (clearance per side: {settings.clearance_per_side_mm:.2f} mm)."
+            f"Preset '{self.preset}' aplicado (folga por lado: {radial_clearance(settings):.2f} mm).",
+            f"Preset '{self.preset}' applied (clearance per side: {radial_clearance(settings):.2f} mm)."
         )
         settings.last_status = msg
         settings.last_status_level = 'INFO'
@@ -3179,7 +3179,7 @@ class CHEST_OT_splitter_add_manual_connector(bpy.types.Operator):
         # Se já houver conectores, posiciona com offset inicial inteligente sem forçar fila
         if n > 1:
             prev = settings.manual_connectors[n - 2]
-            shift = settings.connector_diameter_mm + 2.0 * settings.clearance_per_side_mm + 4.0
+            shift = settings.connector_diameter_mm + 2.0 * radial_clearance(settings) + 4.0
             item.u_mm = prev.u_mm + shift
             item.v_mm = prev.v_mm
         else:
@@ -3346,7 +3346,7 @@ class CHEST_OT_splitter_convert_pattern_to_manual(bpy.types.Operator):
             edge_margin_mm=settings.connector_edge_margin_mm,
             unit_scale=prep.unit_scale,
             diameter_mm=settings.connector_diameter_mm,
-            clearance_per_side_mm=settings.clearance_per_side_mm,
+            clearance_per_side_mm=radial_clearance(settings),
             interface=prep.interface,
             connector_type=settings.connector_type,
             capsule_length_mm=settings.connector_capsule_length_mm,

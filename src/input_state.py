@@ -9,7 +9,7 @@ from .diagnostic import get_scene_scale_to_mm
 
 CUT_PROPERTIES = (
     'split_mode', 'invert_sides', 'plane_offset_mm', 'plane_extent_mode',
-    'part_clearance_mm', 'part_clearance_apply_to',
+    'clearance_use_general', 'part_clearance_mm', 'part_clearance_apply_to',
     'part_clearance_bottom_enable', 'part_clearance_bottom_mm',
     'loop_vertex_indices', 'loop_seed_face_index', 'loop_behavior',
     'loop_boundary_loops', 'loop_region_face_indices',
@@ -86,7 +86,7 @@ def cut_signature(settings, target, scene, mesh=None, exclude=()):
 def contact_signature(settings, target, scene):
     # Pin-area membership comes from the source selection, not from clearance amounts.
     return cut_signature(settings, target, scene, exclude=(
-        'contact_patch_index', 'part_clearance_mm', 'part_clearance_apply_to',
+        'contact_patch_index', 'clearance_use_general', 'part_clearance_mm', 'part_clearance_apply_to',
         'part_clearance_bottom_enable', 'part_clearance_bottom_mm'))
 
 

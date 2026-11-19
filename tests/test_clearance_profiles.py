@@ -45,6 +45,18 @@ class ClearanceProfiles(unittest.TestCase):
                 if name!=field:self.assertAlmostEqual(getattr(s,name),old)
         previous=self.values();s.assembly_clearance_preset='CUSTOM';self.assertEqual(previous,self.values())
 
+    def test_general_mode_does_not_misrepresent_saved_profile(self):
+        s = self.s
+        s.assembly_clearance_preset = 'FDM'
+        before = self.values()
+        saved = s.get('assembly_clearance_preset')
+        s.clearance_use_general = True
+        self.assertEqual(s.assembly_clearance_preset, 'CUSTOM')
+        self.assertEqual(s.get('assembly_clearance_preset'), saved)
+        self.assertEqual(self.values(), before)
+        s.clearance_use_general = False
+        self.assertEqual(s.assembly_clearance_preset, 'FDM')
+
     def test_legacy_values_not_rewritten(self):
         s=self.s
         s.part_clearance_mm=.38;s.end_clearance_mm=.41

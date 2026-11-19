@@ -6,6 +6,7 @@ Executa cortes determinísticos em coordenadas de mundo (World Space), garantind
 - Independência da ordem dos vértices selecionados no loop.
 - Dimensões físicas reais da interface (sem confundir a interface local com a malha inteira).
 """
+from .clearance import bottom_clearance
 from .translations import localized_format
 
 from typing import List, Tuple, Dict, Any, Optional
@@ -725,8 +726,7 @@ def slice_loop_from_settings(obj, indices, settings, scene):
     clearance = dict(
         part_clearance_mm=settings.part_clearance_mm,
         part_clearance_apply_to=settings.part_clearance_apply_to,
-        part_clearance_bottom_mm=(settings.part_clearance_bottom_mm
-                                  if settings.part_clearance_bottom_enable else None),
+        part_clearance_bottom_mm=bottom_clearance(settings),
     )
     if mode == 'DETACH':
         try:

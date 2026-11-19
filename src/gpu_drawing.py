@@ -6,6 +6,7 @@ Implementa F01 e F02 com integridade estrita de estado GPU:
 - Coordenadas vivas em Edit Mode (T05).
 - Prévia de corte translúcida e contorno de interseção para o modo Plano (F02).
 """
+from .clearance import radial_clearance
 
 import bpy
 from typing import Optional, List, Tuple
@@ -689,7 +690,7 @@ def _draw_connector_markers_overlay(context, settings):
 
     diam_mm = getattr(settings, "connector_diameter_mm", 4.0)
     radius_bu = (diam_mm / 2.0) / unit_scale
-    clearance_bu = (getattr(settings, "clearance_per_side_mm", 0.15)) / unit_scale
+    clearance_bu = (radial_clearance(settings)) / unit_scale
     conn_type = getattr(settings, "connector_type", "CYLINDER")
     half_len_bu = 0.0
     if conn_type == 'CAPSULE':

@@ -1,3 +1,8 @@
+# 0.9.14 — interface e folga geral — 2026-11-19
+
+- Organiza os detalhes do alvo e orienta a seleção por contorno.
+- Adiciona folga geral opcional, preservando os controles individuais existentes.
+
 # 0.9.13 — folga na borda de relevos com base — 2026-11-19
 
 - Na extração com base, o recorte da folga lateral da peça atravessa a superfície externa dos relevos voltados para a direção de extração. Isso evita lâminas finas na borda quando a superfície sobe além das faces vizinhas ao contorno original.

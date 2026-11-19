@@ -131,6 +131,8 @@ _applying_assembly_clearance = set()
 
 
 def _get_assembly_clearance_preset(self):
+    if self.clearance_use_general:
+        return 2
     # Infer on old files without rewriting their saved clearance values.
     selected = self.get("assembly_clearance_preset", -1)
     if selected == 2:
@@ -151,6 +153,7 @@ def _set_assembly_clearance_preset(self, value):
     key = self.as_pointer()
     _applying_assembly_clearance.add(key)
     try:
+        self.clearance_use_general = False
         lateral, bottom, radial, end = _ASSEMBLY_CLEARANCE_VALUES[value]
         self.part_clearance_mm = lateral
         self.part_clearance_bottom_mm = bottom
@@ -171,6 +174,7 @@ def _on_assembly_clearance_edit(self, context):
 def _on_clearance_preset_update(self, context):
     """Atualiza a folga por lado quando o usuário seleciona um preset."""
     if self.clearance_preset in CLEARANCE_PRESETS:
+        self.clearance_use_general = False
         self.clearance_per_side_mm = CLEARANCE_PRESETS[self.clearance_preset]
     _on_param_change_mark_stale(self, context)
 
@@ -499,6 +503,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     show_target_data: BoolProperty(name="Mostrar dados", default=False)
     show_mesh_diagnostics: BoolProperty(name="Mais opções / Diagnóstico", default=False)
     show_result_data: BoolProperty(name="Mostrar dados", default=False)
+    show_cut_details: BoolProperty(name="Mais opções", default=False)
 
     diag_dims_mm: FloatVectorProperty(
         name="Dimensões (mm)",
@@ -1181,6 +1186,11 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     )
 
     # --- Folga Física entre Peças (Etapa E / E01) ---
+    clearance_use_general: BoolProperty(
+        name="Usar folga geral", default=False,
+        description="Usa a folga entre peças também no fundo e nos pinos",
+        update=_on_param_change_mark_stale,
+    )
     part_clearance_mm: FloatProperty(
         name="Folga entre Peças (mm)",
         description="Folga física calibrada nas interfaces de contato entre as peças (E01)",

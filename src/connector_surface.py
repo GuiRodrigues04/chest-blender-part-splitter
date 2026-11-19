@@ -6,6 +6,7 @@ Implementa a separação de responsabilidades (Etapa B / Seção 5 do Plano):
 3. Raycast e picking precisos sobre a superfície física de contato.
 4. Avaliação determinística por ID de cada conector manual.
 """
+from .clearance import bottom_clearance, radial_clearance
 from .scene_state import uses_surface_region
 
 
@@ -279,10 +280,7 @@ def prepare_split_candidates(context: bpy.types.Context, force_recompute: bool =
             interface_mat_mode=getattr(settings, "material_interface_mat_mode", 'EXTRACTED'),
             part_clearance_mm=getattr(settings, "part_clearance_mm", 0.0),
             part_clearance_apply_to=getattr(settings, "part_clearance_apply_to", 'PART'),
-            part_clearance_bottom_mm=(
-                getattr(settings, "part_clearance_bottom_mm", 0.0)
-                if getattr(settings, "part_clearance_bottom_enable", False) else None
-            ),
+            part_clearance_bottom_mm=bottom_clearance(settings),
         )
         bm_a, bm_b = mat_res[0], mat_res[1]
         if include_solids:
@@ -381,7 +379,9 @@ def cache_prepared_interface(context, cut_iface, sig=None):
         cut_iface = replace(cut_iface, origin_world=cut_iface.origin_world+shift)
     elif mode == 'MATERIAL' and settings.material_extraction_mode == 'EXTRUDE':
         from dataclasses import replace
-        bottom = settings.part_clearance_bottom_mm if settings.part_clearance_bottom_enable else settings.part_clearance_mm
+        bottom = bottom_clearance(settings)
+        if bottom is None:
+            bottom = settings.part_clearance_mm
         fraction = (1.0 if settings.part_clearance_apply_to == ('PART' if male_side == 'A' else 'CAVITY')
                     else 0.5 if settings.part_clearance_apply_to == 'BOTH' else 0.0)
         shift = cut_iface.normal_a_to_b_world * (bottom/unit_scale)*fraction*(-1 if male_side == 'A' else 1)
@@ -396,10 +396,11 @@ def cache_prepared_interface(context, cut_iface, sig=None):
         if loop_beh == 'AUTO':
             loop_beh = getattr(settings, "loop_detected_mode", "DETACH") or "DETACH"
             through_cut = through_cut and not loop_prefers_finite_depth(settings.loop_auto_reason)
-        if loop_beh == 'EXTRUDE' and not through_cut:
-            bottom = settings.part_clearance_bottom_mm if settings.part_clearance_bottom_enable else settings.part_clearance_mm
-        elif loop_beh == 'DETACH' and settings.loop_detach_add_base:
-            bottom = settings.part_clearance_bottom_mm if settings.part_clearance_bottom_enable else settings.part_clearance_mm
+        if ((loop_beh == 'EXTRUDE' and not through_cut) or
+                (loop_beh == 'DETACH' and settings.loop_detach_add_base)):
+            bottom = bottom_clearance(settings)
+            if bottom is None:
+                bottom = settings.part_clearance_mm
         else:
             bottom = settings.part_clearance_mm
         fraction = (1.0 if settings.part_clearance_apply_to == ('PART' if male_side == 'A' else 'CAVITY')
@@ -481,7 +482,7 @@ def prepared_connector_layout(prepared, settings, target):
     names = ('connector_distribution', 'connector_edge_margin_mm', 'connector_diameter_mm',
              'clearance_per_side_mm', 'connector_type', 'connector_capsule_length_mm',
              'adjust_to_valid_area')
-    key = tuple(getattr(settings, name) for name in names)
+    key = tuple(getattr(settings, name) for name in names) + (radial_clearance(settings),)
     specs = None
     if settings.connector_distribution == 'MANUAL':
         specs = [dict(u_mm=c.u_mm, v_mm=c.v_mm, yaw_deg=c.yaw_deg) for c in settings.manual_connectors]
@@ -491,7 +492,7 @@ def prepared_connector_layout(prepared, settings, target):
         prepared.layout = compute_connector_layout(
             target.data, target.matrix_world, prepared.surface_origin, prepared.surface_normal,
             settings.connector_distribution, settings.connector_edge_margin_mm, prepared.unit_scale,
-            settings.connector_diameter_mm, settings.clearance_per_side_mm, prepared.interface,
+            settings.connector_diameter_mm, radial_clearance(settings), prepared.interface,
             settings.connector_type, settings.connector_capsule_length_mm,
             settings.adjust_to_valid_area, specs)
         prepared.layout_key = key
@@ -582,7 +583,7 @@ def evaluate_connector_specs(prepared: PreparedSplit, settings: Any) -> List[Dic
     Retorna lista de dicionários com chaves: index, id, is_valid, reason.
     """
     diam_mm = getattr(settings, "connector_diameter_mm", 4.0)
-    clear_side_mm = getattr(settings, "clearance_per_side_mm", 0.15)
+    clear_side_mm = radial_clearance(settings)
     margin_mm = getattr(settings, "connector_edge_margin_mm", 3.0)
     conn_type = getattr(settings, "connector_type", "CYLINDER")
     cap_len_mm = getattr(settings, "connector_capsule_length_mm", 6.0)

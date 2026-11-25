@@ -143,7 +143,7 @@ def trim_contact_blade(bm, source_object, gap_mm, scale, reference=None, outward
         if reference is not None and surface is not None:surface.free()
 
 
-def measure_gap(a,b,reference,requested,scale):
+def measure_gap(a,b,reference,requested,scale,source_object=None,apply_to='PART'):
     triangles=[_triangles(part) for part in (a,b)];trees=[_tree(t) for t in triangles]
     distances=[];interior=[]
     ref_tree=_tree(_triangles(reference))
@@ -161,13 +161,39 @@ def measure_gap(a,b,reference,requested,scale):
             value=tree.find_nearest(p)[3]*scale;distances.append(value)
             if boundary_distance(ref_tree.find_nearest(p)[0])*scale>.001:
                 interior.append(value)
-    normal_distances=[];misses=0;epsilon=.0001/scale
+    normal_distances=[];misses=0;unexplained_misses=0;waived_exterior_misses=0;epsilon=.0001/scale
+    if apply_to not in {'PART','CAVITY','BOTH'}:
+        raise LocalizedGeometryError('geometry.clearance_unresolved')
+    source_contains=None
+    moved={'PART':(True,False),'CAVITY':(False,True),'BOTH':(True,True)}[apply_to]
     for tri in _triangles(reference):
         normal=(tri[1]-tri[0]).cross(tri[2]-tri[0]).normalized()
         for p in _samples([tri]):
             hit_a=trees[0].ray_cast(p+normal*epsilon,-normal)
             hit_b=trees[1].ray_cast(p-normal*epsilon,normal)
-            if hit_a[0] is None or hit_b[0] is None:misses+=1;continue
+            if hit_a[0] is None or hit_b[0] is None:
+                misses+=1
+                # At a tapered exterior rim, the requested offset can leave
+                # the original solid. Waive only that side's missed ray, and
+                # only when containment proves the expected offset endpoint
+                # lies outside the unchanged source mesh.
+                missing=[]
+                if hit_a[0] is None:
+                    missing.append((0,p-normal*(requested*(.5 if apply_to=='BOTH' else 1.)/scale)))
+                if hit_b[0] is None:
+                    missing.append((1,p+normal*(requested*(.5 if apply_to=='BOTH' else 1.)/scale)))
+                if source_object is None:
+                    unexplained_misses+=1
+                    continue
+                if source_contains is None:
+                    from .geometry_region import Containment, mesh_tree
+                    source_contains=Containment(mesh_tree(source_object.data,source_object.matrix_world),epsilon)
+                if any(not moved[side] or source_contains(point) for side,point in missing):
+                    unexplained_misses+=1
+                    continue
+                else:
+                    waived_exterior_misses+=len(missing)
+                continue
             normal_distances.append((hit_a[3]+hit_b[3]-2*epsilon)*scale)
     tolerance=max(.005,.05*requested)
     import os
@@ -175,11 +201,12 @@ def measure_gap(a,b,reference,requested,scale):
         print('BLADE_MEASURE', requested, (min(distances), max(distances)),
               (min(interior), max(interior)) if interior else None,
               (min(normal_distances), max(normal_distances)) if normal_distances else None,
-              'misses', misses, flush=True)
+              'misses', misses, 'unexplained_misses', unexplained_misses,
+              'waived_exterior_rays', waived_exterior_misses, flush=True)
     # The extended sheet also cuts the outside rim. Those faces can project
     # beyond the original contact footprint and have no opposing surface.
     # Validate the shared interior; retain the unfiltered range for reporting.
-    if (not normal_distances or not interior or misses or min(distances)<=0
+    if (not normal_distances or not interior or unexplained_misses or min(distances)<=0
             or min(interior)<requested-tolerance or max(interior)>requested+tolerance
             or min(normal_distances)<requested-tolerance or max(normal_distances)>requested+tolerance):
         raise LocalizedGeometryError('geometry.clearance_unresolved')
@@ -187,7 +214,9 @@ def measure_gap(a,b,reference,requested,scale):
         normal_minimum_mm=min(normal_distances),normal_maximum_mm=max(normal_distances),
         interior_minimum_mm=min(interior),interior_maximum_mm=max(interior),
         tolerance_mm=tolerance,samples=len(distances),interior_samples=len(interior),
-        normal_samples=len(normal_distances))
+        normal_samples=len(normal_distances),missed_normal_samples=misses,
+        unexplained_missed_samples=unexplained_misses,
+        waived_exterior_misses=waived_exterior_misses)
 
 
 def apply_blade_pair(a,b,obj,gap,apply_to,scale):
@@ -198,7 +227,7 @@ def apply_blade_pair(a,b,obj,gap,apply_to,scale):
         for side,(source,fraction) in enumerate(zip((a,b),factors[apply_to])):
             results.append(trim_contact_blade(source,obj,gap*fraction,scale,
                 reference=a if side else None,outward=bool(side)) if fraction else source.copy())
-        measured=measure_gap(*results,a,gap,scale)
+        measured=measure_gap(*results,a,gap,scale,obj,apply_to)
         return (*results,measured)
     except Exception:
         for part in results:part.free()

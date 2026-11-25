@@ -1,3 +1,7 @@
+# 0.9.15 — validação de folgas em bordas afuniladas — 2026-11-25
+
+- Corrige a rejeição de folgas em contornos cuja superfície externa se estreita após o corte. A validação continua exigindo a distância correta na região de contato e só aceita uma amostra sem superfície oposta quando o ponto esperado está fora do sólido original.
+
 # 0.9.14 — interface e folga geral — 2026-11-19
 
 - Organiza os detalhes do alvo e orienta a seleção por contorno.

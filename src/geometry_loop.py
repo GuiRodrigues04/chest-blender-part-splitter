@@ -661,7 +661,8 @@ def slice_mesh_by_loop(*args, **kwargs):
                 try:
                     reference=_slice_mesh_by_loop_impl(**dict(trial,part_clearance_mm=0.,part_clearance_bottom_mm=None))
                     validate_natural_surface(reference,obj,scale)
-                    result.interface.clearance_measurements=measure_gap(*result,reference[0],gap,scale)
+                    result.interface.clearance_measurements=measure_gap(
+                        *result,reference[0],gap,scale,obj,parameters['part_clearance_apply_to'])
                 finally:
                     if reference is not None:
                         for part in reference:part.free()

@@ -1,0 +1,12 @@
+{
+  "blender": "5.2 background",
+  "source_version": "0.9.15",
+  "broad_regression": {"passed_suites": 20, "total_suites": 20, "checks": 137, "skips": 2},
+  "final_affected_regression": {"passed_suites": 9, "total_suites": 9},
+  "real_models": {"plate_cases_passed": 4, "cat_paw_cases_passed": 1},
+  "horn_fixed_pin_preview": {"connector_enabled": true, "diameter_mm": 1, "length_mm": 8, "clearance_mm": [0.1, 0.2, 0.5, 1.0], "all_passed": true},
+  "horn_no_pin_preview": {"clearance_mm": [0.1, 0.2, 0.5, 1.0], "all_passed": true},
+  "paw_pin_preview": {"clearance_mm": [0.1, 0.2, 0.5, 1.0], "male_sides": ["A", "B"], "all_passed": true},
+  "reconstructed_eye_53_vertices_seed_2236": {"tested_clearance_mm": [0.0, 0.1, 0.2, 0.5, 1.0], "no_pin_passed_mm": [0.0, 0.1, 0.2, 0.5], "no_pin_failed_mm": [1.0], "depths_mm_tested_for_1mm": [2.0, 5.0], "direct_1mm_result": "geometry.clearance_excessive"},
+  "older_eye_failure_scene_26_vertices": {"positive_gap_medians_mm": {"0.1": 0.10000295, "0.2": 0.20000357, "0.5": 0.50001797, "1.0": 1.00000158}}
+}

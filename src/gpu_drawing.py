@@ -16,6 +16,8 @@ from .constants import ROLE_PREVIEW_A, ROLE_PREVIEW_B
 from .cache_fingerprint import cached_mesh_geometry_fingerprint
 
 _draw_handler = None
+_failed_connector_overlay = None
+_pending_connector_overlay = None
 
 
 def _get_orthonormal_basis(normal: Vector) -> Tuple[Vector, Vector]:
@@ -639,9 +641,51 @@ def _get_or_create_grid_batch(shader, prep, disp_offset, target_name):
         return None
 
 
+def _prepare_connector_overlay():
+    """Build the contact outside the viewport draw callback."""
+    global _pending_connector_overlay, _failed_connector_overlay
+    request = _pending_connector_overlay
+    _pending_connector_overlay = None
+    context = bpy.context
+    scene = context.scene
+    settings = getattr(scene, "chest_splitter", None)
+    target = settings.target_object if settings else None
+    if request is None or target is None or not settings.connector_enabled:
+        return None
+    from .input_state import editor_configuration
+    from .connector_surface import prepare_split_candidates, evaluate_connector_specs
+    configuration = editor_configuration(settings, scene)
+    if request[:2] != (scene.as_pointer(), target.as_pointer()) or request[2] != configuration:
+        return None
+    try:
+        prep = prepare_split_candidates(context, auto_contact=True)
+        if settings.connector_distribution == 'MANUAL':
+            evaluate_connector_specs(prep, settings)
+    except Exception as exc:
+        from .localized_errors import render_message
+        from .translations import report_msg
+        _failed_connector_overlay = request
+        if not settings.connector_sizing_status:
+            reason = render_message(exc)
+            settings.connector_sizing_status = report_msg(
+                f"Silhueta do encaixe indisponível: {reason}",
+                f"Connector outline unavailable: {reason}")
+    else:
+        _failed_connector_overlay = None
+
+    for window in context.window_manager.windows:
+        if window.scene == scene:
+            for area in window.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
+    return None
+
+
 def _draw_connector_markers_overlay(context, settings):
     """Desenha os marcadores visuais de conectores na interface de corte (A05)."""
-    if not getattr(settings, "connector_enabled", False):
+    global _pending_connector_overlay, _failed_connector_overlay
+    if not settings.connector_enabled:
+        _failed_connector_overlay = None
         return
 
     mode = getattr(settings, "split_mode", "PLANE")
@@ -655,38 +699,25 @@ def _draw_connector_markers_overlay(context, settings):
     if not target or target.name not in bpy.data.objects:
         return
 
-    from .diagnostic import get_scene_scale_to_mm
     from .connector_surface import get_cached_prepared_split, get_explosion_display_offset
     from .connector_editor import get_editor_interaction_state
 
     prep = get_cached_prepared_split()
     from .input_state import editor_configuration
+    configuration = editor_configuration(settings, context.scene)
     if (prep is None or prep.target_name != target.name or prep.split_mode != mode
-            or prep.configuration != editor_configuration(settings, context.scene)):
+            or prep.configuration != configuration):
+        request = (context.scene.as_pointer(), target.as_pointer(), configuration,
+                   cached_mesh_geometry_fingerprint(target.data))
+        if request != _failed_connector_overlay and not settings.is_editing_connectors:
+            _pending_connector_overlay = request
+            if not bpy.app.timers.is_registered(_prepare_connector_overlay):
+                bpy.app.timers.register(_prepare_connector_overlay, first_interval=0.10)
         return
-    unit_scale = get_scene_scale_to_mm(context.scene)
-    if unit_scale <= 0.0:
-        unit_scale = 1000.0
 
-    disp_offset = Vector((0.0, 0.0, 0.0))
-    if prep is not None:
-        origin = prep.surface_origin
-        normal = prep.surface_normal
-        u_axis = prep.axis_u
-        v_axis = prep.axis_v
-        disp_offset = get_explosion_display_offset(settings, prep)
-    else:
-        from .plane_state import resolve_plane_state
-        if mode == 'PLANE':
-            origin, normal = resolve_plane_state(context.scene, settings)
-        else:
-            origin = Vector(getattr(settings, "loop_interface_origin", (0, 0, 0)))
-            normal = Vector(getattr(settings, "loop_interface_normal", (0, 0, 1)))
-
-        if normal.length < 1e-6:
-            return
-        normal = normal.normalized()
-        u_axis, v_axis = _get_orthonormal_basis(normal)
+    unit_scale = prep.unit_scale
+    u_axis, v_axis = prep.axis_u, prep.axis_v
+    disp_offset = get_explosion_display_offset(settings, prep)
 
     diam_mm = getattr(settings, "connector_diameter_mm", 4.0)
     radius_bu = (diam_mm / 2.0) / unit_scale
@@ -703,10 +734,7 @@ def _draw_connector_markers_overlay(context, settings):
     if dist == 'MANUAL':
         active_idx = getattr(settings, "manual_connector_index", 0)
         for i, item in enumerate(settings.manual_connectors):
-            if prep is not None:
-                pos = prep.uv_mm_to_world(item.u_mm, item.v_mm) + disp_offset
-            else:
-                pos = origin + (item.u_mm / unit_scale) * u_axis + (item.v_mm / unit_scale) * v_axis
+            pos = prep.uv_mm_to_world(item.u_mm, item.v_mm) + disp_offset
             yaw_rad = math.radians(getattr(item, "yaw_deg", 0.0))
             is_valid = getattr(item, "is_valid", True)
             is_sel = (i == active_idx)
@@ -728,7 +756,8 @@ def _draw_connector_markers_overlay(context, settings):
             pass
 
     editor_state = get_editor_interaction_state()
-    has_ghost = editor_state.get("is_active") and (editor_state.get("hover_world") is not None)
+    has_ghost = (editor_state.get("is_active") and settings.manual_editor_submode == 'ADD'
+                 and not editor_state.get("is_dragging") and editor_state.get("hover_world") is not None)
     is_manual_editing = (
         editor_state.get("is_active", False)
         and getattr(settings, "is_editing_connectors", False)

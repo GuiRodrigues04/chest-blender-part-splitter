@@ -654,6 +654,55 @@ def evaluate_connector_specs(prepared: PreparedSplit, settings: Any) -> List[Dic
     return results
 
 
+def find_manual_pin_position(prepared, settings):
+    """Find a space for an unrotated pin without moving existing pins."""
+    from .geometry_connectors import (
+        connector_center_segment, segment_distance_sq, validate_connector_footprint,
+    )
+
+    diameter = settings.connector_diameter_mm
+    clearance = radial_clearance(settings)
+    margin = settings.connector_edge_margin_mm
+    shape = settings.connector_type
+    capsule_length = settings.connector_capsule_length_mm
+    half_length = max(0.0, (capsule_length - diameter) / 2.0) if shape == 'CAPSULE' else 0.0
+    scale = prepared.unit_scale
+    minimum_gap_sq = (diameter + 2.0 * clearance + 1.0) ** 2
+    pins = settings.manual_connectors
+    occupied = [
+        connector_center_segment(pin.u_mm, pin.v_mm, half_length, math.radians(pin.yaw_deg))
+        for pin in pins
+    ]
+    candidates = [(0.0, 0.0)]
+    if pins:
+        last = pins[-1]
+        shift = max(diameter, capsule_length if shape == 'CAPSULE' else 0.0) + 2.0 * clearance + 1.1
+        candidates.extend(((last.u_mm + shift, last.v_mm), (last.u_mm, last.v_mm + shift),
+                           (last.u_mm - shift, last.v_mm), (last.u_mm, last.v_mm - shift)))
+
+    outer = prepared.interface.outer_contours_uv
+    holes = prepared.interface.hole_contours_uv
+    for step in (max(0.5, min(5.0, diameter / 2.0)), 10.0):
+        grid = generate_positioning_grid_points(prepared, step_mm=step, max_points=4096)
+        if grid:
+            candidates.extend((u, v) for u, v, _ in sorted(grid, key=lambda point: math.hypot(*point[:2])))
+            break
+
+    for u_mm, v_mm in candidates:
+        u_mm, v_mm = round(u_mm, 2), round(v_mm, 2)
+        valid, _ = validate_connector_footprint(
+            u_p=u_mm / scale, v_p=v_mm / scale,
+            check_r=(diameter / 2.0 + clearance + margin) / scale,
+            outer_polys=outer, hole_polys=holes, edge_margin_mm=margin,
+            connector_type=shape, half_len=half_length / scale, yaw_rad=0.0,
+        )
+        if valid:
+            segment = connector_center_segment(u_mm, v_mm, half_length, 0.0)
+            if all(segment_distance_sq(*segment, *other) >= minimum_gap_sq for other in occupied):
+                return u_mm, v_mm
+    return None
+
+
 def generate_positioning_grid_points(
     prepared: PreparedSplit,
     step_mm: float = 5.0,

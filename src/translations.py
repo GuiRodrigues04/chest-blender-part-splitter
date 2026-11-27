@@ -1939,6 +1939,7 @@ TRANSLATIONS_DICT = {
         ("*", "Cortador já existente na sessão foi selecionado. Use 'Focar' ou 'Reiniciar Formato'."): "Existing session cutter selected. Use 'Focus' or 'Reset Shape'.",
         ("*", "Cortador precisa ser um sólido 3D estanque."): "Cutter must be a water-tight 3D solid.",
         ("*", "Corte Passante"): "Through-cut",
+        ("*", "Permite atravessar o modelo se a profundidade alcançar a face oposta. Nesse modo, a folga de fundo não é aplicada."): "Allows the cut to pass through when the depth reaches the opposite face. Bottom clearance is disabled in this mode.",
         ("*", "Corte confirmado em peças finais"): "Cut confirmed into final parts",
         ("*", "Corte perpendicular ao eixo X (Normal +X)"): "Cut perpendicular to X axis (Normal +X)",
         ("*", "Corte perpendicular ao eixo Y (Normal +Y)"): "Cut perpendicular to Y axis (Normal +Y)",
@@ -3075,6 +3076,7 @@ MESSAGES = {
 
 MESSAGES['pt_BR'].update({
     'geometry.region_degenerate': 'A peça candidata contém {count} face(s) degeneradas e {edges} aresta(s) quase nulas. O reparo automático seguro não pôde preservar a geometria. O alvo original foi mantido; verifique a malha, não apenas a seleção.',
+    'diagnostic.loop_thin_base_uses_depth': 'O corte pela base ficou fino ou incompatível com a folga. Será usada a profundidade de extração configurada.',
     'diagnostic.loop_collapse_uses_depth': 'O fechamento pela base não gerou volume útil. Será usada a profundidade de extração configurada.',
     'geometry.loop_closure_collapsed': 'O fechamento pela base deixou a Parte {part} sem volume. Ajuste o contorno ou a folga, adicione uma base ou escolha Profundidade.',
     'diagnostic.closure_uses_depth': 'O fechamento direto atravessa a superfície selecionada. Será usada a profundidade de extração configurada.',
@@ -3106,6 +3108,7 @@ MESSAGES['pt_BR'].update({
 })
 MESSAGES['en_US'].update({
     'geometry.region_degenerate': 'The candidate contains {count} degenerate face(s) and {edges} near-zero edge(s). Safe automatic repair could not preserve its geometry. The original target was kept; inspect the mesh, not only the selection.',
+    'diagnostic.loop_thin_base_uses_depth': 'The base cut was thin or incompatible with the clearance. The configured extraction depth will be used.',
     'diagnostic.loop_collapse_uses_depth': 'Closing at the base produced no usable volume. The configured extraction depth will be used.',
     'geometry.loop_closure_collapsed': 'Closing at the base left Part {part} with no volume. Adjust the boundary or clearance, add a fitting base, or choose Depth.',
     'diagnostic.closure_uses_depth': 'Direct closing crosses the selected surface. The configured extraction depth will be used.',

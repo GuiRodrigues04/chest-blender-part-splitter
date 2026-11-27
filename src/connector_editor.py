@@ -455,7 +455,25 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
 
         # 5. Detecção de clique no Viewport (Canvas 3D)
         if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-            # PRIMEIRO: Tenta selecionar um marcador existente (por tela 2D ou projeção no plano)
+            if settings.manual_editor_submode == 'ADD':
+                if raycast_res is not None:
+                    _, hit_u, hit_v = raycast_res
+                    item = settings.manual_connectors.add()
+                    item.connector_id = "pin_" + uuid.uuid4().hex[:12]
+                    item.u_mm = round(hit_u, 2)
+                    item.v_mm = round(hit_v, 2)
+                    item.yaw_deg = 0.0
+                    settings.manual_connector_index = len(settings.manual_connectors) - 1
+                    evaluate_connector_specs(self._prepared, settings)
+                    if not item.is_valid:
+                        self.report({'WARNING'}, render_message(item.status_reason))
+                        return {'RUNNING_MODAL'}
+                    self.report({'INFO'}, report_msg(f"Pino #{len(settings.manual_connectors)} posicionado em U={hit_u:.1f}, V={hit_v:.1f} mm.", f"Pin #{len(settings.manual_connectors)} placed at U={hit_u:.1f}, V={hit_v:.1f} mm."))
+                    return {'RUNNING_MODAL'}
+                self.report({'WARNING'}, localize_text("Clique sobre a superfície destacada da peça para posicionar o pino."))
+                return {'RUNNING_MODAL'}
+
+            # In Move mode, pick a marker by screen position or plane projection.
             clicked_idx = -1
             min_dist_px = 1e9
 
@@ -498,25 +516,6 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                 _EDITOR_STATE["drag_start_u"] = settings.manual_connectors[clicked_idx].u_mm
                 _EDITOR_STATE["drag_start_v"] = settings.manual_connectors[clicked_idx].v_mm
                 return {'RUNNING_MODAL'}
-
-            # Não clicou em marcador existente:
-            # Submodo ADICIONAR: adiciona um novo marcador na superfície útil
-            if settings.manual_editor_submode == 'ADD':
-                if raycast_res is not None:
-                    hit_world, hit_u, hit_v = raycast_res
-                    item = settings.manual_connectors.add()
-                    item.connector_id = "pin_" + uuid.uuid4().hex[:12]
-                    item.u_mm = round(hit_u, 2)
-                    item.v_mm = round(hit_v, 2)
-                    item.yaw_deg = 0.0
-                    settings.manual_connector_index = len(settings.manual_connectors) - 1
-                    evaluate_connector_specs(self._prepared, settings)
-                    self.report({'INFO'}, report_msg(f"Pino #{len(settings.manual_connectors)} posicionado em U={hit_u:.1f}, V={hit_v:.1f} mm.", f"Pin #{len(settings.manual_connectors)} placed at U={hit_u:.1f}, V={hit_v:.1f} mm."))
-                    return {'RUNNING_MODAL'}
-                else:
-                    # Clicou fora da superfície de corte no canvas 3D: avisa o usuário e não cria pino solto
-                    self.report({'INFO'}, localize_text("Clique sobre a superfície destacada da peça para posicionar o pino."))
-                    return {'RUNNING_MODAL'}
 
             # Submodo MOVE e clicou fora de qualquer pino: mantém seleção
             return {'RUNNING_MODAL'}
@@ -585,7 +584,7 @@ class CHEST_OT_splitter_edit_manual_connectors(bpy.types.Operator):
                 return {'RUNNING_MODAL'}
 
         elif event.type == 'V' and event.value == 'PRESS':
-            # Re-alinha a visualização 3D perpendicularmente ao corte (inverte 180° se Shift+V ou se já alinhado)
+            # Alinha ao corte; Shift+V inverte o lado explicitamente.
             flip = True if event.shift else None
             if align_viewport_to_cut_surface(self._area, self._prepared, settings, self._target, flip=flip):
                 msg = "Visão invertida (180°)." if flip else "Visão alinhada à face de corte."
@@ -753,9 +752,7 @@ class CHEST_OT_splitter_confirm_manual_connectors(bpy.types.Operator):
 def align_viewport_to_cut_surface(area, prepared, settings=None, target=None, flip: Optional[bool] = None) -> bool:
     """Orienta a câmera da Viewport 3D perpendicularmente à superfície de corte mantendo o horizonte nivelado (sem roll/inclinação).
     
-    Detecta de forma inteligente qual lado da peça o usuário já está visualizando para que a câmera
-    nunca pule inadvertidamente para trás do bloco. Se a câmera já estiver alinhada, pressionar novamente
-    inverte a direção em 180° (comportamento de alternância idêntico aos atalhos numéricos do Blender).
+    Preserva o lado mais próximo da vista atual, salvo inversão explícita.
     """
     if not area or not prepared:
         return False
@@ -792,20 +789,7 @@ def align_viewport_to_cut_surface(area, prepared, settings=None, target=None, fl
     elif flip is False:
         target_cam_z = norm
     else:
-        # Modo inteligente (flip is None):
-        # Se a câmera JÁ estiver praticamente alinhada com um dos lados (dot > 0.98),
-        # alternar para o lado oposto (toggle 180°).
-        if dot_pos > 0.98:
-            target_cam_z = -norm
-        elif dot_neg > 0.98:
-            target_cam_z = norm
-        else:
-            # Usuário estava orbitando livremente: alinha ao lado mais próximo da visão atual,
-            # impedindo terminantemente que a visão vá para as costas do bloco!
-            if dot_pos >= dot_neg:
-                target_cam_z = norm
-            else:
-                target_cam_z = -norm
+        target_cam_z = norm if dot_pos >= dot_neg else -norm
 
     world_up = Vector((0.0, 0.0, 1.0))
     if abs(target_cam_z.z) > 0.999:

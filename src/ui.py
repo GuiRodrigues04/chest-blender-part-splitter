@@ -244,131 +244,134 @@ class VIEW3D_PT_chest_part_splitter(bpy.types.Panel):
             row_loop_head.label(text=localize_text("Corte por Contorno (Loop)"), icon='MOD_EDGESPLIT')
             draw_help_button(row_loop_head, "split_loop")
 
-            # The method selector stays above selection tools in every mode.
-            box_method = box_loop.box()
-            box_method.label(text='1. Escolha o tipo de corte' if loc != 'en_US' else '1. Choose the cut type')
-            box_method.prop(settings, 'loop_behavior', expand=True)
-            explanations = {
-                'AUTO': ('Escolhe entre Pela Base e Profundidade.', 'Chooses between At Base and Depth.'),
-                'DETACH': ('Destaca uma saliência pela ligação com o corpo.', 'Detaches a protrusion at its connection to the body.'),
-                'EXTRUDE': ('Retira a região até uma profundidade em mm.', 'Extracts the region to a depth in mm.'),
-                'WHOLE': ('Separa a peça inteira, sem definir profundidade.', 'Separates the whole piece without setting a depth.'),
-            }
-            box_method.label(text=explanations[settings.loop_behavior][loc == 'en_US'])
-            box_loop.label(text='2. Selecione no alvo e capture' if loc != 'en_US' else '2. Select on the target and capture')
+            box_loop.label(text='1. Selecione no alvo e capture' if loc != 'en_US' else '1. Select on the target and capture')
             box_loop.operator('chest.splitter_edit_target', text=localize_text('Editar Alvo'), icon='EDITMODE_HLT')
 
-            if settings.loop_behavior == 'WHOLE':
-                box_loop.label(text='Em seleção de faces, selecione toda a peça.' if loc != 'en_US' else 'In face selection, select the entire piece.')
-                box_loop.label(text='Ou selecione apenas um contorno fechado de arestas.' if loc != 'en_US' else 'Or select only a closed edge boundary.')
-                box_loop.operator('chest.splitter_capture_region', text='Capturar seleção' if loc != 'en_US' else 'Capture selection')
-                count=len([i for i in settings.region_face_indices.split(',') if i])
-                box_loop.label(text=f'{count} faces capturadas.' if loc != 'en_US' else f'{count} faces captured.')
-                box_loop.label(text='3. Gere a prévia no painel abaixo.' if loc != 'en_US' else '3. Generate the preview in the panel below.')
-                box_loop.label(text='Para pinos, prepare uma área plana após a prévia.' if loc != 'en_US' else 'For pins, prepare a planar contact after previewing.')
-            else:
-                if not settings.diag_is_manifold:
-                    box_loop_warn = box_loop.box()
-                    box_loop_warn.alert = True
-                    box_loop_warn.label(text=localize_text("Aviso: Malha não estanque (vértices desconectados)"), icon='ERROR')
-                    box_loop_warn.operator("chest.splitter_repair_target_mesh", text=localize_text("Tentar reparo seguro"), icon='AUTOMERGE_ON')
+            if not settings.diag_is_manifold:
+                box_loop_warn = box_loop.box()
+                box_loop_warn.alert = True
+                box_loop_warn.label(text=localize_text("Aviso: Malha não estanque (vértices desconectados)"), icon='ERROR')
+                box_loop_warn.operator("chest.splitter_repair_target_mesh", text=localize_text("Tentar reparo seguro"), icon='AUTOMERGE_ON')
 
-                box_loop.label(text='Primeiro, selecione um contorno fechado ou faces no alvo.' if loc != 'en_US' else 'First, select a closed boundary or faces on the target.')
-                row_cap = box_loop.row(align=True)
-                row_cap.scale_y = 1.2
-                row_cap.operator("chest.splitter_capture_loop", text=localize_text("Capturar Contorno"), icon='VIEW_ORTHO')
-                row_cap.operator("chest.splitter_capture_face_boundary", text=localize_text("Capturar das Faces"), icon='FACESEL')
-                box_loop.label(text='Arestas: capture o contorno. Faces: capture o perímetro.' if loc != 'en_US' else 'Edges: capture the boundary. Faces: capture the perimeter.')
+            box_loop.label(text='Selecione um contorno fechado ou as faces da região.' if loc != 'en_US' else 'Select a closed boundary or the faces of the region.')
+            row_cap = box_loop.row(align=True)
+            row_cap.scale_y = 1.2
+            row_cap.operator("chest.splitter_capture_loop", text=localize_text("Capturar Contorno"), icon='VIEW_ORTHO')
+            row_cap.operator("chest.splitter_capture_face_boundary", text=localize_text("Capturar das Faces"), icon='FACESEL')
+            box_loop.label(text='Arestas: capture o contorno. Faces: capture o perímetro.' if loc != 'en_US' else 'Edges: capture the boundary. Faces: capture the perimeter.')
 
-                if settings.loop_is_captured:
-                    row_seed = box_loop.row(align=True)
-                    row_seed.scale_y = 1.2
-                    row_seed.alert = bool(settings.loop_is_captured and settings.loop_seed_face_index < 0
-                                          and context.active_object == obj and obj.type == 'MESH')
-                    row_seed.operator("chest.splitter_define_seed_face", text=localize_text("Escolher Região"), icon='FACESEL')
-                    draw_help_button(row_seed, "loop_region")
+            if settings.loop_is_captured:
+                row_seed = box_loop.row(align=True)
+                row_seed.scale_y = 1.2
+                row_seed.alert = bool(settings.loop_is_captured and settings.loop_seed_face_index < 0
+                                      and context.active_object == obj and obj.type == 'MESH')
+                row_seed.operator("chest.splitter_define_seed_face", text=localize_text("Escolher Região"), icon='FACESEL')
+                draw_help_button(row_seed, "loop_region")
 
-                    col_seed_hint = box_loop.column()
-                    col_seed_hint.scale_y = 0.8
-                    col_seed_hint.label(text=localize_text("Dica: Selecione apenas 1 face dentro da região desejada."), icon='INFO')
+                col_seed_hint = box_loop.column()
+                col_seed_hint.scale_y = 0.8
+                col_seed_hint.label(text=localize_text("Dica: Selecione apenas 1 face dentro da região desejada."), icon='INFO')
 
-                    if settings.loop_seed_face_index >= 0:
-                        lbl_seed = (
-                            f"Reference Region: Face #{settings.loop_seed_face_index}"
-                            if loc == 'en_US'
-                            else f"Região de Referência: Face #{settings.loop_seed_face_index}"
-                        )
-                        box_loop.label(text=lbl_seed, icon='CHECKMARK')
-
-                    lbl_loop_vc = (
-                        f"Boundary vertices: {settings.loop_vertex_count}"
+                if settings.loop_seed_face_index >= 0:
+                    lbl_seed = (
+                        f"Reference Region: Face #{settings.loop_seed_face_index}"
                         if loc == 'en_US'
-                        else f"Vértices no contorno: {settings.loop_vertex_count}"
+                        else f"Região de Referência: Face #{settings.loop_seed_face_index}"
                     )
-                    box_loop.label(text=lbl_loop_vc, icon='VERTEXSEL')
-                    if settings.loop_is_planar:
-                        lbl_planar = (
-                            f"Status: Planar ({settings.loop_planarity_deviation_mm:.2f}mm dev)"
-                            if loc == 'en_US'
-                            else f"Status: Planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)"
-                        )
-                        box_loop.label(text=lbl_planar, icon='CHECKMARK')
-                    else:
-                        lbl_non_planar = (
-                            f"Warning: Non-planar ({settings.loop_planarity_deviation_mm:.2f}mm dev)"
-                            if loc == 'en_US'
-                            else f"Aviso: Não-planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)"
-                        )
-                        box_loop.label(text=lbl_non_planar, icon='ERROR')
-                
-                    box_loop.prop(
-                        settings, 
-                        "show_loop_highlight", 
-                        text=localize_text("Destacar Contorno no Viewport"), 
-                        icon='RESTRICT_VIEW_OFF' if settings.show_loop_highlight else 'RESTRICT_VIEW_ON'
+                    box_loop.label(text=lbl_seed, icon='CHECKMARK')
+
+                lbl_loop_vc = (
+                    f"Boundary vertices: {settings.loop_vertex_count}"
+                    if loc == 'en_US'
+                    else f"Vértices no contorno: {settings.loop_vertex_count}"
+                )
+                box_loop.label(text=lbl_loop_vc, icon='VERTEXSEL')
+                if settings.loop_is_planar:
+                    lbl_planar = (
+                        f"Status: Planar ({settings.loop_planarity_deviation_mm:.2f}mm dev)"
+                        if loc == 'en_US'
+                        else f"Status: Planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)"
                     )
-
-                # Mode-specific settings follow selection; the selector never moves.
-                box_behavior = box_loop.box()
-                row_bh_title = box_behavior.row(align=True)
-                row_bh_title.label(text='3. Ajustes do corte' if loc != 'en_US' else '3. Cut settings')
-                draw_help_button(row_bh_title, "loop_extrude")
-
-                if settings.loop_behavior == 'AUTO' and settings.loop_is_captured and settings.loop_seed_face_index >= 0 and settings.loop_auto_reason:
-                    box_dec = box_behavior.box()
-                    lbl_mode = localize_text("Pela Base") if settings.loop_detected_mode == 'DETACH' else localize_text("Profundidade")
-                    lbl_auto = f"Auto Detected: {lbl_mode}" if loc == 'en_US' else f"Auto Detectado: {lbl_mode}"
-                    box_dec.label(text=lbl_auto)
-                    if settings.loop_auto_reason:
-                        col_r = box_dec.column()
-                        col_r.scale_y = 0.8
-                        col_r.label(text=localize_text(settings.loop_auto_reason))
-
-                auto_ready = bool(settings.loop_is_captured and settings.loop_seed_face_index >= 0 and settings.loop_auto_reason)
-                show_depth = (settings.loop_behavior == 'EXTRUDE') or (
-                    settings.loop_behavior == 'AUTO' and auto_ready and settings.loop_detected_mode == 'EXTRUDE'
+                    box_loop.label(text=lbl_planar, icon='CHECKMARK')
+                else:
+                    lbl_non_planar = (
+                        f"Warning: Non-planar ({settings.loop_planarity_deviation_mm:.2f}mm dev)"
+                        if loc == 'en_US'
+                        else f"Aviso: Não-planar ({settings.loop_planarity_deviation_mm:.2f}mm desvio)"
+                    )
+                    box_loop.label(text=lbl_non_planar, icon='ERROR')
+            
+                box_loop.prop(
+                    settings, 
+                    "show_loop_highlight", 
+                    text=localize_text("Destacar Contorno no Viewport"), 
+                    icon='RESTRICT_VIEW_OFF' if settings.show_loop_highlight else 'RESTRICT_VIEW_ON'
                 )
-                if show_depth:
-                    box_depth = box_behavior.box()
-                    row_depth_head = box_depth.row(align=True)
-                    row_depth_head.label(text=localize_text("Parâmetros de Profundidade:"))
-                    box_depth.prop(settings, "loop_extrude_depth_mm", text=localize_text("Profundidade (mm)"))
-                    from .geometry_loop import loop_prefers_finite_depth
-                    if settings.loop_behavior != 'AUTO' or not loop_prefers_finite_depth(settings.loop_auto_reason):
-                        box_depth.prop(settings, "loop_through_cut", text=localize_text("Corte Passante"))
 
-                show_detach_base = (settings.loop_behavior == 'DETACH') or (
-                    settings.loop_behavior == 'AUTO' and auto_ready and settings.loop_detected_mode == 'DETACH'
-                )
-                if show_detach_base:
-                    box_base = box_behavior.box()
-                    row_base_head = box_base.row(align=True)
-                    row_base_head.label(text=localize_text("Parâmetros do Corte pela Base:"))
-                    row_base = box_base.row()
-                    row_base.scale_y = 1.15
-                    row_base.prop(settings, "loop_detach_add_base", text=localize_text("Adicionar base para encaixe"))
-                    if settings.loop_detach_add_base:
-                        box_base.prop(settings, "loop_detach_base_depth_mm", text=localize_text("Profundidade da base (mm)"))
+            if (context.edit_object == obj and context.tool_settings.mesh_select_mode[2]
+                    and not settings.loop_is_captured and not settings.region_face_indices):
+                box_loop.operator('chest.splitter_capture_region',
+                                  text='Capturar faces da peça inteira' if loc != 'en_US' else 'Capture whole-piece faces')
+
+            has_region = bool(settings.region_face_indices and settings.region_target == obj)
+            if settings.loop_is_captured or has_region:
+                box_method = box_loop.box()
+                box_method.label(text='2. Escolha o tipo de corte' if loc != 'en_US' else '2. Choose the cut type')
+                box_method.prop(settings, 'loop_behavior', expand=True)
+                explanations = {
+                    'AUTO': ('Escolhe entre Pela Base e Profundidade.', 'Chooses between At Base and Depth.'),
+                    'DETACH': ('Destaca uma saliência pela ligação com o corpo.', 'Detaches a protrusion at its connection to the body.'),
+                    'EXTRUDE': ('Retira a região até uma profundidade em mm.', 'Extracts the region to a depth in mm.'),
+                    'WHOLE': ('Separa a peça inteira, sem definir profundidade.', 'Separates the whole piece without setting a depth.'),
+                }
+                box_method.label(text=explanations[settings.loop_behavior][loc == 'en_US'])
+                if settings.loop_behavior == 'WHOLE':
+                    count = sum(bool(index) for index in settings.region_face_indices.split(',')) if has_region else 0
+                    box_loop.label(text=f'{count} faces capturadas.' if loc != 'en_US' else f'{count} faces captured.')
+                    box_loop.operator('chest.splitter_capture_region',
+                                      text='Capturar seleção da peça inteira' if loc != 'en_US' else 'Capture whole-piece selection')
+                    box_loop.label(text='Gere a prévia para conferir a peça.' if loc != 'en_US' else 'Generate a preview to check the part.')
+                else:
+                    box_behavior = box_loop.box()
+                    row_bh_title = box_behavior.row(align=True)
+                    row_bh_title.label(text='3. Ajustes do corte' if loc != 'en_US' else '3. Cut settings')
+                    draw_help_button(row_bh_title, "loop_extrude")
+
+                    if settings.loop_behavior == 'AUTO' and settings.loop_is_captured and settings.loop_seed_face_index >= 0 and settings.loop_auto_reason:
+                        box_dec = box_behavior.box()
+                        lbl_mode = localize_text("Pela Base") if settings.loop_detected_mode == 'DETACH' else localize_text("Profundidade")
+                        lbl_auto = f"Auto Detected: {lbl_mode}" if loc == 'en_US' else f"Auto Detectado: {lbl_mode}"
+                        box_dec.label(text=lbl_auto)
+                        if settings.loop_auto_reason:
+                            col_r = box_dec.column()
+                            col_r.scale_y = 0.8
+                            col_r.label(text=localize_text(settings.loop_auto_reason))
+
+                    auto_ready = bool(settings.loop_is_captured and settings.loop_seed_face_index >= 0 and settings.loop_auto_reason)
+                    show_depth = (settings.loop_behavior == 'EXTRUDE') or (
+                        settings.loop_behavior == 'AUTO' and auto_ready and settings.loop_detected_mode == 'EXTRUDE'
+                    )
+                    if show_depth:
+                        box_depth = box_behavior.box()
+                        row_depth_head = box_depth.row(align=True)
+                        row_depth_head.label(text=localize_text("Parâmetros de Profundidade:"))
+                        box_depth.prop(settings, "loop_extrude_depth_mm", text=localize_text("Profundidade (mm)"))
+                        from .geometry_loop import loop_prefers_finite_depth
+                        if settings.loop_behavior != 'AUTO' or not loop_prefers_finite_depth(settings.loop_auto_reason):
+                            box_depth.prop(settings, "loop_through_cut", text=localize_text("Corte Passante"))
+
+                    show_detach_base = (settings.loop_behavior == 'DETACH') or (
+                        settings.loop_behavior == 'AUTO' and auto_ready and settings.loop_detected_mode == 'DETACH'
+                    )
+                    if show_detach_base:
+                        box_base = box_behavior.box()
+                        row_base_head = box_base.row(align=True)
+                        row_base_head.label(text=localize_text("Parâmetros do Corte pela Base:"))
+                        row_base = box_base.row()
+                        row_base.scale_y = 1.15
+                        row_base.prop(settings, "loop_detach_add_base", text=localize_text("Adicionar base para encaixe"))
+                        if settings.loop_detach_add_base:
+                            box_base.prop(settings, "loop_detach_base_depth_mm", text=localize_text("Profundidade da base (mm)"))
 
         elif settings.split_mode == 'SOLID':
             box_solid = box_split.box()

@@ -1,3 +1,12 @@
+# 0.9.16 — revisão do fluxo de contorno e encaixes — 2026-11-27
+
+- No modo Automático de Contorno de Arestas, uma peça rasa demais pela base ou uma folga incompatível com esse fechamento leva a uma tentativa com a profundidade configurada. Se a extração falhar e o corte pela base estiver válido, a extensão conserva o corte pela base.
+- Em Contorno de Arestas, escolha o tipo de corte depois de capturar o contorno ou as faces da peça.
+- Ao ativar encaixes, prepara a superfície de contato para exibir os contornos dos pinos e das folgas sem exigir uma prévia do corte. Quando há vários contatos em uma região inteira, a escolha continua explícita.
+- No editor manual, Adicionar e Mover são ações distintas. Cliques fora do contato e pinos inválidos exibem o motivo. Adicionar pelo painel preserva o ângulo da vista e procura uma posição livre na área de contato.
+- Alinhar Vista preserva o lado atual quando a vista já está alinhada. Inverter Lado e Shift+V fazem a inversão.
+- O texto de ajuda de Corte Passante explica a relação entre a profundidade, a espessura do modelo e a folga de fundo.
+
 # 0.9.15 — validação de folgas em bordas afuniladas — 2026-11-25
 
 - Corrige a rejeição de folgas em contornos cuja superfície externa se estreita após o corte. A validação continua exigindo a distância correta na região de contato e só aceita uma amostra sem superfície oposta quando o ponto esperado está fora do sólido original.

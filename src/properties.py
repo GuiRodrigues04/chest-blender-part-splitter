@@ -702,7 +702,7 @@ class ChestSplitterSettings(bpy.types.PropertyGroup):
     )
     loop_through_cut: BoolProperty(
         name="Corte Passante",
-        description="Permite que a profundidade de extração atravesse completamente o modelo",
+        description="Permite atravessar o modelo se a profundidade alcançar a face oposta. Nesse modo, a folga de fundo não é aplicada.",
         default=False,
         update=_on_param_change_mark_stale,
     )

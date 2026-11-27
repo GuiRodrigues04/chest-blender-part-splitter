@@ -699,11 +699,13 @@ def slice_mesh_by_loop(*args, **kwargs):
 
 
 def loop_prefers_finite_depth(reason):
-    """The automatic retry after a collapsed closure uses finite depth."""
+    """Keep automatic retries for thin or collapsed closures at finite depth."""
     from .localized_errors import MESSAGE_MARKER, decode_message
 
     payload = decode_message(reason)
-    return isinstance(payload, dict) and payload.get(MESSAGE_MARKER) == 'diagnostic.loop_collapse_uses_depth'
+    return isinstance(payload, dict) and payload.get(MESSAGE_MARKER) in {
+        'diagnostic.loop_collapse_uses_depth', 'diagnostic.loop_thin_base_uses_depth',
+    }
 
 
 def slice_loop_from_settings(obj, indices, settings, scene):
@@ -729,7 +731,16 @@ def slice_loop_from_settings(obj, indices, settings, scene):
         part_clearance_apply_to=settings.part_clearance_apply_to,
         part_clearance_bottom_mm=bottom_clearance(settings),
     )
+    def extract_depth(auto_reason):
+        return slice_mesh_by_loop_extrude(
+            obj, obj.name, indices, seed, depth_mm=settings.loop_extrude_depth_mm,
+            through_cut=settings.loop_through_cut and not loop_prefers_finite_depth(auto_reason),
+            scene=scene, **clearance,
+        )
+
     if mode == 'DETACH':
+        auto_without_base = settings.loop_behavior == 'AUTO' and not add_base
+        check_thin_base = auto_without_base and not analysis.get('has_holes')
         try:
             result = slice_mesh_by_loop(
                 obj, obj.name, indices, seed, scene=scene,
@@ -737,17 +748,46 @@ def slice_loop_from_settings(obj, indices, settings, scene):
                 **clearance,
             )
         except LocalizedGeometryError as error:
-            if (settings.loop_behavior != 'AUTO' or add_base
-                    or error.payload[MESSAGE_MARKER] != 'geometry.loop_closure_collapsed'):
+            key = error.payload[MESSAGE_MARKER]
+            collapsed = key == 'geometry.loop_closure_collapsed'
+            clearance_failed = check_thin_base and key in {
+                'geometry.clearance_excessive', 'geometry.clearance_unresolved',
+            }
+            if not auto_without_base or not (collapsed or clearance_failed):
                 raise
+            reason = message_payload(
+                'diagnostic.loop_collapse_uses_depth' if key == 'geometry.loop_closure_collapsed'
+                else 'diagnostic.loop_thin_base_uses_depth')
+            try:
+                result = extract_depth(reason)
+            except (ValueError, RuntimeError) as depth_error:
+                if collapsed:
+                    raise
+                raise error from depth_error
             mode = 'EXTRUDE'
-            reason = message_payload('diagnostic.loop_collapse_uses_depth')
-    if mode == 'EXTRUDE':
-        result = slice_mesh_by_loop_extrude(
-            obj, obj.name, indices, seed, depth_mm=settings.loop_extrude_depth_mm,
-            through_cut=settings.loop_through_cut and not loop_prefers_finite_depth(reason),
-            scene=scene, **clearance,
-        )
+        else:
+            if check_thin_base:
+                area = analysis.get('projected_area_mm2', 0.0)
+                volume = result.split_result.part_a_metrics['volume_mm3']
+                bottom_gap = clearance['part_clearance_bottom_mm']
+                if bottom_gap is None:
+                    bottom_gap = clearance['part_clearance_mm']
+                # A broad, curved patch can have visible relief and still close as
+                # a thin shell. Volume over footprint gives its average thickness.
+                shallow_shell = min(1.5, 0.025 * math.sqrt(area))
+                min_thickness = max(0.2, shallow_shell, 2.0 * bottom_gap)
+                if area > 0.0 and volume / area <= min_thickness:
+                    thin_reason = message_payload('diagnostic.loop_thin_base_uses_depth')
+                    try:
+                        extracted = extract_depth(thin_reason)
+                    except (ValueError, RuntimeError):
+                        pass  # Keep the valid base cut if the configured depth fails.
+                    else:
+                        for part in result:
+                            part.free()
+                        result, mode, reason = extracted, 'EXTRUDE', thin_reason
+    else:
+        result = extract_depth(reason)
     if reason is not None:
         settings.loop_detected_mode = mode
         settings.loop_auto_reason = json.dumps(reason) if isinstance(reason, dict) else reason
@@ -1617,6 +1657,10 @@ def analyze_loop_region(
         "thickness_status": thickness_status,
         "thickness_sampled_points": len(test_points),
         "thickness_hit_count": sampled_hits,
+        "projected_area_mm2": sum(
+            abs((projected[j] - projected[i]).cross(projected[k] - projected[i])) * 0.5
+            for i, j, k in triangles
+        ) * scale_to_mm ** 2,
         "max_avail_depth_mm": max_avail_depth_mm,
         "coords_world": loop_coords_world,
     }

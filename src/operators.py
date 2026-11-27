@@ -3169,54 +3169,36 @@ class CHEST_OT_splitter_add_manual_connector(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        from .connector_surface import prepare_split_candidates, evaluate_connector_specs, find_manual_pin_position
+
         settings = context.scene.chest_splitter
+        try:
+            prep = prepare_split_candidates(context, auto_contact=True)
+            position = find_manual_pin_position(prep, settings)
+        except Exception as exc:
+            from .localized_errors import render_message
+            self.report({'WARNING'}, render_message(exc))
+            return {'CANCELLED'}
+        if position is None:
+            self.report({'WARNING'}, report_msg(
+                "Nenhuma posição livre encontrada para este pino. Ajuste as dimensões ou indique uma posição no editor.",
+                "No free position was found for this pin. Adjust its dimensions or choose a position in the editor."))
+            return {'CANCELLED'}
+
         settings.connector_distribution = 'MANUAL'
         settings.connector_enabled = True
         item = settings.manual_connectors.add()
-        n = len(settings.manual_connectors)
-        item.connector_id = f"pin_{n}"
-
-        # Se já houver conectores, posiciona com offset inicial inteligente sem forçar fila
-        if n > 1:
-            prev = settings.manual_connectors[n - 2]
-            shift = settings.connector_diameter_mm + 2.0 * radial_clearance(settings) + 4.0
-            item.u_mm = prev.u_mm + shift
-            item.v_mm = prev.v_mm
-        else:
-            item.u_mm = 0.0
-            item.v_mm = 0.0
+        item.connector_id = "pin_" + uuid.uuid4().hex[:12]
+        item.u_mm, item.v_mm = position
         item.yaw_deg = 0.0
+        n = len(settings.manual_connectors)
         settings.manual_connector_index = n - 1
-        settings.session_status = 'PREVIEW_STALE'
+        if settings.session_status == 'PREVIEW_VALID':
+            settings.session_status = 'PREVIEW_STALE'
+        evaluate_connector_specs(prep, settings)
 
-        from .connector_surface import prepare_split_candidates, evaluate_connector_specs, get_cached_prepared_split
-        try:
-            prep = get_cached_prepared_split() or prepare_split_candidates(context)
-            evaluate_connector_specs(prep, settings)
-        except Exception:
-            pass
-
-        # Se houver prévia ativa na cena, regenera-a imediatamente para refletir o novo pino no modelo 3D
-        parts = get_current_session_parts(context.scene)
-        if parts:
-            try:
-                bpy.ops.chest.splitter_generate_preview()
-            except Exception:
-                pass
-
-        # Alinha a visão da Viewport 3D à superfície de corte para facilitar visualização e edição
-        try:
-            from .connector_editor import align_viewport_to_cut_surface
-            area_3d = context.area if (context.area and context.area.type == 'VIEW_3D') else None
-            if not area_3d:
-                for a in context.screen.areas:
-                    if a.type == 'VIEW_3D':
-                        area_3d = a
-                        break
-            if area_3d and prep:
-                align_viewport_to_cut_surface(area_3d, prep, settings, settings.target_object)
-        except Exception:
-            pass
+        if not settings.is_editing_connectors and get_current_session_parts(context.scene):
+            bpy.ops.chest.splitter_generate_preview()
 
         for window in context.window_manager.windows:
             for area in window.screen.areas:
